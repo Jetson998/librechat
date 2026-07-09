@@ -21,6 +21,36 @@ operations documentation, not the modified LibreChat source tree.
 
 ## Confirmed Additions Or Differences
 
+## Official Comparison Summary
+
+The live LibreChat build reports upstream commit:
+
+```text
+8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9
+```
+
+GitHub identifies this as the official `danny-avila/LibreChat` commit:
+
+```text
+fix: Preserve Fenced Markdown Artifacts (#14121)
+```
+
+Comparison result:
+
+| Area | Official LibreChat? | Our change? | Function |
+| --- | --- | --- | --- |
+| Asset recovery / RUM bootstrap | Yes | No confirmed custom change | Detect stale frontend assets, dynamic import failures, and service worker issues, then recover/reload |
+| Code Environment / Skills frontend | Yes | No confirmed core change | Official agent file/code sandbox UI and wording exists in the bundle |
+| Upload menu Chinese business wording | No | Yes | Re-label upload choices as `原文件上传`, `提取文字上传`, `用代码读取文件` |
+| Auth policy | Configurable official feature | Yes, deployment config | Close registration, keep email/password login, disable social login/password reset |
+| `/office/` Office converter | Not LibreChat core | Yes, host-level service | Protected Office document conversion fallback |
+| `/claude/` terminal | Not LibreChat core | Yes, host-level service on direct IP HTTP | Browser-accessible Claude Code terminal behind login |
+| Direct-IP Open WebUI customization | Not LibreChat core | Yes, separate app surface | Open WebUI UI polish, separate from LibreChat |
+
+Net: the only confirmed LibreChat frontend customization visible from public
+assets is the upload-label business patch. Other visible differences are
+deployment configuration or host-level adjacent services.
+
 ### 1. Business upload label patch
 
 The delivered HTML contains a custom script:
@@ -107,17 +137,22 @@ Refined check on 2026-07-09:
 - The recovery markers are present in the live root HTML.
 - Related RUM/recovery logic is also present in the bundled main JS asset.
 - The bundle calls `window.__lcRecoverStaleAssets?.()` on Vite preload errors.
+- The official `client/index.html` for commit
+  `8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9` contains the same inline recovery
+  script markers.
+- The official source tree contains RUM/recovery files such as
+  `client/src/lib/rum/bootstrap-entry.js`, `client/src/lib/rum/bootstrap.js`,
+  `client/src/lib/rum/diagnostics.ts`, and `api/server/routes/rum.js`.
 
 Interpretation:
 
-- This is confirmed as a live behavior of the current build.
-- It is not only the separate `business-upload-label-patch` appended near the
-  end of the HTML.
-- Whether it is a custom patch or already part of upstream commit
-  `8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9` still requires source-level
-  confirmation.
+- This is official LibreChat behavior in the deployed upstream commit.
+- It should not be counted as our custom modification unless a later source diff
+  shows local edits to the official RUM implementation.
+- Functionally, it improves frontend reliability after stale assets, service
+  worker problems, or failed dynamic imports.
 
-Status: confirmed present, upstream/custom ownership still pending.
+Status: official feature, not a confirmed custom change.
 
 ### 5. Code environment wording and operational workflow
 
@@ -146,16 +181,19 @@ Refined check on 2026-07-09:
   user.
 - The confirmed local customization here is the business wording layer:
   `用代码读取文件`.
+- The official tree for the same commit includes Code/Skills/Agent file
+  handling paths such as `api/server/services/Files/Code/`,
+  `api/server/services/Skills/`, and `client/src/components/Agents/`.
 
 Interpretation:
 
-- Frontend capability exists in this LibreChat build.
-- Our visible change is the Chinese operational wording.
+- Code Environment / Skills are official LibreChat capabilities in this build.
+- Our visible change is the Chinese operational wording in the upload menu.
 - Backend CodeAPI/tool execution still needs an authenticated smoke test or
   server-side service inspection.
 
-Status: frontend path visible, backend execution not confirmed from public
-checks.
+Status: official frontend capability plus custom Chinese label patch; backend
+execution not confirmed from public checks.
 
 ### 6. LibreChat-adjacent helper services
 
@@ -251,10 +289,7 @@ Recommended next checks:
    ```
 
 3. Separate pure configuration changes from source changes.
-4. Compare `client/index.html` and the frontend entrypoint against upstream
-   commit `8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9` to classify the asset
-   recovery script.
-5. Use an authenticated test account or server logs to verify whether
+4. Use an authenticated test account or server logs to verify whether
    CodeAPI/tool execution works end to end.
-6. Keep `/office/`, `/claude/`, and Open WebUI customizations documented as
+5. Keep `/office/`, `/claude/`, and Open WebUI customizations documented as
    host-level services unless source inspection proves a tighter integration.
