@@ -272,6 +272,32 @@ Follow-up root-cause diagnosis for conversation
   artifacts should continue to be saved under `/mnt/data` before LibreChat
   persists their download cards.
 
+Upload seeding deployment result on 2026-07-10 03:41 HKT:
+
+- Repository commit deployed: `131d5f9`
+  (`Seed code uploads into agent runs`).
+- Production backups created before replacement:
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710034057` and
+  `/opt/librechat/office-context-patch/api-index.cjs.bak-20260710034057`.
+- Production `BaseClient.js` hash changed from
+  `c71720f02158ce37a70b7b91ad3b52e6e38c73e16d60a3e2e03fd7e7e706fca1` to
+  `fa7ee754510571ca0ae2e889e5f409dd3aee693b7ffccdd581f472f022f20d69`.
+- Production `api-index.cjs` hash changed from
+  `c0ed7ead6a3bed4c1ce399c76eb320ed58bbc4e1e2097d891a46cc8e1ff76aec` to
+  `197758d211c4d645c4372bcb624744461ab67afdf7efb4f70f8cd9d6b927ead2`.
+- Container checks passed:
+  `docker exec LibreChat-API node --check /app/packages/api/dist/index.cjs`
+  and
+  `docker exec LibreChat-API node --check /app/api/app/clients/BaseClient.js`.
+- Post-restart production markers present:
+  `const initialSessions = buildInitialToolSessions`, `initialSessions,`,
+  `OFFICE_FILE_MISSING_RESPONSE_RE`, and
+  `isOfficePptModelMissingFileFallbackCandidate`.
+- Container health after restart: `LibreChat-API` up, `LibreChat-CodeAPI`
+  healthy, `LibreChat-NGINX` up.
+- HTTP smoke: root returned `HTTP/2 200`; `/api/config` returned JSON;
+  `/office/` returned `HTTP/2 401` with `realm="Office Converter"`.
+
 Deployment result on 2026-07-10 02:19 HKT:
 
 - Repository commit deployed: `df2eb11` (`Emit live deterministic PPT attachments`).

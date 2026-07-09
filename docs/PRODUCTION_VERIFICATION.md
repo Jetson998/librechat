@@ -198,6 +198,22 @@ Operational interpretation:
   `node --check` passed for both JS files, guard/preflight markers were present,
   `LibreChat-CodeAPI` was healthy, and server-local `/api/config` returned
   JSON.
+- Office upload seeding fix was deployed on 2026-07-10 03:41 HKT after commit
+  `131d5f9` was pushed. It archives and patches the production
+  `/app/packages/api/dist/index.cjs` bind mount so
+  `initializedAgent.primedCodeFiles` is passed into `createRun.initialSessions`
+  before the first Bash/code call. Backups:
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710034057` and
+  `/opt/librechat/office-context-patch/api-index.cjs.bak-20260710034057`.
+  Checksums changed to
+  `fa7ee754510571ca0ae2e889e5f409dd3aee693b7ffccdd581f472f022f20d69`
+  (`BaseClient.js`) and
+  `197758d211c4d645c4372bcb624744461ab67afdf7efb4f70f8cd9d6b927ead2`
+  (`api-index.cjs`). Verification confirmed container `node --check` passed
+  for `/app/packages/api/dist/index.cjs` and
+  `/app/api/app/clients/BaseClient.js`, production markers were present,
+  root returned `HTTP/2 200`, `/api/config` returned JSON, and `/office/`
+  returned `HTTP/2 401` with `realm="Office Converter"`.
 - Existing bloated unsafe tool outputs in conversation
   `b214cc21-95bb-4721-979d-893f637b094f` should be redacted with repository
   script
