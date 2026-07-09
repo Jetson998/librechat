@@ -132,6 +132,11 @@ General generated-artifact file-card fix deployed on 2026-07-10 after commit
 the deterministic PPT route to all assistant-generated downloadable artifacts
 that have a `file_id`.
 
+CodeAPI session enumeration guard deployed on 2026-07-10 after commits
+`14e17fe` and `ec8179a` were pushed to `origin/main`. The guard preserves
+current-message `/mnt/data` files while blocking global CodeAPI session storage
+enumeration.
+
 Production write performed:
 
 ```text
@@ -145,6 +150,9 @@ Backup created before replacement:
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710011244
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710014142
+/opt/librechat/office-context-patch/BaseClient.js.bak-20260710020149
+/opt/librechat/office-context-patch/ToolService.js.bak-20260710020149
+/opt/librechat/librechat.yaml.bak-20260710020149
 ```
 
 Observed checksums:
@@ -158,6 +166,9 @@ file-card before: 8f21565c7941774d20b2164cc0f3096b55048c5cb0a74e3332164588cb49d8
 file-card after:  1ef62a50021491d4a962376e99e50ecdeeba19da1c405553ec5189cecd8291c3
 general file-card before: 1ef62a50021491d4a962376e99e50ecdeeba19da1c405553ec5189cecd8291c3
 general file-card after:  774120c7ecc38897887f41bf7a676f55b4f179b955f456569e8bced42a80ff34
+storage guard BaseClient after:  fd406df87154d26ef2ef6caeb4a4125d5ad82c2e5a4eaf1e2db8239ced6bbcdf
+storage guard ToolService after: 29d117046ed8ed7c9f8880b222b452fc3f4b096d7bad5ba346f935602118e0cd
+storage guard librechat.yaml after: 3da74bf821b7cc26b1b449b3e93138a0f33ab28a3d70bd258a03a4a2fa7c1f14
 ```
 
 Post-deployment verification:
@@ -177,6 +188,7 @@ matched `e1a6d20b-89e6-428a-9e7b-9f3369d4333b`
 General file-card markers present in production BaseClient.js:
 isDownloadableMessageFile, appendDownloadableMessageFiles,
 artifactAttachments, responseMessage.files
+Storage guard markers present in production ToolService.js and prompt config.
 ```
 
 End-to-end user upload verification passed in fresh LibreChat conversation
@@ -207,6 +219,10 @@ End-to-end user upload verification passed in fresh LibreChat conversation
   `scripts/backfill-generated-attachment-files.js`, which copies any
   downloadable assistant attachment into `message.files` while ignoring
   display-only tool attachments such as search and UI resources.
+- Old conversations that already saved global CodeAPI session listings can be
+  repaired with `scripts/redact-unsafe-codeapi-session-tool-outputs.js`, which
+  redacts unsafe tool-call arguments and outputs for one specified
+  conversation/message.
 
 ## Feature / Function List
 

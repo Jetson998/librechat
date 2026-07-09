@@ -183,6 +183,26 @@ Operational interpretation:
   now includes `做出`, `做成`, `做一张`, and `做一份` so these Office/PPT
   requests go through deterministic backend generation instead of model-led
   global file discovery.
+- CodeAPI session enumeration guard was deployed on 2026-07-10 02:01 HKT after
+  commits `14e17fe` and `ec8179a` were pushed. Backups:
+  `/opt/librechat/librechat.yaml.bak-20260710020149`,
+  `/opt/librechat/office-context-patch/ToolService.js.bak-20260710020149`,
+  and `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710020149`.
+  Checksums changed to
+  `3da74bf821b7cc26b1b449b3e93138a0f33ab28a3d70bd258a03a4a2fa7c1f14`
+  (`librechat.yaml`),
+  `29d117046ed8ed7c9f8880b222b452fc3f4b096d7bad5ba346f935602118e0cd`
+  (`ToolService.js`), and
+  `fd406df87154d26ef2ef6caeb4a4125d5ad82c2e5a4eaf1e2db8239ced6bbcdf`
+  (`BaseClient.js`). Production verification confirmed container
+  `node --check` passed for both JS files, guard/preflight markers were present,
+  `LibreChat-CodeAPI` was healthy, and server-local `/api/config` returned
+  JSON.
+- Existing bloated unsafe tool outputs in conversation
+  `b214cc21-95bb-4721-979d-893f637b094f` should be redacted with repository
+  script
+  `deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/redact-unsafe-codeapi-session-tool-outputs.js`
+  before continuing that same conversation.
 - Follow-up deployment on 2026-07-10 01:24 HKT replaced production
   `BaseClient.js` after commit `b15b743` was pushed. Backup:
   `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446`.
