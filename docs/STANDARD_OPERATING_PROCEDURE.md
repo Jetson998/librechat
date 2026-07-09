@@ -8,7 +8,7 @@ Production URL:
 https://152.32.172.162.sslip.io/
 ```
 
-Last external verification in this project: 2026-07-09.
+Last external verification in this project: 2026-07-10.
 
 ## 1. Scope
 

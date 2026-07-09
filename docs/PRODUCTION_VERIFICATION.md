@@ -6,7 +6,7 @@ Target:
 https://152.32.172.162.sslip.io/
 ```
 
-Verification date: 2026-07-09
+Verification date: 2026-07-10
 
 ## External Checks
 
@@ -117,11 +117,17 @@ Operational interpretation:
   by conversation `29d2e4e5-6007-4874-896a-413a025c1c0b`.
 - Repository patch
   `deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/`
-  adds the intended next behavior: when an empty PPT turn has a CodeAPI-backed
-  Office attachment, the backend calls CodeAPI `/exec` directly, generates a
-  PPTX, saves it into LibreChat uploads, creates a `db.files` row, and attaches
-  it to the assistant message. Production verification is required after this
-  patch is deployed.
+  was deployed after commit `73420d3` was pushed to `origin/main`. When an
+  empty PPT turn has a CodeAPI-backed Office attachment, the backend calls
+  CodeAPI `/exec` directly, generates a PPTX, saves it into LibreChat uploads,
+  creates a `db.files` row, and attaches it to the assistant message.
+- Deployment verification on 2026-07-10 confirmed:
+  `BaseClient.js` marker present, container `node --check` passed, root URL
+  returned `HTTP/2 200`, `/api/config` returned JSON, `LibreChat-API` was up,
+  and `LibreChat-CodeAPI` was healthy. The pre-replacement backup is
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710003919`.
+- A fresh user-facing Excel upload and PPT generation test remains the final
+  functional verification step.
 - Incident `4865a297-3013-40e5-b77a-c5958d79ef16` was repaired by generating
   `API渠道模型来源说明_基础版.pptx` from the uploaded workbook in CodeAPI and
   attaching it to the previously blank assistant message.

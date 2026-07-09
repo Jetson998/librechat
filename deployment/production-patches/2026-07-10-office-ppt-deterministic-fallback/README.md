@@ -5,7 +5,7 @@ Date: 2026-07-10
 Repository status:
 
 ```text
-Must be committed and pushed to origin/main before any production write.
+Committed and pushed to origin/main before production write.
 ```
 
 Production target:
@@ -84,6 +84,46 @@ empty Office/PPT generation turns:
 
 The older prompt-retry behavior remains only for non-deterministic Office
 generation cases that do not match the PPT fallback path.
+
+## Deployment Result
+
+Deployed to production on 2026-07-10 after commit `73420d3` was pushed to
+`origin/main`.
+
+Production write performed:
+
+```text
+/opt/librechat/office-context-patch/BaseClient.js
+```
+
+Backup created before replacement:
+
+```text
+/opt/librechat/office-context-patch/BaseClient.js.bak-20260710003919
+```
+
+Observed checksums:
+
+```text
+before: 23915ea0f6fb84fb1c554417a4c0ad0b1a008b941d2a98ff77e7c40c748c230f
+after:  db4638270ae7cb48eafa67a67258d44cba3971edb502001fb229d33f5b6041d8
+```
+
+Post-deployment verification:
+
+```text
+node --check /app/api/app/clients/BaseClient.js: passed
+root URL: HTTP/2 200
+/api/config: 200 JSON
+LibreChat-API: Up
+LibreChat-CodeAPI: Up, healthy
+LibreChat-NGINX: Up
+Runtime exports: buildCodeEnvDownloadQuery/getCodeApiAuthHeaders available
+```
+
+End-to-end user upload verification is still expected in a fresh LibreChat
+conversation by choosing `Office文件上传`, uploading an Excel file, and asking
+for PPTX output.
 
 ## Feature / Function List
 

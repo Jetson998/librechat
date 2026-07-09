@@ -201,7 +201,7 @@ Refined check on 2026-07-09:
   names such as `Glob`, `Read`, `Edit`, and `LS`.
 - The production patch layer includes an Office/PPT empty response guard. The
   2026-07-09 version retried with an explicit Bash/Python instruction and saved
-  a visible fallback instead of a blank row. The 2026-07-10 repository patch
+  a visible fallback instead of a blank row. The 2026-07-10 deployed patch
   upgrades PPT failures to a deterministic backend route: detect empty PPT
   generation with `metadata.codeEnvRef`, call CodeAPI `/exec`, save the
   generated `.pptx` into LibreChat uploads, create the `db.files` row, and
