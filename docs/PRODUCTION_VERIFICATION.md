@@ -81,3 +81,27 @@ Upload to Code Environment -> 用代码读取文件
 
 Recheck this after frontend rebuilds, asset cleanup, or upstream LibreChat
 updates.
+
+## Office/Excel Reader Backend
+
+The LibreChat HTTPS hostname exposes a protected Office converter route:
+
+```text
+https://152.32.172.162.sslip.io/office/
+```
+
+Observed unauthenticated boundary:
+
+```text
+HTTP/2 401
+WWW-Authenticate: Basic realm="Office Converter"
+```
+
+Operational meaning:
+
+- This is our deployment-level backend capability for reading Office documents,
+  especially Excel/XLSX workbooks, before passing extracted content back into a
+  LibreChat workflow.
+- It is not an upstream LibreChat core route.
+- Keep the 401 boundary in place; authenticate before using it with private
+  workbooks.

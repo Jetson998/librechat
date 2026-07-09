@@ -36,6 +36,7 @@ curl -k -L https://152.32.172.162.sslip.io/api/config
 - [ ] Simple chat returns non-empty content.
 - [ ] File upload still works if upload UI or backend changed.
 - [ ] Code execution works if code environment changed.
+- [ ] `/office/` reads a small XLSX workbook if Office/Excel backend changed.
 - [ ] Runtime Chinese labels still show if frontend assets changed.
 - [ ] Rollback path remains available.
 

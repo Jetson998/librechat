@@ -43,11 +43,12 @@ Comparison result:
 | Upload menu Chinese business wording | No | Yes | Re-label upload choices as `原文件上传`, `提取文字上传`, `用代码读取文件` |
 | Auth policy | Configurable official feature | Yes, deployment config | Close registration, keep email/password login, disable social login/password reset |
 | Public domain / noindex headers | Deployment concern | Yes, deployment config | Expose LibreChat on `sslip.io` HTTPS and discourage indexing |
-| `/office/` Office converter | Not LibreChat core | Yes, LibreChat-host deployment route | Protected Office document conversion fallback |
+| `/office/` Office/Excel reader backend | Not LibreChat core | Yes, LibreChat-host backend capability | Protected Office document extraction service for Excel/XLSX reading and DOCX/PPTX-style preprocessing |
 
 Net: the only confirmed LibreChat frontend customization visible from public
 assets is the upload-label business patch. Other visible differences are
-deployment configuration or a deployment-level helper route.
+deployment configuration or deployment-level backend helpers that support the
+LibreChat workflow.
 
 Open WebUI / WebAI customizations on other hostnames are intentionally excluded
 from this audit.
@@ -198,18 +199,25 @@ Interpretation:
 Status: official frontend capability plus custom Chinese label patch; backend
 execution not confirmed from public checks.
 
-### 6. LibreChat deployment helper route
+### 6. Office/Excel reader backend
 
-The LibreChat HTTPS hostname exposes one helper route that is not part of
-official LibreChat core:
+The LibreChat HTTPS hostname exposes one protected backend route for reading
+Office documents:
 
 ```text
 /office/
 ```
 
-Known role:
+Known role in this LibreChat deployment:
 
-- `/office/`: Office document conversion fallback.
+- `/office/`: Office document extraction/conversion backend used to help
+  LibreChat process files that are awkward or unreliable through normal chat
+  attachments.
+- Primary business use case: read Excel/XLSX files and turn workbook content
+  into text/Markdown that can be reviewed, summarized, or pasted back into a
+  LibreChat conversation.
+- Same backend pattern can support Office preprocessing for DOCX/PPTX workflows
+  when needed.
 
 Refined check on 2026-07-09:
 
@@ -220,14 +228,28 @@ Refined check on 2026-07-09:
 
 Interpretation:
 
-- `/office/` is a confirmed LibreChat-host deployment route, protected by Basic
-  Auth.
-- It is not an official LibreChat core route.
+- `/office/` is a confirmed LibreChat-host backend capability, protected by
+  Basic Auth.
+- It is not an official LibreChat core route, but it is part of our practical
+  LibreChat file-reading workflow.
+- Its purpose is to bridge the gap between LibreChat chat attachments and
+  structured Office files, especially Excel/XLSX, when the model/provider or
+  Code Environment path cannot reliably see or parse the original file.
 - `/claude/` and `/claude-login/` are not counted as LibreChat changes because
   the LibreChat HTTPS hostname serves the normal SPA for those paths.
 
-Status: one helper route confirmed under the LibreChat host; scoped as a
-deployment addition, not a LibreChat source modification.
+Operational workflow:
+
+1. Use `/office/` for Excel/XLSX files when direct LibreChat upload does not
+   expose usable workbook content to the model or code environment.
+2. Convert/extract the Office document through the protected backend.
+3. Feed the extracted text/Markdown/table content back into LibreChat for
+   analysis, summarization, issue-log review, or follow-up drafting.
+4. Treat the original workbook as private data; do not store converted outputs
+   in this repository unless they are sanitized.
+
+Status: confirmed deployment-level LibreChat backend capability; not an
+upstream LibreChat source modification.
 
 ## What Still Looks Like Upstream
 
@@ -276,7 +298,7 @@ Recommended next checks:
 3. Separate pure configuration changes from source changes.
 4. Use an authenticated test account or server logs to verify whether
    CodeAPI/tool execution works end to end.
-5. Keep `/office/` documented as a LibreChat-host helper route, not a core
-   source modification.
+5. Keep `/office/` documented as the LibreChat-host Office/Excel reader backend,
+   not a core source modification.
 6. Keep Open WebUI / WebAI and direct-IP-only routes out of this LibreChat
    comparison.

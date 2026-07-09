@@ -34,6 +34,8 @@ Externally verified on 2026-07-09:
 - Social login providers are disabled.
 - Build info reports commit `8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9`
   on branch `main`, built at `2026-07-05T16:06:59Z`.
+- `/office/` is a protected deployment-level Office/Excel reader backend used
+  to extract workbook/document content for LibreChat workflows.
 - The delivered HTML includes a runtime upload-label patch that maps LibreChat
   upload choices into clearer Chinese labels, including:
   - `Upload to Provider` -> `原文件上传`
@@ -77,7 +79,8 @@ Optional deeper checks after releases:
 
 - Upload a small text file and verify normal attachment behavior.
 - If code execution is enabled, run a tiny calculation such as `2 + 2`.
-- If Office/document conversion is used, test one small DOCX/XLSX/PPTX file.
+- If Office/document conversion is used, test one small XLSX workbook and one
+  representative DOCX/PPTX file when relevant.
 
 ## 5. Change Intake
 
@@ -175,7 +178,45 @@ Operational rules:
 - If a conversation returns empty content after an upload, inspect backend logs
   and saved message metadata before assuming the model is slow.
 
-## 10. Frontend Runtime Patches
+## 10. Office/Excel Reader Backend
+
+The `/office/` route is a deployment-level backend capability for LibreChat
+workflows. It is not upstream LibreChat core code, but it is part of our
+practical file-reading stack.
+
+Current public check:
+
+```sh
+curl -k -I https://152.32.172.162.sslip.io/office/
+```
+
+Expected boundary:
+
+```text
+HTTP/2 401
+WWW-Authenticate: Basic realm="Office Converter"
+```
+
+Use this backend when:
+
+- An Excel/XLSX workbook needs to be read before analysis in LibreChat.
+- A normal LibreChat attachment is visible in chat but not available to the
+  code/tool environment.
+- The provider path cannot reliably parse the original Office file.
+- DOCX/PPTX content needs to be converted into text/Markdown before model
+  analysis.
+
+Operating rules:
+
+- Treat uploaded Office files as private user data.
+- Prefer sanitized extracted text/table content when moving information back
+  into LibreChat.
+- After deployment changes, verify with a small XLSX workbook before trusting
+  the route for production Excel analysis.
+- Do not document real workbook contents, request payloads, or extracted private
+  data in this repository.
+
+## 11. Frontend Runtime Patches
 
 Runtime patches are allowed for small wording or UX fixes, but they must be:
 
@@ -187,7 +228,7 @@ Runtime patches are allowed for small wording or UX fixes, but they must be:
 For the upload-label patch, verify the menu still shows the intended Chinese
 labels after each frontend rebuild or asset refresh.
 
-## 11. Incident Response
+## 12. Incident Response
 
 ### Blank Page Or Asset Failure
 
@@ -225,7 +266,7 @@ labels after each frontend rebuild or asset refresh.
 4. If code execution is unavailable, use a separate trusted document-conversion
    path rather than pretending the file reached the tool environment.
 
-## 12. Rollback
+## 13. Rollback
 
 Rollback order for production incidents:
 
@@ -237,7 +278,7 @@ Rollback order for production incidents:
 After rollback, run the same checks as a normal release and document the
 incident.
 
-## 13. Security Rules
+## 14. Security Rules
 
 - Treat uploaded files and chat logs as private user data.
 - Do not export production conversations into this repository.
@@ -247,7 +288,7 @@ incident.
 - Rotate any secret that appears in a document, terminal output, screenshot, or
   chat transcript intended for external sharing.
 
-## 14. Documentation Maintenance
+## 15. Documentation Maintenance
 
 Update this SOP when:
 
