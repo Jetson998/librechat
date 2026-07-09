@@ -154,6 +154,20 @@ Operational interpretation:
   `responseMessage.attachments`. The 2026-07-10 follow-up patch mirrors
   deterministic PPT outputs into `responseMessage.files` so the frontend
   renders a normal downloadable file card.
+- Follow-up deployment on 2026-07-10 01:24 HKT replaced production
+  `BaseClient.js` after commit `b15b743` was pushed. Backup:
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446`.
+  Checksum changed from
+  `8f21565c7941774d20b2164cc0f3096b55048c5cb0a74e3332164588cb49d8c0` to
+  `1ef62a50021491d4a962376e99e50ecdeeba19da1c405553ec5189cecd8291c3`.
+  Production verification confirmed container `node --check` passed,
+  `responseMessage.files` and `shouldAddFileContext` markers were present, and
+  server-local `/api/config` returned JSON.
+- Existing message `bee83a55-99a5-4a8b-8230-c4f1a9627308` in conversation
+  `d512f145-574e-4a91-8bda-b047c10c07e9` was backfilled with
+  `files[0].file_id: e1a6d20b-89e6-428a-9e7b-9f3369d4333b` using the
+  repository script
+  `deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/backfill-deterministic-ppt-message-files.js`.
 - Incident `4865a297-3013-40e5-b77a-c5958d79ef16` was repaired by generating
   `API渠道模型来源说明_基础版.pptx` from the uploaded workbook in CodeAPI and
   attaching it to the previously blank assistant message.

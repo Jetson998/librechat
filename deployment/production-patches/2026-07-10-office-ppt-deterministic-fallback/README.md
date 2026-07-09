@@ -118,6 +118,12 @@ Deployed to production on 2026-07-10 after commit `73420d3` was pushed to
 Follow-up preflight and duplicate-filename fix deployed on 2026-07-10 after
 commit `883ac36` was pushed to `origin/main`.
 
+Follow-up file-card visibility fix deployed on 2026-07-10 after commit
+`b15b743` was pushed to `origin/main`. Existing pre-fix message
+`bee83a55-99a5-4a8b-8230-c4f1a9627308` in conversation
+`d512f145-574e-4a91-8bda-b047c10c07e9` was backfilled after commit `87e475a`
+was pushed to `origin/main`.
+
 Production write performed:
 
 ```text
@@ -129,6 +135,7 @@ Backup created before replacement:
 ```text
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710003919
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710011244
+/opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446
 ```
 
 Observed checksums:
@@ -138,6 +145,8 @@ before: 23915ea0f6fb84fb1c554417a4c0ad0b1a008b941d2a98ff77e7c40c748c230f
 after:  db4638270ae7cb48eafa67a67258d44cba3971edb502001fb229d33f5b6041d8
 preflight before: db4638270ae7cb48eafa67a67258d44cba3971edb502001fb229d33f5b6041d8
 preflight after:  8f21565c7941774d20b2164cc0f3096b55048c5cb0a74e3332164588cb49d8c0
+file-card before: 8f21565c7941774d20b2164cc0f3096b55048c5cb0a74e3332164588cb49d8c0
+file-card after:  1ef62a50021491d4a962376e99e50ecdeeba19da1c405553ec5189cecd8291c3
 ```
 
 Post-deployment verification:
@@ -151,6 +160,9 @@ LibreChat-CodeAPI: Up, healthy
 LibreChat-NGINX: Up
 Runtime exports: buildCodeEnvDownloadQuery/getCodeApiAuthHeaders available
 Preflight marker present in production BaseClient.js
+File-card markers present in production BaseClient.js
+Backfill result: message.files[0].file_id and message.attachments[0].file_id
+matched `e1a6d20b-89e6-428a-9e7b-9f3369d4333b`
 ```
 
 End-to-end user upload verification passed in fresh LibreChat conversation
