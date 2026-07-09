@@ -285,6 +285,33 @@ Second follow-up diagnosis on 2026-07-10 02:24 HKT for conversation
   specified assistant message by adding the lightweight tool-call content block
   and aligning `attachments/files[].toolCallId` for the generated file.
 
+Second deployment/backfill result on 2026-07-10 02:35 HKT:
+
+- Repository commit deployed: `ef2ae4a`
+  (`Render deterministic PPT attachments via tool content`).
+- Production backup created before replacement:
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710023323`.
+- Production `BaseClient.js` hash changed from
+  `de1244004246815b4b846a5b3ea0d59529247d2536f8232ed94bba4202d59510` to
+  `bf95d899075c293fd093e8fb257fc64b47bb1f228ecadb869a642084c11835ff`.
+- `docker exec LibreChat-API node --check /app/api/app/clients/BaseClient.js`
+  passed before restart and after deployment verification.
+- Post-restart production markers present:
+  `getGeneratedAttachmentToolCallId`, `buildGeneratedAttachmentContent`, and
+  `deterministic_office_ppt_fallback`.
+- Backfilled conversation `fe8d7f54-8bbd-4786-b7a1-d4618f83ba35`, assistant
+  message `a709f5cb-8ead-4b21-be0d-2f277ce21b72`: `matched: 1`,
+  `updated: 1`, generated file `eb4a7313-bbef-43ab-aae6-e9cc0adf3948`
+  (`API渠道模型来源说明_基础版_a709f5cb.pptx`).
+- Read-back verification showed `contentTypes: ['text', 'tool_call']` and the
+  same `toolCallId` on the content tool call, `attachments[0]`, and `files[0]`:
+  `office_ppt_deterministic_fallback_eb4a7313-bbef-43ab-aae6-e9cc0adf3948`.
+- HTTP smoke: root returned `200`; `/office/` returned `401`, matching the
+  protected Office Converter helper route.
+- Browser visual verification could not complete from the automation session
+  because the claimed tab redirected to `/login?redirect_to=...`; no password or
+  session data was entered. Backend and Mongo verification completed.
+
 ## Feature / Function List
 
 - Stable PPT output when the model returns empty content after an Office/PPT
