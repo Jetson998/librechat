@@ -225,6 +225,19 @@ Operational interpretation:
 - Incident `4865a297-3013-40e5-b77a-c5958d79ef16` was repaired by generating
   `API渠道模型来源说明_基础版.pptx` from the uploaded workbook in CodeAPI and
   attaching it to the previously blank assistant message.
+- Follow-up deployment on 2026-07-10 03:15 HKT after commit `d5325cf` added a
+  generic `.pptx` transform fallback for visual/theme/layout requests and fixed
+  the code-execution storage guard return shape for `content_and_artifact` tools.
+  Production backups were:
+  `/opt/librechat/librechat.yaml.bak-20260710031519`,
+  `/opt/librechat/office-context-patch/ToolService.js.bak-20260710031519`, and
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710031519`.
+  Post-restart verification confirmed container `node --check` passed for
+  `BaseClient.js` and `ToolService.js`, markers `PPT/PPTX transform request`,
+  `officePptTransformFallback`, `deterministic_office_ppt_transform`, and
+  `buildCodeExecutionStorageGuardOutput` were present, root returned
+  `HTTP/2 200`, `/api/config` returned JSON, `/office/` returned `401`, and
+  `LibreChat-CodeAPI` remained healthy.
 
 ## Office/Excel Reader Backend
 

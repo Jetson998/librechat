@@ -360,6 +360,41 @@ Repository fix plan for this follow-up:
   deterministic transform fallback intentionally handles `.pptx` only. `.ppt`
   conversion should be added as a separate LibreOffice conversion step if needed.
 
+Third deployment result on 2026-07-10 03:15 HKT:
+
+- Repository commit deployed: `d5325cf`
+  (`Add PPTX transform fallback`), pushed to `origin/main` before production
+  write.
+- Production backups created before replacement:
+  - `/opt/librechat/librechat.yaml.bak-20260710031519`
+  - `/opt/librechat/office-context-patch/ToolService.js.bak-20260710031519`
+  - `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710031519`
+- Production hashes changed:
+  - `BaseClient.js`: `bf95d899075c293fd093e8fb257fc64b47bb1f228ecadb869a642084c11835ff`
+    -> `c71720f02158ce37a70b7b91ad3b52e6e38c73e16d60a3e2e03fd7e7e706fca1`
+  - `ToolService.js`: `29d117046ed8ed7c9f8880b222b452fc3f4b096d7bad5ba346f935602118e0cd`
+    -> `93e0e394b91a741655d0fc53b862d6b4900024d34ae544380760d933a3e41990`
+  - `librechat.yaml` stayed
+    `3da74bf821b7cc26b1b449b3e93138a0f33ab28a3d70bd258a03a4a2fa7c1f14`.
+- Deployment script ran `docker exec LibreChat-API node --check` for both
+  `/app/api/app/clients/BaseClient.js` and
+  `/app/api/server/services/ToolService.js`; both passed.
+- Post-restart production marker verification found:
+  `PPT/PPTX transform request`, `officePptTransformFallback`,
+  `deterministic_office_ppt_transform`, and
+  `buildCodeExecutionStorageGuardOutput`.
+- Container verification after restart:
+  `LibreChat-API` up, `LibreChat-CodeAPI` healthy, `LibreChat-NGINX` up,
+  `LibreChat-RAG-API` up.
+- HTTP verification after deployment:
+  root returned `HTTP/2 200`, `/api/config` returned `200 application/json`, and
+  `/office/` returned `HTTP/2 401` with
+  `WWW-Authenticate: Basic realm="Office Converter"`.
+- Local template smoke test extracted `buildOfficePptTransformPython` from this
+  patched `BaseClient.js`, transformed a temporary one-slide PPTX with prompt
+  `换成科技风风格的 ppt`, reopened the generated file with `python-pptx`, and
+  confirmed `slides 1`.
+
 ## Feature / Function List
 
 - Stable PPT output when the model returns empty content after an Office/PPT
