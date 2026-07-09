@@ -245,6 +245,24 @@ Follow-up diagnosis for the same conversation on 2026-07-10 02:11 HKT:
   resumable mode it publishes through `GenerationJobManager.emitChunk` using the
   conversation id stream.
 
+Deployment result on 2026-07-10 02:19 HKT:
+
+- Repository commit deployed: `df2eb11` (`Emit live deterministic PPT attachments`).
+- Production backup created before replacement:
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710021923`.
+- Production `BaseClient.js` hash changed from
+  `fd406df87154d26ef2ef6caeb4a4125d5ad82c2e5a4eaf1e2db8239ced6bbcdf` to
+  `de1244004246815b4b846a5b3ea0d59529247d2536f8232ed94bba4202d59510`.
+- `docker exec LibreChat-API node --check /app/api/app/clients/BaseClient.js`
+  passed before restart.
+- Post-restart verification found production markers:
+  `GenerationJobManager`, `emitGeneratedAttachmentEvent`, and the
+  `GenerationJobManager.emitChunk` call in `/app/api/app/clients/BaseClient.js`.
+- Container health after restart: `LibreChat-API` up, `LibreChat-CodeAPI`
+  healthy, `LibreChat-NGINX` up.
+- HTTP smoke: root returned `200`; `/office/` returned `401`, matching the
+  protected Office Converter helper route.
+
 ## Feature / Function List
 
 - Stable PPT output when the model returns empty content after an Office/PPT
