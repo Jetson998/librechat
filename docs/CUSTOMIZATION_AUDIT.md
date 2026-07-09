@@ -40,7 +40,7 @@ Comparison result:
 | --- | --- | --- | --- |
 | Asset recovery / RUM bootstrap | Yes | No confirmed custom change | Detect stale frontend assets, dynamic import failures, and service worker issues, then recover/reload |
 | Code Environment / Skills frontend | Yes | No confirmed core change | Official agent file/code sandbox UI and wording exists in the bundle |
-| Upload menu Chinese business wording | No | Yes | Re-label upload choices as `原文件上传`, `提取文字上传`, `用代码读取文件` |
+| Upload menu Chinese business wording and guards | No | Yes | Re-label upload choices as `图片上传`, `Office文件上传`, `文件提取文字上传` and add client-side file-type guards |
 | Auth policy | Configurable official feature | Yes, deployment config | Close registration, keep email/password login, disable social login/password reset |
 | Public domain / noindex headers | Deployment concern | Yes, deployment config | Expose LibreChat on `sslip.io` HTTPS and discourage indexing |
 | `/office/` Office/Excel reader backend | Not LibreChat core | Yes, LibreChat-host backend capability | Protected Office document extraction service for Excel/XLSX reading and DOCX/PPTX-style preprocessing |
@@ -63,19 +63,27 @@ The delivered HTML contains a custom script:
 business-upload-label-patch
 ```
 
-It rewrites LibreChat upload menu labels into clearer Chinese business labels:
+It rewrites LibreChat upload menu labels into clearer Chinese business labels
+and applies client-side file-type guards:
 
 ```text
-Upload to Provider -> 原文件上传
-Upload as Text -> 提取文字上传
-Upload to Code Environment -> 用代码读取文件
+Upload to Provider -> 图片上传
+Upload to Code Environment -> Office文件上传
+Upload as Text -> 文件提取文字上传
 ```
 
 Effect:
 
 - This is a frontend UX patch.
 - It helps operators choose the correct upload path.
-- It does not by itself change upload backend behavior.
+- It adds short menu descriptions:
+  `仅图片；用于截图、照片、图像识别`,
+  `Word/Excel/PPT 原文件；可读写并返回文件`, and
+  `转成文本给模型分析；适合审阅总结`.
+- It blocks common wrong-route uploads before the request reaches the backend:
+  images only for `图片上传`; DOCX/XLSX/XLSM/PPT/PPTX/CSV/TSV/ODS/ODP for
+  `Office文件上传`; document, table, PDF, and text-like files for
+  `文件提取文字上传`.
 
 ### 2. Production auth policy
 
@@ -160,10 +168,10 @@ Status: official feature, not a confirmed custom change.
 
 ### 5. Code environment wording and operational workflow
 
-The upload label patch explicitly exposes the code-environment path as:
+The upload menu patch explicitly exposes the code-environment path as:
 
 ```text
-用代码读取文件
+Office文件上传
 ```
 
 Prior operational notes for this deployment family show that code-environment
@@ -174,6 +182,9 @@ Known operational distinction:
 
 - A normal local attachment can exist without reaching `tool_resources.execute_code`.
 - A fresh code execution smoke test is needed to prove the backend path works.
+- For this deployment, authenticated CodeAPI smoke tests confirmed Excel
+  tooling and real PPTX generation: `python-pptx` can write `.pptx` files under
+  `/mnt/data` and return them as artifacts.
 
 Refined check on 2026-07-09:
 
@@ -183,8 +194,18 @@ Refined check on 2026-07-09:
 - Unauthenticated `/api/endpoints` and `/api/models` return `No auth token`, so
   public checks cannot confirm which models/tools are enabled for a logged-in
   user.
-- The confirmed local customization here is the business wording layer:
-  `用代码读取文件`.
+- The confirmed local customization here is the business wording and guard
+  layer: `图片上传`, `Office文件上传`, and `文件提取文字上传`.
+- The model prompt is also customized to steer Office generation through the
+  available code tool (`Bash`) and away from unsupported Claude Code helper
+  names such as `Glob`, `Read`, `Edit`, and `LS`.
+- The production `office-context-patch/BaseClient.js` adds an Office/PPT empty
+  response retry guard: an empty assistant completion for Office/PPT generation
+  is retried once with an explicit Bash/Python instruction; if still empty, a
+  visible fallback message is saved instead of a blank row.
+- The deployment `office-document-parser` skill is extended beyond extraction
+  to include Office artifact generation/modification guidance for `.pptx`,
+  `.xlsx`, and `.docx` outputs under `/mnt/data`.
 - The official tree for the same commit includes Code/Skills/Agent file
   handling paths such as `api/server/services/Files/Code/`,
   `api/server/services/Skills/`, and `client/src/components/Agents/`.
@@ -193,11 +214,12 @@ Interpretation:
 
 - Code Environment / Skills are official LibreChat capabilities in this build.
 - Our visible change is the Chinese operational wording in the upload menu.
-- Backend CodeAPI/tool execution still needs an authenticated smoke test or
-  server-side service inspection.
+- Backend CodeAPI/tool execution is confirmed by authenticated smoke tests, but
+  individual empty assistant messages still need MongoDB/log inspection to
+  distinguish model empty output from CodeAPI failure.
 
 Status: official frontend capability plus custom Chinese label patch; backend
-execution not confirmed from public checks.
+execution confirmed from authenticated server-side checks.
 
 ### 6. Office/Excel reader backend
 
@@ -291,8 +313,9 @@ Recommended next checks:
    business-upload-label-patch
    __lcRumRecoveryGuardInstalled
    __lcRecoverStaleAssets
-   原文件上传
-   用代码读取文件
+   图片上传
+   Office文件上传
+   文件提取文字上传
    ```
 
 3. Separate pure configuration changes from source changes.

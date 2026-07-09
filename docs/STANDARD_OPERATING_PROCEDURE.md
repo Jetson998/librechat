@@ -36,11 +36,11 @@ Externally verified on 2026-07-09:
   on branch `main`, built at `2026-07-05T16:06:59Z`.
 - `/office/` is a protected deployment-level Office/Excel reader backend used
   to extract workbook/document content for LibreChat workflows.
-- The delivered HTML includes a runtime upload-label patch that maps LibreChat
-  upload choices into clearer Chinese labels, including:
-  - `Upload to Provider` -> `原文件上传`
-  - `Upload as Text` -> `提取文字上传`
-  - `Upload to Code Environment` -> `用代码读取文件`
+- The delivered HTML includes a runtime upload-menu patch that maps LibreChat
+  upload choices into clearer Chinese labels and applies file-type guards:
+  - `Upload to Provider` -> `图片上传`
+  - `Upload to Code Environment` -> `Office文件上传`
+  - `Upload as Text` -> `文件提取文字上传`
 
 Keep `docs/PRODUCTION_VERIFICATION.md` updated when these facts change.
 
@@ -162,21 +162,47 @@ When adding or changing a model/provider:
 
 ## 9. File Upload And Code Environment
 
-The current frontend patch clarifies upload choices for Chinese operators:
+The current frontend patch clarifies upload choices for Chinese operators and
+prevents common wrong-route uploads:
 
-- `原文件上传`: send the original file to the selected provider path.
-- `提取文字上传`: extract text and send text context.
-- `用代码读取文件`: route the file to the code-execution environment.
+- `图片上传`: image-only upload path.
+- `Office文件上传`: route Office/table files to the code-execution environment
+  for reading, editing, and returning artifacts.
+- `文件提取文字上传`: extract text and send text context for analysis.
+
+The production menu also shows short operator guidance under each choice:
+
+- `图片上传`: `仅图片；用于截图、照片、图像识别`
+- `Office文件上传`: `Word/Excel/PPT 原文件；可读写并返回文件`
+- `文件提取文字上传`: `转成文本给模型分析；适合审阅总结`
 
 Operational rules:
 
-- Use `提取文字上传` for simple text review when formatting is not critical.
-- Use `原文件上传` when the provider needs the original binary and the data is
-  safe to send.
-- Use `用代码读取文件` only after verifying that the backend code environment is
-  actually reachable.
+- Use `图片上传` only for image files such as PNG, JPG/JPEG, WEBP, GIF, BMP,
+  SVG, HEIC/HEIF, and AVIF.
+- Use `Office文件上传` for Office/table files handled by CodeAPI:
+  DOCX, XLSX, XLSM, PPT, PPTX, CSV, TSV, ODS, and ODP.
+- Use `文件提取文字上传` for document/text extraction, including PDF, legacy
+  DOC/XLS/PPT, DOCX/XLSX/PPTX, TXT/Markdown, CSV/TSV, JSON/HTML/RTF, and
+  ODT/ODS/ODP.
+- CodeAPI can generate Office artifacts as well as parse them. The verified
+  PPT path is Python `python-pptx` writing `.pptx` files under `/mnt/data`;
+  Excel generation/modification uses `openpyxl`.
+- The Anthropic model prompt must point the model at the actually available
+  code tool (`Bash` in this deployment) and must tell it not to use Claude Code
+  helper names such as `Glob`, `Read`, `Edit`, or `LS`.
+- Production `office-context-patch/BaseClient.js` includes an Office/PPT empty
+  response retry guard. When an Office/PPT generation request returns no text,
+  content, tool call, or attachment, it retries once with an explicit
+  Bash/Python instruction and saves a visible fallback instead of a blank
+  assistant message if the retry is still empty.
+- The deployment `office-document-parser` skill covers both extraction and
+  Office artifact generation/modification. PPT generation uses `python-pptx`;
+  Excel generation/modification uses `openpyxl`; generated files must be saved
+  under `/mnt/data`.
 - If a conversation returns empty content after an upload, inspect backend logs
-  and saved message metadata before assuming the model is slow.
+  and saved message metadata before assuming the model is slow or that PPT
+  generation is unsupported.
 
 ## 10. Office/Excel Reader Backend
 
@@ -225,8 +251,9 @@ Runtime patches are allowed for small wording or UX fixes, but they must be:
 - Safe to remove.
 - Covered by browser verification after deployment.
 
-For the upload-label patch, verify the menu still shows the intended Chinese
-labels after each frontend rebuild or asset refresh.
+For the upload-menu patch, verify the menu still shows the intended Chinese
+labels and blocks invalid file types after each frontend rebuild or asset
+refresh.
 
 ## 12. Incident Response
 

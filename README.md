@@ -20,6 +20,9 @@ email/password login enabled.
   post-change checklist for small production updates.
 - [Production verification log](docs/PRODUCTION_VERIFICATION.md): current
   externally verified facts about the live site.
+- [Production patch archive](deployment/production-patches/2026-07-09-office-ppt-empty-retry/README.md):
+  exact production-mounted files and rollback notes for the Office/PPT empty
+  response fix.
 
 ## Quick Health Checks
 

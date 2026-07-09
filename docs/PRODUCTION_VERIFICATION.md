@@ -74,13 +74,49 @@ business-upload-label-patch
 Observed label mappings include:
 
 ```text
-Upload to Provider -> 原文件上传
-Upload as Text -> 提取文字上传
-Upload to Code Environment -> 用代码读取文件
+Upload to Provider -> 图片上传
+Upload to Code Environment -> Office文件上传
+Upload as Text -> 文件提取文字上传
 ```
+
+The same runtime patch applies client-side file-type guards:
+
+- `图片上传`: image files only.
+- `Office文件上传`: DOCX, XLSX, XLSM, PPT, PPTX, CSV, TSV, ODS, ODP.
+- `文件提取文字上传`: document, table, PDF, and text-like files.
+
+The menu includes operator descriptions:
+
+- `图片上传`: `仅图片；用于截图、照片、图像识别`
+- `Office文件上传`: `Word/Excel/PPT 原文件；可读写并返回文件`
+- `文件提取文字上传`: `转成文本给模型分析；适合审阅总结`
 
 Recheck this after frontend rebuilds, asset cleanup, or upstream LibreChat
 updates.
+
+## CodeAPI Office Generation
+
+Probe date: 2026-07-09
+
+Authenticated server-side smoke tests confirmed:
+
+- `openpyxl 3.1.5` and `python-pptx 1.0.2` are installed in CodeAPI.
+- LibreOffice is available at `/usr/bin/libreoffice`.
+- A real CodeAPI `/exec` run generated
+  `codeapi_ppt_generation_smoke.pptx` under `/mnt/data` and returned it as an
+  artifact.
+
+Operational interpretation:
+
+- Excel parse/edit/generate and PPTX generate are backend-capable.
+- A blank LibreChat assistant turn after a PPT request should be diagnosed as
+  a model/tool-routing or empty-message issue unless CodeAPI smoke tests fail.
+- The production `BaseClient.js` patch now retries empty Office/PPT generation
+  turns once with a stronger Bash/Python instruction and records a visible
+  fallback if the retry is still empty.
+- Incident `4865a297-3013-40e5-b77a-c5958d79ef16` was repaired by generating
+  `API渠道模型来源说明_基础版.pptx` from the uploaded workbook in CodeAPI and
+  attaching it to the previously blank assistant message.
 
 ## Office/Excel Reader Backend
 
