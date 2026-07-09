@@ -105,3 +105,23 @@ Operational meaning:
 - It is not an upstream LibreChat core route.
 - Keep the 401 boundary in place; authenticate before using it with private
   workbooks.
+
+## Stability Probe
+
+Probe date: 2026-07-09
+
+Public boundary checks:
+
+```text
+/office/ 10/10 returned 401, time range 0.060-0.112s
+/        5/5 returned 200, time range 0.075-0.096s
+/api/config 5/5 returned 200, time range 0.062-0.076s
+```
+
+Interpretation:
+
+- LibreChat public entry is stable in this short probe.
+- `/office/` is reachable and consistently protected by the expected auth
+  boundary.
+- End-to-end Excel extraction was not re-tested in this probe because it
+  requires authenticated access to the Office converter.
