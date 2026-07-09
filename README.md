@@ -44,5 +44,14 @@ Keep the upstream LibreChat application as the stable baseline. Custom behavior,
 branding text, runtime patches, and provider configuration should remain easy to
 identify, verify, and roll back.
 
+## Production Change Gate
+
+Production writes are not allowed until the change is represented in this
+repository, committed, and pushed to `origin/main`. There is no firefighting
+bypass. Read-only diagnostics may happen first, but any server file edit,
+container restart, database update, static asset patch, route change, or manual
+conversation/file repair must follow the gate in
+[Standard operating procedure](docs/STANDARD_OPERATING_PROCEDURE.md).
+
 Do not commit production secrets, API keys, database credentials, user exports,
 or private log payloads into this project.

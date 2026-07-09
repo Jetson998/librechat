@@ -96,7 +96,60 @@ Before changing production, write down:
 For small changes, use `docs/RELEASE_CHECKLIST.md`. For larger changes, create a
 dated release note under a future `releases/` directory.
 
-## 6. Release Workflow
+## 6. Mandatory Production Change Gate
+
+This gate is mandatory for every production write. There is no firefighting
+bypass.
+
+Allowed before this gate:
+
+- Read-only diagnostics: HTTP checks, browser inspection, log reads, MongoDB
+  reads, container status reads, and CodeAPI smoke checks that do not alter
+  production state.
+- Temporary diagnostic scripts under `/tmp` only when they are read-only,
+  removed after use, and mentioned in the final notes.
+
+Not allowed before this gate:
+
+- Editing or replacing production files, including bind-mounted patch files.
+- Restarting containers or services.
+- Changing Nginx, Docker Compose, `librechat.yaml`, skills, static assets, or
+  route handlers.
+- Updating MongoDB, Redis, uploads, generated assistant attachments, or saved
+  conversations.
+- Applying a "small hotfix" that is not already represented in the repository.
+
+Required before any production write:
+
+1. Record the intended change in the repository.
+   - Add or update the patch file, config snapshot, skill file, or deployment
+     archive that represents exactly what will be applied.
+   - Add a short change record with reason, expected behavior, affected files,
+     feature/function list, verification plan, and rollback action.
+   - Update the SOP, production verification log, release checklist, or
+     customization audit when behavior or operating rules change.
+2. Run the relevant local checks, such as syntax checks for JavaScript patches
+   or a secret scan for files being added.
+3. Commit the repository change.
+4. Push the commit to `origin/main`.
+5. Confirm `git status --short --branch` shows the local branch aligned with
+   `origin/main`.
+
+If commit or push cannot complete, stop and report the block. Do not continue
+with a production write.
+
+After the production write:
+
+- Verify production with the documented checks.
+- Capture any production files that differ from the committed plan.
+- Commit and push a follow-up record if the applied state, verification result,
+  rollback path, or feature list changed.
+
+Manual repairs count as production writes. This includes attaching generated
+files to old conversations, editing saved assistant messages, or changing file
+metadata in MongoDB.
+
+## 7. Release Workflow
 
 1. Capture current state.
 
@@ -114,11 +167,14 @@ dated release note under a future `releases/` directory.
    - Runtime patch can be removed independently.
    - Database backup exists before schema-impacting work.
 
-3. Apply the smallest change that solves the problem.
+3. Pass the mandatory production change gate in section 6. If the gate is not
+   complete, stop here.
 
-4. Restart only the services that must restart.
+4. Apply the smallest committed and pushed change that solves the problem.
 
-5. Run post-change verification:
+5. Restart only the services that must restart.
+
+6. Run post-change verification:
 
    - HTTP check.
    - Browser login check.
@@ -126,9 +182,10 @@ dated release note under a future `releases/` directory.
    - File upload check when upload behavior changed.
    - Code-environment check when execution behavior changed.
 
-6. Record result in the release note or checklist.
+7. Record result in the release note or checklist. Commit and push any
+   difference between the planned and actual production state.
 
-## 7. Configuration Standards
+## 8. Configuration Standards
 
 Do:
 
@@ -147,7 +204,7 @@ Do not:
 - Assume a config flag proves a backend capability works.
 - Enable public registration without an explicit product decision.
 
-## 8. Model And Provider Changes
+## 9. Model And Provider Changes
 
 When adding or changing a model/provider:
 
@@ -160,7 +217,7 @@ When adding or changing a model/provider:
    path rather than selecting an image-only model as a normal chat model.
 7. Document the user-facing model name, provider, and known limitations.
 
-## 9. File Upload And Code Environment
+## 10. File Upload And Code Environment
 
 The current frontend patch clarifies upload choices for Chinese operators and
 prevents common wrong-route uploads:
@@ -204,7 +261,7 @@ Operational rules:
   and saved message metadata before assuming the model is slow or that PPT
   generation is unsupported.
 
-## 10. Office/Excel Reader Backend
+## 11. Office/Excel Reader Backend
 
 The `/office/` route is a deployment-level backend capability for LibreChat
 workflows. It is not upstream LibreChat core code, but it is part of our
@@ -242,7 +299,7 @@ Operating rules:
 - Do not document real workbook contents, request payloads, or extracted private
   data in this repository.
 
-## 11. Frontend Runtime Patches
+## 12. Frontend Runtime Patches
 
 Runtime patches are allowed for small wording or UX fixes, but they must be:
 
@@ -250,12 +307,19 @@ Runtime patches are allowed for small wording or UX fixes, but they must be:
 - Easy to find in delivered HTML or static assets.
 - Safe to remove.
 - Covered by browser verification after deployment.
+- Represented in this repository, committed, and pushed before production
+  deployment.
 
 For the upload-menu patch, verify the menu still shows the intended Chinese
 labels and blocks invalid file types after each frontend rebuild or asset
 refresh.
 
-## 12. Incident Response
+## 13. Incident Response
+
+Incident response starts with read-only diagnosis. Any corrective action that
+changes production must pass the mandatory production change gate first. If the
+gate is blocked by missing credentials, unclear rollback, or inability to push,
+stop and report the block instead of applying an untracked fix.
 
 ### Blank Page Or Asset Failure
 
@@ -293,7 +357,7 @@ refresh.
 4. If code execution is unavailable, use a separate trusted document-conversion
    path rather than pretending the file reached the tool environment.
 
-## 13. Rollback
+## 14. Rollback
 
 Rollback order for production incidents:
 
@@ -305,7 +369,7 @@ Rollback order for production incidents:
 After rollback, run the same checks as a normal release and document the
 incident.
 
-## 14. Security Rules
+## 15. Security Rules
 
 - Treat uploaded files and chat logs as private user data.
 - Do not export production conversations into this repository.
@@ -315,7 +379,7 @@ incident.
 - Rotate any secret that appears in a document, terminal output, screenshot, or
   chat transcript intended for external sharing.
 
-## 15. Documentation Maintenance
+## 16. Documentation Maintenance
 
 Update this SOP when:
 
