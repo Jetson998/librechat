@@ -1620,6 +1620,10 @@ class BaseClient {
         ...(Array.isArray(responseMessage.attachments) ? responseMessage.attachments : []),
         deterministicFallbackAttachment,
       ];
+      responseMessage.files = [
+        ...(Array.isArray(responseMessage.files) ? responseMessage.files : []),
+        deterministicFallbackAttachment,
+      ];
     }
 
     if (this.options.attachments) {
@@ -2297,7 +2301,8 @@ class BaseClient {
       delete message.fileContext;
 
       const contextFiles = [];
-      if (Array.isArray(message.files)) {
+      const shouldAddFileContext = message.isCreatedByUser !== false;
+      if (shouldAddFileContext && Array.isArray(message.files)) {
         for (const file of message.files) {
           if (!file?.file_id || contextSeen.has(file.file_id)) {
             continue;

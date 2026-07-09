@@ -82,7 +82,9 @@ Office/PPT generation turns:
    - `metadata.officePptDeterministicFallback` describing the source workbook.
 9. Attach the saved file to the assistant message before
    `saveMessageToDatabase`.
-10. Save a visible assistant message pointing users to the generated attachment.
+10. Mirror the generated file into `responseMessage.files` so the frontend
+   renders the same downloadable file card used for normal chat files.
+11. Save a visible assistant message pointing users to the generated attachment.
 
 The older prompt-retry behavior remains only for non-deterministic Office
 generation cases that do not match the PPT fallback path.
@@ -166,14 +168,19 @@ End-to-end user upload verification passed in fresh LibreChat conversation
   `29275` bytes, with `metadata.codeEnvRef` pointing to generated CodeAPI
   artifact `file_a66c43fc67d14debbeea06cc270545fb`.
 - No duplicate filename error was observed after adding the message-id suffix.
+- Browser screenshot showed the generated PPTX text but no visible download
+  file card. Diagnosis: the deterministic route persisted the generated file in
+  `attachments`, but the live message UI did not render it as a downloadable
+  chat file. Follow-up fix mirrors deterministic PPT outputs into
+  `responseMessage.files` while keeping `attachments` for backend diagnosis.
 
 ## Feature / Function List
 
 - Stable PPT output when the model returns empty content after an Office/PPT
   generation request.
 - Backend-generated `.pptx` artifact even when the model never calls `Bash`.
-- Generated PPT file is stored in normal LibreChat uploads and visible as an
-  assistant attachment.
+- Generated PPT file is stored in normal LibreChat uploads and visible as a
+  downloadable assistant file card.
 - CodeAPI artifact identity is preserved in file metadata for later diagnosis.
 - Existing manual retry/fallback message remains as a safety net when CodeAPI
   generation itself fails.

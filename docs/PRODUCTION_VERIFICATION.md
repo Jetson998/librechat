@@ -149,6 +149,11 @@ Operational interpretation:
   `[BaseClient] Office/PPT generation request; running deterministic CodeAPI
   preflight`; CodeAPI logs showed `/exec` returned `200 OK`. No duplicate
   filename error was observed.
+- UI follow-up: the same conversation showed the assistant text but no visible
+  download card because the generated PPT was present only in
+  `responseMessage.attachments`. The 2026-07-10 follow-up patch mirrors
+  deterministic PPT outputs into `responseMessage.files` so the frontend
+  renders a normal downloadable file card.
 - Incident `4865a297-3013-40e5-b77a-c5958d79ef16` was repaired by generating
   `API渠道模型来源说明_基础版.pptx` from the uploaded workbook in CodeAPI and
   attaching it to the previously blank assistant message.
