@@ -312,6 +312,54 @@ Second deployment/backfill result on 2026-07-10 02:35 HKT:
   because the claimed tab redirected to `/login?redirect_to=...`; no password or
   session data was entered. Backend and Mongo verification completed.
 
+Third follow-up diagnosis on 2026-07-10 for the deleted conversation
+`fe8d7f54-8bbd-4786-b7a1-d4618f83ba35` and live replacement conversation
+`dd56871a-72ab-4929-a00a-9aeb0cf0f549`:
+
+- `fe8d7f54-8bbd-4786-b7a1-d4618f83ba35` had been deleted from
+  `db.conversations` and `db.messages`; only historical `db.files` rows remained.
+  It is therefore not a valid current test case.
+- The live browser conversation was
+  `dd56871a-72ab-4929-a00a-9aeb0cf0f549`, where the user uploaded an existing
+  `.pptx` and asked `换成科技风风格的 ppt`.
+- Mongo showed the uploaded PPTX was attached to the current user message and had
+  `metadata.codeEnvRef`, but the model-led Bash path still saw an empty
+  `/mnt/data` and then attempted broad filesystem discovery.
+- The CodeAPI storage guard correctly blocked the unsafe broad search, but it
+  returned a plain string to a code tool whose response format expected
+  `content_and_artifact`, producing the visible secondary error:
+  `Tool response format is "content_and_artifact" but the output was not a two-tuple`.
+- Root cause: the earlier deterministic route fixed `Excel/Office -> generated
+  PPTX -> download card`. It did not cover `existing PPTX -> modified/restyled
+  PPTX -> download card`.
+
+Repository fix plan for this follow-up:
+
+- Add a generic PPTX transform fallback in `BaseClient.js`. It triggers only when
+  the current message has a `.pptx` CodeAPI attachment and the prompt is about
+  visual/theme/layout transformation such as `美化`, `重新排版`, `风格`, `主题`,
+  `配色`, `template`, `layout`, or `style`.
+- Do not hard-code a single `科技风` output. The backend reads the user prompt and
+  maps it through an extensible visual profile table (`tech`, `business`,
+  `clean`, `finance`, `red_government`, `marketing`, `dark_gold`, `training`,
+  default professional), while preserving the existing slide count, text, tables,
+  and images as much as `python-pptx` allows.
+- Keep content-specific edits, such as "change slide 3 title to X", on the normal
+  model/tool path instead of forcing the visual transform fallback.
+- Save transform outputs as normal LibreChat local uploads with
+  `metadata.officePptTransformFallback`, `context: execute_code`, a
+  `office_ppt_transform_fallback_<file_id>` tool call id, `message.files`, and the
+  same lightweight content tool-call block used by generated PPT attachments.
+- Refactor shared CodeAPI `/exec`, artifact download, and LibreChat file
+  persistence into helper functions so the spreadsheet-summary fallback and PPTX
+  transform fallback do not fork the download-card logic.
+- Fix `ToolService.js` so storage-guard blocks for Bash/execute-code/programmatic
+  tools return a valid two-tuple when the tool uses `content_and_artifact`; this
+  prevents the guard from creating a secondary tool-format error.
+- Binary `.ppt` uploads remain allowed at the upload-menu layer, but this
+  deterministic transform fallback intentionally handles `.pptx` only. `.ppt`
+  conversion should be added as a separate LibreOffice conversion step if needed.
+
 ## Feature / Function List
 
 - Stable PPT output when the model returns empty content after an Office/PPT
@@ -324,6 +372,11 @@ Second deployment/backfill result on 2026-07-10 02:35 HKT:
 - Deterministic PPT messages also carry a completed lightweight tool-call
   content block, which is the frontend path that actually renders generated
   attachments in the chat body.
+- Existing `.pptx` files can be transformed into a new downloadable `.pptx` for
+  visual/theme/layout requests without relying on the model to locate the file in
+  `/mnt/data`.
+- PPTX transform output is prompt-shaped through an extensible visual profile
+  table rather than a fixed "tech style" template.
 - Generated Excel/CSV, Word, Markdown/text, PDF, images, and other real file
   artifacts are also mirrored into `responseMessage.files` for download-card
   rendering.
@@ -332,6 +385,10 @@ Second deployment/backfill result on 2026-07-10 02:35 HKT:
   directories, or broad root filesystem searches such as `find /`. This keeps
   one conversation from enumerating another conversation's CodeAPI session
   files and prevents tool-output token blowups from global file listings.
+- Guarded code-tool calls now preserve the expected `content_and_artifact`
+  response shape for Bash/execute-code/programmatic tools, so a blocked unsafe
+  command produces the intended guard message instead of a secondary tool-format
+  exception.
 - CodeAPI artifact identity is preserved in file metadata for later diagnosis.
 - Existing manual retry/fallback message remains as a safety net when CodeAPI
   generation itself fails.
@@ -342,6 +399,7 @@ Repository checks before production write:
 
 ```sh
 node --check deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/BaseClient.js
+node --check deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/ToolService.js
 git diff --check
 rg -n "github_pat|sk-[A-Za-z0-9]|api[_-]?key|OPENAI_API_KEY|ANTHROPIC_API_KEY|password" .
 ```
@@ -360,13 +418,17 @@ Production checks after deployment:
 8. Confirm LibreChat-CodeAPI logs show /exec for the turn.
 9. Confirm Mongo `messages.attachments[0]` and `files.metadata.codeEnvRef`
    point to the generated artifact.
-10. For pre-fix messages with generated file text but no visible file card, run
+10. Upload an existing PPTX through `Office文件上传`; ask for a visual/theme
+   change such as `换成科技风风格的 ppt`; confirm the assistant returns a new
+   downloadable `.pptx` whose file row has `metadata.officePptTransformFallback`.
+11. In a separate code-tool turn, attempt an unsafe broad file search such as
+   `find /srv/codeapi-data/sessions -name "*.xlsx" | head`; confirm the visible
+   tool output is the LibreChat storage-guard message and does not include the
+   secondary `content_and_artifact` two-tuple error.
+12. For pre-fix messages with generated file text but no visible file card, run
    `scripts/backfill-generated-attachment-files.js` against that single
    assistant message and confirm `messages.files[*].file_id` contains the
    generated attachment file IDs.
-11. Verify unsafe storage enumeration is blocked by attempting a Bash command
-   such as `find /srv/codeapi-data/sessions -name "*.xlsx" | head`; the tool
-   output should be the LibreChat safety-guard message, not a file listing.
 ```
 
 ## Rollback
@@ -375,11 +437,12 @@ Before replacing production files, create timestamped backups:
 
 ```text
 /opt/librechat/office-context-patch/BaseClient.js.bak-<timestamp>
+/opt/librechat/office-context-patch/ToolService.js.bak-<timestamp>
 ```
 
 Rollback steps:
 
-1. Restore `BaseClient.js` from the matching backup.
+1. Restore `BaseClient.js` and `ToolService.js` from the matching backups.
 2. Restart `LibreChat-API`.
 3. Verify `/api/config` returns `200`.
 4. Run a simple chat smoke test.

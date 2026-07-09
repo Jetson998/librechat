@@ -134,18 +134,26 @@ const appendBusinessPreToolNotice = (instructions) => {
 const OFFICE_GENERATION_EMPTY_RETRY_MARKER = '[office-generation-empty-response-retry-v1]';
 const OFFICE_FILE_EXT_RE = /\.(xlsx|xlsm|xls|csv|docx|doc|pptx|ppt)$/i;
 const OFFICE_SPREADSHEET_FILE_EXT_RE = /\.(xlsx|xlsm|csv)$/i;
+const OFFICE_PPTX_FILE_EXT_RE = /\.pptx$/i;
 const OFFICE_GENERATION_INTENT_RE =
   /(ppt|pptx|powerpoint|presentation|deck|幻灯片|演示|生成|制作|创建|做一页|做个|输出|导出|返回文件|excel|xlsx|word|docx|office)/i;
 const PPT_GENERATION_INTENT_RE = /(ppt|pptx|powerpoint|presentation|deck|幻灯片|演示)/i;
+const PPT_TRANSFORM_INTENT_RE =
+  /(换成.*风|改成.*风|改为.*风|美化|优化|重做|重制|重新设计|重新排版|套用|套模板|模板|风格|科技风|商务风|主题|配色|排版|版式|样式|视觉|设计|restyle|redesign|polish|theme|style|format|layout|template|rework)/i;
 const OFFICE_ARTIFACT_OUTPUT_ACTION_RE =
   /(生成|制作|创建|做出|做成|做一页|做一张|做一份|做个|输出|导出|返回文件|返回|保存|generate|create|make|build|export|produce)/i;
 const OFFICE_EMPTY_RETRY_FALLBACK =
   '这轮模型没有返回有效内容，也没有调用代码工具，因此系统没有生成 PPT 文件。请在新任务里选择“Office文件上传”，上传 Excel 后直接说“用 Bash/Python 读取这个 Excel 并生成 PPTX，保存到 /mnt/data 并返回文件”。';
 const OFFICE_DETERMINISTIC_FALLBACK_FAILED =
   '系统已检测到这是 Office/PPT 生成请求，并尝试通过后端代码环境直接生成 PPTX，但这次后端生成失败。请重新上传 Office 文件后再试一次；如果仍失败，需要检查 CodeAPI /exec 日志。';
+const OFFICE_PPT_TRANSFORM_FALLBACK_FAILED =
+  '系统已检测到这是 PPT/PPTX 改造请求，并尝试通过后端代码环境直接生成新版 PPTX，但这次后端生成失败。请重新上传 PPTX 后再试一次；如果仍失败，需要检查 CodeAPI /exec 日志。';
 const PPTX_MIME_TYPE =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const OFFICE_PPT_FALLBACK_OUTPUT_FILENAME = 'API渠道模型来源说明_基础版.pptx';
+const OFFICE_PPT_TRANSFORM_OUTPUT_FILENAME = 'PPT改造版.pptx';
+const OFFICE_PPT_GENERATION_MODE = 'spreadsheet_summary';
+const OFFICE_PPT_TRANSFORM_MODE = 'pptx_transform';
 
 const hasMeaningfulString = (value) => typeof value === 'string' && value.trim().length > 0;
 
@@ -220,6 +228,10 @@ const getOfficeCodeEnvRef = (file) => file?.metadata?.codeEnvRef ?? file?.codeEn
 
 const getOfficeRefFilename = (file) => file?.filename ?? file?.name ?? file?.originalname ?? '';
 
+const isOfficeSpreadsheetRef = (file) => OFFICE_SPREADSHEET_FILE_EXT_RE.test(getOfficeRefFilename(file));
+
+const isOfficePptxRef = (file) => OFFICE_PPTX_FILE_EXT_RE.test(getOfficeRefFilename(file));
+
 const getUniqueOfficeFallbackFileRefs = (message, options) => {
   const seen = new Set();
   const unique = [];
@@ -247,10 +259,19 @@ const pickOfficePptFallbackSourceFile = (message, options) => {
   });
 
   return (
-    files.find((file) => OFFICE_SPREADSHEET_FILE_EXT_RE.test(getOfficeRefFilename(file))) ??
+    files.find((file) => isOfficeSpreadsheetRef(file)) ??
     files.find((file) => OFFICE_FILE_EXT_RE.test(getOfficeRefFilename(file))) ??
     files[0]
   );
+};
+
+const pickOfficePptTransformSourceFile = (message, options) => {
+  const files = getUniqueOfficeFallbackFileRefs(message, options).filter((file) => {
+    const ref = getOfficeCodeEnvRef(file);
+    return ref?.storage_session_id && ref?.file_id && isOfficePptxRef(file);
+  });
+
+  return files[0];
 };
 
 const isOfficeGenerationRetryCandidate = (userMessage) => {
@@ -273,6 +294,14 @@ const isOfficePptDeterministicFallbackCandidate = (userMessage, options) => {
   return Boolean(pickOfficePptFallbackSourceFile(userMessage, options));
 };
 
+const isOfficePptTransformPreflightCandidate = (userMessage, options) => {
+  const promptText = getMessagePromptText(userMessage);
+  if (!PPT_TRANSFORM_INTENT_RE.test(promptText)) {
+    return false;
+  }
+  return Boolean(pickOfficePptTransformSourceFile(userMessage, options));
+};
+
 const isOfficePptDeterministicPreflightCandidate = (userMessage, options) => {
   const promptText = getMessagePromptText(userMessage);
   if (
@@ -291,6 +320,15 @@ const buildOfficePptFallbackMetadata = (fallback, attachment, extra = {}) => ({
   officeGenerationDeterministicFallbackCodeSessionId: fallback.codeSessionId,
   officeGenerationDeterministicFallbackCodeFileId: fallback.codeFileId,
   officeGenerationDeterministicFallbackBytes: fallback.bytes,
+});
+
+const buildOfficePptTransformMetadata = (fallback, attachment, extra = {}) => ({
+  ...extra,
+  officePptTransformFallback: true,
+  officePptTransformFallbackFileId: attachment?.file_id,
+  officePptTransformFallbackCodeSessionId: fallback.codeSessionId,
+  officePptTransformFallbackCodeFileId: fallback.codeFileId,
+  officePptTransformFallbackBytes: fallback.bytes,
 });
 
 const sanitizeFallbackFilename = (filename, fallback = OFFICE_PPT_FALLBACK_OUTPUT_FILENAME) => {
@@ -325,6 +363,12 @@ const getGeneratedAttachmentToolCallId = (attachment) =>
   attachment?.toolCallId ||
   (attachment?.file_id ? `office_ppt_deterministic_fallback_${attachment.file_id}` : undefined);
 
+const getGeneratedAttachmentAction = (attachment) =>
+  attachment?.metadata?.officePptTransformFallback ||
+  String(attachment?.toolCallId ?? '').startsWith('office_ppt_transform_fallback_')
+    ? 'deterministic_office_ppt_transform'
+    : 'deterministic_office_ppt_fallback';
+
 const buildGeneratedAttachmentContent = (text, attachment) => {
   const toolCallId = getGeneratedAttachmentToolCallId(attachment);
   if (!toolCallId || !isDownloadableMessageFile(attachment)) {
@@ -345,7 +389,7 @@ const buildGeneratedAttachmentContent = (text, attachment) => {
       id: toolCallId,
       name: 'Bash',
       args: JSON.stringify({
-        action: 'deterministic_office_ppt_fallback',
+        action: getGeneratedAttachmentAction(attachment),
         filename: attachment.filename || attachment.name || 'generated.pptx',
       }),
       type: ContentTypes.TOOL_CALL,
@@ -386,13 +430,26 @@ const emitGeneratedAttachmentEvent = async ({ opts, conversationId, attachment }
   return false;
 };
 
-const buildUniqueOfficePptOutputFilename = (responseMessageId) => {
+const buildUniqueOfficePptOutputFilename = (
+  responseMessageId,
+  baseFilename = OFFICE_PPT_FALLBACK_OUTPUT_FILENAME,
+) => {
   const suffix = String(responseMessageId || crypto.randomUUID())
     .replace(/[^a-zA-Z0-9]/g, '')
     .slice(0, 8);
-  return sanitizeFallbackFilename(
-    OFFICE_PPT_FALLBACK_OUTPUT_FILENAME.replace(/\.pptx$/i, `_${suffix}.pptx`),
-  );
+  return sanitizeFallbackFilename(baseFilename.replace(/\.pptx$/i, `_${suffix}.pptx`));
+};
+
+const buildOfficePptTransformOutputFilename = (sourceFilename, responseMessageId) => {
+  const suffix = String(responseMessageId || crypto.randomUUID())
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 8);
+  const sourceBase = path
+    .basename(sourceFilename || OFFICE_PPT_TRANSFORM_OUTPUT_FILENAME)
+    .replace(/\.pptx$/i, '')
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+    .trim();
+  return sanitizeFallbackFilename(`${sourceBase || 'PPT'}_改造版_${suffix}.pptx`);
 };
 
 const getCodeApiBaseURL = () =>
@@ -442,6 +499,160 @@ const pickCodeApiPptArtifact = (execResult, fallbackSessionId) => {
       execResult?.artifact?.session_id ??
       execResult?.session_id ??
       fallbackSessionId,
+  };
+};
+
+const executeCodeApiPptJob = async ({ req, userId, sourceRef, code }) => {
+  const codeBaseURL = getCodeApiBaseURL();
+  const authHeaders = req ? await getCodeApiAuthHeaders(req) : {};
+  const baseHeaders = {
+    Accept: 'application/json',
+    'User-Agent': 'LibreChat/1.0',
+    'User-Id': userId,
+    ...authHeaders,
+  };
+  const execResponse = await fetchWithTimeout(`${codeBaseURL}/exec`, {
+    method: 'POST',
+    headers: {
+      ...baseHeaders,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      language: 'python',
+      session_id: sourceRef.storage_session_id,
+      code,
+    }),
+  });
+  const execText = await execResponse.text();
+  if (!execResponse.ok) {
+    throw new Error(`CodeAPI /exec failed with ${execResponse.status}: ${execText.slice(0, 500)}`);
+  }
+
+  let execResult;
+  try {
+    execResult = JSON.parse(execText);
+  } catch (error) {
+    throw new Error(`CodeAPI /exec returned non-JSON response: ${execText.slice(0, 500)}`);
+  }
+
+  if (Number(execResult?.returncode ?? 0) !== 0) {
+    const stderr = execResult?.stderr ? ` stderr=${String(execResult.stderr).slice(0, 500)}` : '';
+    const stdout = execResult?.stdout ? ` stdout=${String(execResult.stdout).slice(0, 500)}` : '';
+    throw new Error(`CodeAPI /exec returned ${execResult.returncode}.${stderr}${stdout}`);
+  }
+
+  const artifact = pickCodeApiPptArtifact(execResult, sourceRef.storage_session_id);
+  if (!artifact?.id || !artifact?.storage_session_id) {
+    throw new Error('CodeAPI /exec did not return a downloadable PPT artifact');
+  }
+
+  const identityQuery = buildCodeEnvDownloadQuery({ kind: 'user', id: userId });
+  const fileIdentifier = `${encodeURIComponent(artifact.storage_session_id)}/${encodeURIComponent(artifact.id)}`;
+  const downloadResponse = await fetchWithTimeout(
+    `${codeBaseURL}/download/${fileIdentifier}${identityQuery}`,
+    {
+      method: 'GET',
+      headers: baseHeaders,
+    },
+  );
+  if (!downloadResponse.ok) {
+    const errorText = await downloadResponse.text();
+    throw new Error(
+      `CodeAPI artifact download failed with ${downloadResponse.status}: ${errorText.slice(0, 500)}`,
+    );
+  }
+
+  const buffer = await downloadResponse.buffer();
+  if (!buffer?.length) {
+    throw new Error('CodeAPI artifact download returned an empty file');
+  }
+
+  return { execResult, artifact, buffer };
+};
+
+const persistGeneratedOfficePptArtifact = async ({
+  req,
+  user,
+  userId,
+  conversationId,
+  responseMessageId,
+  sourceFile,
+  sourceRef,
+  sourceFilename,
+  artifact,
+  buffer,
+  execResult,
+  mode = OFFICE_PPT_GENERATION_MODE,
+}) => {
+  const file_id = crypto.randomUUID();
+  const filename = sanitizeFallbackFilename(artifact.filename);
+  const storedFilename = `${file_id}__${filename}`;
+  const { saveBuffer } = getStrategyFunctions(FileSources.local);
+  const filepath = await saveBuffer({
+    userId,
+    buffer,
+    fileName: storedFilename,
+    basePath: 'uploads',
+  });
+  const now = new Date();
+  const metadataKey =
+    mode === OFFICE_PPT_TRANSFORM_MODE
+      ? 'officePptTransformFallback'
+      : 'officePptDeterministicFallback';
+  const toolCallPrefix =
+    mode === OFFICE_PPT_TRANSFORM_MODE
+      ? 'office_ppt_transform_fallback'
+      : 'office_ppt_deterministic_fallback';
+  const fileDoc = {
+    file_id,
+    filepath,
+    messageId: responseMessageId,
+    object: 'file',
+    filename,
+    type: PPTX_MIME_TYPE,
+    conversationId,
+    user: userId,
+    tenantId: req?.user?.tenantId ?? user?.tenantId ?? null,
+    bytes: buffer.length,
+    updatedAt: now,
+    metadata: {
+      codeEnvRef: {
+        kind: 'user',
+        id: userId,
+        storage_session_id: artifact.storage_session_id,
+        file_id: artifact.id,
+      },
+      [metadataKey]: {
+        mode,
+        source_file_id: sourceFile?.file_id,
+        source_filename: sourceFilename,
+        source_storage_session_id: sourceRef.storage_session_id,
+        source_code_file_id: sourceRef.file_id,
+        generated_at: now.toISOString(),
+        returncode: execResult.returncode ?? 0,
+      },
+    },
+    source: FileSources.local,
+    context: FileSources.execute_code,
+    usage: 1,
+    createdAt: now,
+    text: null,
+    textFormat: null,
+    status: 'pending',
+    previewError: null,
+    previewRevision: crypto.randomUUID(),
+    toolCallId: `${toolCallPrefix}_${file_id}`,
+  };
+
+  const savedFile = await db.createFile(fileDoc, true);
+  const attachment = savedFile ? sanitizeFileForTransmit(savedFile) : fileDoc;
+  attachment.toolCallId = fileDoc.toolCallId;
+  return {
+    attachment,
+    filename,
+    bytes: buffer.length,
+    codeSessionId: artifact.storage_session_id,
+    codeFileId: artifact.id,
   };
 };
 
@@ -629,6 +840,264 @@ prs.save(output_path)
 print(f"Generated PPTX: {output_path}")
 `;
 
+const buildOfficePptTransformPython = ({ sourceFilename, promptText, outputFilename }) => `
+import glob
+import os
+import re
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import PP_ALIGN
+from pptx.util import Inches, Pt
+
+SOURCE_FILENAME = ${JSON.stringify(sourceFilename)}
+USER_PROMPT = ${JSON.stringify(promptText)}
+OUTPUT_FILENAME = ${JSON.stringify(outputFilename)}
+DATA_DIR = "/mnt/data"
+
+PROFILE_RULES = [
+    (("科技", "tech", "cyber", "未来", "数字", "蓝紫"), {
+        "name": "tech",
+        "bg": (8, 18, 35),
+        "surface": (14, 33, 57),
+        "accent": (0, 198, 255),
+        "accent2": (124, 92, 255),
+        "title": (245, 250, 255),
+        "text": (218, 232, 245),
+        "muted": (142, 165, 184),
+        "font": "Microsoft YaHei",
+    }),
+    (("商务", "business", "formal", "专业", "蓝白"), {
+        "name": "business",
+        "bg": (247, 249, 252),
+        "surface": (255, 255, 255),
+        "accent": (20, 74, 139),
+        "accent2": (38, 154, 166),
+        "title": (17, 31, 53),
+        "text": (43, 55, 72),
+        "muted": (102, 116, 135),
+        "font": "Microsoft YaHei",
+    }),
+    (("极简", "简约", "clean", "minimal"), {
+        "name": "clean",
+        "bg": (250, 250, 248),
+        "surface": (255, 255, 255),
+        "accent": (38, 132, 113),
+        "accent2": (226, 178, 78),
+        "title": (30, 38, 45),
+        "text": (56, 66, 78),
+        "muted": (112, 122, 130),
+        "font": "Microsoft YaHei",
+    }),
+    (("金融", "finance", "投研", "数据"), {
+        "name": "finance",
+        "bg": (246, 248, 244),
+        "surface": (255, 255, 255),
+        "accent": (23, 96, 88),
+        "accent2": (190, 145, 64),
+        "title": (20, 45, 48),
+        "text": (45, 58, 60),
+        "muted": (100, 112, 112),
+        "font": "Microsoft YaHei",
+    }),
+    (("红色", "党建", "政企", "政府", "red"), {
+        "name": "red_government",
+        "bg": (255, 248, 246),
+        "surface": (255, 255, 255),
+        "accent": (190, 45, 38),
+        "accent2": (224, 164, 68),
+        "title": (91, 27, 24),
+        "text": (75, 48, 45),
+        "muted": (135, 96, 90),
+        "font": "Microsoft YaHei",
+    }),
+    (("营销", "活泼", "品牌", "橙色", "marketing", "vivid"), {
+        "name": "marketing",
+        "bg": (255, 250, 245),
+        "surface": (255, 255, 255),
+        "accent": (236, 112, 45),
+        "accent2": (31, 149, 161),
+        "title": (62, 45, 38),
+        "text": (78, 62, 54),
+        "muted": (142, 116, 101),
+        "font": "Microsoft YaHei",
+    }),
+    (("黑金", "dark", "black", "gold"), {
+        "name": "dark_gold",
+        "bg": (16, 17, 20),
+        "surface": (28, 30, 35),
+        "accent": (212, 172, 86),
+        "accent2": (130, 156, 196),
+        "title": (255, 249, 232),
+        "text": (233, 231, 223),
+        "muted": (158, 154, 143),
+        "font": "Microsoft YaHei",
+    }),
+    (("教育", "培训", "course", "training"), {
+        "name": "training",
+        "bg": (247, 250, 255),
+        "surface": (255, 255, 255),
+        "accent": (64, 102, 214),
+        "accent2": (242, 152, 74),
+        "title": (30, 45, 82),
+        "text": (55, 65, 86),
+        "muted": (112, 122, 143),
+        "font": "Microsoft YaHei",
+    }),
+]
+
+DEFAULT_PROFILE = {
+    "name": "professional",
+    "bg": (248, 250, 252),
+    "surface": (255, 255, 255),
+    "accent": (31, 94, 145),
+    "accent2": (80, 159, 132),
+    "title": (25, 36, 52),
+    "text": (50, 60, 74),
+    "muted": (105, 116, 130),
+    "font": "Microsoft YaHei",
+}
+
+def find_source_file():
+    if SOURCE_FILENAME:
+        exact = os.path.join(DATA_DIR, SOURCE_FILENAME)
+        if os.path.exists(exact):
+            return exact
+        wanted = os.path.basename(SOURCE_FILENAME).lower()
+        for path in glob.glob(os.path.join(DATA_DIR, "*.pptx")):
+            if os.path.basename(path).lower() == wanted:
+                return path
+    candidates = sorted(
+        glob.glob(os.path.join(DATA_DIR, "*.pptx")),
+        key=lambda p: os.path.getmtime(p),
+        reverse=True,
+    )
+    if not candidates:
+        raise FileNotFoundError("No PPTX file found under /mnt/data")
+    return candidates[0]
+
+def choose_profile(prompt):
+    prompt = (prompt or "").lower()
+    for keywords, profile in PROFILE_RULES:
+        if any(str(keyword).lower() in prompt for keyword in keywords):
+            return profile
+    return DEFAULT_PROFILE
+
+def rgb(value):
+    return RGBColor(int(value[0]), int(value[1]), int(value[2]))
+
+def safe_fill(shape, color, transparency=0):
+    try:
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = rgb(color)
+        shape.fill.transparency = transparency
+    except Exception:
+        pass
+
+def safe_line(shape, color, transparency=0):
+    try:
+        shape.line.color.rgb = rgb(color)
+        shape.line.transparency = transparency
+    except Exception:
+        pass
+
+def set_slide_background(slide, profile):
+    try:
+        fill = slide.background.fill
+        fill.solid()
+        fill.fore_color.rgb = rgb(profile["bg"])
+    except Exception:
+        pass
+
+def add_theme_marks(slide, profile):
+    width = prs.slide_width
+    height = prs.slide_height
+    top = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, width, Inches(0.09))
+    safe_fill(top, profile["accent"], 0)
+    safe_line(top, profile["accent"], 100)
+    left = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(0.08), height)
+    safe_fill(left, profile["accent2"], 0)
+    safe_line(left, profile["accent2"], 100)
+
+def is_title_shape(shape, index):
+    try:
+        text = shape.text_frame.text.strip()
+    except Exception:
+        text = ""
+    return bool(text) and (index == 0 or shape.top < Inches(1.25) or len(text) <= 38)
+
+def apply_text_style(shape, profile, index):
+    if not getattr(shape, "has_text_frame", False):
+        return
+    try:
+        text_frame = shape.text_frame
+    except Exception:
+        return
+    is_title = is_title_shape(shape, index)
+    if is_title:
+        safe_line(shape, profile["accent"], 30)
+    else:
+        safe_line(shape, profile["muted"], 80)
+    for paragraph in text_frame.paragraphs:
+        if is_title:
+            paragraph.alignment = PP_ALIGN.LEFT
+        for run in paragraph.runs:
+            if not run.text:
+                continue
+            try:
+                run.font.name = profile["font"]
+                run.font.color.rgb = rgb(profile["title"] if is_title else profile["text"])
+                if is_title:
+                    run.font.bold = True
+                    current = run.font.size.pt if run.font.size else 22
+                    run.font.size = Pt(max(20, min(current, 34)))
+                else:
+                    current = run.font.size.pt if run.font.size else 13
+                    run.font.size = Pt(max(9, min(current, 18)))
+            except Exception:
+                pass
+
+def apply_table_style(shape, profile):
+    if not getattr(shape, "has_table", False):
+        return
+    try:
+        table = shape.table
+    except Exception:
+        return
+    for r_idx, row in enumerate(table.rows):
+        for cell in row.cells:
+            try:
+                fill_color = profile["accent"] if r_idx == 0 else profile["surface"]
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = rgb(fill_color)
+                for paragraph in cell.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.name = profile["font"]
+                        run.font.color.rgb = rgb(profile["title"] if r_idx == 0 else profile["text"])
+                        run.font.bold = r_idx == 0
+                        run.font.size = Pt(9 if r_idx else 10)
+            except Exception:
+                pass
+
+def normalize_slide(slide, profile):
+    set_slide_background(slide, profile)
+    original_shapes = list(slide.shapes)
+    for index, shape in enumerate(original_shapes):
+        apply_text_style(shape, profile, index)
+        apply_table_style(shape, profile)
+    add_theme_marks(slide, profile)
+
+source_path = find_source_file()
+profile = choose_profile(USER_PROMPT)
+prs = Presentation(source_path)
+for slide in prs.slides:
+    normalize_slide(slide, profile)
+
+output_path = os.path.join(DATA_DIR, OUTPUT_FILENAME)
+prs.save(output_path)
+print(f"Generated transformed PPTX: {output_path}; profile={profile['name']}")
+`;
+
 const runOfficePptDeterministicFallback = async ({
   req,
   user,
@@ -655,133 +1124,89 @@ const runOfficePptDeterministicFallback = async ({
     outputFilename,
     promptText: getMessagePromptText(userMessage),
   });
-  const codeBaseURL = getCodeApiBaseURL();
-  const authHeaders = req ? await getCodeApiAuthHeaders(req) : {};
-  const baseHeaders = {
-    Accept: 'application/json',
-    'User-Agent': 'LibreChat/1.0',
-    'User-Id': userId,
-    ...authHeaders,
-  };
-  const execResponse = await fetchWithTimeout(`${codeBaseURL}/exec`, {
-    method: 'POST',
-    headers: {
-      ...baseHeaders,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      language: 'python',
-      session_id: sourceRef.storage_session_id,
-      code,
-    }),
-  });
-  const execText = await execResponse.text();
-  if (!execResponse.ok) {
-    throw new Error(`CodeAPI /exec failed with ${execResponse.status}: ${execText.slice(0, 500)}`);
-  }
-
-  let execResult;
-  try {
-    execResult = JSON.parse(execText);
-  } catch (error) {
-    throw new Error(`CodeAPI /exec returned non-JSON response: ${execText.slice(0, 500)}`);
-  }
-
-  if (Number(execResult?.returncode ?? 0) !== 0) {
-    const stderr = execResult?.stderr ? ` stderr=${String(execResult.stderr).slice(0, 500)}` : '';
-    const stdout = execResult?.stdout ? ` stdout=${String(execResult.stdout).slice(0, 500)}` : '';
-    throw new Error(`CodeAPI /exec returned ${execResult.returncode}.${stderr}${stdout}`);
-  }
-
-  const artifact = pickCodeApiPptArtifact(execResult, sourceRef.storage_session_id);
-  if (!artifact?.id || !artifact?.storage_session_id) {
-    throw new Error('CodeAPI /exec did not return a downloadable PPT artifact');
-  }
-
-  const identityQuery = buildCodeEnvDownloadQuery({ kind: 'user', id: userId });
-  const fileIdentifier = `${encodeURIComponent(artifact.storage_session_id)}/${encodeURIComponent(artifact.id)}`;
-  const downloadResponse = await fetchWithTimeout(
-    `${codeBaseURL}/download/${fileIdentifier}${identityQuery}`,
-    {
-      method: 'GET',
-      headers: baseHeaders,
-    },
-  );
-  if (!downloadResponse.ok) {
-    const errorText = await downloadResponse.text();
-    throw new Error(
-      `CodeAPI artifact download failed with ${downloadResponse.status}: ${errorText.slice(0, 500)}`,
-    );
-  }
-
-  const buffer = await downloadResponse.buffer();
-  if (!buffer?.length) {
-    throw new Error('CodeAPI artifact download returned an empty file');
-  }
-
-  const file_id = crypto.randomUUID();
-  const filename = sanitizeFallbackFilename(artifact.filename);
-  const storedFilename = `${file_id}__${filename}`;
-  const { saveBuffer } = getStrategyFunctions(FileSources.local);
-  const filepath = await saveBuffer({
+  const { execResult, artifact, buffer } = await executeCodeApiPptJob({
+    req,
     userId,
-    buffer,
-    fileName: storedFilename,
-    basePath: 'uploads',
+    sourceRef,
+    code,
   });
-  const now = new Date();
-  const fileDoc = {
-    file_id,
-    filepath,
-    messageId: responseMessageId,
-    object: 'file',
-    filename,
-    type: PPTX_MIME_TYPE,
-    conversationId,
-    user: userId,
-    tenantId: req?.user?.tenantId ?? user?.tenantId ?? null,
-    bytes: buffer.length,
-    updatedAt: now,
-    metadata: {
-      codeEnvRef: {
-        kind: 'user',
-        id: userId,
-        storage_session_id: artifact.storage_session_id,
-        file_id: artifact.id,
-      },
-      officePptDeterministicFallback: {
-        source_file_id: sourceFile?.file_id,
-        source_filename: sourceFilename,
-        source_storage_session_id: sourceRef.storage_session_id,
-        source_code_file_id: sourceRef.file_id,
-        generated_at: now.toISOString(),
-        returncode: execResult.returncode ?? 0,
-      },
-    },
-    source: FileSources.local,
-    context: FileSources.execute_code,
-    usage: 1,
-    createdAt: now,
-    text: null,
-    textFormat: null,
-    status: 'pending',
-    previewError: null,
-    previewRevision: crypto.randomUUID(),
-    toolCallId: `office_ppt_deterministic_fallback_${file_id}`,
-  };
 
-  const savedFile = await db.createFile(fileDoc, true);
-  const attachment = savedFile ? sanitizeFileForTransmit(savedFile) : fileDoc;
-  attachment.toolCallId = fileDoc.toolCallId;
+  const savedArtifact = await persistGeneratedOfficePptArtifact({
+    req,
+    user,
+    userId,
+    conversationId,
+    responseMessageId,
+    sourceFile,
+    sourceRef,
+    sourceFilename,
+    artifact,
+    buffer,
+    execResult,
+    mode: OFFICE_PPT_GENERATION_MODE,
+  });
+
   return {
-    attachment,
-    filename,
-    bytes: buffer.length,
-    codeSessionId: artifact.storage_session_id,
-    codeFileId: artifact.id,
+    ...savedArtifact,
     text:
       `已通过后端代码环境读取 ${sourceFilename || '上传的 Office 文件'} 并生成 PPTX：` +
-      `${filename}。文件已挂在本条回复附件中，可以直接下载。`,
+      `${savedArtifact.filename}。文件已挂在本条回复附件中，可以直接下载。`,
+  };
+};
+
+const runOfficePptTransformFallback = async ({
+  req,
+  user,
+  options,
+  userMessage,
+  conversationId,
+  responseMessageId,
+}) => {
+  const userId = req?.user?.id ?? user?.id ?? user;
+  if (!userId) {
+    throw new Error('Missing user id for deterministic PPT/PPTX transform fallback');
+  }
+
+  const sourceFile = pickOfficePptTransformSourceFile(userMessage, options);
+  const sourceRef = getOfficeCodeEnvRef(sourceFile);
+  if (!sourceRef?.storage_session_id || !sourceRef?.file_id) {
+    throw new Error('No CodeAPI file reference found for PPT/PPTX transform fallback');
+  }
+
+  const sourceFilename = getOfficeRefFilename(sourceFile);
+  const outputFilename = buildOfficePptTransformOutputFilename(sourceFilename, responseMessageId);
+  const code = buildOfficePptTransformPython({
+    sourceFilename,
+    outputFilename,
+    promptText: getMessagePromptText(userMessage),
+  });
+  const { execResult, artifact, buffer } = await executeCodeApiPptJob({
+    req,
+    userId,
+    sourceRef,
+    code,
+  });
+
+  const savedArtifact = await persistGeneratedOfficePptArtifact({
+    req,
+    user,
+    userId,
+    conversationId,
+    responseMessageId,
+    sourceFile,
+    sourceRef,
+    sourceFilename,
+    artifact,
+    buffer,
+    execResult,
+    mode: OFFICE_PPT_TRANSFORM_MODE,
+  });
+
+  return {
+    ...savedArtifact,
+    text:
+      `已通过后端代码环境读取 ${sourceFilename || '上传的 PPTX 文件'}，` +
+      `并按本轮要求生成新版 PPTX：${savedArtifact.filename}。文件已挂在本条回复附件中，可以直接下载。`,
   };
 };
 
@@ -808,6 +1233,34 @@ const executeOfficePptDeterministicFallback = async ({
     metadata: buildOfficePptFallbackMetadata(fallback, fallback.attachment, {
       ...(metadata ?? {}),
       officeGenerationDeterministicFallbackReason: reason,
+    }),
+    attachment: fallback.attachment,
+  };
+};
+
+const executeOfficePptTransformFallback = async ({
+  req,
+  user,
+  options,
+  userMessage,
+  conversationId,
+  responseMessageId,
+  metadata,
+  reason,
+}) => {
+  const fallback = await runOfficePptTransformFallback({
+    req,
+    user,
+    options,
+    userMessage,
+    conversationId,
+    responseMessageId,
+  });
+  return {
+    completion: fallback.text,
+    metadata: buildOfficePptTransformMetadata(fallback, fallback.attachment, {
+      ...(metadata ?? {}),
+      officePptTransformFallbackReason: reason,
     }),
     attachment: fallback.attachment,
   };
@@ -1481,6 +1934,39 @@ class BaseClient {
     if (
       !opts.officeGenerationEmptyRetry &&
       !this.abortController?.signal?.aborted &&
+      isOfficePptTransformPreflightCandidate(userMessage, this.options)
+    ) {
+      logger.warn('[BaseClient] PPT/PPTX transform request; running deterministic CodeAPI preflight', {
+        conversationId,
+        messageId: userMessage.messageId,
+        responseMessageId,
+      });
+      try {
+        const fallback = await executeOfficePptTransformFallback({
+          req: this.options.req,
+          user,
+          options: this.options,
+          userMessage,
+          conversationId,
+          responseMessageId,
+          reason: 'preflight',
+        });
+        completion = fallback.completion;
+        metadata = fallback.metadata;
+        deterministicFallbackAttachment = fallback.attachment;
+      } catch (error) {
+        logger.error('[BaseClient] PPT/PPTX deterministic transform preflight failed:', error);
+        completion = OFFICE_PPT_TRANSFORM_FALLBACK_FAILED;
+        metadata = {
+          ...(metadata ?? {}),
+          officePptTransformFallback: true,
+          officePptTransformFallbackReason: 'preflight',
+          officePptTransformFallbackError: String(error?.message ?? error),
+        };
+      }
+    } else if (
+      !opts.officeGenerationEmptyRetry &&
+      !this.abortController?.signal?.aborted &&
       isOfficePptDeterministicPreflightCandidate(userMessage, this.options)
     ) {
       logger.warn('[BaseClient] Office/PPT generation request; running deterministic CodeAPI preflight', {
@@ -1514,6 +2000,41 @@ class BaseClient {
     } else {
       ({ completion, metadata } = await this.sendCompletion(payload, opts));
       if (
+        !opts.officeGenerationEmptyRetry &&
+        !this.abortController?.signal?.aborted &&
+        !completionHasMeaningfulContent(completion) &&
+        isOfficePptTransformPreflightCandidate(userMessage, this.options)
+      ) {
+        logger.warn('[BaseClient] Empty PPT/PPTX transform response; running deterministic CodeAPI fallback', {
+          conversationId,
+          messageId: userMessage.messageId,
+          responseMessageId,
+        });
+        try {
+          const fallback = await executeOfficePptTransformFallback({
+            req: this.options.req,
+            user,
+            options: this.options,
+            userMessage,
+            conversationId,
+            responseMessageId,
+            metadata,
+            reason: 'empty_response',
+          });
+          completion = fallback.completion;
+          metadata = fallback.metadata;
+          deterministicFallbackAttachment = fallback.attachment;
+        } catch (error) {
+          logger.error('[BaseClient] PPT/PPTX deterministic transform fallback failed:', error);
+          completion = OFFICE_PPT_TRANSFORM_FALLBACK_FAILED;
+          metadata = {
+            ...(metadata ?? {}),
+            officePptTransformFallback: true,
+            officePptTransformFallbackReason: 'empty_response',
+            officePptTransformFallbackError: String(error?.message ?? error),
+          };
+        }
+      } else if (
         !opts.officeGenerationEmptyRetry &&
         !this.abortController?.signal?.aborted &&
         !completionHasMeaningfulContent(completion) &&

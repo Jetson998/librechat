@@ -88,6 +88,39 @@ const CODE_EXECUTION_STORAGE_GUARD_MESSAGE =
   'Blocked by LibreChat safety guard: code execution may only use /mnt/data and explicitly provided current-message files. ' +
   'Do not inspect /srv/codeapi-data/sessions, other session directories, or the filesystem root; list /mnt/data and use the exact uploaded filename instead.';
 
+const getToolResponseFormat = (tool) =>
+  tool?.responseFormat ?? tool?.response_format ?? tool?.lc_kwargs?.responseFormat ?? tool?.lc_kwargs?.response_format;
+
+const CODE_EXECUTION_CONTENT_ARTIFACT_TOOL_NAMES = new Set([
+  Tools.execute_code,
+  AgentConstants.BASH_TOOL,
+  AgentConstants.PROGRAMMATIC_TOOL_CALLING,
+  AgentConstants.BASH_PROGRAMMATIC_TOOL_CALLING,
+].filter(Boolean));
+
+const isCodeExecutionContentArtifactTool = (tool) =>
+  getToolResponseFormat(tool) === 'content_and_artifact' ||
+  CODE_EXECUTION_CONTENT_ARTIFACT_TOOL_NAMES.has(tool?.name) ||
+  /(?:bash|execute[_-]?code|programmatic)/i.test(String(tool?.name ?? ''));
+
+const buildCodeExecutionStorageGuardOutput = (tool) => {
+  if (isCodeExecutionContentArtifactTool(tool)) {
+    return [
+      CODE_EXECUTION_STORAGE_GUARD_MESSAGE,
+      {
+        blocked: true,
+        reason: 'code_execution_storage_guard',
+        stdout: CODE_EXECUTION_STORAGE_GUARD_MESSAGE,
+        stderr: '',
+        returncode: 1,
+        files: [],
+      },
+    ];
+  }
+
+  return CODE_EXECUTION_STORAGE_GUARD_MESSAGE;
+};
+
 const getToolInputCommand = (toolInput) => {
   if (typeof toolInput === 'string') {
     try {
@@ -131,7 +164,7 @@ const wrapCodeExecutionStorageGuard = (tool) => {
         tool: tool.name,
         command: redactMessage(violation.command, 512),
       });
-      return CODE_EXECUTION_STORAGE_GUARD_MESSAGE;
+      return buildCodeExecutionStorageGuardOutput(tool);
     }
     return originalCall(toolInput, ...args);
   };
