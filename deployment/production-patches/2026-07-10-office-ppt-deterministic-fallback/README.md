@@ -227,6 +227,24 @@ End-to-end user upload verification passed in fresh LibreChat conversation
   `bd55ca81-0a53-4bd4-805b-4ce6c2191d3f`, was redacted on 2026-07-10:
   `redactedParts: 9`, `unsafeOutputs: 0`, `unsafeArgs: 0`.
 
+Follow-up diagnosis for the same conversation on 2026-07-10 02:11 HKT:
+
+- Latest assistant message `a7eebe59-575a-4e83-b681-9836403b5898` already
+  had `message.files[0]`, `message.attachments[0]`, and a matching `files`
+  collection row for `API渠道模型来源说明_基础版_a7eebe59.pptx`.
+- The missing browser card was therefore not a CodeAPI generation failure or a
+  Mongo persistence failure.
+- Likely gap: deterministic preflight bypassed the normal code-tool callback
+  path that emits live `attachment` SSE chunks. The final response persisted
+  `files`, but the current-page stream state did not receive the same generated
+  file event used by regular code artifacts.
+- Fix: `office-context-patch/BaseClient.js` now emits a live generated
+  `attachment` event for deterministic Office/PPT fallback artifacts in
+  addition to persisting `responseMessage.files` and `responseMessage.attachments`.
+  In standard streaming mode it writes to the response stream when writable; in
+  resumable mode it publishes through `GenerationJobManager.emitChunk` using the
+  conversation id stream.
+
 ## Feature / Function List
 
 - Stable PPT output when the model returns empty content after an Office/PPT
@@ -234,6 +252,8 @@ End-to-end user upload verification passed in fresh LibreChat conversation
 - Backend-generated `.pptx` artifact even when the model never calls `Bash`.
 - Generated PPT file is stored in normal LibreChat uploads and visible as a
   downloadable assistant file card.
+- Deterministic PPT file cards are also emitted to the active browser stream,
+  so the card appears immediately without requiring a page refresh.
 - Generated Excel/CSV, Word, Markdown/text, PDF, images, and other real file
   artifacts are also mirrored into `responseMessage.files` for download-card
   rendering.

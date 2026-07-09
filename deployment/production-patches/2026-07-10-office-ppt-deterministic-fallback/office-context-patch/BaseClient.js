@@ -9,6 +9,7 @@ const {
   buildMessageFiles,
   sanitizeFileForTransmit,
   buildCodeEnvDownloadQuery,
+  GenerationJobManager,
   extractFileContext,
   getCodeApiAuthHeaders,
   getReferencedQuotes,
@@ -318,6 +319,35 @@ const appendDownloadableMessageFiles = (existingFiles, candidateFiles) => {
   }
 
   return files.length > 0 ? files : undefined;
+};
+
+const emitGeneratedAttachmentEvent = async ({ opts, conversationId, attachment }) => {
+  if (!isDownloadableMessageFile(attachment)) {
+    return false;
+  }
+
+  const event = { event: 'attachment', data: attachment };
+  const res = opts?.progressOptions?.res;
+
+  if (res && typeof res.write === 'function' && res.headersSent && !res.writableEnded) {
+    try {
+      res.write(`event: attachment\ndata: ${JSON.stringify(attachment)}\n\n`);
+      return true;
+    } catch (error) {
+      logger.warn('[BaseClient] Failed to stream generated attachment event:', error);
+    }
+  }
+
+  if (conversationId && GenerationJobManager?.emitChunk) {
+    try {
+      await GenerationJobManager.emitChunk(conversationId, event);
+      return true;
+    } catch (error) {
+      logger.warn('[BaseClient] Failed to publish generated attachment event:', error);
+    }
+  }
+
+  return false;
 };
 
 const buildUniqueOfficePptOutputFilename = (responseMessageId) => {
@@ -1650,6 +1680,11 @@ class BaseClient {
       responseMessage.files = appendDownloadableMessageFiles(responseMessage.files, [
         deterministicFallbackAttachment,
       ]);
+      await emitGeneratedAttachmentEvent({
+        opts,
+        conversationId,
+        attachment: deterministicFallbackAttachment,
+      });
     }
 
     if (this.options.attachments) {
