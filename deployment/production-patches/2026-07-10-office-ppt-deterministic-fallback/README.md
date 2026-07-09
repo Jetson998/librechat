@@ -126,6 +126,11 @@ Follow-up file-card visibility fix deployed on 2026-07-10 after commit
 `d512f145-574e-4a91-8bda-b047c10c07e9` was backfilled after commit `87e475a`
 was pushed to `origin/main`.
 
+General generated-artifact file-card fix deployed on 2026-07-10 after commit
+`5283696` was pushed to `origin/main`. This extends file-card rendering from
+the deterministic PPT route to all assistant-generated downloadable artifacts
+that have a `file_id`.
+
 Production write performed:
 
 ```text
@@ -138,6 +143,7 @@ Backup created before replacement:
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710003919
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710011244
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446
+/opt/librechat/office-context-patch/BaseClient.js.bak-20260710014142
 ```
 
 Observed checksums:
@@ -149,6 +155,8 @@ preflight before: db4638270ae7cb48eafa67a67258d44cba3971edb502001fb229d33f5b6041
 preflight after:  8f21565c7941774d20b2164cc0f3096b55048c5cb0a74e3332164588cb49d8c0
 file-card before: 8f21565c7941774d20b2164cc0f3096b55048c5cb0a74e3332164588cb49d8c0
 file-card after:  1ef62a50021491d4a962376e99e50ecdeeba19da1c405553ec5189cecd8291c3
+general file-card before: 1ef62a50021491d4a962376e99e50ecdeeba19da1c405553ec5189cecd8291c3
+general file-card after:  774120c7ecc38897887f41bf7a676f55b4f179b955f456569e8bced42a80ff34
 ```
 
 Post-deployment verification:
@@ -165,6 +173,9 @@ Preflight marker present in production BaseClient.js
 File-card markers present in production BaseClient.js
 Backfill result: message.files[0].file_id and message.attachments[0].file_id
 matched `e1a6d20b-89e6-428a-9e7b-9f3369d4333b`
+General file-card markers present in production BaseClient.js:
+isDownloadableMessageFile, appendDownloadableMessageFiles,
+artifactAttachments, responseMessage.files
 ```
 
 End-to-end user upload verification passed in fresh LibreChat conversation

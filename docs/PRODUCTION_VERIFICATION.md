@@ -161,6 +161,16 @@ Operational interpretation:
   generated artifacts with `file_id` into `responseMessage.files`, while
   leaving display-only tool attachments such as search/UI resources in
   `attachments` only.
+- General file-card fix was deployed on 2026-07-10 01:41 HKT after commit
+  `5283696` was pushed. Backup:
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710014142`.
+  Checksum changed from
+  `1ef62a50021491d4a962376e99e50ecdeeba19da1c405553ec5189cecd8291c3` to
+  `774120c7ecc38897887f41bf7a676f55b4f179b955f456569e8bced42a80ff34`.
+  Production verification confirmed container `node --check` passed,
+  `isDownloadableMessageFile`, `appendDownloadableMessageFiles`,
+  `artifactAttachments`, and `responseMessage.files` markers were present, and
+  server-local `/api/config` returned JSON.
 - Follow-up deployment on 2026-07-10 01:24 HKT replaced production
   `BaseClient.js` after commit `b15b743` was pushed. Backup:
   `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446`.
