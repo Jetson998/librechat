@@ -263,6 +263,28 @@ Deployment result on 2026-07-10 02:19 HKT:
 - HTTP smoke: root returned `200`; `/office/` returned `401`, matching the
   protected Office Converter helper route.
 
+Second follow-up diagnosis on 2026-07-10 02:24 HKT for conversation
+`fe8d7f54-8bbd-4786-b7a1-d4618f83ba35`:
+
+- Assistant message `a709f5cb-8ead-4b21-be0d-2f277ce21b72` had
+  `message.files[0]`, `message.attachments[0]`, and the matching `files`
+  collection row for `API渠道模型来源说明_基础版_a709f5cb.pptx`.
+- Frontend bundle inspection showed the chat message body renderer only renders
+  `message.content` or `message.text`; assistant `message.files` participates in
+  memo comparison but is not rendered as an inline download card.
+- Existing LibreChat generated-file rendering is tied to `content` tool-call
+  blocks: attachments are grouped by `toolCallId` and then passed to the tool
+  renderer. Deterministic fallback returned plain text, so there was no content
+  tool block to carry the attachment.
+- Fix: deterministic fallback now assigns a stable `toolCallId` to the generated
+  attachment and emits response `content` with a text part plus a completed
+  lightweight `tool_call` part. This reuses the existing tool attachment render
+  path instead of relying on assistant `files` alone.
+- Repair script added:
+  `scripts/backfill-generated-attachment-tool-content.js`. It updates one
+  specified assistant message by adding the lightweight tool-call content block
+  and aligning `attachments/files[].toolCallId` for the generated file.
+
 ## Feature / Function List
 
 - Stable PPT output when the model returns empty content after an Office/PPT
@@ -272,6 +294,9 @@ Deployment result on 2026-07-10 02:19 HKT:
   downloadable assistant file card.
 - Deterministic PPT file cards are also emitted to the active browser stream,
   so the card appears immediately without requiring a page refresh.
+- Deterministic PPT messages also carry a completed lightweight tool-call
+  content block, which is the frontend path that actually renders generated
+  attachments in the chat body.
 - Generated Excel/CSV, Word, Markdown/text, PDF, images, and other real file
   artifacts are also mirrored into `responseMessage.files` for download-card
   rendering.

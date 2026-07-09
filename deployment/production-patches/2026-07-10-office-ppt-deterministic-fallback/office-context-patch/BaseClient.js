@@ -321,6 +321,42 @@ const appendDownloadableMessageFiles = (existingFiles, candidateFiles) => {
   return files.length > 0 ? files : undefined;
 };
 
+const getGeneratedAttachmentToolCallId = (attachment) =>
+  attachment?.toolCallId ||
+  (attachment?.file_id ? `office_ppt_deterministic_fallback_${attachment.file_id}` : undefined);
+
+const buildGeneratedAttachmentContent = (text, attachment) => {
+  const toolCallId = getGeneratedAttachmentToolCallId(attachment);
+  if (!toolCallId || !isDownloadableMessageFile(attachment)) {
+    return undefined;
+  }
+
+  const parts = [];
+  if (hasMeaningfulString(text)) {
+    parts.push({
+      type: ContentTypes.TEXT,
+      [ContentTypes.TEXT]: text,
+    });
+  }
+
+  parts.push({
+    type: ContentTypes.TOOL_CALL,
+    [ContentTypes.TOOL_CALL]: {
+      id: toolCallId,
+      name: 'Bash',
+      args: JSON.stringify({
+        action: 'deterministic_office_ppt_fallback',
+        filename: attachment.filename || attachment.name || 'generated.pptx',
+      }),
+      type: ContentTypes.TOOL_CALL,
+      progress: 1,
+      output: `Generated file: ${attachment.filename || attachment.name || attachment.file_id}`,
+    },
+  });
+
+  return parts;
+};
+
 const emitGeneratedAttachmentEvent = async ({ opts, conversationId, attachment }) => {
   if (!isDownloadableMessageFile(attachment)) {
     return false;
@@ -736,6 +772,7 @@ const runOfficePptDeterministicFallback = async ({
 
   const savedFile = await db.createFile(fileDoc, true);
   const attachment = savedFile ? sanitizeFileForTransmit(savedFile) : fileDoc;
+  attachment.toolCallId = fileDoc.toolCallId;
   return {
     attachment,
     filename,
@@ -1673,6 +1710,8 @@ class BaseClient {
     }
 
     if (deterministicFallbackAttachment) {
+      deterministicFallbackAttachment.toolCallId =
+        getGeneratedAttachmentToolCallId(deterministicFallbackAttachment);
       responseMessage.attachments = [
         ...(Array.isArray(responseMessage.attachments) ? responseMessage.attachments : []),
         deterministicFallbackAttachment,
@@ -1680,6 +1719,10 @@ class BaseClient {
       responseMessage.files = appendDownloadableMessageFiles(responseMessage.files, [
         deterministicFallbackAttachment,
       ]);
+      responseMessage.content = buildGeneratedAttachmentContent(
+        responseMessage.text,
+        deterministicFallbackAttachment,
+      );
       await emitGeneratedAttachmentEvent({
         opts,
         conversationId,
