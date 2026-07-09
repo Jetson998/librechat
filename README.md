@@ -1,4 +1,4 @@
-# Musk WebAI LibreChat Self-host
+# LibreChat Self-host
 
 This project stores the operating documentation for the self-hosted LibreChat
 deployment currently exposed at:

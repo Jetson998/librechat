@@ -1,6 +1,6 @@
 # Standard Operating Procedure
 
-Project: Musk WebAI self-hosted LibreChat
+Project: self-hosted LibreChat
 
 Production URL:
 

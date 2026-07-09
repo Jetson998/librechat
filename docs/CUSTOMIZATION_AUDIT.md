@@ -8,18 +8,17 @@ https://152.32.172.162.sslip.io/
 
 Audit date: 2026-07-09
 
-Baseline used for this first pass:
+Baseline used for this pass:
 
 - Publicly visible production HTML and `/api/config`.
 - Local SOP notes in this repository.
-- Prior operational notes about the same host family.
+- GitHub API metadata for the official upstream commit.
+- GitHub Contents API copy of official `client/index.html` for the same commit.
 - Upstream baseline inferred from production `buildInfo.commit`:
   `8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9`.
 
 This is not yet a full source-level diff. The local repository currently stores
 operations documentation, not the modified LibreChat source tree.
-
-## Confirmed Additions Or Differences
 
 ## Official Comparison Summary
 
@@ -43,13 +42,17 @@ Comparison result:
 | Code Environment / Skills frontend | Yes | No confirmed core change | Official agent file/code sandbox UI and wording exists in the bundle |
 | Upload menu Chinese business wording | No | Yes | Re-label upload choices as `原文件上传`, `提取文字上传`, `用代码读取文件` |
 | Auth policy | Configurable official feature | Yes, deployment config | Close registration, keep email/password login, disable social login/password reset |
-| `/office/` Office converter | Not LibreChat core | Yes, host-level service | Protected Office document conversion fallback |
-| `/claude/` terminal | Not LibreChat core | Yes, host-level service on direct IP HTTP | Browser-accessible Claude Code terminal behind login |
-| Direct-IP Open WebUI customization | Not LibreChat core | Yes, separate app surface | Open WebUI UI polish, separate from LibreChat |
+| Public domain / noindex headers | Deployment concern | Yes, deployment config | Expose LibreChat on `sslip.io` HTTPS and discourage indexing |
+| `/office/` Office converter | Not LibreChat core | Yes, LibreChat-host deployment route | Protected Office document conversion fallback |
 
 Net: the only confirmed LibreChat frontend customization visible from public
 assets is the upload-label business patch. Other visible differences are
-deployment configuration or host-level adjacent services.
+deployment configuration or a deployment-level helper route.
+
+Open WebUI / WebAI customizations on other hostnames are intentionally excluded
+from this audit.
+
+## Confirmed LibreChat Changes
 
 ### 1. Business upload label patch
 
@@ -195,54 +198,36 @@ Interpretation:
 Status: official frontend capability plus custom Chinese label patch; backend
 execution not confirmed from public checks.
 
-### 6. LibreChat-adjacent helper services
+### 6. LibreChat deployment helper route
 
-Prior operational notes for the same host family mention helper routes/services
-that are adjacent to LibreChat but not necessarily part of LibreChat core:
+The LibreChat HTTPS hostname exposes one helper route that is not part of
+official LibreChat core:
 
 ```text
 /office/
-/claude/
-/claude-login/
 ```
 
-Known roles:
+Known role:
 
 - `/office/`: Office document conversion fallback.
-- `/claude/`: browser-accessible Claude CLI terminal.
-- `/claude-login/`: cookie/session login wrapper for the Claude terminal.
 
 Refined check on 2026-07-09:
 
 - `https://152.32.172.162.sslip.io/office/` returns `401` with
   `WWW-Authenticate: Basic realm="Office Converter"`.
-- `http://152.32.172.162/office/` also returns `401` with the same Office
-  Converter realm.
-- `http://152.32.172.162/claude/` returns `302` to
-  `http://152.32.172.162/claude-login/?next=/claude/`.
-- `http://152.32.172.162/claude-login/` returns a custom
-  `Claude Code Terminal` login page with a 12-hour session note.
 - On the `sslip.io` HTTPS LibreChat host, `/claude/` and `/claude-login/`
   currently return the LibreChat SPA, not the Claude terminal login.
 
-Additional host observation:
-
-- `http://152.32.172.162/` serves Open WebUI, not LibreChat.
-- That Open WebUI root includes `musk-webai-ui-polish` styling, which belongs
-  to the host's separate Open WebUI customization surface and should not be
-  counted as a LibreChat source change.
-
 Interpretation:
 
-- `/office/` is a confirmed host-level helper route available on both checked
-  hostnames, protected by Basic Auth.
-- `/claude/` and `/claude-login/` are confirmed on direct IP HTTP, but are not
-  currently exposed as standalone routes under the `sslip.io` LibreChat HTTPS
-  hostname.
-- These are deployment-level adjacent services, not proven LibreChat-core
-  source changes.
+- `/office/` is a confirmed LibreChat-host deployment route, protected by Basic
+  Auth.
+- It is not an official LibreChat core route.
+- `/claude/` and `/claude-login/` are not counted as LibreChat changes because
+  the LibreChat HTTPS hostname serves the normal SPA for those paths.
 
-Status: helper routes confirmed, scoped as host-level additions.
+Status: one helper route confirmed under the LibreChat host; scoped as a
+deployment addition, not a LibreChat source modification.
 
 ## What Still Looks Like Upstream
 
@@ -258,8 +243,8 @@ Observed examples:
 - Manifest name: `LibreChat`
 - `/api/config` app title: `LibreChat`
 
-So there is no externally visible full rebrand to `Musk WebAI` yet, at least in
-the publicly fetched HTML/config/manifest.
+So there is no externally visible product rebrand in this LibreChat deployment,
+at least in the publicly fetched HTML/config/manifest.
 
 ## Open Questions For Source-Level Diff
 
@@ -291,5 +276,7 @@ Recommended next checks:
 3. Separate pure configuration changes from source changes.
 4. Use an authenticated test account or server logs to verify whether
    CodeAPI/tool execution works end to end.
-5. Keep `/office/`, `/claude/`, and Open WebUI customizations documented as
-   host-level services unless source inspection proves a tighter integration.
+5. Keep `/office/` documented as a LibreChat-host helper route, not a core
+   source modification.
+6. Keep Open WebUI / WebAI and direct-IP-only routes out of this LibreChat
+   comparison.
