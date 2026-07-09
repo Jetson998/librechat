@@ -248,11 +248,13 @@ Operational rules:
 - The Anthropic model prompt must point the model at the actually available
   code tool (`Bash` in this deployment) and must tell it not to use Claude Code
   helper names such as `Glob`, `Read`, `Edit`, or `LS`.
-- Production `office-context-patch/BaseClient.js` includes an Office/PPT empty
-  response retry guard. When an Office/PPT generation request returns no text,
-  content, tool call, or attachment, it retries once with an explicit
-  Bash/Python instruction and saves a visible fallback instead of a blank
-  assistant message if the retry is still empty.
+- Production `office-context-patch/BaseClient.js` must not rely only on model
+  retry for PPT generation. The 2026-07-10 deterministic fallback detects an
+  empty PPT generation turn with a CodeAPI-backed Office attachment, calls
+  CodeAPI `/exec` directly, generates a `.pptx`, saves it to LibreChat uploads,
+  creates the `db.files` row, and attaches the artifact to the assistant
+  message. The older prompt retry remains only for non-PPT Office generation
+  cases that do not match the deterministic route.
 - The deployment `office-document-parser` skill covers both extraction and
   Office artifact generation/modification. PPT generation uses `python-pptx`;
   Excel generation/modification uses `openpyxl`; generated files must be saved
