@@ -126,6 +126,13 @@ Operational interpretation:
   before model tool attempts for explicit PPT output requests. The same test
   also exposed a same-conversation duplicate filename failure in `db.files`;
   generated PPT filenames now need a short unique suffix.
+- Follow-up commit `883ac36` was pushed to `origin/main` and deployed on
+  2026-07-10. Production verification confirmed the preflight marker and
+  unique-filename helper are present in `BaseClient.js`, container
+  `node --check` passed, root URL returned `HTTP/2 200`, `/api/config` returned
+  JSON, and `LibreChat-CodeAPI` was healthy. The pre-replacement backup for
+  this follow-up is
+  `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710011244`.
 - Deployment verification on 2026-07-10 confirmed:
   `BaseClient.js` marker present, container `node --check` passed, root URL
   returned `HTTP/2 200`, `/api/config` returned JSON, `LibreChat-API` was up,

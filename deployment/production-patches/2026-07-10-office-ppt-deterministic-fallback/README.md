@@ -113,6 +113,9 @@ API渠道模型来源说明_基础版_a3913bc4.pptx
 Deployed to production on 2026-07-10 after commit `73420d3` was pushed to
 `origin/main`.
 
+Follow-up preflight and duplicate-filename fix deployed on 2026-07-10 after
+commit `883ac36` was pushed to `origin/main`.
+
 Production write performed:
 
 ```text
@@ -123,6 +126,7 @@ Backup created before replacement:
 
 ```text
 /opt/librechat/office-context-patch/BaseClient.js.bak-20260710003919
+/opt/librechat/office-context-patch/BaseClient.js.bak-20260710011244
 ```
 
 Observed checksums:
@@ -130,6 +134,8 @@ Observed checksums:
 ```text
 before: 23915ea0f6fb84fb1c554417a4c0ad0b1a008b941d2a98ff77e7c40c748c230f
 after:  db4638270ae7cb48eafa67a67258d44cba3971edb502001fb229d33f5b6041d8
+preflight before: db4638270ae7cb48eafa67a67258d44cba3971edb502001fb229d33f5b6041d8
+preflight after:  8f21565c7941774d20b2164cc0f3096b55048c5cb0a74e3332164588cb49d8c0
 ```
 
 Post-deployment verification:
@@ -142,6 +148,7 @@ LibreChat-API: Up
 LibreChat-CodeAPI: Up, healthy
 LibreChat-NGINX: Up
 Runtime exports: buildCodeEnvDownloadQuery/getCodeApiAuthHeaders available
+Preflight marker present in production BaseClient.js
 ```
 
 End-to-end user upload verification is still expected in a fresh LibreChat
