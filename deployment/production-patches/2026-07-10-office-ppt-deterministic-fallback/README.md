@@ -37,6 +37,7 @@ intended to replace the bind-mounted files below after the repository gate
 passes:
 
 ```text
+office-context-patch/api-index.cjs
 office-context-patch/BaseClient.js
 office-context-patch/ToolService.js
 office-context-patch/process.js
@@ -47,6 +48,7 @@ librechat.yaml
 Production mount map observed before this patch:
 
 ```text
+/opt/librechat/office-context-patch/api-index.cjs -> /app/packages/api/dist/index.cjs
 /opt/librechat/office-context-patch/BaseClient.js -> /app/api/app/clients/BaseClient.js
 /opt/librechat/office-context-patch/ToolService.js -> /app/api/server/services/ToolService.js
 /opt/librechat/office-context-patch/process.js -> /app/api/server/services/Files/process.js
@@ -88,6 +90,10 @@ Office/PPT generation turns:
    files. This applies to CodeAPI-generated PPT/PPTX, Excel/CSV, Word, MD/TXT,
    PDF, images, and other real file artifacts that have a `file_id`.
 11. Save a visible assistant message pointing users to the generated attachment.
+12. Seed `initializedAgent.primedCodeFiles` into `createRun.initialSessions`
+   in the OpenAI-compatible agent run path so the first Bash/code tool call
+   receives `_injected_files` and sees the uploaded Office files under
+   `/mnt/data`.
 
 The older prompt-retry behavior remains only for non-deterministic Office
 generation cases that do not match the PPT fallback path.
@@ -244,6 +250,27 @@ Follow-up diagnosis for the same conversation on 2026-07-10 02:11 HKT:
   In standard streaming mode it writes to the response stream when writable; in
   resumable mode it publishes through `GenerationJobManager.emitChunk` using the
   conversation id stream.
+
+Follow-up root-cause diagnosis for conversation
+`9c67d81d-2267-4e46-8630-7fcc491afb8e` on 2026-07-10:
+
+- Mongo showed the uploaded Excel had `metadata.codeEnvRef`, including
+  `storage_session_id` and CodeAPI `file_id`, so the upload metadata existed.
+- CodeAPI logs showed `/sessions/<session>/objects/<file>` returning `405`,
+  then a re-upload and `/exec 200`; the user-visible Bash still saw an empty
+  `/mnt/data`.
+- The production bundle `api-index.cjs` had `buildInitialToolSessions()` but
+  the OpenAI-compatible agent run path called `deps.createRun()` without
+  passing `initialSessions`.
+- Result: `initializedAgent.primedCodeFiles` was preserved on the initialized
+  agent object but never seeded into `Graph.sessions[EXECUTE_CODE]` for tool
+  call #1, so `ToolNode` did not pass `_injected_files` to Bash and the
+  sandbox mounted no uploaded workbook.
+- Fix: build `initialSessions` from `[initializedAgent]` immediately before
+  `deps.createRun()` and pass it into the run config. Uploaded Office files
+  should now land in `/mnt/data` before the first tool call, and generated
+  artifacts should continue to be saved under `/mnt/data` before LibreChat
+  persists their download cards.
 
 Deployment result on 2026-07-10 02:19 HKT:
 
