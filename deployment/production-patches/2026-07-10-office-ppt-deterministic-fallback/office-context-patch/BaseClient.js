@@ -136,6 +136,8 @@ const OFFICE_SPREADSHEET_FILE_EXT_RE = /\.(xlsx|xlsm|csv)$/i;
 const OFFICE_GENERATION_INTENT_RE =
   /(ppt|pptx|powerpoint|presentation|deck|幻灯片|演示|生成|制作|创建|做一页|做个|输出|导出|返回文件|excel|xlsx|word|docx|office)/i;
 const PPT_GENERATION_INTENT_RE = /(ppt|pptx|powerpoint|presentation|deck|幻灯片|演示)/i;
+const OFFICE_ARTIFACT_OUTPUT_ACTION_RE =
+  /(生成|制作|创建|做一页|做个|输出|导出|返回文件|返回|保存|generate|create|make|build|export|produce)/i;
 const OFFICE_EMPTY_RETRY_FALLBACK =
   '这轮模型没有返回有效内容，也没有调用代码工具，因此系统没有生成 PPT 文件。请在新任务里选择“Office文件上传”，上传 Excel 后直接说“用 Bash/Python 读取这个 Excel 并生成 PPTX，保存到 /mnt/data 并返回文件”。';
 const OFFICE_DETERMINISTIC_FALLBACK_FAILED =
@@ -270,10 +272,39 @@ const isOfficePptDeterministicFallbackCandidate = (userMessage, options) => {
   return Boolean(pickOfficePptFallbackSourceFile(userMessage, options));
 };
 
+const isOfficePptDeterministicPreflightCandidate = (userMessage, options) => {
+  const promptText = getMessagePromptText(userMessage);
+  if (
+    !PPT_GENERATION_INTENT_RE.test(promptText) ||
+    !OFFICE_ARTIFACT_OUTPUT_ACTION_RE.test(promptText)
+  ) {
+    return false;
+  }
+  return Boolean(pickOfficePptFallbackSourceFile(userMessage, options));
+};
+
+const buildOfficePptFallbackMetadata = (fallback, attachment, extra = {}) => ({
+  ...extra,
+  officeGenerationDeterministicFallback: true,
+  officeGenerationDeterministicFallbackFileId: attachment?.file_id,
+  officeGenerationDeterministicFallbackCodeSessionId: fallback.codeSessionId,
+  officeGenerationDeterministicFallbackCodeFileId: fallback.codeFileId,
+  officeGenerationDeterministicFallbackBytes: fallback.bytes,
+});
+
 const sanitizeFallbackFilename = (filename, fallback = OFFICE_PPT_FALLBACK_OUTPUT_FILENAME) => {
   const basename = path.basename(filename || fallback).replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
   const next = basename || fallback;
   return /\.pptx$/i.test(next) ? next : `${next}.pptx`;
+};
+
+const buildUniqueOfficePptOutputFilename = (responseMessageId) => {
+  const suffix = String(responseMessageId || crypto.randomUUID())
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 8);
+  return sanitizeFallbackFilename(
+    OFFICE_PPT_FALLBACK_OUTPUT_FILENAME.replace(/\.pptx$/i, `_${suffix}.pptx`),
+  );
 };
 
 const getCodeApiBaseURL = () =>
@@ -530,7 +561,7 @@ const runOfficePptDeterministicFallback = async ({
   }
 
   const sourceFilename = getOfficeRefFilename(sourceFile);
-  const outputFilename = sanitizeFallbackFilename(OFFICE_PPT_FALLBACK_OUTPUT_FILENAME);
+  const outputFilename = buildUniqueOfficePptOutputFilename(responseMessageId);
   const code = buildOfficePptFallbackPython({
     sourceFilename,
     outputFilename,
@@ -662,6 +693,34 @@ const runOfficePptDeterministicFallback = async ({
     text:
       `已通过后端代码环境读取 ${sourceFilename || '上传的 Office 文件'} 并生成 PPTX：` +
       `${filename}。文件已挂在本条回复附件中，可以直接下载。`,
+  };
+};
+
+const executeOfficePptDeterministicFallback = async ({
+  req,
+  user,
+  options,
+  userMessage,
+  conversationId,
+  responseMessageId,
+  metadata,
+  reason,
+}) => {
+  const fallback = await runOfficePptDeterministicFallback({
+    req,
+    user,
+    options,
+    userMessage,
+    conversationId,
+    responseMessageId,
+  });
+  return {
+    completion: fallback.text,
+    metadata: buildOfficePptFallbackMetadata(fallback, fallback.attachment, {
+      ...(metadata ?? {}),
+      officeGenerationDeterministicFallbackReason: reason,
+    }),
+    attachment: fallback.attachment,
   };
 };
 
@@ -1327,87 +1386,120 @@ class BaseClient {
       );
     }
 
+    let completion;
+    let metadata;
     let deterministicFallbackAttachment;
-    let { completion, metadata } = await this.sendCompletion(payload, opts);
     if (
       !opts.officeGenerationEmptyRetry &&
       !this.abortController?.signal?.aborted &&
-      !completionHasMeaningfulContent(completion) &&
-      isOfficePptDeterministicFallbackCandidate(userMessage, this.options)
+      isOfficePptDeterministicPreflightCandidate(userMessage, this.options)
     ) {
-      logger.warn('[BaseClient] Empty Office/PPT generation response; running deterministic CodeAPI fallback', {
+      logger.warn('[BaseClient] Office/PPT generation request; running deterministic CodeAPI preflight', {
         conversationId,
         messageId: userMessage.messageId,
         responseMessageId,
       });
       try {
-        const fallback = await runOfficePptDeterministicFallback({
+        const fallback = await executeOfficePptDeterministicFallback({
           req: this.options.req,
           user,
           options: this.options,
           userMessage,
           conversationId,
           responseMessageId,
+          reason: 'preflight',
         });
+        completion = fallback.completion;
+        metadata = fallback.metadata;
         deterministicFallbackAttachment = fallback.attachment;
-        completion = fallback.text;
-        metadata = {
-          ...(metadata ?? {}),
-          officeGenerationDeterministicFallback: true,
-          officeGenerationDeterministicFallbackFileId: deterministicFallbackAttachment?.file_id,
-          officeGenerationDeterministicFallbackCodeSessionId: fallback.codeSessionId,
-          officeGenerationDeterministicFallbackCodeFileId: fallback.codeFileId,
-          officeGenerationDeterministicFallbackBytes: fallback.bytes,
-        };
       } catch (error) {
-        logger.error('[BaseClient] Office/PPT deterministic fallback failed:', error);
+        logger.error('[BaseClient] Office/PPT deterministic preflight failed:', error);
         completion = OFFICE_DETERMINISTIC_FALLBACK_FAILED;
         metadata = {
           ...(metadata ?? {}),
           officeGenerationDeterministicFallback: true,
+          officeGenerationDeterministicFallbackReason: 'preflight',
           officeGenerationDeterministicFallbackError: String(error?.message ?? error),
         };
       }
-    } else if (
-      !opts.officeGenerationEmptyRetry &&
-      !this.abortController?.signal?.aborted &&
-      !completionHasMeaningfulContent(completion) &&
-      isOfficeGenerationRetryCandidate(userMessage)
-    ) {
-      const retryInstruction = buildOfficeGenerationRetryInstruction(userMessage);
-      const retryPayload = appendOfficeGenerationRetryInstruction(payload, retryInstruction);
-      logger.warn('[BaseClient] Empty Office/PPT generation response; retrying with explicit code instruction', {
-        conversationId,
-        messageId: userMessage.messageId,
-        responseMessageId,
-      });
-      try {
-        const retry = await this.sendCompletion(retryPayload, {
-          ...opts,
-          officeGenerationEmptyRetry: true,
+    } else {
+      ({ completion, metadata } = await this.sendCompletion(payload, opts));
+      if (
+        !opts.officeGenerationEmptyRetry &&
+        !this.abortController?.signal?.aborted &&
+        !completionHasMeaningfulContent(completion) &&
+        isOfficePptDeterministicFallbackCandidate(userMessage, this.options)
+      ) {
+        logger.warn('[BaseClient] Empty Office/PPT generation response; running deterministic CodeAPI fallback', {
+          conversationId,
+          messageId: userMessage.messageId,
+          responseMessageId,
         });
-        completion = retry.completion;
-        metadata = {
-          ...(retry.metadata ?? {}),
-          officeGenerationEmptyRetry: true,
-        };
-      } catch (error) {
-        logger.error('[BaseClient] Office/PPT empty-response retry failed:', error);
-        completion = OFFICE_EMPTY_RETRY_FALLBACK;
-        metadata = {
-          ...(metadata ?? {}),
-          officeGenerationEmptyRetry: true,
-          officeGenerationEmptyRetryError: String(error?.message ?? error),
-        };
-      }
+        try {
+          const fallback = await executeOfficePptDeterministicFallback({
+            req: this.options.req,
+            user,
+            options: this.options,
+            userMessage,
+            conversationId,
+            responseMessageId,
+            metadata,
+            reason: 'empty_response',
+          });
+          completion = fallback.completion;
+          metadata = fallback.metadata;
+          deterministicFallbackAttachment = fallback.attachment;
+        } catch (error) {
+          logger.error('[BaseClient] Office/PPT deterministic fallback failed:', error);
+          completion = OFFICE_DETERMINISTIC_FALLBACK_FAILED;
+          metadata = {
+            ...(metadata ?? {}),
+            officeGenerationDeterministicFallback: true,
+            officeGenerationDeterministicFallbackReason: 'empty_response',
+            officeGenerationDeterministicFallbackError: String(error?.message ?? error),
+          };
+        }
+      } else if (
+        !opts.officeGenerationEmptyRetry &&
+        !this.abortController?.signal?.aborted &&
+        !completionHasMeaningfulContent(completion) &&
+        isOfficeGenerationRetryCandidate(userMessage)
+      ) {
+        const retryInstruction = buildOfficeGenerationRetryInstruction(userMessage);
+        const retryPayload = appendOfficeGenerationRetryInstruction(payload, retryInstruction);
+        logger.warn('[BaseClient] Empty Office/PPT generation response; retrying with explicit code instruction', {
+          conversationId,
+          messageId: userMessage.messageId,
+          responseMessageId,
+        });
+        try {
+          const retry = await this.sendCompletion(retryPayload, {
+            ...opts,
+            officeGenerationEmptyRetry: true,
+          });
+          completion = retry.completion;
+          metadata = {
+            ...(retry.metadata ?? {}),
+            officeGenerationEmptyRetry: true,
+          };
+        } catch (error) {
+          logger.error('[BaseClient] Office/PPT empty-response retry failed:', error);
+          completion = OFFICE_EMPTY_RETRY_FALLBACK;
+          metadata = {
+            ...(metadata ?? {}),
+            officeGenerationEmptyRetry: true,
+            officeGenerationEmptyRetryError: String(error?.message ?? error),
+          };
+        }
 
-      if (!completionHasMeaningfulContent(completion)) {
-        completion = OFFICE_EMPTY_RETRY_FALLBACK;
-        metadata = {
-          ...(metadata ?? {}),
-          officeGenerationEmptyRetry: true,
-          officeGenerationEmptyRetryEmpty: true,
-        };
+        if (!completionHasMeaningfulContent(completion)) {
+          completion = OFFICE_EMPTY_RETRY_FALLBACK;
+          metadata = {
+            ...(metadata ?? {}),
+            officeGenerationEmptyRetry: true,
+            officeGenerationEmptyRetryEmpty: true,
+          };
+        }
       }
     }
     if (this.abortController) {

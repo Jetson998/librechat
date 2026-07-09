@@ -117,10 +117,15 @@ Operational interpretation:
   by conversation `29d2e4e5-6007-4874-896a-413a025c1c0b`.
 - Repository patch
   `deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/`
-  was deployed after commit `73420d3` was pushed to `origin/main`. When an
-  empty PPT turn has a CodeAPI-backed Office attachment, the backend calls
-  CodeAPI `/exec` directly, generates a PPTX, saves it into LibreChat uploads,
-  creates a `db.files` row, and attaches it to the assistant message.
+  was deployed after commit `73420d3` was pushed to `origin/main`. It first
+  handled empty PPT turns by calling CodeAPI `/exec` directly, generating a
+  PPTX, saving it into LibreChat uploads, creating a `db.files` row, and
+  attaching it to the assistant message.
+- User verification in conversation
+  `a453c3d4-422f-4867-995a-6d4b7a50c8ac` showed the route also needs to run
+  before model tool attempts for explicit PPT output requests. The same test
+  also exposed a same-conversation duplicate filename failure in `db.files`;
+  generated PPT filenames now need a short unique suffix.
 - Deployment verification on 2026-07-10 confirmed:
   `BaseClient.js` marker present, container `node --check` passed, root URL
   returned `HTTP/2 200`, `/api/config` returned JSON, `LibreChat-API` was up,

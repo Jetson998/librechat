@@ -202,10 +202,10 @@ Refined check on 2026-07-09:
 - The production patch layer includes an Office/PPT empty response guard. The
   2026-07-09 version retried with an explicit Bash/Python instruction and saved
   a visible fallback instead of a blank row. The 2026-07-10 deployed patch
-  upgrades PPT failures to a deterministic backend route: detect empty PPT
-  generation with `metadata.codeEnvRef`, call CodeAPI `/exec`, save the
-  generated `.pptx` into LibreChat uploads, create the `db.files` row, and
-  attach it to the assistant message.
+  upgrades PPT generation to a deterministic backend route: detect explicit
+  PPT output intent with `metadata.codeEnvRef`, call CodeAPI `/exec`, save a
+  uniquely named `.pptx` into LibreChat uploads, create the `db.files` row, and
+  attach it to the assistant message before relying on model tool routing.
 - The deployment `office-document-parser` skill is extended beyond extraction
   to include Office artifact generation/modification guidance for `.pptx`,
   `.xlsx`, and `.docx` outputs under `/mnt/data`.

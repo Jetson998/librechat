@@ -56,34 +56,57 @@ Production mount map observed before this patch:
 
 ## What Changes
 
-`office-context-patch/BaseClient.js` now adds a deterministic PPT fallback for
-empty Office/PPT generation turns:
+`office-context-patch/BaseClient.js` now adds a deterministic PPT route for
+Office/PPT generation turns:
 
 1. Detect a PPT generation intent (`ppt`, `pptx`, `PowerPoint`, `幻灯片`,
-   `演示`) where the assistant completion has no meaningful text, content
-   part, tool call, or attachment.
+   `演示`) with an output action such as `生成`, `输出`, `导出`, or `返回`.
 2. Require an uploaded Office/table attachment with `metadata.codeEnvRef`.
-3. Call CodeAPI `/exec` directly from the backend using the existing
-   `storage_session_id`.
-4. Run Python in CodeAPI:
+3. For explicit PPT output requests, call CodeAPI `/exec` directly before
+   asking the model to try tools. This avoids visible half-failed tool runs
+   such as `Glob` not found or an empty `/mnt/data` listing.
+4. For non-preflight cases, still catch empty Office/PPT responses and run the
+   same deterministic backend route.
+5. Run Python in CodeAPI:
    - read the uploaded workbook from `/mnt/data`;
    - parse XLSX/XLSM/CSV rows;
    - build a one-slide PPTX using `python-pptx`;
-   - save `API渠道模型来源说明_基础版.pptx` under `/mnt/data`.
-5. Download the CodeAPI artifact from `/download/<session>/<file_id>`.
-6. Save the PPTX into LibreChat local uploads through the official local file
+   - save `API渠道模型来源说明_基础版_<messageId>.pptx` under `/mnt/data`.
+6. Download the CodeAPI artifact from `/download/<session>/<file_id>`.
+7. Save the PPTX into LibreChat local uploads through the official local file
    strategy with `basePath: uploads`.
-7. Create a `db.files` record with:
+8. Create a `db.files` record with:
    - `source: local`;
    - `context: execute_code`;
    - `metadata.codeEnvRef` pointing back to the CodeAPI artifact;
    - `metadata.officePptDeterministicFallback` describing the source workbook.
-8. Attach the saved file to the assistant message before
+9. Attach the saved file to the assistant message before
    `saveMessageToDatabase`.
-9. Save a visible assistant message pointing users to the generated attachment.
+10. Save a visible assistant message pointing users to the generated attachment.
 
 The older prompt-retry behavior remains only for non-deterministic Office
 generation cases that do not match the PPT fallback path.
+
+## Follow-up From User Verification
+
+User verification on conversation `a453c3d4-422f-4867-995a-6d4b7a50c8ac`
+showed two additional issues:
+
+- First run: the final assistant message had the generated PPT attachment, but
+  the model had already attempted a visible tool path that called missing
+  `Glob` and listed an empty `/mnt/data`. This confirmed the fallback should be
+  a preflight route for explicit PPT generation requests, not only a response
+  to empty model output.
+- Second run in the same conversation: CodeAPI generated and downloaded the
+  PPTX successfully, but `db.createFile` failed with duplicate key
+  `filename_1_conversationId_1_context_1_tenantId_1` because the filename
+  `API渠道模型来源说明_基础版.pptx` already existed in that conversation.
+
+The patch now gives each generated PPTX a short message-id suffix, for example:
+
+```text
+API渠道模型来源说明_基础版_a3913bc4.pptx
+```
 
 ## Deployment Result
 
