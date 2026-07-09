@@ -151,9 +151,21 @@ Runtime exports: buildCodeEnvDownloadQuery/getCodeApiAuthHeaders available
 Preflight marker present in production BaseClient.js
 ```
 
-End-to-end user upload verification is still expected in a fresh LibreChat
-conversation by choosing `Office文件上传`, uploading an Excel file, and asking
-for PPTX output.
+End-to-end user upload verification passed in fresh LibreChat conversation
+`d512f145-574e-4a91-8bda-b047c10c07e9` on 2026-07-10 01:16 HKT:
+
+- User uploaded `模型_API_服务能力表_含GLM__1_.xlsx` through the Office upload
+  path.
+- Production logged `[BaseClient] Office/PPT generation request; running
+  deterministic CodeAPI preflight`.
+- CodeAPI logged `/exec` as `200 OK`.
+- Assistant message `bee83a55-99a5-4a8b-8230-c4f1a9627308` attached
+  `API渠道模型来源说明_基础版_bee83a55.pptx`.
+- The attachment was recorded as `file_id:
+  e1a6d20b-89e6-428a-9e7b-9f3369d4333b`, `context: execute_code`,
+  `29275` bytes, with `metadata.codeEnvRef` pointing to generated CodeAPI
+  artifact `file_a66c43fc67d14debbeea06cc270545fb`.
+- No duplicate filename error was observed after adding the message-id suffix.
 
 ## Feature / Function List
 

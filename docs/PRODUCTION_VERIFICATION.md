@@ -138,8 +138,17 @@ Operational interpretation:
   returned `HTTP/2 200`, `/api/config` returned JSON, `LibreChat-API` was up,
   and `LibreChat-CodeAPI` was healthy. The pre-replacement backup is
   `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710003919`.
-- A fresh user-facing Excel upload and PPT generation test remains the final
-  functional verification step.
+- Fresh user-facing Excel upload and PPT generation verification passed in
+  conversation `d512f145-574e-4a91-8bda-b047c10c07e9` on 2026-07-10
+  01:16 HKT. The user uploaded
+  `模型_API_服务能力表_含GLM__1_.xlsx` through the Office upload path, and the
+  preflight route generated assistant attachment
+  `API渠道模型来源说明_基础版_bee83a55.pptx` (`29275` bytes,
+  `messageId: bee83a55-99a5-4a8b-8230-c4f1a9627308`,
+  `file_id: e1a6d20b-89e6-428a-9e7b-9f3369d4333b`). API logs showed
+  `[BaseClient] Office/PPT generation request; running deterministic CodeAPI
+  preflight`; CodeAPI logs showed `/exec` returned `200 OK`. No duplicate
+  filename error was observed.
 - Incident `4865a297-3013-40e5-b77a-c5958d79ef16` was repaired by generating
   `API渠道模型来源说明_基础版.pptx` from the uploaded workbook in CodeAPI and
   attaching it to the previously blank assistant message.
