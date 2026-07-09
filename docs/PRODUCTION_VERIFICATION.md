@@ -203,6 +203,11 @@ Operational interpretation:
   script
   `deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/redact-unsafe-codeapi-session-tool-outputs.js`
   before continuing that same conversation.
+- The same conversation was redacted on 2026-07-10 02:05 HKT, targeting
+  assistant message `bd55ca81-0a53-4bd4-805b-4ce6c2191d3f`. Result:
+  `scannedMessages: 1`, `updatedMessages: 1`, `redactedParts: 9`;
+  verification showed `unsafeOutputs: 0`, `unsafeArgs: 0`, and
+  `redactedOutputs: 4`.
 - Follow-up deployment on 2026-07-10 01:24 HKT replaced production
   `BaseClient.js` after commit `b15b743` was pushed. Backup:
   `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446`.

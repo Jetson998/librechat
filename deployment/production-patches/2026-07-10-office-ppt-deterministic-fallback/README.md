@@ -223,6 +223,9 @@ End-to-end user upload verification passed in fresh LibreChat conversation
   repaired with `scripts/redact-unsafe-codeapi-session-tool-outputs.js`, which
   redacts unsafe tool-call arguments and outputs for one specified
   conversation/message.
+- Conversation `b214cc21-95bb-4721-979d-893f637b094f`, assistant message
+  `bd55ca81-0a53-4bd4-805b-4ce6c2191d3f`, was redacted on 2026-07-10:
+  `redactedParts: 9`, `unsafeOutputs: 0`, `unsafeArgs: 0`.
 
 ## Feature / Function List
 
