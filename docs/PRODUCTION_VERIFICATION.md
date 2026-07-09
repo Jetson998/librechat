@@ -171,6 +171,14 @@ Operational interpretation:
   `isDownloadableMessageFile`, `appendDownloadableMessageFiles`,
   `artifactAttachments`, and `responseMessage.files` markers were present, and
   server-local `/api/config` returned JSON.
+- Conversation `b214cc21-95bb-4721-979d-893f637b094f` showed that the saved
+  LibreChat messages did not contain cross-conversation `files` or
+  `attachments`, but the model called Bash with `find /srv/codeapi-data/sessions`
+  and received a listing of other CodeAPI sessions. This is a CodeAPI storage
+  exposure and tool-output token inflation issue, not a Mongo conversation
+  linkage issue. The first mitigation is a code-execution storage guard in
+  `ToolService.js`, plus prompt constraints that restrict file work to
+  `/mnt/data` and current-message files.
 - Follow-up deployment on 2026-07-10 01:24 HKT replaced production
   `BaseClient.js` after commit `b15b743` was pushed. Backup:
   `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446`.

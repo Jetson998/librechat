@@ -217,6 +217,11 @@ End-to-end user upload verification passed in fresh LibreChat conversation
 - Generated Excel/CSV, Word, Markdown/text, PDF, images, and other real file
   artifacts are also mirrored into `responseMessage.files` for download-card
   rendering.
+- Code execution storage guard blocks Bash/programmatic-code commands that try
+  to inspect `/srv/codeapi-data`, `/srv/codeapi-data/sessions`, raw `sess_*`
+  directories, or broad root filesystem searches such as `find /`. This keeps
+  one conversation from enumerating another conversation's CodeAPI session
+  files and prevents tool-output token blowups from global file listings.
 - CodeAPI artifact identity is preserved in file metadata for later diagnosis.
 - Existing manual retry/fallback message remains as a safety net when CodeAPI
   generation itself fails.
@@ -249,6 +254,9 @@ Production checks after deployment:
    `scripts/backfill-generated-attachment-files.js` against that single
    assistant message and confirm `messages.files[*].file_id` contains the
    generated attachment file IDs.
+11. Verify unsafe storage enumeration is blocked by attempting a Bash command
+   such as `find /srv/codeapi-data/sessions -name "*.xlsx" | head`; the tool
+   output should be the LibreChat safety-guard message, not a file listing.
 ```
 
 ## Rollback

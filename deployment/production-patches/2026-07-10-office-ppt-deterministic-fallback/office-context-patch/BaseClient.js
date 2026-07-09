@@ -765,7 +765,7 @@ ${fileList}
 执行要求：
 1. 先输出一句普通文本：“我正在用 Python 读取 Office 文件并生成 PPTX，请稍等。”
 2. 然后必须调用 Bash 运行 Python；不要调用 Glob、Read、Edit、LS。
-3. 如果附件是 Excel，用 openpyxl 从 /mnt/data 读取工作簿，提取 sheet 名、表头、行列和关键字段；必要时先用 Python 列出 /mnt/data 文件。
+3. 如果附件是 Excel，用 openpyxl 从 /mnt/data 读取工作簿，提取 sheet 名、表头、行列和关键字段；必要时先用 Python 列出 /mnt/data 文件。禁止搜索 /srv/codeapi-data、/srv/codeapi-data/sessions、其它 sess_* 目录或从根目录 find/ls 扫文件。
 4. 用 python-pptx 生成 .pptx，并保存到 /mnt/data；文件名要清晰、以 .pptx 结尾。
 5. 工具完成后，回复已生成的文件名和下载提示。`;
 };

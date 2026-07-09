@@ -78,6 +78,71 @@ const { getLogStores } = require('~/cache');
 
 const domainSeparatorRegex = new RegExp(actionDomainSeparator, 'g');
 
+const CODEAPI_GLOBAL_STORAGE_RE =
+  /(?:^|[\s"'`])(?:\/srv\/codeapi-data(?:\/sessions)?|\/codeapi-data\/sessions)(?:[\s"'`/]|$)/i;
+const CODEAPI_SESSION_ID_PATH_RE = /(?:^|[\s"'`/])sess_[a-f0-9]{16,}(?:[\s"'`/]|$)/i;
+const ROOT_FILESYSTEM_ENUM_RE =
+  /\b(?:find|tree)\s+(?:-[^\s]+\s+)*\/(?:\s|$)|\b(?:find|tree)\s+(?:-[^\s]+\s+)*\/(?:srv|var|home|root|opt|mnt)(?:\s|\/|$)|\bls\s+(?:-[A-Za-z0-9]+\s+)*\/srv(?:\s|\/|$)/i;
+
+const CODE_EXECUTION_STORAGE_GUARD_MESSAGE =
+  'Blocked by LibreChat safety guard: code execution may only use /mnt/data and explicitly provided current-message files. ' +
+  'Do not inspect /srv/codeapi-data/sessions, other session directories, or the filesystem root; list /mnt/data and use the exact uploaded filename instead.';
+
+const getToolInputCommand = (toolInput) => {
+  if (typeof toolInput === 'string') {
+    try {
+      const parsed = JSON.parse(toolInput);
+      return getToolInputCommand(parsed) || toolInput;
+    } catch {
+      return toolInput;
+    }
+  }
+  if (!toolInput || typeof toolInput !== 'object') {
+    return '';
+  }
+  return String(toolInput.command ?? toolInput.input ?? toolInput.code ?? toolInput.script ?? '');
+};
+
+const getCodeExecutionStorageGuardViolation = (toolInput) => {
+  const command = getToolInputCommand(toolInput);
+  if (!command) {
+    return null;
+  }
+  if (
+    CODEAPI_GLOBAL_STORAGE_RE.test(command) ||
+    CODEAPI_SESSION_ID_PATH_RE.test(command) ||
+    ROOT_FILESYSTEM_ENUM_RE.test(command)
+  ) {
+    return { command };
+  }
+  return null;
+};
+
+const wrapCodeExecutionStorageGuard = (tool) => {
+  if (!tool || typeof tool._call !== 'function' || tool.__librechatStorageGuardWrapped) {
+    return tool;
+  }
+
+  const originalCall = tool._call.bind(tool);
+  tool._call = async (toolInput, ...args) => {
+    const violation = getCodeExecutionStorageGuardViolation(toolInput);
+    if (violation) {
+      logger.warn('[CodeExecutionStorageGuard] Blocked unsafe code execution command', {
+        tool: tool.name,
+        command: redactMessage(violation.command, 512),
+      });
+      return CODE_EXECUTION_STORAGE_GUARD_MESSAGE;
+    }
+    return originalCall(toolInput, ...args);
+  };
+  Object.defineProperty(tool, '__librechatStorageGuardWrapped', {
+    value: true,
+    enumerable: false,
+    configurable: true,
+  });
+  return tool;
+};
+
 /**
  * Collapse every `actionDomainSeparator` sequence in the encoded-domain
  * suffix of a fully-qualified action tool name to an underscore. Agents
@@ -1510,7 +1575,7 @@ async function loadToolsForExecution({
           authHeaders: () => getCodeApiAuthHeaders(req),
         });
         ptcTool.name = name;
-        allLoadedTools.push(ptcTool);
+        allLoadedTools.push(wrapCodeExecutionStorageGuard(ptcTool));
       }
     } catch (error) {
       logger.error('[loadToolsForExecution] Error creating PTC tool:', error);
@@ -1532,7 +1597,7 @@ async function loadToolsForExecution({
       const bashTool = createBashExecutionTool({
         authHeaders: () => getCodeApiAuthHeaders(req),
       });
-      allLoadedTools.push(bashTool);
+      allLoadedTools.push(wrapCodeExecutionStorageGuard(bashTool));
     } catch (error) {
       logger.error('[loadToolsForExecution] Failed to create bash_tool', error);
     }
@@ -1615,7 +1680,10 @@ async function loadToolsForExecution({
     });
 
     if (loadedTools) {
-      allLoadedTools.push(...loadedTools);
+      allLoadedTools.push(...loadedTools.map((tool) => {
+        const isCodeTool = tool?.name === Tools.execute_code || tool?.name === AgentConstants.BASH_TOOL;
+        return isCodeTool ? wrapCodeExecutionStorageGuard(tool) : tool;
+      }));
     }
   }
 
