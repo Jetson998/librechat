@@ -173,6 +173,10 @@ End-to-end user upload verification passed in fresh LibreChat conversation
   `attachments`, but the live message UI did not render it as a downloadable
   chat file. Follow-up fix mirrors deterministic PPT outputs into
   `responseMessage.files` while keeping `attachments` for backend diagnosis.
+- Existing messages created before that follow-up can be repaired with
+  `scripts/backfill-deterministic-ppt-message-files.js`, which copies PPT
+  attachments into `message.files` idempotently for a specified
+  `conversationId` and assistant `messageId`.
 
 ## Feature / Function List
 
@@ -209,6 +213,10 @@ Production checks after deployment:
 8. Confirm LibreChat-CodeAPI logs show /exec for the turn.
 9. Confirm Mongo `messages.attachments[0]` and `files.metadata.codeEnvRef`
    point to the generated artifact.
+10. For pre-fix messages with generated PPT text but no visible file card, run
+   `scripts/backfill-deterministic-ppt-message-files.js` against that single
+   assistant message and confirm `messages.files[0].file_id` matches the
+   generated PPT attachment.
 ```
 
 ## Rollback
