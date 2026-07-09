@@ -298,6 +298,28 @@ const sanitizeFallbackFilename = (filename, fallback = OFFICE_PPT_FALLBACK_OUTPU
   return /\.pptx$/i.test(next) ? next : `${next}.pptx`;
 };
 
+const isDownloadableMessageFile = (file) =>
+  Boolean(
+    file?.file_id &&
+      !TOOL_ATTACHMENT_KEYS.includes(file.type) &&
+      (file.filename || file.name || file.filepath),
+  );
+
+const appendDownloadableMessageFiles = (existingFiles, candidateFiles) => {
+  const files = Array.isArray(existingFiles) ? [...existingFiles] : [];
+  const seenFileIds = new Set(files.map((file) => file?.file_id).filter(Boolean));
+
+  for (const file of Array.isArray(candidateFiles) ? candidateFiles : []) {
+    if (!isDownloadableMessageFile(file) || seenFileIds.has(file.file_id)) {
+      continue;
+    }
+    seenFileIds.add(file.file_id);
+    files.push(file);
+  }
+
+  return files.length > 0 ? files : undefined;
+};
+
 const buildUniqueOfficePptOutputFilename = (responseMessageId) => {
   const suffix = String(responseMessageId || crypto.randomUUID())
     .replace(/[^a-zA-Z0-9]/g, '')
@@ -1612,7 +1634,12 @@ class BaseClient {
     }
 
     if (this.artifactPromises) {
-      responseMessage.attachments = (await Promise.all(this.artifactPromises)).filter((a) => a);
+      const artifactAttachments = (await Promise.all(this.artifactPromises)).filter((a) => a);
+      responseMessage.attachments = artifactAttachments;
+      responseMessage.files = appendDownloadableMessageFiles(
+        responseMessage.files,
+        artifactAttachments,
+      );
     }
 
     if (deterministicFallbackAttachment) {
@@ -1620,10 +1647,9 @@ class BaseClient {
         ...(Array.isArray(responseMessage.attachments) ? responseMessage.attachments : []),
         deterministicFallbackAttachment,
       ];
-      responseMessage.files = [
-        ...(Array.isArray(responseMessage.files) ? responseMessage.files : []),
+      responseMessage.files = appendDownloadableMessageFiles(responseMessage.files, [
         deterministicFallbackAttachment,
-      ];
+      ]);
     }
 
     if (this.options.attachments) {

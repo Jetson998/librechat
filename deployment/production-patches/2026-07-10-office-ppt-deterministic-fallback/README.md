@@ -82,8 +82,10 @@ Office/PPT generation turns:
    - `metadata.officePptDeterministicFallback` describing the source workbook.
 9. Attach the saved file to the assistant message before
    `saveMessageToDatabase`.
-10. Mirror the generated file into `responseMessage.files` so the frontend
-   renders the same downloadable file card used for normal chat files.
+10. Mirror generated downloadable artifacts into `responseMessage.files` so the
+   frontend renders the same downloadable file cards used for normal chat
+   files. This applies to CodeAPI-generated PPT/PPTX, Excel/CSV, Word, MD/TXT,
+   PDF, images, and other real file artifacts that have a `file_id`.
 11. Save a visible assistant message pointing users to the generated attachment.
 
 The older prompt-retry behavior remains only for non-deterministic Office
@@ -189,6 +191,10 @@ End-to-end user upload verification passed in fresh LibreChat conversation
   `scripts/backfill-deterministic-ppt-message-files.js`, which copies PPT
   attachments into `message.files` idempotently for a specified
   `conversationId` and assistant `messageId`.
+- Newer generic repairs should use
+  `scripts/backfill-generated-attachment-files.js`, which copies any
+  downloadable assistant attachment into `message.files` while ignoring
+  display-only tool attachments such as search and UI resources.
 
 ## Feature / Function List
 
@@ -197,6 +203,9 @@ End-to-end user upload verification passed in fresh LibreChat conversation
 - Backend-generated `.pptx` artifact even when the model never calls `Bash`.
 - Generated PPT file is stored in normal LibreChat uploads and visible as a
   downloadable assistant file card.
+- Generated Excel/CSV, Word, Markdown/text, PDF, images, and other real file
+  artifacts are also mirrored into `responseMessage.files` for download-card
+  rendering.
 - CodeAPI artifact identity is preserved in file metadata for later diagnosis.
 - Existing manual retry/fallback message remains as a safety net when CodeAPI
   generation itself fails.
@@ -225,10 +234,10 @@ Production checks after deployment:
 8. Confirm LibreChat-CodeAPI logs show /exec for the turn.
 9. Confirm Mongo `messages.attachments[0]` and `files.metadata.codeEnvRef`
    point to the generated artifact.
-10. For pre-fix messages with generated PPT text but no visible file card, run
-   `scripts/backfill-deterministic-ppt-message-files.js` against that single
-   assistant message and confirm `messages.files[0].file_id` matches the
-   generated PPT attachment.
+10. For pre-fix messages with generated file text but no visible file card, run
+   `scripts/backfill-generated-attachment-files.js` against that single
+   assistant message and confirm `messages.files[*].file_id` contains the
+   generated attachment file IDs.
 ```
 
 ## Rollback

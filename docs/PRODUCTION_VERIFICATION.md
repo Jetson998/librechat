@@ -154,6 +154,13 @@ Operational interpretation:
   `responseMessage.attachments`. The 2026-07-10 follow-up patch mirrors
   deterministic PPT outputs into `responseMessage.files` so the frontend
   renders a normal downloadable file card.
+- General file-card follow-up: CodeAPI tool artifacts for Excel/CSV, Word,
+  Markdown/text, PDF, images, and other real generated files can hit the same
+  frontend visibility issue if they are stored only in
+  `responseMessage.attachments`. The general fix mirrors downloadable
+  generated artifacts with `file_id` into `responseMessage.files`, while
+  leaving display-only tool attachments such as search/UI resources in
+  `attachments` only.
 - Follow-up deployment on 2026-07-10 01:24 HKT replaced production
   `BaseClient.js` after commit `b15b743` was pushed. Backup:
   `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446`.
