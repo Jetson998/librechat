@@ -137,7 +137,7 @@ const OFFICE_GENERATION_INTENT_RE =
   /(ppt|pptx|powerpoint|presentation|deck|幻灯片|演示|生成|制作|创建|做一页|做个|输出|导出|返回文件|excel|xlsx|word|docx|office)/i;
 const PPT_GENERATION_INTENT_RE = /(ppt|pptx|powerpoint|presentation|deck|幻灯片|演示)/i;
 const OFFICE_ARTIFACT_OUTPUT_ACTION_RE =
-  /(生成|制作|创建|做一页|做个|输出|导出|返回文件|返回|保存|generate|create|make|build|export|produce)/i;
+  /(生成|制作|创建|做出|做成|做一页|做一张|做一份|做个|输出|导出|返回文件|返回|保存|generate|create|make|build|export|produce)/i;
 const OFFICE_EMPTY_RETRY_FALLBACK =
   '这轮模型没有返回有效内容，也没有调用代码工具，因此系统没有生成 PPT 文件。请在新任务里选择“Office文件上传”，上传 Excel 后直接说“用 Bash/Python 读取这个 Excel 并生成 PPTX，保存到 /mnt/data 并返回文件”。';
 const OFFICE_DETERMINISTIC_FALLBACK_FAILED =

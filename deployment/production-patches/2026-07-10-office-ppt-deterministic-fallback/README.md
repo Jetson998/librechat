@@ -60,7 +60,8 @@ Production mount map observed before this patch:
 Office/PPT generation turns:
 
 1. Detect a PPT generation intent (`ppt`, `pptx`, `PowerPoint`, `幻灯片`,
-   `演示`) with an output action such as `生成`, `输出`, `导出`, or `返回`.
+   `演示`) with an output action such as `生成`, `制作`, `做出`, `输出`,
+   `导出`, or `返回`.
 2. Require an uploaded Office/table attachment with `metadata.codeEnvRef`.
 3. For explicit PPT output requests, call CodeAPI `/exec` directly before
    asking the model to try tools. This avoids visible half-failed tool runs

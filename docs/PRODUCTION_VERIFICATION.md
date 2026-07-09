@@ -179,6 +179,10 @@ Operational interpretation:
   linkage issue. The first mitigation is a code-execution storage guard in
   `ToolService.js`, plus prompt constraints that restrict file work to
   `/mnt/data` and current-message files.
+- The same conversation used the wording `做出 1 页 ppt`; the preflight trigger
+  now includes `做出`, `做成`, `做一张`, and `做一份` so these Office/PPT
+  requests go through deterministic backend generation instead of model-led
+  global file discovery.
 - Follow-up deployment on 2026-07-10 01:24 HKT replaced production
   `BaseClient.js` after commit `b15b743` was pushed. Backup:
   `/opt/librechat/office-context-patch/BaseClient.js.bak-20260710012446`.
