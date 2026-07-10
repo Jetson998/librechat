@@ -6,7 +6,105 @@ Target:
 https://152.32.172.162.sslip.io/
 ```
 
-Verification date: 2026-07-10
+Latest verification date: 2026-07-11
+
+## GPT-5.6 SOL Default Model Deployment
+
+Repository gate:
+
+- `e10b0ad` - design and rollback plan committed and pushed.
+- `f6e553c` - dual-model configuration and strict config test committed and
+  pushed.
+- `3dc260f` - atomic backup/deploy/rollback runner committed and pushed.
+
+Production deployment timestamp: `20260711011151`.
+
+Only this production file changed:
+
+```text
+/opt/librechat/librechat.yaml
+```
+
+Backup created before replacement:
+
+```text
+/opt/librechat/librechat.yaml.bak-20260711011151
+```
+
+Configuration hashes:
+
+```text
+before  3da74bf821b7cc26b1b449b3e93138a0f33ab28a3d70bd258a03a4a2fa7c1f14
+after   19610ec4b6fc2dd59ad558a98ca8673feca54903109ffc7397a3bdd00842d47d
+```
+
+Configuration behavior:
+
+- `gpt-5.6-sol` is the sole default model spec.
+- The GPT model uses custom OpenAI-compatible endpoint `MuskAPI` and sends
+  `reasoning_effort: max` through endpoint `addParams`.
+- `claude-fable-5` remains available as a non-default model spec with its
+  existing Anthropic `effort: max` setting.
+- Both model specs keep Skills, execute-code access, current-session
+  `/mnt/data` rules, generated-file handling, and the global CodeAPI-session
+  enumeration prohibition.
+- No LibreChat source file, frontend asset, Office patch, database record, API
+  key, or environment file was changed by the release.
+
+Deployment-runner verification:
+
+- The candidate parsed with the container's `js-yaml` package and passed the
+  expected endpoint, provider, model-spec, tool, and max-reasoning assertions.
+- A real relay probe returned model `gpt-5.6-sol`, accepted
+  `reasoning_effort: max`, and produced the expected function `tool_call`.
+- Six transient `502` responses occurred while `LibreChat-API` restarted; the
+  runner waited until readiness returned.
+- The running bind-mounted config passed the sole-default and max-reasoning
+  assertions.
+- Root and `/api/config` returned `200`.
+- `/office/` returned `401` with `realm="Office Converter"`.
+- `LibreChat-CodeAPI` remained running and healthy.
+- The temporary server staging directory was removed.
+
+Authenticated browser verification used conversation:
+
+```text
+b332fa31-f6e6-4061-a6c4-20939f20f0b0
+```
+
+Observed user-facing behavior:
+
+- Fresh chat default: `GPT-5.6 SOL`.
+- Short GPT reply: passed.
+- Longer GPT reply and visible thinking content: passed.
+- Real Python code-tool call: passed, returning `83810205` for
+  `12345 * 6789`.
+- Model selector retained `Fable 5`; a Fable reply passed.
+- A second fresh chat after switching to Fable again defaulted to
+  `GPT-5.6 SOL`.
+- MongoDB assistant messages recorded endpoint `MuskAPI` and model
+  `gpt-5.6-sol` for GPT turns, and endpoint `anthropic` with model
+  `claude-fable-5` for the Fable turn.
+
+Office regression boundary:
+
+- The browser control layer rejected assigning the local synthetic XLSX to the
+  file chooser, so this automated run did not upload an Office file and is not
+  counted as a new Office end-to-end pass.
+- The file pipeline was unchanged. Existing user acceptance for
+  `PPT upload -> edit -> download` and
+  `Excel upload -> edit -> download` remains the current Office evidence.
+
+Residual observation: immediately navigating to `/c/new` after the first
+automated Fable response created a second successful sibling copy of the same
+Fable test prompt/response. The cause was not established, no repair was
+performed, and the behavior did not occur during the GPT turns. Monitor for a
+manual duplicate-submit report before classifying it as a product regression.
+
+Rollback: restore
+`/opt/librechat/librechat.yaml.bak-20260711011151`, restart
+`LibreChat-API`, then repeat root, `/api/config`, `/office/`, GPT/Fable model
+selection, simple chat, code execution, and the existing Office smoke checks.
 
 ## External Checks
 

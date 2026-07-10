@@ -2,9 +2,9 @@
 
 Date: 2026-07-11
 
-Status: design commit `e10b0ad` and implementation commit `f6e553c` are pushed
-to `origin/main`. Production remains unchanged until the deployment-runner
-commit is also pushed.
+Status: deployed and verified on 2026-07-11. Design commit `e10b0ad`,
+implementation commit `f6e553c`, and deployment-runner commit `3dc260f` were
+pushed to `origin/main` before the production write.
 
 ## Objective
 
@@ -78,6 +78,67 @@ real `gpt-5.6-sol` maximum-reasoning function call, creates a timestamped YAML
 backup, replaces only `/opt/librechat/librechat.yaml`, restarts only
 `LibreChat-API`, and automatically restores the backup if any required check
 fails.
+
+## Production Outcome
+
+Deployment timestamp: `20260711011151`.
+
+Production backup:
+
+```text
+/opt/librechat/librechat.yaml.bak-20260711011151
+```
+
+Configuration hashes:
+
+```text
+before  3da74bf821b7cc26b1b449b3e93138a0f33ab28a3d70bd258a03a4a2fa7c1f14
+after   19610ec4b6fc2dd59ad558a98ca8673feca54903109ffc7397a3bdd00842d47d
+```
+
+The candidate schema check and a real `gpt-5.6-sol` function-tool probe with
+`reasoning_effort: max` passed before replacement. `LibreChat-API` restarted,
+the running bind-mounted config passed the same default/max checks, root and
+`/api/config` returned `200`, `/office/` remained protected with `401`, and
+`LibreChat-CodeAPI` remained healthy. Six transient `502` responses occurred
+during the restart window and cleared before the runner completed.
+
+Authenticated browser verification conversation:
+
+```text
+b332fa31-f6e6-4061-a6c4-20939f20f0b0
+```
+
+Verified behavior:
+
+- A fresh `/c/new` page selected `GPT-5.6 SOL` by default.
+- A short GPT response returned normally.
+- A longer GPT response streamed successfully and displayed thinking content.
+- GPT called the real code tool, ran Python, and returned `83810205` for
+  `12345 * 6789`.
+- The model menu retained `Fable 5`; selecting it returned a normal Fable
+  response.
+- Opening another fresh `/c/new` page after the Fable test selected
+  `GPT-5.6 SOL` again, confirming Fable is a per-conversation/manual switch and
+  does not replace the configured default.
+- MongoDB message records identified GPT assistant turns as endpoint `MuskAPI`
+  with model `gpt-5.6-sol`, and the Fable turn as endpoint `anthropic` with
+  model `claude-fable-5`.
+
+The browser control layer rejected assigning a local synthetic XLSX to the
+Office file chooser, so no Office file was uploaded in this automated run and
+it is not counted as a new Office end-to-end acceptance. The previously
+accepted PPT and Excel upload/edit/download checks remain the current Office
+evidence; this release did not change the file pipeline.
+
+Residual observation: navigating to `/c/new` immediately after the first
+automated Fable reply created a second successful sibling copy of the same
+Fable test prompt/response in MongoDB. The cause was not established, it did
+not occur in the GPT verification turns, and no conversation repair was
+performed. Monitor for a manual-user duplicate-submit report before treating
+this automation-only observation as a product regression.
+
+The temporary server staging directory was removed after verification.
 
 ## Verification
 
