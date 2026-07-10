@@ -57,6 +57,24 @@ Focused regression command:
 node scripts/test-empty-response-regeneration.js
 ```
 
+Committed production deployment command:
+
+```bash
+scripts/deploy-empty-response-regeneration.sh /tmp/librechat-empty-response-regeneration
+```
+
+The deployment script changes only these bind-mounted host files and restarts
+only `LibreChat-API`:
+
+```text
+/opt/librechat/office-context-patch/BaseClient.js
+/opt/librechat/office-context-patch/api-index.cjs
+```
+
+Both files receive timestamp-matched `.bak-<timestamp>` copies before
+replacement. Any failed syntax, marker, restart, HTTP-boundary, or CodeAPI
+health check restores both backups automatically.
+
 Production target:
 
 ```text
