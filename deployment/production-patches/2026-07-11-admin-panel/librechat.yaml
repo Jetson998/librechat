@@ -1,0 +1,95 @@
+version: 1.2.8
+cache: true
+interface:
+  privacyPolicy:
+    externalUrl: ""
+    openNewTab: true
+  termsOfService:
+    externalUrl: ""
+    openNewTab: true
+  fileSearch: true
+  endpointsMenu: true
+  modelSelect: true
+registration:
+  socialLogins: []
+endpoints:
+  agents:
+    allowedProviders:
+      - anthropic
+      - MuskAPI
+    capabilities:
+      - deferred_tools
+      - execute_code
+      - file_search
+      - artifacts
+      - tools
+      - skills
+      - context
+  anthropic:
+    titleModel: "claude-fable-5"
+    streamRate: 20
+  custom:
+    - name: "MuskAPI"
+      apiKey: "${ANTHROPIC_API_KEY}"
+      baseURL: "https://api.muskapis.com/v1"
+      models:
+        default:
+          - "gpt-5.6-sol"
+        fetch: false
+      titleConvo: true
+      titleModel: "gpt-5.6-sol"
+      modelDisplayLabel: "GPT-5.6 SOL"
+      addParams:
+        reasoning_effort: "max"
+      customParams:
+        defaultParamsEndpoint: "openAI"
+        reasoningFormat: "reasoning_effort"
+modelSpecs:
+  enforce: false
+  prioritize: true
+  list:
+    - name: "gpt-5.6-sol"
+      label: "GPT-5.6 SOL"
+      description: "Default GPT relay model with maximum reasoning"
+      default: true
+      iconURL: "/assets/openai.svg"
+      skills: true
+      executeCode: true
+      preset:
+        endpoint: "MuskAPI"
+        model: "gpt-5.6-sol"
+        promptPrefix: |
+          你运行在 LibreChat 网页会话里，不是 Codex 或 Claude Code CLI。需要读写、分析或生成文件时，使用本会话实际提供的代码执行工具；工具名通常显示为 Bash 或 execute_code。只调用界面实际提供的工具，不要臆造 Glob、Read、Edit、LS 这类 CLI 专用工具名。
+          处理 Office 文件时优先用 Python。Excel 用 openpyxl 同时读取 sheet 名称、sheet_state、公式和值，也可以生成/修改 .xlsx；Word 用 python-docx；PPT 用 python-pptx 生成 .pptx，必要时用 LibreOffice 做格式转换或校验。只能使用 /mnt/data 下的当前消息附件和本轮生成文件；禁止搜索 /srv/codeapi-data、/srv/codeapi-data/sessions、其它 sess_* 目录或从根目录 find/ls 扫文件。生成文件必须保存到 /mnt/data，并在回复里明确文件名和下载说明。
+          面向业务人员时，如果需要调用代码工具处理文件、生成 PPT/Excel/Word/PDF 或运行 Python，本轮回复的第一块内容必须先输出一句普通文本说明，例如“我正在生成 PPT，可能需要 1-3 分钟，请稍等。”；然后在同一轮紧接着调用实际可用的代码工具运行 Python。禁止第一块内容直接调用工具或只显示空白等待。工具完成后再说明结果和可下载文件。
+    - name: "claude-fable-5"
+      label: "Fable 5"
+      description: "Claude relay model for manual switching"
+      default: false
+      skills: true
+      executeCode: true
+      preset:
+        endpoint: "anthropic"
+        model: "claude-fable-5"
+        thinking: true
+        effort: "max"
+        thinkingDisplay: "summarized"
+        promptPrefix: |
+          你运行在 LibreChat 网页会话里，不是 Claude Code CLI。需要读写、分析或生成文件时，使用本会话实际提供的代码执行工具；当前 Anthropic 端可用的代码工具名通常显示为 Bash。不要调用 Glob、Read、Edit、LS 这类 Claude Code 专用工具名。
+          处理 Office 文件时优先用 Python。Excel 用 openpyxl 同时读取 sheet 名称、sheet_state、公式和值，也可以生成/修改 .xlsx；Word 用 python-docx；PPT 用 python-pptx 生成 .pptx，必要时用 LibreOffice 做格式转换或校验。只能使用 /mnt/data 下的当前消息附件和本轮生成文件；禁止搜索 /srv/codeapi-data、/srv/codeapi-data/sessions、其它 sess_* 目录或从根目录 find/ls 扫文件。生成文件必须保存到 /mnt/data，并在回复里明确文件名和下载说明。
+          面向业务人员时，如果需要调用代码工具处理文件、生成 PPT/Excel/Word/PDF 或运行 Python，本轮回复的第一块内容必须先输出一句普通文本说明，例如“我正在生成 PPT，可能需要 1-3 分钟，请稍等。”；然后在同一轮紧接着调用 Bash 运行 Python。禁止第一块内容直接调用工具或只显示空白等待。工具完成后再说明结果和可下载文件。
+fileConfig:
+  endpoints:
+    agents:
+      fileLimit: 5
+      fileSizeLimit: 25
+      totalSizeLimit: 60
+    anthropic:
+      fileLimit: 5
+      fileSizeLimit: 25
+      totalSizeLimit: 60
+    default:
+      fileLimit: 5
+      fileSizeLimit: 25
+      totalSizeLimit: 60
+  serverFileSizeLimit: 100
