@@ -2,9 +2,9 @@
 
 Date: 2026-07-11
 
-Status: diagnosed and ready for repository implementation. Production remains
-unchanged until the design, implementation, and deployment-runner commits are
-pushed to `origin/main`.
+Status: design commit `e10b0ad` and implementation commit `f6e553c` are pushed
+to `origin/main`. Production remains unchanged until the deployment-runner
+commit is also pushed.
 
 ## Objective
 
@@ -60,6 +60,24 @@ Update the committed production `librechat.yaml` snapshot only:
 
 No API key, token, cookie, user data, or conversation content will be added to
 the repository.
+
+## Repository Implementation
+
+Implementation commit `f6e553c` adds the custom `MuskAPI` endpoint, makes
+`gpt-5.6-sol` the sole default model spec, retains Fable 5 as non-default, and
+adds a strict YAML/config contract test.
+
+The atomic production runner is:
+
+```text
+deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/deploy-gpt56-sol-default.sh
+```
+
+It validates the candidate inside the current LibreChat container, verifies a
+real `gpt-5.6-sol` maximum-reasoning function call, creates a timestamped YAML
+backup, replaces only `/opt/librechat/librechat.yaml`, restarts only
+`LibreChat-API`, and automatically restores the backup if any required check
+fails.
 
 ## Verification
 
