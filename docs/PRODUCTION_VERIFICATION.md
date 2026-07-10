@@ -214,6 +214,24 @@ Operational interpretation:
   `/app/api/app/clients/BaseClient.js`, production markers were present,
   root returned `HTTP/2 200`, `/api/config` returned JSON, and `/office/`
   returned `HTTP/2 401` with `realm="Office Converter"`.
+- Runtime Office-file injection recovery was deployed on 2026-07-10 20:49 HKT
+  after commit `b7076e2` was pushed. `ToolService.js` now caches fresh
+  `primeCodeFiles()` results on the request and exposes them to runtime tool
+  loading; `api-index.cjs` merges those refs into the effective code session
+  immediately before Bash/code invocation when Graph omitted the context.
+  Backups:
+  `/opt/librechat/office-context-patch/ToolService.js.bak-20260710204908` and
+  `/opt/librechat/office-context-patch/api-index.cjs.bak-20260710204908`.
+  Checksums changed to
+  `b55cee64fb292f795e13bc4e4e513ba157eff5e720f624ed78de969ee0bcb38a`
+  (`ToolService.js`) and
+  `6316d7dafe8b90a73036f2a8ce99122df6a79dae2630fb7dcdc278d8d4793357`
+  (`api-index.cjs`). Container syntax, startup log, and HTTP checks passed.
+  A real handler-level CodeAPI smoke deliberately omitted
+  `codeSessionContext`; the runtime fallback recovered two primed refs and
+  `/mnt/data` contained both
+  `模型_API_服务能力表_含GLM__1_.xlsx` and
+  `API渠道模型来源说明_基础版_a709f5cb.pptx` with status `success`.
 - Existing bloated unsafe tool outputs in conversation
   `b214cc21-95bb-4721-979d-893f637b094f` should be redacted with repository
   script

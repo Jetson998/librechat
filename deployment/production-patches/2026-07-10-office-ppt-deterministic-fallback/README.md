@@ -343,6 +343,37 @@ Operational note from diagnosis at 2026-07-10 20:35 HKT:
   The production patch file hashes were unchanged. This caused a restart and
   `.env` mtime change, but no configuration-value or code drift.
 
+Runtime injection deployment result on 2026-07-10 20:49 HKT:
+
+- Repository commit deployed: `b7076e2`
+  (`Recover primed files at code execution`).
+- Production backups created before replacement:
+  `/opt/librechat/office-context-patch/ToolService.js.bak-20260710204908` and
+  `/opt/librechat/office-context-patch/api-index.cjs.bak-20260710204908`.
+- Production `ToolService.js` hash changed from
+  `93e0e394b91a741655d0fc53b862d6b4900024d34ae544380760d933a3e41990` to
+  `b55cee64fb292f795e13bc4e4e513ba157eff5e720f624ed78de969ee0bcb38a`.
+- Production `api-index.cjs` hash changed from
+  `197758d211c4d645c4372bcb624744461ab67afdf7efb4f70f8cd9d6b927ead2` to
+  `6316d7dafe8b90a73036f2a8ce99122df6a79dae2630fb7dcdc278d8d4793357`.
+- Container syntax checks passed for
+  `/app/api/server/services/ToolService.js` and
+  `/app/packages/api/dist/index.cjs`; no startup errors matched the post-restart
+  log scan.
+- External HTTP smoke passed: root `HTTP/2 200`, `/api/config` JSON, and
+  `/office/` `HTTP/2 401` with `realm="Office Converter"`.
+- A production low-level end-to-end smoke called the real exported
+  `createToolExecuteHandler` with a `Bash` request whose
+  `codeSessionContext` was deliberately absent. Runtime configurable data held
+  two real primed refs from the affected thread:
+  `模型_API_服务能力表_含GLM__1_.xlsx` and
+  `API渠道模型来源说明_基础版_a709f5cb.pptx`.
+- Production emitted
+  `[code-env:inject] recovered 2 file(s) from request priming cache for tool=bash_tool`.
+  The CodeAPI command then observed both exact filenames under `/mnt/data` and
+  returned status `success`. The smoke did not create or modify a LibreChat
+  conversation/message.
+
 Deployment result on 2026-07-10 02:19 HKT:
 
 - Repository commit deployed: `df2eb11` (`Emit live deterministic PPT attachments`).
