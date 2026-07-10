@@ -28107,9 +28107,9 @@ var GenerationJobManagerClass = class {
 		const collectedUsage = this.jobStore.getCollectedUsage(streamId);
 		/** Text from content parts for fallback token counting */
 		const text = shouldPersistAbortContent ? (0, librechat_data_provider.parseTextParts)(abortContent) : "";
-		/** Detect "early abort" - aborted before any generation happened (e.g., during tool loading)
-		In this case, no messages were saved to DB, so frontend shouldn't navigate to conversation */
-		const isEarlyAbort = !shouldPersistAbortContent && jobData.createdEventEmitted !== true;
+		/** Detect an early abort whenever no persistable assistant content exists.
+		The caller must not construct or save an empty assistant response in this case. */
+		const isEarlyAbort = !shouldPersistAbortContent;
 		/** Final event for abort */
 		const userMessageId = jobData.userMessage?.messageId;
 		const abortFinalEvent = {
@@ -28158,7 +28158,8 @@ var GenerationJobManagerClass = class {
 		recordGenerationJob(this.storeLabel, "aborted");
 		_librechat_data_schemas.logger.debug(`[GenerationJobManager] Job aborted: ${streamId}`);
 		return {
-			success: true,
+			success: !isEarlyAbort,
+			earlyAbort: isEarlyAbort,
 			jobData,
 			content: abortContent,
 			finalEvent: abortFinalEvent,

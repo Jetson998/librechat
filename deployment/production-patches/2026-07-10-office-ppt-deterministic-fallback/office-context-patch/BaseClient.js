@@ -164,6 +164,153 @@ const rehydrateMessageFileRefs = (refs, filesById, { preserveDisplayOnly = false
   return files.length > 0 ? files : undefined;
 };
 
+const EMPTY_MODEL_RESPONSE_CODE = 'EMPTY_MODEL_RESPONSE';
+const EMPTY_MODEL_RESPONSE_MESSAGE =
+  'The model returned no usable content. Regenerate the response or choose another model.';
+const ASSISTANT_SEMANTIC_FIELDS = [
+  'text',
+  'content',
+  'summary',
+  'files',
+  'attachments',
+  'artifact',
+  'artifacts',
+  'citations',
+  'ui_resources',
+  'image_urls',
+  'images',
+];
+const INVISIBLE_TEXT_RE = /[\s\u200B-\u200D\u2060\uFEFF]/gu;
+
+const isNonBlankText = (value) =>
+  typeof value === 'string' && value.replace(INVISIBLE_TEXT_RE, '').length > 0;
+
+const hasSemanticValue = (value, visited = new WeakSet()) => {
+  if (isNonBlankText(value)) {
+    return true;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value !== 0;
+  }
+  if (value == null || typeof value !== 'object') {
+    return false;
+  }
+  if (visited.has(value)) {
+    return false;
+  }
+  visited.add(value);
+
+  if (Array.isArray(value)) {
+    return value.some((item) => hasSemanticValue(item, visited));
+  }
+
+  return Object.entries(value).some(
+    ([key, nestedValue]) => key !== 'type' && hasSemanticValue(nestedValue, visited),
+  );
+};
+
+const getContentPartText = (part, field) => {
+  const value = part?.[field];
+  if (typeof value === 'string') {
+    return value;
+  }
+  return typeof value?.value === 'string' ? value.value : '';
+};
+
+const hasSemanticContentPart = (part) => {
+  if (isNonBlankText(part)) {
+    return true;
+  }
+  if (!part || typeof part !== 'object') {
+    return false;
+  }
+  if (part.type === ContentTypes.TEXT) {
+    if (isNonBlankText(getContentPartText(part, ContentTypes.TEXT))) {
+      return true;
+    }
+    return Object.entries(part).some(
+      ([key, value]) =>
+        key !== 'type' && key !== ContentTypes.TEXT && hasSemanticValue(value),
+    );
+  }
+  if (part.type === ContentTypes.THINK) {
+    if (isNonBlankText(getContentPartText(part, ContentTypes.THINK))) {
+      return true;
+    }
+    return Object.entries(part).some(
+      ([key, value]) =>
+        key !== 'type' && key !== ContentTypes.THINK && hasSemanticValue(value),
+    );
+  }
+  return Object.entries(part).some(
+    ([key, value]) => key !== 'type' && hasSemanticValue(value),
+  );
+};
+
+const hasAssistantSemanticContent = (message) => {
+  if (!message || typeof message !== 'object') {
+    return false;
+  }
+
+  for (const field of ASSISTANT_SEMANTIC_FIELDS) {
+    const value = message[field];
+    if (field === 'content' && Array.isArray(value)) {
+      if (value.some(hasSemanticContentPart)) {
+        return true;
+      }
+      continue;
+    }
+    if (hasSemanticValue(value)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const isAssistantMessage = (message) => {
+  if (typeof message?.role === 'string') {
+    return message.role === 'assistant';
+  }
+  return message?.isCreatedByUser === false;
+};
+
+const filterSemanticallyEmptyAssistantMessages = (messages) => {
+  const filteredMessageIds = [];
+  const filteredMessages = [];
+
+  for (const message of Array.isArray(messages) ? messages : []) {
+    if (isAssistantMessage(message) && !hasAssistantSemanticContent(message)) {
+      filteredMessageIds.push(message?.messageId ?? message?.id ?? null);
+      continue;
+    }
+    filteredMessages.push(message);
+  }
+
+  return { messages: filteredMessages, filteredMessageIds };
+};
+
+const createEmptyModelResponseError = () => {
+  const error = new Error(
+    JSON.stringify({
+      type: EMPTY_MODEL_RESPONSE_CODE,
+      message: EMPTY_MODEL_RESPONSE_MESSAGE,
+    }),
+  );
+  error.name = 'EmptyModelResponseError';
+  error.code = EMPTY_MODEL_RESPONSE_CODE;
+  return error;
+};
+
+const ensureAssistantSemanticContent = (message) => {
+  if (!hasAssistantSemanticContent(message)) {
+    throw createEmptyModelResponseError();
+  }
+  return message;
+};
+
 class BaseClient {
   constructor(apiKey, options = {}) {
     this.apiKey = apiKey;
@@ -848,6 +995,19 @@ class BaseClient {
       responseMessage.contextMeta = this.contextMeta;
     }
 
+    try {
+      ensureAssistantSemanticContent(responseMessage);
+    } catch (error) {
+      logger.error('[BaseClient] Rejected semantically empty assistant response', {
+        code: error.code,
+        messageId: responseMessage.messageId,
+        conversationId: responseMessage.conversationId,
+        endpoint: responseMessage.endpoint,
+        model: responseMessage.model,
+      });
+      throw error;
+    }
+
     responseMessage.databasePromise = this.saveMessageToDatabase(
       responseMessage,
       saveOptions,
@@ -878,6 +1038,16 @@ class BaseClient {
     });
 
     _messages = await this.addPreviousAttachments(_messages);
+    const filteredHistory = filterSemanticallyEmptyAssistantMessages(_messages);
+    _messages = filteredHistory.messages;
+    if (filteredHistory.filteredMessageIds.length > 0) {
+      logger.warn('[BaseClient] Omitted semantically empty assistant messages from history', {
+        conversationId,
+        parentMessageId,
+        count: filteredHistory.filteredMessageIds.length,
+        messageIds: filteredHistory.filteredMessageIds,
+      });
+    }
 
     if (!this.shouldSummarize) {
       return _messages;

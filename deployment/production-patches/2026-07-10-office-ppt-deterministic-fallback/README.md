@@ -35,6 +35,28 @@ verified on 2026-07-10. The gate commits are `6e9f5c5`, `bf1fadf`, and
 `a60acfb`; deployment timestamp, hashes, backups, and current verification are
 recorded in `docs/PRODUCTION_VERIFICATION.md`.
 
+## Empty Response And Regeneration Guard
+
+The generic message lifecycle now also protects conversations that already
+contain blank assistant rows:
+
+- semantically empty assistant history is omitted from provider context without
+  deleting or rewriting saved conversation rows;
+- text, thinking, tool calls, tool output, files, artifacts, citations, and UI
+  resources remain valid content;
+- a provider completion with no usable content is rejected as
+  `EMPTY_MODEL_RESPONSE` before assistant persistence;
+- a stop event with no persistable content is returned as an early,
+  non-persistable abort even when the user-message `created` event was emitted;
+- no automatic model retry is added, avoiding duplicate tool execution and
+  billing.
+
+Focused regression command:
+
+```bash
+node scripts/test-empty-response-regeneration.js
+```
+
 Production target:
 
 ```text
