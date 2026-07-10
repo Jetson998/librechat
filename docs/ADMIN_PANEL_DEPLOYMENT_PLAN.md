@@ -5,9 +5,9 @@ Date: 2026-07-11
 ## Objective
 
 Deploy the official LibreChat Admin Panel for the existing production service,
-use it to inspect and remove or correct runtime configuration overrides, and
-verify that every fresh conversation starts with `GPT-5.6 SOL` while `Fable 5`
-remains available for manual switching.
+use it to inspect and manage supported runtime configuration overrides, and
+verify that every freshly loaded browser session starts new conversations with
+`GPT-5.6 SOL` while `Fable 5` remains available for manual switching.
 
 The same release will give the GPT model spec the bundled OpenAI icon at
 `/assets/openai.svg`.
@@ -26,9 +26,14 @@ The same release will give the GPT model spec the bundled OpenAI icon at
 - A real authenticated browser check on 2026-07-11 reproduced the defect:
   navigating to `/c/new` still selected `Fable 5` even though the committed
   YAML marks `gpt-5.6-sol` as the sole hard default.
-- LibreChat merges active Admin Config database overrides over the YAML base
-  configuration. A base, role, or user override can therefore make the
-  browser-visible default differ from `/app/librechat.yaml`.
+- LibreChat can merge active Admin Config database overrides over the YAML base
+  configuration, but the production `configs` collection was inspected and is
+  currently empty. No base, role, or user override caused the observed Fable
+  selection.
+- The Fable screenshot was reproduced in a browser tab that had remained open
+  across the configuration deployment. SPA navigation to `/c/new` reused that
+  tab's pre-deployment startup state. This release must distinguish a stale
+  client session from a freshly loaded browser session in its acceptance test.
 - The committed GPT model spec has no `iconURL`. The running client already
   serves the official OpenAI asset at `/assets/openai.svg`, so no frontend
   bundle patch or new image asset is required.
@@ -51,8 +56,12 @@ For each Admin Panel change:
 ## Deployment Design
 
 Use the official Admin Panel image as a separate Docker service on the existing
-LibreChat Docker network. Pin the deployed image by digest after the production
-host successfully resolves the official `latest` tag.
+LibreChat Docker network. Production is `x86_64`; the resolved amd64 image is
+pinned as:
+
+```text
+registry.librechat.ai/clickhouse/librechat-admin-panel@sha256:1d3916ae84439e83da83507afd4aae14a99bd81ff2e1890079f57d8d377eb8e9
+```
 
 Required runtime settings:
 
@@ -78,22 +87,28 @@ ADMIN_PANEL_URL=https://admin.152.32.172.162.sslip.io
 
 on `LibreChat-API` before the panel login flow is accepted.
 
-The Admin Panel container must not publish its port directly to the Internet.
-Only the HTTPS reverse proxy may reach it. Existing LibreChat, Office, CodeAPI,
-MongoDB, uploads, and generated-file mounts are unchanged.
+The Admin Panel container must not publish a host port. Add an Admin hostname
+server block to the existing `LibreChat-NGINX` container and proxy from there to
+`http://admin-panel:3000` on the Compose network. The host Nginx Admin virtual
+host continues to proxy only to the existing loopback listener at
+`127.0.0.1:3081`, preserving the Host header so the inner Nginx selects the
+Admin server block.
+
+Existing LibreChat, Office, CodeAPI, MongoDB, uploads, and generated-file mounts
+are unchanged.
 
 ## Default Model And Icon Correction
 
-Before changing runtime state, inspect active Admin Config records in this
-order:
+The production Admin Config collection is empty. Verify it again before
+deployment in this order:
 
 1. Base principal `__base__`.
 2. The `ADMIN` and `USER` role principals.
 3. The affected signed-in user principal.
 
-If any active override contains `modelSpecs`, compare it with the committed
-YAML. Remove a stale `modelSpecs` field or update it to the exact intended
-two-model list only after recording the prior value.
+If a new active override contains `modelSpecs`, compare it with the committed
+YAML and stop the deployment until the prior value is recorded. The current
+release does not need to create a `modelSpecs` database override.
 
 The committed GPT model spec will also receive:
 
@@ -109,8 +124,8 @@ The desired effective model list is:
   selectable.
 
 Do not patch the compiled frontend or clear every user's browser storage. A
-hard effective default is expected to win over the saved last model in this
-upstream version.
+full reload after a configuration deployment is sufficient to fetch the new
+startup configuration; normal users should not need a database rewrite.
 
 ## Release Sequence
 
@@ -124,7 +139,7 @@ upstream version.
 5. Set `ADMIN_PANEL_URL` on `LibreChat-API` and restart only the required
    services.
 6. Sign in through the panel with an existing LibreChat admin account.
-7. Remove or correct the stale model override and add the GPT icon to the
+7. Confirm that no stale model override exists and add the GPT icon to the
    repository-tracked YAML.
 8. Run HTTP, container, API, and authenticated browser verification.
 9. Commit the sanitized production record and exact image digest.
@@ -137,8 +152,9 @@ upstream version.
 - Admin hostname has a valid certificate and returns the Admin Panel login
   flow; the panel container has no host-published port.
 - A LibreChat admin can sign in and read configuration overrides.
-- A fresh `/c/new` page selects `GPT-5.6 SOL`, including after a conversation
-  was manually switched to `Fable 5`.
+- A hard-reloaded or newly opened `/c/new` page selects `GPT-5.6 SOL`.
+- An already loaded conversation remains allowed to retain its manually
+  selected `Fable 5`; after a full reload and a new chat, GPT is selected.
 - GPT displays `/assets/openai.svg` in the model selector, conversation header,
   and assistant messages.
 - `Fable 5` remains selectable and returns a normal response.
@@ -154,4 +170,3 @@ CodeAPI health checks.
 
 If a config override was changed, restore its exported pre-change value through
 the Admin Config API. Do not perform an unscoped MongoDB restore.
-
