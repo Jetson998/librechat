@@ -198,10 +198,23 @@ Authenticated browser verification on 2026-07-10 confirmed:
 - Existing generated PPTX and DOCX messages displayed real download buttons;
   DOCX preview rendering also loaded.
 - Browser automation could open the Office file chooser but its control layer
-  rejected setting a local synthetic XLSX. Therefore no fresh post-deployment
-  upload-to-generation UI run is claimed as passed. The backend handler and
-  HTTP checks above passed; a manual fresh-conversation upload remains the final
-  user-facing acceptance check.
+  rejected setting a local synthetic XLSX. That automated attempt was not
+  counted as an end-to-end pass.
+
+Manual user acceptance later on 2026-07-10 completed the fresh-conversation UI
+check:
+
+- `PPT upload -> edit PPT -> download PPT`: passed.
+- `Excel upload -> edit Excel -> download Excel`: passed.
+- Together with the handler smoke, this verifies current-conversation file
+  injection, model/tool editing, generated-artifact persistence, and visible
+  download cards for the two primary bidirectional Office workflows.
+
+Non-blocking format coverage still not explicitly exercised in this acceptance
+run: DOCX editing/generation, generated Markdown/PDF cards, legacy binary
+`.ppt`, and the secondary allowlisted formats XLSM, CSV, TSV, ODS, and ODP.
+These continue through the same generic pipeline but should not be described as
+manually verified until separately tested.
 
 The bullets below are the historical deployment record for the superseded
 deterministic fallback and are retained for rollback/incident reconstruction:

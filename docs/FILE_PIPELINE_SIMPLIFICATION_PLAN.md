@@ -142,10 +142,13 @@ The gate completed in order:
   current-thread files into `/mnt/data` and returned `status: success` without
   creating or modifying any chat message.
 - An authenticated browser check confirmed the three upload menu labels and
-  existing generated-file download cards. A fresh automated upload could not
-  be completed because the browser control layer rejected local file selection;
-  that limitation is recorded separately and is not reported as a passed UI
-  end-to-end test.
+  existing generated-file download cards. The browser control layer could not
+  select a local synthetic file, so that automated run was not counted as an
+  end-to-end pass.
+- Subsequent user acceptance in a fresh production conversation passed both
+  `PPT upload -> edit -> PPT download` and
+  `Excel upload -> edit -> Excel download`. These are the two primary
+  bidirectional Office workflows for this release.
 
 ## Rollback
 
