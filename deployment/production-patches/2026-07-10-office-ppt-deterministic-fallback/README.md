@@ -13,7 +13,7 @@ Committed and pushed to origin/main before production write.
 The deterministic PPT implementation documented later in this file is retained
 as deployment history, but it is no longer the intended runtime design.
 
-The current repository candidate follows
+The deployed runtime follows
 `docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md`:
 
 - Office files are injected into the current CodeAPI session under `/mnt/data`.
@@ -30,8 +30,10 @@ The current repository candidate follows
 - `office-document-parser` is no longer always applied and no longer directs
   users to `/office/` or persistent work to `/tmp`.
 
-Production remains on the last recorded deployment until the simplified
-implementation is committed, pushed, backed up, deployed, and verified.
+The simplified implementation was committed, pushed, backed up, deployed, and
+verified on 2026-07-10. The gate commits are `6e9f5c5`, `bf1fadf`, and
+`a60acfb`; deployment timestamp, hashes, backups, and current verification are
+recorded in `docs/PRODUCTION_VERIFICATION.md`.
 
 Production target:
 

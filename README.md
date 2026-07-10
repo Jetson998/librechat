@@ -7,7 +7,7 @@ deployment currently exposed at:
 https://152.32.172.162.sslip.io/
 ```
 
-The production endpoint was checked on 2026-07-09. It returns the LibreChat
+The production endpoint was checked on 2026-07-10. It returns the LibreChat
 single-page application through Nginx, with public registration disabled and
 email/password login enabled.
 
@@ -20,9 +20,13 @@ email/password login enabled.
   post-change checklist for small production updates.
 - [Production verification log](docs/PRODUCTION_VERIFICATION.md): current
   externally verified facts about the live site.
-- [Production patch archive](deployment/production-patches/2026-07-09-office-ppt-empty-retry/README.md):
-  exact production-mounted files and rollback notes for the Office/PPT empty
-  response fix.
+- [File pipeline simplification plan](docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md):
+  the deployed `/mnt/data` upload, code execution, artifact, and download-card
+  contract.
+- [Current production patch archive](deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/README.md):
+  current production-mounted files, deployment history, and rollback notes.
+- [Historical Office/PPT retry archive](deployment/production-patches/2026-07-09-office-ppt-empty-retry/README.md):
+  the superseded empty-response retry implementation.
 
 ## Quick Health Checks
 

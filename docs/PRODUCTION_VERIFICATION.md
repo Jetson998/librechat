@@ -112,8 +112,7 @@ Operational interpretation:
 - A blank LibreChat assistant turn after a PPT request should be diagnosed as
   a model/tool-routing or empty-message issue unless CodeAPI smoke tests fail.
 
-Current repository target, pending the production deployment recorded after
-`docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md`:
+Current production file pipeline, deployed on 2026-07-10:
 
 - Use one generic model/Bash path for Office reading, generation, and edits.
 - Keep request-scoped upload priming, runtime file injection recovery, current
@@ -123,6 +122,86 @@ Current repository target, pending the production deployment recorded after
 - Do not always apply the Office skill or direct users to `/office/` when a code
   session is missing a file.
 - Enforce the Office code-upload extension allowlist on the server.
+
+## File Pipeline Simplification Deployment
+
+Repository gate:
+
+- `6e9f5c5` - design committed and pushed.
+- `bf1fadf` - simplified implementation and durable tests committed and pushed.
+- `a60acfb` - atomic backup/deploy/rollback runner committed and pushed.
+
+Production deployment timestamp: `20260710215832`.
+
+Backups created before replacement:
+
+```text
+/opt/librechat/office-context-patch/BaseClient.js.bak-20260710215832
+/opt/librechat/office-context-patch/ToolService.js.bak-20260710215832
+/opt/librechat/office-context-patch/process.js.bak-20260710215832
+/opt/librechat/skill/office-document-parser/SKILL.md.bak-20260710215832
+```
+
+Production hashes after deployment:
+
+```text
+BaseClient.js  ef33ed6a254c3ad41541408e3fb780ee48fca6c05c4283bb9a3046719167497d
+ToolService.js c361cd67cb6877684150a3f3c14e55680762c3287b8a921cfbe84753c9d09edb
+process.js     f7d7452ba82f8340ca8532bebd21570efdc1c5d5bcb04a5969bd5b5f473698e4
+SKILL.md       98e97c17e1753a0b0316e95be8162f68a6adaf88b13951053539f258a8c33c21
+```
+
+Deployment verification:
+
+- Container `node --check` passed for `BaseClient.js`, `ToolService.js`, and
+  `process.js`.
+- Patch-contract checks confirmed the generic artifact mirror and Office
+  server allowlist, and confirmed deterministic PPT routing/templates, direct
+  CodeAPI fallback calls, Office retries, and stale skill instructions were
+  absent.
+- `LibreChat-API` restarted successfully and `LibreChat-CodeAPI` remained
+  healthy. Nine temporary `502` responses occurred during the restart window;
+  the service then recovered and remained reachable.
+- Root returned `200`; `/api/config` returned valid JSON; `/office/` returned
+  `401` with `WWW-Authenticate: Basic realm="Office Converter"`.
+- The deployment skill was loaded from `/app/skill`.
+- Existing startup warning: configuration version `1.2.8` is older than
+  `1.3.13`. This predates and is unrelated to the file-pipeline change.
+
+Post-deployment handler smoke rerun at 2026-07-10 22:12 HKT:
+
+```json
+{
+  "ok": true,
+  "primedCount": 2,
+  "expectedNames": [
+    "API渠道模型来源说明_基础版_a709f5cb.pptx",
+    "模型_API_服务能力表_含GLM__1_.xlsx"
+  ],
+  "observedFiles": [
+    "API渠道模型来源说明_基础版_a709f5cb.pptx",
+    "模型_API_服务能力表_含GLM__1_.xlsx"
+  ],
+  "status": "success"
+}
+```
+
+This smoke called the real exported tool handler with no graph
+`codeSessionContext`. It proved that request-scoped primed refs recovered both
+current-thread files into the same `/mnt/data` execution session and did not
+create or modify a LibreChat message.
+
+Authenticated browser verification on 2026-07-10 confirmed:
+
+- A new conversation displayed the three intended upload entries and their
+  operator descriptions.
+- Existing generated PPTX and DOCX messages displayed real download buttons;
+  DOCX preview rendering also loaded.
+- Browser automation could open the Office file chooser but its control layer
+  rejected setting a local synthetic XLSX. Therefore no fresh post-deployment
+  upload-to-generation UI run is claimed as passed. The backend handler and
+  HTTP checks above passed; a manual fresh-conversation upload remains the final
+  user-facing acceptance check.
 
 The bullets below are the historical deployment record for the superseded
 deterministic fallback and are retained for rollback/incident reconstruction:

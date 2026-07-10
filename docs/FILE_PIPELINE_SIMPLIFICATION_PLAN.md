@@ -2,8 +2,9 @@
 
 Date: 2026-07-10
 
-Status: approved for repository implementation; production remains unchanged
-until the repository gate is complete.
+Status: deployed to production and verified on 2026-07-10. Repository commits,
+production backups, hashes, and verification evidence are recorded below and
+in `docs/PRODUCTION_VERIFICATION.md`.
 
 ## Objective
 
@@ -121,6 +122,30 @@ service is required. Use
 `deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/deploy-file-pipeline-simplification.sh`
 for timestamp-matched backups, syntax checks, automatic rollback, restart, and
 HTTP verification.
+
+## Deployment Outcome
+
+The gate completed in order:
+
+- Design commit `6e9f5c5`, implementation commit `bf1fadf`, and atomic deploy
+  runner commit `a60acfb` were pushed to `origin/main` before production write.
+- Deployment timestamp: `20260710215832`.
+- Timestamp-matched backups were created for `BaseClient.js`, `ToolService.js`,
+  `process.js`, and `office-document-parser/SKILL.md` under their existing
+  `/opt/librechat` patch directories.
+- Production syntax and patch-contract checks passed, `LibreChat-API`
+  restarted, `LibreChat-CodeAPI` remained healthy, root returned `200`,
+  `/api/config` returned JSON, and `/office/` returned `401` with realm
+  `Office Converter`.
+- A handler-level production smoke on 2026-07-10 22:12 HKT deliberately omitted
+  `codeSessionContext`; request-scoped recovery injected the two expected
+  current-thread files into `/mnt/data` and returned `status: success` without
+  creating or modifying any chat message.
+- An authenticated browser check confirmed the three upload menu labels and
+  existing generated-file download cards. A fresh automated upload could not
+  be completed because the browser control layer rejected local file selection;
+  that limitation is recorded separately and is not reported as a passed UI
+  end-to-end test.
 
 ## Rollback
 
