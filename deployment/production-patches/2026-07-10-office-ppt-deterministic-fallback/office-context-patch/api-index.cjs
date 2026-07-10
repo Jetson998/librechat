@@ -37977,6 +37977,28 @@ function isHostFileAuthoringToolCall(toolName, mergedConfigurable) {
 function isCodeSessionAwareToolCall(toolName, mergedConfigurable) {
 	return isCodeSessionToolName(toolName, getFileAuthoringToolNames(mergedConfigurable));
 }
+function mergeRuntimePrimedCodeSessionContext(current, mergedConfigurable) {
+	const runtimeFiles = mergedConfigurable?.primedCodeFiles;
+	if (!Array.isArray(runtimeFiles) || runtimeFiles.length === 0) return current;
+	const files = [];
+	const seen = /* @__PURE__ */ new Set();
+	const append = (file) => {
+		if (!file || typeof file.id !== "string" || typeof file.name !== "string") return;
+		const key = `${file.storage_session_id ?? ""}\0${file.id}`;
+		if (seen.has(key)) return;
+		seen.add(key);
+		files.push(file);
+	};
+	for (const file of current?.files ?? []) append(file);
+	for (const file of runtimeFiles) append(file);
+	const session_id = current?.session_id ?? runtimeFiles[0]?.storage_session_id;
+	if (typeof session_id !== "string" || session_id.length === 0) return current;
+	return {
+		...current,
+		session_id,
+		files
+	};
+}
 function isSkillPrimedForAuthoring(skillName, mergedConfigurable) {
 	return typeof (mergedConfigurable.skillPrimedIdsByName ?? {})[skillName] === "string";
 }
@@ -38993,11 +39015,13 @@ function createToolExecuteHandler(options) {
 									stepId: tc.stepId,
 									turn: tc.turn
 								};
-								if (tc.codeSessionContext && isCodeSessionAwareToolCall(tc.name, mergedConfigurable)) {
-									toolCallConfig.session_id = tc.codeSessionContext.session_id;
-									if (tc.codeSessionContext.files && tc.codeSessionContext.files.length > 0) {
-										toolCallConfig._injected_files = tc.codeSessionContext.files;
-										const refs = tc.codeSessionContext.files;
+								const codeSessionContext = isCodeSessionAwareToolCall(tc.name, mergedConfigurable) ? mergeRuntimePrimedCodeSessionContext(tc.codeSessionContext, mergedConfigurable) : void 0;
+								if (codeSessionContext) {
+									toolCallConfig.session_id = codeSessionContext.session_id;
+									if (codeSessionContext.files && codeSessionContext.files.length > 0) {
+										toolCallConfig._injected_files = codeSessionContext.files;
+										const refs = codeSessionContext.files;
+										if (!tc.codeSessionContext?.files?.length && mergedConfigurable?.primedCodeFiles?.length) _librechat_data_schemas.logger.warn(`[code-env:inject] recovered ${refs.length} file(s) from request priming cache for tool=${tc.name}`);
 										const summary = refs.map((f) => ({
 											kind: f.kind,
 											hasResourceId: typeof f.resource_id === "string" && !!f.resource_id,
@@ -39019,9 +39043,9 @@ function createToolExecuteHandler(options) {
 										if (missingResourceId > 0) _librechat_data_schemas.logger.warn(`[code-env:inject] ${missingResourceId}/${refs.length} files missing resource_id for tool=${tc.name} — codeapi will reject with 400`, { summary });
 									} else _librechat_data_schemas.logger.warn(`[code-env:inject] tool=${tc.name} _injected_files=0 — sandbox will see no input files`, {
 										tool: tc.name,
-										session_id: tc.codeSessionContext.session_id,
-										codeSessionContextHasFiles: tc.codeSessionContext.files !== void 0,
-										codeSessionContextFileCount: tc.codeSessionContext.files?.length ?? 0
+										session_id: codeSessionContext.session_id,
+										codeSessionContextHasFiles: codeSessionContext.files !== void 0,
+										codeSessionContextFileCount: codeSessionContext.files?.length ?? 0
 									});
 								}
 								if (tc.name === _librechat_agents.Constants.BASH_PROGRAMMATIC_TOOL_CALLING || tc.name === _librechat_agents.Constants.PROGRAMMATIC_TOOL_CALLING) {

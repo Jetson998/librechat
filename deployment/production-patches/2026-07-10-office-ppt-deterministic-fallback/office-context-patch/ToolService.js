@@ -88,6 +88,63 @@ const CODE_EXECUTION_STORAGE_GUARD_MESSAGE =
   'Blocked by LibreChat safety guard: code execution may only use /mnt/data and explicitly provided current-message files. ' +
   'Do not inspect /srv/codeapi-data/sessions, other session directories, or the filesystem root; list /mnt/data and use the exact uploaded filename instead.';
 
+const CODE_ENV_PRIME_CACHE = Symbol('librechatCodeEnvPrimeCache');
+
+const getCodeEnvPrimeCacheKey = (agentId, tool_resources) => {
+  const resource = tool_resources?.[EToolResources.execute_code];
+  const fileIds = [
+    ...(resource?.file_ids ?? []),
+    ...(resource?.files ?? []).map((file) => file?.file_id),
+  ]
+    .filter(Boolean)
+    .sort();
+  return `${agentId ?? '__default__'}:${fileIds.join(',')}`;
+};
+
+const getCodeEnvPrimeCache = (req) => {
+  if (!req || typeof req !== 'object') {
+    return null;
+  }
+  if (!(req[CODE_ENV_PRIME_CACHE] instanceof Map)) {
+    Object.defineProperty(req, CODE_ENV_PRIME_CACHE, {
+      value: new Map(),
+      configurable: true,
+    });
+  }
+  return req[CODE_ENV_PRIME_CACHE];
+};
+
+const normalizeCodeEnvPrimeResult = (result) => ({
+  toolContext: result?.toolContext ?? '',
+  files: Array.isArray(result?.files) ? result.files : [],
+});
+
+const getOrPrimeCodeFiles = async ({ req, tool_resources, agentId }) => {
+  const cache = getCodeEnvPrimeCache(req);
+  if (!cache) {
+    return normalizeCodeEnvPrimeResult(await primeCodeFiles({ req, tool_resources, agentId }));
+  }
+
+  const key = getCodeEnvPrimeCacheKey(agentId, tool_resources);
+  const cached = cache.get(key);
+  if (cached) {
+    return await cached;
+  }
+
+  const pending = primeCodeFiles({ req, tool_resources, agentId })
+    .then((result) => {
+      const normalized = normalizeCodeEnvPrimeResult(result);
+      cache.set(key, normalized);
+      return normalized;
+    })
+    .catch((error) => {
+      cache.delete(key);
+      throw error;
+    });
+  cache.set(key, pending);
+  return await pending;
+};
+
 const getToolResponseFormat = (tool) =>
   tool?.responseFormat ?? tool?.response_format ?? tool?.lc_kwargs?.responseFormat ?? tool?.lc_kwargs?.response_format;
 
@@ -1085,7 +1142,7 @@ async function loadToolDefinitionsWrapper({ req, res, agent, streamId = null, to
   let primedCodeFiles;
   if (hasExecuteCode && tool_resources) {
     try {
-      const { toolContext, files } = await primeCodeFiles({
+      const { toolContext, files } = await getOrPrimeCodeFiles({
         req,
         tool_resources,
         agentId: agent.id,
@@ -1577,6 +1634,21 @@ async function loadToolsForExecution({
   const codeExecutionEnabled =
     enabledCapabilities?.has(AgentCapabilities.execute_code) === true &&
     agent?.tools?.includes(Tools.execute_code) === true;
+
+  if (isCodeExecutionToolRequested && codeExecutionEnabled && tool_resources) {
+    try {
+      const { files } = await getOrPrimeCodeFiles({
+        req,
+        tool_resources,
+        agentId: agent?.id,
+      });
+      if (files.length > 0) {
+        configurable.primedCodeFiles = files;
+      }
+    } catch (error) {
+      logger.error('[loadToolsForExecution] Error recovering primed code files:', error);
+    }
+  }
 
   const isPTC =
     isPTCRequested &&

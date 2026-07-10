@@ -94,6 +94,15 @@ Office/PPT generation turns:
    in the OpenAI-compatible agent run path so the first Bash/code tool call
    receives `_injected_files` and sees the uploaded Office files under
    `/mnt/data`.
+13. Cache the fresh `primeCodeFiles()` result on the current HTTP request,
+    keyed by agent plus execute-code file IDs. Initialization and runtime tool
+    loading share the same result, so repeated Bash calls do not re-upload the
+    same Office files.
+14. Before invoking Bash/code tools, merge runtime-cached primed files with the
+    Graph-provided `codeSessionContext`. If Graph omitted the context or its
+    file list, the handler still sets `session_id` and `_injected_files` from
+    the fresh priming result. Existing current-turn generated files remain in
+    the merged session and duplicates are removed by storage session + file ID.
 
 The older prompt-retry behavior remains only for non-deterministic Office
 generation cases that do not match the PPT fallback path.
@@ -297,6 +306,42 @@ Upload seeding deployment result on 2026-07-10 03:41 HKT:
   healthy, `LibreChat-NGINX` up.
 - HTTP smoke: root returned `HTTP/2 200`; `/api/config` returned JSON;
   `/office/` returned `HTTP/2 401` with `realm="Office Converter"`.
+
+Runtime injection follow-up diagnosis for conversation
+`9c67d81d-2267-4e46-8630-7fcc491afb8e` on 2026-07-10:
+
+- The failing post-deployment user message
+  `1a882647-f48d-4515-9d43-6cb0e9f76317` carried PPTX file
+  `6cf60ee2-d13c-4e6e-801e-582973f08c2c` with a valid
+  `metadata.codeEnvRef`. The same thread also referenced the original XLSX and
+  a previously generated PPTX.
+- During the failure window CodeAPI logged successful re-uploads followed by
+  five successful `POST /exec` calls. Bash nevertheless reported both expected
+  files absent and `/mnt/data` empty across all calls.
+- The normal Agents controller already called `buildInitialToolSessions()` and
+  passed `initialSessions` to `createRun()`. The Agents SDK also correctly
+  maps `Bash` to `bash_tool` and reads `sessions[execute_code]`.
+- Remaining gap: the event-driven tool handler only populated
+  `_injected_files` when `tc.codeSessionContext` survived Graph dispatch. It
+  had no execution-time fallback despite `ToolService` having already produced
+  fresh primed file refs earlier in the same HTTP request.
+- Fix design: `ToolService.js` now caches normalized priming results on the
+  request and exposes them in runtime configurable data. `api-index.cjs` merges
+  those refs into the effective code session immediately before tool
+  invocation, then sets `_injected_files` deterministically.
+- Local checks passed: Node syntax checks for both production JavaScript files,
+  `git diff --check`, and a behavior test covering concurrent prime-cache reuse,
+  missing-context recovery, generated-file preservation, and deduplication.
+
+Operational note from diagnosis at 2026-07-10 20:35 HKT:
+
+- A legacy `librechat_min_fix.exp` script was inadvertently invoked while
+  collecting a read-only excerpt. It rewrote `.env` with the same existing
+  values and restarted `LibreChat-API` plus `LibreChat-RAG-API`.
+- Verification against both retained `.env` backups showed identical SHA-256
+  values for the Anthropic and RAG API keys, and identical proxy/model values.
+  The production patch file hashes were unchanged. This caused a restart and
+  `.env` mtime change, but no configuration-value or code drift.
 
 Deployment result on 2026-07-10 02:19 HKT:
 
