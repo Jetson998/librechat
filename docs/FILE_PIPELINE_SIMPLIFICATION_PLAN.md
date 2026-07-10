@@ -117,11 +117,13 @@ Before production write:
 
 Production deployment changes only the files whose repository diffs require
 replacement. Restart `LibreChat-API` only unless verification proves another
-service is required.
+service is required. Use
+`deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/deploy-file-pipeline-simplification.sh`
+for timestamp-matched backups, syntax checks, automatic rollback, restart, and
+HTTP verification.
 
 ## Rollback
 
 Restore the timestamp-matched pre-deployment copies of every replaced file,
 restart `LibreChat-API`, then verify root, `/api/config`, simple chat, Office
 upload, first-call `/mnt/data` visibility, and generated download cards.
-
