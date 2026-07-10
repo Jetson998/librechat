@@ -1,4 +1,4 @@
-# Production Patch Archive: Office/PPT Deterministic Fallback
+# Production Patch Archive: Office File Pipeline
 
 Date: 2026-07-10
 
@@ -7,6 +7,31 @@ Repository status:
 ```text
 Committed and pushed to origin/main before production write.
 ```
+
+## Current Runtime Design
+
+The deterministic PPT implementation documented later in this file is retained
+as deployment history, but it is no longer the intended runtime design.
+
+The current repository candidate follows
+`docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md`:
+
+- Office files are injected into the current CodeAPI session under `/mnt/data`.
+- Request-scoped priming prevents repeated uploads across initialization and
+  Bash execution.
+- Graph session context and runtime priming refs are merged and deduplicated.
+- Generated files return through LibreChat's normal code-artifact callback and
+  generic download-card path.
+- `BaseClient.js` contains no PPT keyword router, fixed Python template, direct
+  CodeAPI `/exec`/`/download` call, Office-specific retry, synthetic tool call,
+  or manual attachment SSE implementation.
+- Message-level Office code uploads are checked server-side against the same
+  DOCX/XLSX/XLSM/PPT/PPTX/CSV/TSV/ODS/ODP allowlist shown by the frontend.
+- `office-document-parser` is no longer always applied and no longer directs
+  users to `/office/` or persistent work to `/tmp`.
+
+Production remains on the last recorded deployment until the simplified
+implementation is committed, pushed, backed up, deployed, and verified.
 
 Production target:
 
@@ -524,7 +549,11 @@ Third deployment result on 2026-07-10 03:15 HKT:
   `换成科技风风格的 ppt`, reopened the generated file with `python-pptx`, and
   confirmed `slides 1`.
 
-## Feature / Function List
+## Historical Feature / Function List
+
+The items below describe the earlier deterministic fallback releases. They are
+kept for incident reconstruction and rollback analysis; they are not the target
+runtime after the file-pipeline simplification release.
 
 - Stable PPT output when the model returns empty content after an Office/PPT
   generation request.
@@ -575,21 +604,22 @@ Production checks after deployment:
 2. Replace it with this patch archive's BaseClient.js.
 3. Restart LibreChat-API only.
 4. Verify /api/config returns 200 JSON.
-5. Upload a small XLSX through `Office文件上传`.
-6. Ask for a one-page PPTX summary.
-7. Confirm assistant message has visible text and one downloadable .pptx
-   attachment.
-8. Confirm LibreChat-CodeAPI logs show /exec for the turn.
-9. Confirm Mongo `messages.attachments[0]` and `files.metadata.codeEnvRef`
-   point to the generated artifact.
-10. Upload an existing PPTX through `Office文件上传`; ask for a visual/theme
-   change such as `换成科技风风格的 ppt`; confirm the assistant returns a new
-   downloadable `.pptx` whose file row has `metadata.officePptTransformFallback`.
-11. In a separate code-tool turn, attempt an unsafe broad file search such as
+5. Upload a small XLSX through `Office文件上传` and confirm it exists under
+   `/mnt/data` on the first Bash call.
+6. Ask for XLSX-to-PPTX, XLSX-to-DOCX, and Markdown output in separate turns;
+   confirm each uses the normal model/tool path and returns one real download
+   card.
+7. Upload an existing PPTX and request a visual/theme change; confirm the model
+   and Bash handle the request without a `BaseClient` preflight marker or fixed
+   fallback metadata.
+8. Confirm repeated Bash calls in one request do not repeat the CodeAPI upload.
+9. Attempt a direct unsupported Office code upload and confirm the server
+   rejects it before CodeAPI storage.
+10. In a separate code-tool turn, attempt an unsafe broad file search such as
    `find /srv/codeapi-data/sessions -name "*.xlsx" | head`; confirm the visible
    tool output is the LibreChat storage-guard message and does not include the
    secondary `content_and_artifact` two-tuple error.
-12. For pre-fix messages with generated file text but no visible file card, run
+11. For historical messages with generated file text but no visible file card, run
    `scripts/backfill-generated-attachment-files.js` against that single
    assistant message and confirm `messages.files[*].file_id` contains the
    generated attachment file IDs.
@@ -606,7 +636,9 @@ Before replacing production files, create timestamped backups:
 
 Rollback steps:
 
-1. Restore `BaseClient.js` and `ToolService.js` from the matching backups.
+1. Restore `BaseClient.js`, `process.js`, and the Office skill from the matching
+   backups. Restore `ToolService.js` or `api-index.cjs` only if the deployment
+   changed them.
 2. Restart `LibreChat-API`.
 3. Verify `/api/config` returns `200`.
 4. Run a simple chat smoke test.

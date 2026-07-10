@@ -248,17 +248,17 @@ Operational rules:
 - The Anthropic model prompt must point the model at the actually available
   code tool (`Bash` in this deployment) and must tell it not to use Claude Code
   helper names such as `Glob`, `Read`, `Edit`, or `LS`.
-- Production `office-context-patch/BaseClient.js` must not rely on model tool
-  routing for explicit PPT generation. The 2026-07-10 deterministic route
-  preflights PPT output requests with a CodeAPI-backed Office attachment, calls
-  CodeAPI `/exec` directly, generates a uniquely named `.pptx`, saves it to
-  LibreChat uploads, creates the `db.files` row, and attaches the artifact to
-  the assistant message. The older prompt retry remains only for non-PPT Office
-  generation cases that do not match the deterministic route.
+- Production must use one generic model/tool path for Office work. Uploaded
+  CodeAPI references are injected into the current code session under
+  `/mnt/data`; generated files return through the normal code-artifact callback
+  and download-card pipeline. `BaseClient.js` must not detect PPT keywords,
+  call CodeAPI directly, run a fixed Office template, synthesize tool calls, or
+  retry an Office request with a hidden prompt.
 - The deployment `office-document-parser` skill covers both extraction and
   Office artifact generation/modification. PPT generation uses `python-pptx`;
   Excel generation/modification uses `openpyxl`; generated files must be saved
-  under `/mnt/data`.
+  under `/mnt/data`. The skill is not always applied and must not redirect users
+  to `/office/` when the current code session is missing an upload.
 - If a conversation returns empty content after an upload, inspect backend logs
   and saved message metadata before assuming the model is slow or that PPT
   generation is unsupported.

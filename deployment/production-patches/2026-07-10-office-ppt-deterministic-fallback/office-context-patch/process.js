@@ -71,6 +71,21 @@ const createSanitizedUploadWrapper = (uploadFunction) => {
 
 const hasCodeEnvRef = (file) => file?.metadata?.codeEnvRef != null;
 
+const officeCodeUploadExts = new Set([
+  '.docx',
+  '.xlsx',
+  '.xlsm',
+  '.ppt',
+  '.pptx',
+  '.csv',
+  '.tsv',
+  '.ods',
+  '.odp',
+]);
+
+const isOfficeCodeUploadFile = (file) =>
+  officeCodeUploadExts.has(path.extname(file?.originalname ?? '').toLowerCase());
+
 const isMissingStorageError = (err) => {
   const code = err?.code ?? err?.status ?? err?.statusCode ?? err?.response?.status;
   if ([404, '404', 'ENOENT', 'NoSuchKey', 'NotFound', 'ResourceNotFound'].includes(code)) {
@@ -737,7 +752,8 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
   const appConfig = req.config;
   const { agent_id, tool_resource, file_id, temp_file_id = null } = metadata;
 
-  let messageAttachment = !!metadata.message_file;
+  const messageAttachment =
+    metadata.message_file === true || metadata.message_file === 'true';
 
   if (agent_id && !tool_resource && !messageAttachment) {
     throw new Error('No tool resource provided for agent file upload');
@@ -759,6 +775,13 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     const isCodeEnabled = await checkCapability(req, AgentCapabilities.execute_code);
     if (!isCodeEnabled) {
       throw new Error('Code execution is not enabled for Agents');
+    }
+    if (messageAttachment && !isOfficeCodeUploadFile(file)) {
+      const ext = path.extname(file.originalname ?? '').toLowerCase() || '(none)';
+      throw new Error(
+        `Unsupported Office code upload type ${ext}. ` +
+          'Allowed: .docx, .xlsx, .xlsm, .ppt, .pptx, .csv, .tsv, .ods, .odp.',
+      );
     }
     const { handleFileUpload: uploadCodeEnvFile } = getStrategyFunctions(FileSources.execute_code);
     const stream = fs.createReadStream(file.path);

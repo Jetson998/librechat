@@ -111,6 +111,22 @@ Operational interpretation:
 - Excel parse/edit/generate and PPTX generate are backend-capable.
 - A blank LibreChat assistant turn after a PPT request should be diagnosed as
   a model/tool-routing or empty-message issue unless CodeAPI smoke tests fail.
+
+Current repository target, pending the production deployment recorded after
+`docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md`:
+
+- Use one generic model/Bash path for Office reading, generation, and edits.
+- Keep request-scoped upload priming, runtime file injection recovery, current
+  thread isolation, and generic generated-artifact download cards.
+- Remove all `BaseClient.js` PPT preflight/transform templates, direct CodeAPI
+  calls, Office retries, synthetic tool calls, and manual attachment streaming.
+- Do not always apply the Office skill or direct users to `/office/` when a code
+  session is missing a file.
+- Enforce the Office code-upload extension allowlist on the server.
+
+The bullets below are the historical deployment record for the superseded
+deterministic fallback and are retained for rollback/incident reconstruction:
+
 - The 2026-07-09 production `BaseClient.js` patch retried empty Office/PPT
   generation turns once with a stronger Bash/Python instruction and recorded a
   visible fallback if the retry was still empty. This was proven insufficient

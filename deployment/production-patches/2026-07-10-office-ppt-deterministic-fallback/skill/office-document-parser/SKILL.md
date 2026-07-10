@@ -3,26 +3,36 @@ name: office-document-parser
 description: Use this skill when users upload Word, Excel, or PowerPoint files and need reliable extraction, audit, analysis, summarization, or edits with lower token usage.
 allowed-tools:
   - execute_code
-always-apply: true
 ---
 
 # Office Document Parser
 
-Use deterministic Office extraction before doing audit, review, comparison, or issue-log analysis over `.docx`, `.xlsx`, `.xlsm`, or `.pptx` files.
+Use the current LibreChat code environment for Office extraction, analysis,
+generation, and modification over supported files such as `.docx`, `.xlsx`,
+`.xlsm`, `.ppt`, `.pptx`, `.csv`, `.tsv`, `.ods`, and `.odp`.
 
 Important runtime rule:
 
-- If this chat has a real code execution sandbox and the uploaded file path is available, run the bundled parser script.
-- If this chat does not expose a sandbox/file path, do not pretend to run code. Ask the user to open `/office/`, upload the Office file there, and paste or upload the generated Markdown back into LibreChat.
-- On this server, the converter page is available at `http://152.32.172.162.sslip.io/office/` and `http://152.32.172.162/office/`.
+- Use only files explicitly mounted under `/mnt/data` for the current thread.
+- Never inspect `/srv/codeapi-data`, other session directories, or the filesystem
+  root to locate user files.
+- Use the exact filename shown under `/mnt/data`; do not invent a path.
+- If the expected upload is absent, report that the current code session did not
+  receive it. Do not redirect the user to another upload site and do not claim
+  to have parsed the file.
 
-Sandbox workflow, only when a file path is actually available:
+Extraction workflow:
 
-```bash
-python skills/office-document-parser/scripts/office_to_markdown.py INPUT_FILE > /tmp/office_extract.md
-```
-
-Then read `/tmp/office_extract.md` and answer from that parsed content.
+- Excel: use `openpyxl` and inspect real sheet names, visibility, formulas,
+  values, headers, dimensions, and relevant rows.
+- Word: use `python-docx` and preserve heading order, paragraphs, tables, and
+  structured text.
+- PowerPoint: use `python-pptx` and preserve slide order, titles, text boxes,
+  notes, tables, and existing media where the library supports it.
+- CSV/TSV: use Python's `csv` module or a suitable dataframe library when
+  available.
+- Store any intermediate file that must survive another tool call under
+  `/mnt/data`, not `/tmp`.
 
 Extraction expectations:
 
@@ -32,10 +42,13 @@ Extraction expectations:
 
 Generation/edit workflow:
 
-- If the user asks to generate or edit Office files, use the same code sandbox instead of only extracting text.
+- Follow the user's requested content, slide count, style, layout, and output
+  format; do not substitute a fixed template or fixed business topic.
 - Excel generation/modification: use `openpyxl`, save `.xlsx` under `/mnt/data`, and mention the generated filename.
 - PowerPoint generation/modification: use `python-pptx`, save `.pptx` under `/mnt/data`, and mention the generated filename.
 - Word generation/modification: use `python-docx`, save `.docx` under `/mnt/data`, and mention the generated filename.
 - For PPT requests based on Excel data, first inspect the workbook with `openpyxl`, then build slides from the real sheet names, headers, rows, and values. Do not reply with only a plan.
+- Mention a generated file only after the code tool reports a real artifact for
+  that file.
 
 For large files, summarize structure first and ask before deeply analyzing every section. Do not paste the whole extraction into the final answer unless the user asks.

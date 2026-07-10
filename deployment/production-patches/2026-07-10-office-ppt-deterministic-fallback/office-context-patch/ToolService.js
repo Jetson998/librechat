@@ -82,7 +82,7 @@ const CODEAPI_GLOBAL_STORAGE_RE =
   /(?:^|[\s"'`])(?:\/srv\/codeapi-data(?:\/sessions)?|\/codeapi-data\/sessions)(?:[\s"'`/]|$)/i;
 const CODEAPI_SESSION_ID_PATH_RE = /(?:^|[\s"'`/])sess_[a-f0-9]{16,}(?:[\s"'`/]|$)/i;
 const ROOT_FILESYSTEM_ENUM_RE =
-  /\b(?:find|tree)\s+(?:-[^\s]+\s+)*\/(?:\s|$)|\b(?:find|tree)\s+(?:-[^\s]+\s+)*\/(?:srv|var|home|root|opt|mnt)(?:\s|\/|$)|\bls\s+(?:-[A-Za-z0-9]+\s+)*\/srv(?:\s|\/|$)/i;
+  /\b(?:find|tree)\s+(?:-[^\s]+\s+)*\/(?:\s|$)|\b(?:find|tree)\s+(?:-[^\s]+\s+)*\/(?:srv|var|home|root|opt)(?:\s|\/|$)|\bls\s+(?:-[A-Za-z0-9]+\s+)*\/srv(?:\s|\/|$)/i;
 
 const CODE_EXECUTION_STORAGE_GUARD_MESSAGE =
   'Blocked by LibreChat safety guard: code execution may only use /mnt/data and explicitly provided current-message files. ' +

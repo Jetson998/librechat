@@ -199,16 +199,16 @@ Refined check on 2026-07-09:
 - The model prompt is also customized to steer Office generation through the
   available code tool (`Bash`) and away from unsupported Claude Code helper
   names such as `Glob`, `Read`, `Edit`, and `LS`.
-- The production patch layer includes an Office/PPT empty response guard. The
-  2026-07-09 version retried with an explicit Bash/Python instruction and saved
-  a visible fallback instead of a blank row. The 2026-07-10 deployed patch
-  upgrades PPT generation to a deterministic backend route: detect explicit
-  PPT output intent with `metadata.codeEnvRef`, call CodeAPI `/exec`, save a
-  uniquely named `.pptx` into LibreChat uploads, create the `db.files` row, and
-  attach it to the assistant message before relying on model tool routing.
+- Historical production releases added an Office/PPT empty-response retry and
+  later a deterministic `BaseClient.js` PPT route. The file-pipeline
+  simplification plan removes both mechanisms: Office work returns to the
+  normal model/Bash path, while request-scoped upload priming and runtime
+  `_injected_files` recovery make current-thread files available under
+  `/mnt/data`.
 - The deployment `office-document-parser` skill is extended beyond extraction
   to include Office artifact generation/modification guidance for `.pptx`,
-  `.xlsx`, and `.docx` outputs under `/mnt/data`.
+  `.xlsx`, and `.docx` outputs under `/mnt/data`. It is not always applied and
+  does not redirect missing code-session files to `/office/`.
 - The official tree for the same commit includes Code/Skills/Agent file
   handling paths such as `api/server/services/Files/Code/`,
   `api/server/services/Skills/`, and `client/src/components/Agents/`.
@@ -219,10 +219,10 @@ Interpretation:
 - Our visible change is the Chinese operational wording in the upload menu.
 - Backend CodeAPI/tool execution is confirmed by authenticated smoke tests, but
   individual empty assistant messages still need MongoDB/log inspection to
-  distinguish model empty output from CodeAPI failure. For PPT generation after
-  the deterministic fallback is deployed, a matching empty model turn should
-  still produce a `.pptx` artifact if the uploaded file has `metadata.codeEnvRef`
-  and CodeAPI `/exec` is healthy.
+  distinguish model empty output from CodeAPI failure. Generated PPTX, XLSX,
+  DOCX, Markdown, PDF, and other real artifacts should all use the same normal
+  code-artifact callback and download-card path; there is no PPT-specific
+  persistence fallback.
 
 Status: official frontend capability plus custom Chinese label patch; backend
 execution confirmed from authenticated server-side checks.
