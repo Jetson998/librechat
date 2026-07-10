@@ -211,10 +211,97 @@ check:
   download cards for the two primary bidirectional Office workflows.
 
 Non-blocking format coverage still not explicitly exercised in this acceptance
-run: DOCX editing/generation, generated Markdown/PDF cards, legacy binary
-`.ppt`, and the secondary allowlisted formats XLSM, CSV, TSV, ODS, and ODP.
-These continue through the same generic pipeline but should not be described as
-manually verified until separately tested.
+run: DOCX editing, generated PDF cards, legacy binary `.ppt`, and the secondary
+allowlisted formats XLSM, CSV, TSV, ODS, and ODP. These continue through the
+same generic pipeline but should not be described as manually verified until
+separately tested.
+
+## Empty Response Regeneration Deployment
+
+The user completed the remaining file-pipeline acceptance checks before this
+deployment:
+
+- A new blank conversation cannot access files from a different conversation.
+- DOCX and Markdown generation return visible download cards.
+- Unsupported upload formats are rejected by the intended file-type guards.
+
+The empty-response recovery design was committed and pushed before
+implementation:
+
+```text
+c2deb7a  Design empty response regeneration recovery
+eb19708  Clarify empty abort persistence gate
+```
+
+Implementation and the atomic deployment script were then committed and pushed:
+
+```text
+5aa0552  Prevent empty assistant regeneration loops
+5af2163  Add atomic empty response deployment
+```
+
+Production deployment completed at server timestamp `20260711001055`. Only
+`LibreChat-API` was restarted. The changed host files and rollback backups are:
+
+```text
+/opt/librechat/office-context-patch/BaseClient.js
+/opt/librechat/office-context-patch/BaseClient.js.bak-20260711001055
+/opt/librechat/office-context-patch/api-index.cjs
+/opt/librechat/office-context-patch/api-index.cjs.bak-20260711001055
+```
+
+Deployed checksums:
+
+```text
+f432035ec723a92a000ecd7e2738f437bdfa1cfef91e8f73832a03230b96528b  BaseClient.js
+bd72c9707b3c075aa9d710a30fb7c7dedf405f4dd509c653ded52ddb7a8d267c  api-index.cjs
+```
+
+Deployment verification:
+
+- Container `node --check` passed for both bind-mounted files before restart.
+- Startup produced transient `502` responses while the API container was
+  restarting; the committed deployment script waited until readiness returned.
+- Root URL returned `200` after restart.
+- `/api/config` returned `200` and was byte-identical to the captured
+  pre-deployment response.
+- `/office/` remained protected with `401`.
+- `LibreChat-API` was running and `LibreChat-CodeAPI` remained healthy.
+- API logs recorded both new protections:
+  `[BaseClient] Omitted semantically empty assistant messages from history` and
+  `[BaseClient] Rejected semantically empty assistant response`.
+- The server staging directory
+  `/tmp/librechat-empty-response-regeneration` was removed after deployment.
+
+Affected-conversation browser verification:
+
+- Conversation `d6313832-674c-47f5-b160-029506680698` previously ended at a
+  persisted blank assistant sibling `4 / 4` for the latest user message.
+- Regeneration after deployment invoked the normal tool path, recovered from an
+  unavailable `Glob` call through Bash, and returned a complete visible answer.
+- The new response displayed as `5 / 5` and remained present after a full page
+  reload. No new blank sibling was created.
+
+No-content stop verification:
+
+- A normal, non-temporary Fable 5 conversation was started with a deliberately
+  long verification prompt and stopped while its assistant bubble was still
+  empty.
+- After the stop completed and the page was reloaded, the verification user
+  message remained, but there was no assistant heading, assistant content, or
+  blank sibling. This confirms the persistent abort path no longer constructs
+  an empty assistant row.
+
+Residual non-blocking behavior: Fable 5 may still request the unavailable
+Claude Code tool name `Glob`. In the verified run it recovered through Bash and
+returned a normal answer. This is a model/tool-selection quality issue, not an
+empty-response persistence failure.
+
+Rollback: restore both timestamp-matched backups above, restart
+`LibreChat-API`, then repeat root, `/api/config`, `/office/`, simple-chat, and
+affected-conversation checks. No MongoDB rewrite is part of rollback.
+
+## Historical Office/PPT Patch Record
 
 The bullets below are the historical deployment record for the superseded
 deterministic fallback and are retained for rollback/incident reconstruction:

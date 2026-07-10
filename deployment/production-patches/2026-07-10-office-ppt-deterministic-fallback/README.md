@@ -197,6 +197,21 @@ API渠道模型来源说明_基础版_a3913bc4.pptx
 
 ## Deployment Result
 
+The generic empty-response and regeneration guard was deployed at server
+timestamp `20260711001055` after implementation commit `5aa0552` and deployment
+script commit `5af2163` were pushed to `origin/main`. Production backups:
+
+```text
+/opt/librechat/office-context-patch/BaseClient.js.bak-20260711001055
+/opt/librechat/office-context-patch/api-index.cjs.bak-20260711001055
+```
+
+Conversation `d6313832-674c-47f5-b160-029506680698` regenerated from blank
+`4 / 4` to a persisted non-empty `5 / 5`. A separate normal-conversation stop
+test retained the user message after reload but created no assistant row. Full
+hashes and verification evidence are recorded in
+`docs/PRODUCTION_VERIFICATION.md`.
+
 Deployed to production on 2026-07-10 after commit `73420d3` was pushed to
 `origin/main`.
 
