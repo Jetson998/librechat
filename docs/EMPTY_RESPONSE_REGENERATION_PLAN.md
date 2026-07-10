@@ -81,7 +81,10 @@ Use it in two places:
 
 In `GenerationJobManager.abortJob()`, treat any abort with no persistable
 content as an early abort. Do not use `createdEventEmitted` as permission to
-create an empty assistant response.
+create an empty assistant response. The returned abort result must also tell
+the existing abort middleware that there is no response to persist; otherwise
+that caller can independently construct and save an empty assistant row even
+when the emitted final event has `responseMessage: null`.
 
 ### Tests
 
@@ -94,7 +97,8 @@ Add a focused test script covering:
    non-empty assistant messages retain branch order.
 4. Empty provider completion is rejected before assistant persistence.
 5. Abort with no persistable content is an early abort regardless of the
-   `createdEventEmitted` flag.
+   `createdEventEmitted` flag and is returned as non-persistable to the abort
+   middleware.
 6. Existing file-pipeline tests remain green.
 
 ## Production Verification
