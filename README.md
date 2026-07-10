@@ -23,6 +23,9 @@ email/password login enabled.
 - [File pipeline simplification plan](docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md):
   the deployed `/mnt/data` upload, code execution, artifact, and download-card
   contract.
+- [Empty response and regeneration recovery plan](docs/EMPTY_RESPONSE_REGENERATION_PLAN.md):
+  generic handling for poisoned empty history, blank model completions, and
+  no-content aborts.
 - [Current production patch archive](deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/README.md):
   current production-mounted files, deployment history, and rollback notes.
 - [Historical Office/PPT retry archive](deployment/production-patches/2026-07-09-office-ppt-empty-retry/README.md):
