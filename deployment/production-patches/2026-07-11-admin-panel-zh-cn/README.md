@@ -42,6 +42,11 @@ The same policy applies to the upstream import sorter: its 3 existing
 differences are recorded in `source/import-baseline.txt`, while all modified
 localization files must remain sorted.
 
+Strict ESLint still covers every non-generated TypeScript source file with
+`--max-warnings 0`. On the 4 GiB production host it runs deterministic batches
+of 24 files in separate Node processes, each with a 512 MiB old-space limit, so
+completed batches release memory inside the 1 GiB BuildKit boundary.
+
 Run the source and localization preflight with:
 
 ```bash

@@ -18,7 +18,7 @@
     "sort-imports": "bun run scripts/sort-imports.ts",
     "sort-imports:check:baseline": "node scripts/check-import-baseline.mjs",
     "lint": "eslint src/",
-    "lint:strict": "eslint src/ --max-warnings 0",
+    "lint:strict": "node scripts/lint-strict-batches.mjs",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.{ts,tsx,css,json}'",
