@@ -1,9 +1,14 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LanguageSelector } from './LanguageSelector';
 import i18n from '@/locales/i18n';
 
 describe('LanguageSelector', () => {
+  beforeEach(async () => {
+    localStorage.clear();
+    await i18n.changeLanguage('zh-Hans');
+  });
+
   afterEach(async () => {
     localStorage.clear();
     await i18n.changeLanguage('zh-Hans');

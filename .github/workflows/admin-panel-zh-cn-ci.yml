@@ -27,7 +27,7 @@ jobs:
       SOURCE_DIR: deployment/production-patches/2026-07-11-admin-panel-zh-cn/source
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -60,5 +60,11 @@ jobs:
           tag="admin-ci-${source_hash:0:12}"
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git tag --force "$tag" "$GITHUB_SHA"
-          git push --force origin "refs/tags/$tag"
+          remote_commit=$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')
+          if [[ -n "$remote_commit" ]]; then
+            test "$remote_commit" = "$GITHUB_SHA"
+            echo "Verified tag already points to $GITHUB_SHA: $tag"
+            exit 0
+          fi
+          git tag "$tag" "$GITHUB_SHA"
+          git push origin "refs/tags/$tag"
