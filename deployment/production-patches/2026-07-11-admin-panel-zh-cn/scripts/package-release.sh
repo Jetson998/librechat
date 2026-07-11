@@ -12,6 +12,7 @@ verify_dir="${VERIFY_DIR:-$output_dir/${release_root_name}-${default_suffix}-ver
 metadata_path="${METADATA_PATH:-$output_dir/${release_root_name}-${default_suffix}.env}"
 
 test -d "$release_dir"
+command -v rsync >/dev/null
 mkdir -p "$output_dir"
 rm -f "$archive_path"
 rm -rf "$verify_dir"
@@ -19,11 +20,14 @@ rm -f "$metadata_path"
 pack_dir="$(mktemp -d "${TMPDIR:-/tmp}/admin-panel-release-pack.XXXXXX")"
 trap 'rm -rf "$pack_dir"' EXIT
 
-cp -R "$release_dir" "$pack_dir/$release_root_name"
+COPYFILE_DISABLE=1 rsync -a \
+  --exclude '.DS_Store' \
+  --exclude '._*' \
+  "$release_dir/" "$pack_dir/$release_root_name/"
 
 (
   cd "$pack_dir"
-  tar -czf "$archive_path" "$release_root_name"
+  COPYFILE_DISABLE=1 tar -czf "$archive_path" "$release_root_name"
 )
 
 mkdir -p "$verify_dir"
