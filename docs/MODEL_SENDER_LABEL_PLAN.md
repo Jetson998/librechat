@@ -2,7 +2,7 @@
 
 Date: 2026-07-12
 
-Status: approved for implementation; production deployment pending.
+Status: deployed; authenticated new-message verification pending.
 
 ## Objective
 
@@ -64,6 +64,23 @@ frontend assets, `BaseClient`, or historical Mongo messages.
 5. Deploy the committed release only.
 6. Verify a newly generated message stores `sender: GPT-5.6-SOL`.
 7. Record timestamp, backup ID, commit, and verification result in the repo.
+
+## Deployment Record
+
+Implementation commit `35cc853` was pushed before production deployment.
+Production deployment completed at timestamp `20260712011327` and advanced
+the active base override from `configVersion: 8` to `configVersion: 9`.
+
+```text
+backup_id=sender-label-20260712011327
+preset.modelLabel=GPT-5.6-SOL
+MuskAPI.modelDisplayLabel=GPT-5.6-SOL
+```
+
+Repository tests, remote preflight, Mongo runtime verification, API restart,
+and `/api/config` readiness passed. The existing Chrome session returned to
+the LibreChat login page after restart, so the final new-message persistence
+assertion is deliberately still open.
 
 ## Non-Goals
 

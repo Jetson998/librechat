@@ -31,4 +31,23 @@ restores that document and restarts the API.
 
 ## Production Result
 
-Pending.
+Deployed on 2026-07-12 from implementation commit `35cc853`, after that
+commit was pushed to `origin/main`.
+
+```text
+timestamp=20260712011327
+backup_id=sender-label-20260712011327
+configVersion=8 -> 9
+model_label=GPT-5.6-SOL
+```
+
+The committed release test and production preflight passed before the write.
+The runner then stored the original active base override in
+`codexConfigBackups`, updated `preset.modelLabel` and the endpoint fallback,
+restarted `LibreChat-API`, waited through the expected startup 502 window, and
+passed both `/api/config` readiness and Mongo runtime assertions.
+
+The final browser/Mongo message assertion remains pending because the existing
+Chrome LibreChat tab was signed out after the API restart and showed the login
+page. No historical message rows were changed. After login, create one new GPT
+message and assert its saved `messages.sender` is exactly `GPT-5.6-SOL`.

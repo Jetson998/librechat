@@ -1,5 +1,22 @@
 # Production Verification
 
+## GPT-5.6-SOL Sender Label Configuration - 2026-07-12
+
+- Implementation commit `35cc853` was pushed to `origin/main` before the
+  production write.
+- Deployment timestamp: `20260712011327`.
+- Mongo backup ID: `sender-label-20260712011327` in
+  `codexConfigBackups`.
+- The active `__base__` override advanced from config version 8 to 9.
+- `gpt-5.6-sol` now has `preset.modelLabel: GPT-5.6-SOL`.
+- The MuskAPI endpoint fallback is normalized to `GPT-5.6-SOL`.
+- Release test, production preflight, API restart, `/api/config` readiness,
+  and Mongo runtime assertions passed.
+- No LibreChat source, frontend bundle, Office pipeline, CodeAPI file, or
+  historical message was modified.
+- Authenticated new-message verification is pending because Chrome returned
+  to the LibreChat login page after the API restart.
+
 Target:
 
 ```text
