@@ -24,9 +24,7 @@ export const resources = {
   'zh-Hans': { translation: translationZhHans },
 } as const;
 
-i18n
-  .use(initReactI18next)
-  .init({
+i18n.use(initReactI18next).init({
     supportedLngs: ['zh-Hans', 'en'],
     nonExplicitSupportedLngs: true,
     load: 'currentOnly',
@@ -42,7 +40,7 @@ i18n
     resources,
     lng: readSavedLanguage(),
     interpolation: { escapeValue: false },
-  });
+});
 
 export function syncDocumentLanguage(language: string): void {
   if (typeof document === 'undefined') return;

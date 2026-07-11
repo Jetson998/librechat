@@ -22,7 +22,7 @@ ARG VITE_BASE_PATH=/
 ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 ENV NODE_ENV=production
 RUN bun run locales:check \
-    && bun run format:check \
+    && bun run format:check:baseline \
     && bun run sort-imports -- --check \
     && bun run lint:strict \
     && bun run typecheck \

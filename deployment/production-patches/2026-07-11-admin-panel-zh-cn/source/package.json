@@ -22,6 +22,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.{ts,tsx,css,json}'",
     "format:check": "prettier --check 'src/**/*.{ts,tsx,css,json}'",
+    "format:check:baseline": "node scripts/check-format-baseline.mjs",
     "locales:check": "node scripts/check-locales.mjs"
   },
   "dependencies": {

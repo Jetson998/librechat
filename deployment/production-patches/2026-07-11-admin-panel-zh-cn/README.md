@@ -29,6 +29,11 @@ The complete corresponding modified source is under `source/`. It adds:
 - a visible modified-source link on Help;
 - exact translation-key, interpolation-placeholder, and mixed-language gates.
 
+The pinned upstream revision has 19 existing Prettier differences, recorded in
+`source/format-baseline.txt`. The image build scans the complete source tree and
+fails if that exact baseline changes, so modified files must be formatted while
+unrelated upstream files remain byte-identical.
+
 Run the source and localization preflight with:
 
 ```bash
