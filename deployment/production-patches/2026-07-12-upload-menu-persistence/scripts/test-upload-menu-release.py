@@ -155,6 +155,17 @@ def test_compose_and_release_guards():
     ):
         require(marker in remote_release, f"remote release guard missing: {marker}")
 
+    persistence = read(PATCH_ROOT / "scripts" / "verify-upload-menu-persistence.sh")
+    for marker in (
+        "--force-recreate client",
+        "persistence_recreate=ok",
+        "business-upload-label-patch",
+        "Office文件上传",
+        "LibreChat-CodeAPI",
+        "/office/",
+    ):
+        require(marker in persistence, f"persistence guard missing: {marker}")
+
 
 def test_secret_scan():
     combined = "\n".join(read(path) for path in PATCH_ROOT.rglob("*") if path.is_file())

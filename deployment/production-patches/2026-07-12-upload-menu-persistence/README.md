@@ -77,3 +77,14 @@ The automated release verifies:
 Authenticated browser verification is required after deployment. Open a fresh
 page, inspect the three menu items and descriptions, and exercise one allowed
 and one rejected fixture for each route.
+
+To prove the fix survives the same class of container replacement that caused
+the incident, run:
+
+```bash
+scripts/verify-upload-menu-persistence.sh
+```
+
+It force-recreates only `LibreChat-NGINX`, asserts that API, CodeAPI, and
+MongoDB container identities remain unchanged, then verifies the public patch
+marker, JavaScript contract, Office boundary, and hashes again.
