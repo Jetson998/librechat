@@ -1,6 +1,6 @@
 services:
   admin-panel:
-    image: librechat-admin-panel-zh-cn:ffd7f77cfc58
+    image: librechat-admin-panel-zh-cn:0959905d9299
     container_name: LibreChat-Admin-Panel
     depends_on:
       - api

@@ -18,14 +18,6 @@ grep -Fq '"lint:strict": "eslint src/ --max-warnings 0"' "$source_dir/package.js
 test "$(python3 "$release_dir/scripts/source-tree-hash.py" "$source_dir")" = "$expected_source_hash"
 
 node "$source_dir/scripts/check-locales.mjs"
-
-if rg -n -i --hidden \
-  --glob '!bun.lock' \
-  --glob '!*.svg' \
-  --glob '!verify-source.sh' \
-  '(github_pat_|BEGIN [A-Z ]+PRIVATE KEY|AKIA[0-9A-Z]{16})' "$release_dir"; then
-  echo "Potential credential material found in release source" >&2
-  exit 1
-fi
+python3 "$release_dir/scripts/scan-release-secrets.py" "$release_dir"
 
 echo "Verified pinned Admin Panel source and localization release."
