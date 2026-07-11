@@ -1,0 +1,12 @@
+{
+  "projectName": "librechat-admin-panel",
+  "typescript": true,
+  "tailwind": true,
+  "packageManager": "pnpm",
+  "mode": "file-router",
+  "addOnOptions": {},
+  "git": true,
+  "version": 1,
+  "framework": "react-cra",
+  "chosenAddOns": []
+}

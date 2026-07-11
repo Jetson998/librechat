@@ -1,0 +1,18 @@
+services:
+  admin-panel:
+    image: librechat-admin-panel-zh-cn:eb0750f9968a
+    container_name: LibreChat-Admin-Panel
+    depends_on:
+      - api
+    restart: always
+    environment:
+      - PORT=3000
+      - SESSION_SECRET=${ADMIN_PANEL_SESSION_SECRET}
+      - API_SERVER_URL=http://api:3080
+      - VITE_API_BASE_URL=${DOMAIN_CLIENT:-https://152.32.172.162.sslip.io}
+      - SESSION_COOKIE_SECURE=true
+
+  client:
+    depends_on:
+      - api
+      - admin-panel

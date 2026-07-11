@@ -1,0 +1,11 @@
+services:
+  admin-panel:
+    image: ghcr.io/clickhouse/librechat-admin-panel:latest
+    ports:
+      - '${PORT:-3000}:${PORT:-3000}'
+    restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    env_file: .env
+    environment:
+      - PORT=${PORT:-3000}

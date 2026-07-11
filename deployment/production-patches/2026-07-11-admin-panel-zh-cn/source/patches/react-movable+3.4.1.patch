@@ -1,0 +1,40 @@
+diff --git a/node_modules/react-movable/lib/List.js b/node_modules/react-movable/lib/List.js
+index 9db6dfa..4713ab1 100644
+--- a/node_modules/react-movable/lib/List.js
++++ b/node_modules/react-movable/lib/List.js
+@@ -89,6 +89,7 @@ class List extends React.Component {
+         transitionDuration: 300,
+         lockVertically: false,
+         removableByMove: false,
++        restrictToParent: false,
+         voiceover: {
+             item: (position) => `You are currently at a draggable item at position ${position}. Press space bar to lift.`,
+             lifted: (position) => `You have lifted item at position ${position}. Press j to move down, k to move up, space bar to drop and escape to cancel.`,
+@@ -198,7 +199,14 @@ class List extends React.Component {
+     onMove = (clientX, clientY) => {
+         if (this.state.itemDragged === -1)
+             return null;
+-        transformItem(this.ghostRef.current, clientY - this.state.initialY, this.props.lockVertically ? 0 : clientX - this.state.initialX);
++        let deltaY = clientY - this.state.initialY;
++        if (this.props.restrictToParent && this.listRef.current) {
++            const listRect = this.listRef.current.getBoundingClientRect();
++            const minDelta = listRect.top - this.state.targetY;
++            const maxDelta = listRect.bottom - this.state.targetHeight - this.state.targetY;
++            deltaY = Math.max(minDelta, Math.min(maxDelta, deltaY));
++        }
++        transformItem(this.ghostRef.current, deltaY, this.props.lockVertically ? 0 : clientX - this.state.initialX);
+         this.autoScrolling(clientY, clientY - this.state.initialY);
+         this.moveOtherItems();
+     };
+diff --git a/node_modules/react-movable/lib/types.d.ts b/node_modules/react-movable/lib/types.d.ts
+index 0ac6534..364248d 100644
+--- a/node_modules/react-movable/lib/types.d.ts
++++ b/node_modules/react-movable/lib/types.d.ts
+@@ -58,6 +58,7 @@ export interface IProps<Value> {
+     lockVertically: boolean;
+     voiceover: IVoiceover;
+     container?: Element | null;
++    restrictToParent?: boolean;
+ }
+ export type TEvent = React.MouseEvent | React.TouchEvent | React.KeyboardEvent;
+ export {};

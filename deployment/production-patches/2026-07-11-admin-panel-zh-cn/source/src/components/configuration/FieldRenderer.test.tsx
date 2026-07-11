@@ -1,0 +1,397 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import type * as t from '@/types';
+import { SingleFieldRenderer, FieldRenderer } from './FieldRenderer';
+import { createField } from '@/test/fixtures';
+
+vi.mock('@/hooks/useLocalize', () => ({
+  default: () => (key: string) => key,
+  useLocalize: () => (key: string) => key,
+}));
+
+interface MockSwitchProps {
+  checked: boolean;
+  'aria-label'?: string;
+  onCheckedChange?: (checked: boolean) => void;
+}
+interface MockSelectProps {
+  children: React.ReactNode;
+  value: string;
+  'aria-label'?: string;
+}
+interface MockSelectItemProps {
+  children: React.ReactNode;
+  value: string;
+}
+interface MockIconProps {
+  name: string;
+}
+interface MockButtonProps {
+  label: string;
+  onClick?: () => void;
+}
+interface MockTextFieldProps {
+  id?: string;
+  value?: string;
+  placeholder?: string;
+  onChange?: (value: string) => void;
+  onBlur?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  type?: string;
+}
+interface MockNumberFieldProps {
+  id?: string;
+  value?: string | number;
+  placeholder?: string;
+  onChange?: (value: string) => void;
+  onBlur?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+}
+interface MockIconButtonProps {
+  icon: string;
+  onClick?: () => void;
+  'aria-label'?: string;
+}
+
+vi.mock('@clickhouse/click-ui', () => ({
+  Switch: (props: MockSwitchProps) => (
+    <button
+      role="switch"
+      aria-checked={props.checked}
+      aria-label={props['aria-label']}
+      data-testid="toggle"
+      onClick={() => props.onCheckedChange?.(!props.checked)}
+    />
+  ),
+  Select: Object.assign(
+    ({ children, value, ...props }: MockSelectProps) => (
+      <div data-testid="select" data-value={value} aria-label={props['aria-label']}>
+        {children}
+      </div>
+    ),
+    {
+      Item: ({ children, value }: MockSelectItemProps) => (
+        <div data-testid="select-item" data-value={value}>
+          {children}
+        </div>
+      ),
+    },
+  ),
+  Icon: ({ name }: MockIconProps) => <span data-testid={`icon-${name}`} />,
+  Button: ({ label, onClick }: MockButtonProps) => (
+    <button onClick={onClick}>{label}</button>
+  ),
+  IconButton: ({ icon, onClick, ...props }: MockIconButtonProps) => (
+    <button onClick={onClick} aria-label={props['aria-label'] ?? icon} data-testid={`icon-button-${icon}`} />
+  ),
+  TextField: ({ id, value, placeholder, onChange, onBlur, type }: MockTextFieldProps) => (
+    <input id={id} value={value ?? ''} placeholder={placeholder} type={type ?? 'text'} onChange={(e) => onChange?.(e.target.value)} onBlur={onBlur} />
+  ),
+  NumberField: ({ id, value, placeholder, onChange, onBlur }: MockNumberFieldProps) => (
+    <input id={id} value={value ?? ''} placeholder={placeholder} type="number" onChange={(e) => onChange?.(e.target.value)} onBlur={onBlur} />
+  ),
+}));
+
+const noop = () => {};
+const getValue = (_path: string, fallback: t.ConfigValue) => fallback;
+
+describe('SingleFieldRenderer', () => {
+  it('renders a toggle for boolean fields', () => {
+    const field = createField({ key: 'enabled', type: 'boolean' });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value={true}
+        path="section.enabled"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getByRole('switch')).toBeInTheDocument();
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('renders a select for enum fields with correct options', () => {
+    const field = createField({ key: 'theme', type: 'enum(dark | light | system)' });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value="dark"
+        path="section.theme"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    const items = screen.getAllByTestId('select-item');
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveTextContent('Dark');
+    expect(items[1]).toHaveTextContent('Light');
+    expect(items[2]).toHaveTextContent('System');
+  });
+
+  it('renders a text input for string fields', () => {
+    const field = createField({ key: 'title', type: 'string' });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value="Hello"
+        path="section.title"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getByRole('textbox')).toHaveValue('Hello');
+  });
+
+  it('renders a number input for number fields', () => {
+    const field = createField({ key: 'port', type: 'number' });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value={3000}
+        path="section.port"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getByRole('spinbutton')).toHaveValue(3000);
+  });
+
+  it('renders a list for array<string> fields', () => {
+    const field = createField({ key: 'domains', type: 'array<string>', isArray: true });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value={['example.com', 'test.org']}
+        path="section.domains"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getByDisplayValue('example.com')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('test.org')).toBeInTheDocument();
+  });
+
+  it('renders key-value pairs for record fields', () => {
+    const field = createField({ key: 'headers', type: 'record' });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value={{ Authorization: 'Bearer token' }}
+        path="section.headers"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getByDisplayValue('Authorization')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Bearer token')).toBeInTheDocument();
+  });
+});
+
+describe('FieldRenderer with imported config values', () => {
+  it('populates fields from a config values object', () => {
+    const fields = [
+      createField({ key: 'title', type: 'string', path: 'interface.title' }),
+      createField({ key: 'port', type: 'number', path: 'interface.port' }),
+      createField({ key: 'enabled', type: 'boolean', path: 'interface.enabled' }),
+    ];
+    const configValues = { title: 'My App', port: 8080, enabled: true };
+    const editedValues: Record<string, t.ConfigValue> = {};
+    const getValueWithEdits = (path: string, fallback: t.ConfigValue) =>
+      path in editedValues ? editedValues[path] : fallback;
+
+    render(
+      <FieldRenderer
+        fields={fields}
+        parentValue={configValues}
+        parentPath="interface"
+        getValue={getValueWithEdits}
+        onChange={noop}
+      />,
+    );
+
+    expect(screen.getByRole('textbox')).toHaveValue('My App');
+    expect(screen.getByRole('spinbutton')).toHaveValue(8080);
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('edited values take precedence over imported values', () => {
+    const fields = [createField({ key: 'title', type: 'string', path: 'section.title' })];
+    const configValues = { title: 'Original' };
+    const editedValues: Record<string, t.ConfigValue> = { 'section.title': 'Edited' };
+    const getValueWithEdits = (path: string, fallback: t.ConfigValue) =>
+      path in editedValues ? editedValues[path] : fallback;
+
+    render(
+      <FieldRenderer
+        fields={fields}
+        parentValue={configValues}
+        parentPath="section"
+        getValue={getValueWithEdits}
+        onChange={noop}
+      />,
+    );
+
+    expect(screen.getByRole('textbox')).toHaveValue('Edited');
+  });
+});
+
+describe('schema evolution: new fields render dynamically', () => {
+  it('a new string field added to the schema renders a text input', () => {
+    const v1Fields = [createField({ key: 'title', type: 'string', path: 'section.title' })];
+    const v2Fields = [
+      ...v1Fields,
+      createField({ key: 'subtitle', type: 'string', path: 'section.subtitle' }),
+    ];
+
+    const { unmount } = render(
+      <FieldRenderer
+        fields={v1Fields}
+        parentValue={{}}
+        parentPath="section"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    unmount();
+
+    render(
+      <FieldRenderer
+        fields={v2Fields}
+        parentValue={{}}
+        parentPath="section"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getAllByRole('textbox')).toHaveLength(2);
+  });
+
+  it('a new boolean field renders a toggle without code changes', () => {
+    const fields = [
+      createField({ key: 'existing', type: 'string', path: 'section.existing' }),
+      createField({ key: 'newFeatureFlag', type: 'boolean', path: 'section.newFeatureFlag' }),
+    ];
+
+    render(
+      <FieldRenderer
+        fields={fields}
+        parentValue={{}}
+        parentPath="section"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getByRole('switch')).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
+
+  it('a new enum field renders a select with correct options', () => {
+    const fields = [
+      createField({
+        key: 'newMode',
+        type: 'enum(fast | balanced | quality)',
+        path: 'section.newMode',
+      }),
+    ];
+
+    render(
+      <FieldRenderer
+        fields={fields}
+        parentValue={{ newMode: 'fast' }}
+        parentPath="section"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    const items = screen.getAllByTestId('select-item');
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveTextContent('Fast');
+    expect(items[1]).toHaveTextContent('Balanced');
+    expect(items[2]).toHaveTextContent('Quality');
+  });
+
+  it('a new nested object field renders its children recursively', () => {
+    const fields = [
+      createField({
+        key: 'newSection',
+        type: 'object',
+        isObject: true,
+        path: 'root.newSection',
+        children: [
+          createField({ key: 'name', type: 'string', path: 'root.newSection.name' }),
+          createField({ key: 'count', type: 'number', path: 'root.newSection.count' }),
+        ],
+      }),
+    ];
+
+    render(
+      <FieldRenderer
+        fields={fields}
+        parentValue={{ newSection: { name: 'Test', count: 42 } }}
+        parentPath="root"
+        getValue={getValue}
+        onChange={noop}
+      />,
+    );
+    const toggle = screen.getByRole('button', { expanded: false });
+    fireEvent.click(toggle);
+    expect(screen.getByRole('textbox')).toHaveValue('Test');
+    expect(screen.getByRole('spinbutton')).toHaveValue(42);
+  });
+});
+
+describe('SingleFieldRenderer onChange interactions', () => {
+  it('calls onChange with updated value when text input changes', () => {
+    const onChange = vi.fn();
+    const field = createField({ key: 'title', type: 'string' });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value="old"
+        path="s.title"
+        getValue={getValue}
+        onChange={onChange}
+      />,
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'new' } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith('s.title', 'new');
+  });
+
+  it('calls onChange with updated value when number input changes', () => {
+    const onChange = vi.fn();
+    const field = createField({ key: 'port', type: 'number' });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value={3000}
+        path="s.port"
+        getValue={getValue}
+        onChange={onChange}
+      />,
+    );
+    const input = screen.getByRole('spinbutton');
+    fireEvent.change(input, { target: { value: '8080' } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith('s.port', 8080);
+  });
+
+  it('calls onChange with toggled value when switch is clicked', () => {
+    const onChange = vi.fn();
+    const field = createField({ key: 'enabled', type: 'boolean' });
+    render(
+      <SingleFieldRenderer
+        field={field}
+        value={false}
+        path="s.enabled"
+        getValue={getValue}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('switch'));
+    expect(onChange).toHaveBeenCalledWith('s.enabled', true);
+  });
+});
