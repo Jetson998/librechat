@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import '@/locales/i18n';
 import { HelpPage } from './HelpPage';
 

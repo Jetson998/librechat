@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import translationEn from './en/translation.json';
-import translationZhHans from './zh-Hans/translation.json';
 import { defaultLanguage, resolveLanguage, syncDocumentLanguage } from './i18n';
+import translationZhHans from './zh-Hans/translation.json';
+import translationEn from './en/translation.json';
 
 const placeholders = (value: string): string[] =>
   Array.from(value.matchAll(/{{\s*([^},\s]+)[^}]*}}/g), (match) => match[1]).sort();

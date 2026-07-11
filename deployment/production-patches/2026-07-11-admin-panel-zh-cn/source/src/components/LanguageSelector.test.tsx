@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import i18n from '@/locales/i18n';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { LanguageSelector } from './LanguageSelector';
+import i18n from '@/locales/i18n';
 
 describe('LanguageSelector', () => {
   afterEach(async () => {

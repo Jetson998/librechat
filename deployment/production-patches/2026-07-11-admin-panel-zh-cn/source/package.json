@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "sort-imports": "bun run scripts/sort-imports.ts",
+    "sort-imports:check:baseline": "node scripts/check-import-baseline.mjs",
     "lint": "eslint src/",
     "lint:strict": "eslint src/ --max-warnings 0",
     "lint:fix": "eslint src/ --fix",

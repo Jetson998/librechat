@@ -1,7 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import translationEn from './en/translation.json';
 import translationZhHans from './zh-Hans/translation.json';
+import translationEn from './en/translation.json';
 
 export const defaultNS = 'translation';
 export const defaultLanguage = 'zh-Hans';
@@ -25,21 +25,21 @@ export const resources = {
 } as const;
 
 i18n.use(initReactI18next).init({
-    supportedLngs: ['zh-Hans', 'en'],
-    nonExplicitSupportedLngs: true,
-    load: 'currentOnly',
-    fallbackLng: {
-      'zh-Hans': ['en'],
-      en: ['en'],
-      default: [defaultLanguage, 'en'],
-    },
-    fallbackNS: 'translation',
-    ns: ['translation'],
-    debug: false,
-    defaultNS,
-    resources,
-    lng: readSavedLanguage(),
-    interpolation: { escapeValue: false },
+  supportedLngs: ['zh-Hans', 'en'],
+  nonExplicitSupportedLngs: true,
+  load: 'currentOnly',
+  fallbackLng: {
+    'zh-Hans': ['en'],
+    en: ['en'],
+    default: [defaultLanguage, 'en'],
+  },
+  fallbackNS: 'translation',
+  ns: ['translation'],
+  debug: false,
+  defaultNS,
+  resources,
+  lng: readSavedLanguage(),
+  interpolation: { escapeValue: false },
 });
 
 export function syncDocumentLanguage(language: string): void {

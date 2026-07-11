@@ -1,9 +1,9 @@
 import { Dialog } from '@clickhouse/click-ui';
 import type * as t from '@/types';
+import { LanguageSelector } from './LanguageSelector';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLocalize } from '@/hooks';
 import { cn } from '@/utils';
-import { LanguageSelector } from './LanguageSelector';
 
 const THEME_OPTIONS: t.ThemeOption[] = ['system', 'light', 'dark'];
 const THEME_LABEL_KEYS: Record<t.ThemeOption, string> = {

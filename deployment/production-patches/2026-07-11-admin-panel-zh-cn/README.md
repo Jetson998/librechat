@@ -34,6 +34,10 @@ The pinned upstream revision has 19 existing Prettier differences, recorded in
 fails if that exact baseline changes, so modified files must be formatted while
 unrelated upstream files remain byte-identical.
 
+The same policy applies to the upstream import sorter: its 3 existing
+differences are recorded in `source/import-baseline.txt`, while all modified
+localization files must remain sorted.
+
 Run the source and localization preflight with:
 
 ```bash

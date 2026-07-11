@@ -16,6 +16,7 @@ playwright/.auth
 scripts/*
 !scripts/check-locales.mjs
 !scripts/check-format-baseline.mjs
+!scripts/check-import-baseline.mjs
 e2e/
 *.md
 .git
