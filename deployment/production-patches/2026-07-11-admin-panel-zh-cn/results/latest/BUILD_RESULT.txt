@@ -1,0 +1,11 @@
+image_ref=librechat-admin-panel-zh-cn:95388ccb14d2
+image_id=sha256:99c0dc20fbdfc1b96afd87a2758214de63341019d42f1f6b74164a8c48d271d5
+architecture=amd64
+source_tree_sha256=95388ccb14d2d6c61b68ccb4d04faaafd47ea9b50628a23d7d5b91a82739460d
+upstream_revision=64bc4b6151894b080694f5953f7b31aa99bc2cc4
+ci_verified_commit=5f1f280f7240aaa75dfe5c3f8dd445d22a71f304
+ci_verified_tag=admin-ci-95388ccb14d2
+ci_verified_run=29149061012
+build_memory=1024m
+build_cpu_quota=50000
+build_timeout=45m
