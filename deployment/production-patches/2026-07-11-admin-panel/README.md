@@ -27,6 +27,56 @@ handling, CodeAPI, MongoDB messages, uploads, or generated artifacts.
 - The existing `ADMIN_PANEL_SESSION_SECRET` is present in production `.env` and
   is not stored in this repository.
 
+## Production Result
+
+Final deployment timestamp:
+
+```text
+20260711103411
+```
+
+Backup:
+
+```text
+/opt/librechat/backups/admin-panel-20260711103411
+```
+
+The official image is pinned to:
+
+```text
+registry.librechat.ai/clickhouse/librechat-admin-panel@sha256:1d3916ae84439e83da83507afd4aae14a99bd81ff2e1890079f57d8d377eb8e9
+```
+
+The first production attempt exposed a bind-mount refresh issue: replacing the
+host copy of `client/nginx.conf` did not replace the inode already mounted in
+the running `LibreChat-NGINX` container. The Admin hostname therefore reached
+the wrong frontend even though the candidate file was correct. Commit
+`e041f23` added a forced client-container recreation and Admin-content
+assertions. The corrected deployment passed.
+
+Authenticated verification confirmed:
+
+- `admin@example.local` signs in with role `ADMIN`.
+- The Admin password was synchronized to the current Bill password with an
+  existing server-side operation after production drift was discovered; no
+  credential or hash is tracked here.
+- Dashboard and Configuration load, including the custom endpoint and the two
+  model specs `gpt-5.6-sol` and `claude-fable-5`.
+- A fresh main-site tab defaults to `GPT-5.6 SOL` and loads
+  `/assets/openai.svg`.
+- Standalone Fable selection and response work, and a separate fresh tab after
+  that check returns to the GPT default.
+- Root, `/api/config`, Admin root, the Office authentication boundary, CodeAPI
+  health, the unexposed Admin port, and the empty MongoDB `configs` boundary
+  passed the corrected deployment assertions.
+
+Post-deployment mixed-provider testing found a separate residual behavior:
+continuing a GPT conversation after switching it to Fable can produce an empty
+Claude assistant message, while a standalone Fable conversation succeeds. The
+Admin release does not patch that behavior. It must be handled as a separate,
+design-first cross-endpoint history issue; do not add a production hotfix to
+this release.
+
 ## Files
 
 ```text

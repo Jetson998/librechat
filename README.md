@@ -20,6 +20,10 @@ email/password login enabled.
   post-change checklist for small production updates.
 - [Production verification log](docs/PRODUCTION_VERIFICATION.md): current
   externally verified facts about the live site.
+- [Admin Panel deployment plan](docs/ADMIN_PANEL_DEPLOYMENT_PLAN.md): official
+  Admin service architecture, repository gate, verification, and rollback.
+- [Admin Panel production release](deployment/production-patches/2026-07-11-admin-panel/README.md):
+  deployed image, proxy configuration, release runner, and production result.
 - [File pipeline simplification plan](docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md):
   the deployed `/mnt/data` upload, code execution, artifact, and download-card
   contract.

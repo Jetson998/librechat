@@ -8,6 +8,89 @@ https://152.32.172.162.sslip.io/
 
 Latest verification date: 2026-07-11
 
+## Official Admin Panel Deployment
+
+Repository gate:
+
+- `92bbebc` - design, risk boundary, verification, and rollback plan committed
+  and pushed before implementation.
+- `842b60f` - production discovery recorded before implementation.
+- `8eec63d` - official Admin Panel service, both Nginx layers, model config, and
+  the bundled OpenAI icon committed and pushed.
+- `d4a9a37` - atomic preflight, backup, deployment, verification, and rollback
+  runner committed and pushed before production deployment.
+- `e041f23` - bind-mounted Nginx reload correction committed and pushed before
+  the corrected production deployment.
+
+Final production deployment timestamp: `20260711103411`.
+
+Backup created by the corrected deployment:
+
+```text
+/opt/librechat/backups/admin-panel-20260711103411
+```
+
+Official image, pinned by immutable digest:
+
+```text
+registry.librechat.ai/clickhouse/librechat-admin-panel@sha256:1d3916ae84439e83da83507afd4aae14a99bd81ff2e1890079f57d8d377eb8e9
+```
+
+Production result:
+
+- Admin Panel is available at
+  `https://admin.152.32.172.162.sslip.io/` with a valid Let's Encrypt
+  certificate.
+- The Admin container is reachable only through the existing Compose network;
+  it has no published host port.
+- The first deployment wrote the correct inner Nginx file but did not refresh
+  the inode already bind-mounted in `LibreChat-NGINX`, so the Admin hostname
+  initially reached the wrong frontend. No ad hoc production edit was kept.
+  Commit `e041f23` added `docker compose up -d --force-recreate client`; the
+  corrected release then passed the Admin-route assertions.
+- `admin@example.local` authenticated with role `ADMIN`. The production Admin
+  password had drifted and was synchronized to the current Bill password using
+  the existing server-side operation; no password or hash was written to the
+  repository.
+- The Admin Configuration page loaded the custom endpoint and both model specs,
+  `gpt-5.6-sol` and `claude-fable-5`.
+- MongoDB `configs` remained empty at deployment verification, so Admin Config
+  did not override the repository-managed base configuration.
+- The Admin release did not modify Office handling, CodeAPI, uploads, generated
+  artifacts, LibreChat application source, or compiled frontend bundles.
+
+Post-deployment checks on 2026-07-11:
+
+- Repository Admin release test: passed.
+- Main root: `200`; `/api/config`: `200`; Admin root: `200` and served
+  `LibreChat Admin Panel` HTML.
+- `/office/`: `401` with `Basic realm="Office Converter"`.
+- A genuinely fresh chat selected `GPT-5.6 SOL` and rendered
+  `/assets/openai.svg`; a GPT reply completed successfully.
+- After a standalone Fable check, a separate fresh `/c/new` tab again selected
+  `GPT-5.6 SOL` with the OpenAI icon.
+- Standalone Fable conversation `3687080b-eda2-4c2b-b0d1-c37d03eae7cc`
+  returned `Fable 独立正常` successfully.
+
+Known cross-provider boundary:
+
+- Switching from GPT to Fable inside the same conversation reproducibly ended
+  with an empty Claude assistant bubble. It occurred in conversations
+  `63228927-6936-43d2-a3c6-6702a584aacf` and
+  `28c9f3a2-a328-4008-8ced-d1e16e2720db`.
+- The same Fable model works in a standalone Fable conversation, so this is not
+  a global Fable endpoint outage and does not change the verified GPT default.
+  The current evidence points to cross-endpoint history/request compatibility.
+- No speculative patch, Mongo rewrite, Office change, or production hotfix was
+  made. This requires its own design-first repository change and mixed-provider
+  regression test before any production deployment.
+
+Rollback: restore the timestamped backup, restore the previous host and inner
+Nginx configuration, remove the Admin service, force-recreate the client
+container, and repeat the route, authentication, model-default, and Office
+boundary checks. The deployment runner implements this rollback without a
+MongoDB message rewrite.
+
 ## GPT-5.6 SOL Default Model Deployment
 
 Repository gate:
