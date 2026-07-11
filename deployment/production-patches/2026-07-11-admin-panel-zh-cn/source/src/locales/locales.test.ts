@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import i18n, {
-  defaultLanguage,
-  resolveLanguage,
-  syncDocumentLanguage,
-} from './i18n';
+import i18n, { defaultLanguage, resolveLanguage, syncDocumentLanguage } from './i18n';
 import translationZhHans from './zh-Hans/translation.json';
 import translationEn from './en/translation.json';
 
