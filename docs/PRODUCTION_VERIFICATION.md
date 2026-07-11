@@ -14,8 +14,8 @@
   and Mongo runtime assertions passed.
 - No LibreChat source, frontend bundle, Office pipeline, CodeAPI file, or
   historical message was modified.
-- Authenticated new-message verification is pending because Chrome returned
-  to the LibreChat login page after the API restart.
+- After login, the user confirmed the final new-conversation display and
+  message-label verification passed on 2026-07-12.
 
 Target:
 

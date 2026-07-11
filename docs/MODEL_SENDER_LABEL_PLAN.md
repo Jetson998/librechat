@@ -2,7 +2,7 @@
 
 Date: 2026-07-12
 
-Status: deployed; authenticated new-message verification pending.
+Status: deployed and user-verified.
 
 ## Objective
 
@@ -78,9 +78,9 @@ MuskAPI.modelDisplayLabel=GPT-5.6-SOL
 ```
 
 Repository tests, remote preflight, Mongo runtime verification, API restart,
-and `/api/config` readiness passed. The existing Chrome session returned to
-the LibreChat login page after restart, so the final new-message persistence
-assertion is deliberately still open.
+and `/api/config` readiness passed. After login, the user completed the final
+new-conversation test and confirmed the corrected label behavior on
+2026-07-12. The release is closed as verified.
 
 ## Non-Goals
 

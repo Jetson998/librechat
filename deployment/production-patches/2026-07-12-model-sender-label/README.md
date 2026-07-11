@@ -47,7 +47,7 @@ The runner then stored the original active base override in
 restarted `LibreChat-API`, waited through the expected startup 502 window, and
 passed both `/api/config` readiness and Mongo runtime assertions.
 
-The final browser/Mongo message assertion remains pending because the existing
-Chrome LibreChat tab was signed out after the API restart and showed the login
-page. No historical message rows were changed. After login, create one new GPT
-message and assert its saved `messages.sender` is exactly `GPT-5.6-SOL`.
+The existing Chrome LibreChat tab was signed out after the API restart, so the
+authenticated check was completed after login. The user confirmed the final
+new-conversation test passed on 2026-07-12. No historical message rows were
+changed.
