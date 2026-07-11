@@ -49,6 +49,12 @@ PREFLIGHT_ONLY=true scripts/deploy-upload-menu.sh /tmp/librechat-upload-menu-rel
 scripts/deploy-upload-menu.sh /tmp/librechat-upload-menu-release
 ```
 
+For the committed production path, send and run
+`scripts/run-remote-release.sh`. It clones the public repository, checks out
+the pinned implementation commit `dfbe7a4`, runs both release test suites,
+runs preflight, and only then starts the production deployment. It does not use
+or store a GitHub PAT.
+
 The deployment result is written to `DEPLOY_RESULT.txt` in the staged release.
 Timestamped backups are stored under:
 

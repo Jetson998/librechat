@@ -145,6 +145,16 @@ def test_compose_and_release_guards():
     ):
         require(marker in deployment, f"upload-menu deployment guard missing: {marker}")
 
+    remote_release = read(PATCH_ROOT / "scripts" / "run-remote-release.sh")
+    for marker in (
+        "https://github.com/Jetson998/librechat.git",
+        "dfbe7a431c2635729858ff62decbadc0deb95b14",
+        "test-upload-menu-release.py",
+        "PREFLIGHT_ONLY=true",
+        "deploy-upload-menu.sh",
+    ):
+        require(marker in remote_release, f"remote release guard missing: {marker}")
+
 
 def test_secret_scan():
     combined = "\n".join(read(path) for path in PATCH_ROOT.rglob("*") if path.is_file())
