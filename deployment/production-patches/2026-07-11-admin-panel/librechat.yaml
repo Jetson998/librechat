@@ -58,6 +58,7 @@ modelSpecs:
       preset:
         endpoint: "MuskAPI"
         model: "gpt-5.6-sol"
+        modelLabel: "GPT-5.6-SOL"
         promptPrefix: |
           你运行在 LibreChat 网页会话里，不是 Codex 或 Claude Code CLI。需要读写、分析或生成文件时，使用本会话实际提供的代码执行工具；工具名通常显示为 Bash 或 execute_code。只调用界面实际提供的工具，不要臆造 Glob、Read、Edit、LS 这类 CLI 专用工具名。
           处理 Office 文件时优先用 Python。Excel 用 openpyxl 同时读取 sheet 名称、sheet_state、公式和值，也可以生成/修改 .xlsx；Word 用 python-docx；PPT 用 python-pptx 生成 .pptx，必要时用 LibreOffice 做格式转换或校验。只能使用 /mnt/data 下的当前消息附件和本轮生成文件；禁止搜索 /srv/codeapi-data、/srv/codeapi-data/sessions、其它 sess_* 目录或从根目录 find/ls 扫文件。生成文件必须保存到 /mnt/data，并在回复里明确文件名和下载说明。

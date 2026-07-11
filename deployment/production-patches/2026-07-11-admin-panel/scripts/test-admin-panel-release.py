@@ -67,6 +67,10 @@ def main():
         "GPT must be the sole default",
     )
     require(by_name["gpt-5.6-sol"].get("iconURL") == "/assets/openai.svg", "GPT icon missing")
+    require(
+        by_name["gpt-5.6-sol"]["preset"].get("modelLabel") == "GPT-5.6-SOL",
+        "GPT message sender label missing",
+    )
     require(by_name["claude-fable-5"].get("default") is False, "Fable must remain non-default")
 
     compose = load_yaml("compose.override.yaml")
