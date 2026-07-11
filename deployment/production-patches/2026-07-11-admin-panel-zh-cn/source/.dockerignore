@@ -17,6 +17,7 @@ scripts/*
 !scripts/check-locales.mjs
 !scripts/check-format-baseline.mjs
 !scripts/check-import-baseline.mjs
+!scripts/sort-imports.ts
 e2e/
 *.md
 .git

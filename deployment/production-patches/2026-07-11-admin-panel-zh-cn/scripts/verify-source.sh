@@ -12,6 +12,8 @@ test "$(cat "$release_dir/UPSTREAM_ARCHIVE_SHA256")" = "$expected_archive_sha256
 test -f "$source_dir/LICENSE"
 test -f "$source_dir/bun.lock"
 test -f "$source_dir/src/locales/zh-Hans/translation.json"
+test -f "$source_dir/scripts/sort-imports.ts"
+grep -Fqx '!scripts/sort-imports.ts' "$source_dir/.dockerignore"
 test "$(python3 "$release_dir/scripts/source-tree-hash.py" "$source_dir")" = "$expected_source_hash"
 
 node "$source_dir/scripts/check-locales.mjs"
