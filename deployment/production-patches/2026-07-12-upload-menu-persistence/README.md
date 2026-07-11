@@ -88,3 +88,30 @@ scripts/verify-upload-menu-persistence.sh
 It force-recreates only `LibreChat-NGINX`, asserts that API, CodeAPI, and
 MongoDB container identities remain unchanged, then verifies the public patch
 marker, JavaScript contract, Office boundary, and hashes again.
+
+## Production Result
+
+Deployment completed on 2026-07-12 from implementation commit `dfbe7a4`.
+
+```text
+timestamp=20260712020837
+backup_dir=/opt/librechat/backups/upload-menu-20260712020837
+public_index_sha256=decb4df509099e61a8fd9c03b7121a9bb76a4c49b26ff2b51134678cd982cb2f
+public_script_sha256=a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9
+patch_marker_count=1
+```
+
+The API container was recreated with the read-only frontend mount. Nginx,
+CodeAPI, and MongoDB remained unchanged during deployment. A separate
+persistence test then force-recreated Nginx and confirmed that the public HTML
+and JavaScript hashes did not change; API, CodeAPI, and MongoDB container IDs
+again remained unchanged.
+
+Authenticated Chrome verification passed before and after the Nginx
+recreation. The menu showed the three required entries in the required order,
+with all three descriptions. The browser controller did not allow attaching a
+local synthetic fixture, so no automated file-selection rejection was sent to
+the production conversation. Format contracts remain covered by the committed
+release test and the verified public JavaScript hash.
+
+Exact evidence is stored in `results/latest/DEPLOY_RESULT.txt`.

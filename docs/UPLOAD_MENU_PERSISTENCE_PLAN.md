@@ -140,3 +140,17 @@ release.
 - Admin Panel release tests fail if the upload-menu mount is removed.
 - Production evidence and rollback details are committed and pushed.
 
+## Result
+
+Completed on 2026-07-12.
+
+- Design commit: `e1282fe`.
+- Implementation commit: `dfbe7a4`.
+- Production timestamp: `20260712020837`.
+- Backup: `/opt/librechat/backups/upload-menu-20260712020837`.
+- Public patch marker count: `1`.
+- Authenticated browser verification: passed before and after an actual Nginx
+  force-recreation.
+- API, CodeAPI, and MongoDB remained unchanged during the Nginx persistence
+  test.
+- Exact hashes and container identities are recorded in the release result.

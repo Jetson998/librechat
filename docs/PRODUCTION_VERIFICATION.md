@@ -309,9 +309,10 @@ last-modified: Wed, 08 Jul 2026 10:38:03 GMT
 This means `/api/health` should not be used as the primary health check unless
 the backend later adds that route.
 
-## Runtime Patch Observed
+## Persistent Upload Menu Patch
 
-The delivered HTML contains a script with id:
+The upload-menu patch was restored through the repository-owned production
+release on 2026-07-12. The delivered HTML contains exactly one script with id:
 
 ```text
 business-upload-label-patch
@@ -337,8 +338,27 @@ The menu includes operator descriptions:
 - `Office文件上传`: `Word/Excel/PPT 原文件；可读写并返回文件`
 - `文件提取文字上传`: `转成文本给模型分析；适合审阅总结`
 
-Recheck this after frontend rebuilds, asset cleanup, or upstream LibreChat
-updates.
+The patch is now generated from the active API image and persisted through the
+read-only Compose mount:
+
+```text
+/opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro
+```
+
+Production evidence:
+
+```text
+deployment_timestamp=20260712020837
+backup_dir=/opt/librechat/backups/upload-menu-20260712020837
+public_index_sha256=decb4df509099e61a8fd9c03b7121a9bb76a4c49b26ff2b51134678cd982cb2f
+public_script_sha256=a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9
+```
+
+Authenticated browser verification showed all three labels, descriptions, and
+the required order. A separate test force-recreated `LibreChat-NGINX`; the
+public hashes and menu remained unchanged, while API, CodeAPI, and MongoDB
+container identities remained stable. Recheck the release test whenever the
+frontend image or Compose ownership changes.
 
 ## CodeAPI Office Generation
 
