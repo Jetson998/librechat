@@ -43,6 +43,10 @@ The Admin Panel has no published host port. The existing inner Nginx routes
 the Admin hostname to `admin-panel:3000` on the Compose network, while host
 Nginx continues to proxy through `127.0.0.1:3081`.
 
+The deployment force-recreates `LibreChat-NGINX` after replacing its
+bind-mounted configuration. This is required because changing the host file
+does not update the inode already mounted in a running container.
+
 ## Test
 
 ```bash
@@ -61,7 +65,8 @@ scripts/deploy-admin-panel.sh /tmp/librechat-admin-panel-release
 The runner validates the empty Admin Config boundary, pinned image,
 architecture, Compose merge, DNS, ACME challenge route, certificate, container
 state, main application, Office authentication boundary, CodeAPI health,
-default model, and GPT icon. Timestamped backups are written under:
+default model, GPT icon, and that the Admin hostname serves Admin Panel HTML
+rather than the main chat client. Timestamped backups are written under:
 
 ```text
 /opt/librechat/backups/admin-panel-<timestamp>/

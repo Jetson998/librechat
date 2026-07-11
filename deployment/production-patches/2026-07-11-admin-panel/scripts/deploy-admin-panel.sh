@@ -151,7 +151,8 @@ rollback() {
 
   nginx -t >/dev/null 2>&1 && systemctl reload nginx
   cd "$root_dir"
-  docker compose up -d api client >/dev/null 2>&1
+  docker compose up -d api >/dev/null 2>&1
+  docker compose up -d --force-recreate client >/dev/null 2>&1
   docker rm -f LibreChat-Admin-Panel >/dev/null 2>&1 || true
   wait_for_url "$main_url/api/config" 90 || true
 }
@@ -206,7 +207,8 @@ systemctl reload nginx
 cd "$root_dir"
 docker compose config >/dev/null
 docker compose pull admin-panel >/dev/null
-docker compose up -d api admin-panel client >/dev/null
+docker compose up -d api admin-panel >/dev/null
+docker compose up -d --force-recreate client >/dev/null
 
 for container in LibreChat-API LibreChat-NGINX LibreChat-Admin-Panel; do
   for _ in $(seq 1 90); do
@@ -231,6 +233,16 @@ for _ in $(seq 1 120); do
   sleep 1
 done
 test "$admin_ready" = "1"
+
+admin_html="$(mktemp)"
+curl -fsS "$admin_url/" -o "$admin_html"
+grep -Fq 'Admin Panel' "$admin_html"
+if grep -Fq 'Every AI for Everyone' "$admin_html"; then
+  echo 'Admin hostname is serving the main LibreChat client' >&2
+  rm -f "$admin_html"
+  false
+fi
+rm -f "$admin_html"
 
 test "$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/office/")" = "401"
 test "$(docker inspect LibreChat-CodeAPI --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')" = "healthy"

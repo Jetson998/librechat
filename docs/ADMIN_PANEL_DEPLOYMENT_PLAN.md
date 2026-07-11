@@ -94,6 +94,11 @@ host continues to proxy only to the existing loopback listener at
 `127.0.0.1:3081`, preserving the Host header so the inner Nginx selects the
 Admin server block.
 
+Because `/opt/librechat/client/nginx.conf` is a bind-mounted file, changing the
+host file does not replace the already mounted inode inside a running container.
+The release runner must force-recreate `LibreChat-NGINX`; a normal `compose up`
+that reports the client as already running is insufficient.
+
 Existing LibreChat, Office, CodeAPI, MongoDB, uploads, and generated-file mounts
 are unchanged.
 
@@ -151,6 +156,8 @@ startup configuration; normal users should not need a database rewrite.
 - `LibreChat-CodeAPI` remains healthy.
 - Admin hostname has a valid certificate and returns the Admin Panel login
   flow; the panel container has no host-published port.
+- Admin HTML contains the Admin Panel login application and does not contain
+  the main LibreChat chat client marker.
 - A LibreChat admin can sign in and read configuration overrides.
 - A hard-reloaded or newly opened `/c/new` page selects `GPT-5.6 SOL`.
 - An already loaded conversation remains allowed to retain its manually
