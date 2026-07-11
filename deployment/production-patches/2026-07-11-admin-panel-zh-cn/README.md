@@ -4,6 +4,10 @@ Date: 2026-07-11
 
 Status: implementation prepared; production deployment pending.
 
+The first production-host build attempt exhausted host responsiveness before an
+image was produced. No deployment ran. See `INCIDENT_2026-07-11.md` for the
+confirmed boundary and mandatory recovery gate.
+
 This release will derive a bilingual Admin Panel image from the official source
 revision:
 
