@@ -15,6 +15,7 @@ test -f "$source_dir/src/locales/zh-Hans/translation.json"
 test -f "$source_dir/scripts/sort-imports.ts"
 grep -Fqx '!scripts/sort-imports.ts' "$source_dir/.dockerignore"
 grep -Fq '"lint:strict": "eslint src/ --max-warnings 0"' "$source_dir/package.json"
+grep -Fq 'nonExplicitSupportedLngs: false' "$source_dir/src/locales/i18n.ts"
 test "$(python3 "$release_dir/scripts/source-tree-hash.py" "$source_dir")" = "$expected_source_hash"
 
 node "$source_dir/scripts/check-locales.mjs"

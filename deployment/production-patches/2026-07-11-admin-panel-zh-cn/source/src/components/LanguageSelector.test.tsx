@@ -15,6 +15,7 @@ describe('LanguageSelector', () => {
   });
 
   it('selects Simplified Chinese by default', () => {
+    expect(i18n.resolvedLanguage).toBe('zh-Hans');
     render(<LanguageSelector />);
     expect(screen.getByRole('button', { name: '简体中文' })).toHaveAttribute(
       'aria-pressed',

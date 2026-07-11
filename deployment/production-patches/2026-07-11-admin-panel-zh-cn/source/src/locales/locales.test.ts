@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { defaultLanguage, resolveLanguage, syncDocumentLanguage } from './i18n';
+import i18n, {
+  defaultLanguage,
+  resolveLanguage,
+  syncDocumentLanguage,
+} from './i18n';
 import translationZhHans from './zh-Hans/translation.json';
 import translationEn from './en/translation.json';
 
@@ -24,6 +28,12 @@ describe('Admin Panel locales', () => {
     expect(resolveLanguage(null)).toBe('zh-Hans');
     syncDocumentLanguage(defaultLanguage);
     expect(document.documentElement.lang).toBe('zh-Hans');
+  });
+
+  it('keeps the full Simplified Chinese language code supported', async () => {
+    await i18n.changeLanguage(defaultLanguage);
+    expect(i18n.resolvedLanguage).toBe(defaultLanguage);
+    expect(i18n.t('com_language_zh_hans')).toBe('简体中文');
   });
 
   it('synchronizes the document language when English is selected', () => {

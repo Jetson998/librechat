@@ -26,7 +26,7 @@ export const resources = {
 
 i18n.use(initReactI18next).init({
   supportedLngs: ['zh-Hans', 'en'],
-  nonExplicitSupportedLngs: true,
+  nonExplicitSupportedLngs: false,
   load: 'currentOnly',
   fallbackLng: {
     'zh-Hans': ['en'],
