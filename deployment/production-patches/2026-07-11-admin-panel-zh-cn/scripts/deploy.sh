@@ -6,6 +6,9 @@ root_dir="/opt/librechat"
 compose_base="$root_dir/compose.yaml"
 compose_override="$root_dir/compose.override.yaml"
 env_file="$root_dir/.env"
+upload_menu_dist="$root_dir/ui-label-patch/client-dist"
+upload_menu_index="$upload_menu_dist/index.html"
+upload_menu_script="$upload_menu_dist/business-upload-menu.js"
 candidate_override="$stage_dir/compose.override.yaml"
 expected_before="$stage_dir/compose.before.yaml"
 image_ref="$(cat "$stage_dir/IMAGE_REF")"
@@ -20,9 +23,23 @@ admin_url="https://admin.152.32.172.162.sslip.io"
 timestamp="$(date +%Y%m%d%H%M%S)"
 backup_dir="$root_dir/backups/admin-panel-zh-cn-$timestamp"
 
-for path in "$compose_base" "$compose_override" "$env_file" "$candidate_override" "$expected_before" "$build_result"; do
+for path in \
+  "$compose_base" \
+  "$compose_override" \
+  "$env_file" \
+  "$candidate_override" \
+  "$expected_before" \
+  "$build_result" \
+  "$upload_menu_index" \
+  "$upload_menu_script"; do
   test -f "$path"
 done
+
+grep -Fq 'business-upload-label-patch' "$upload_menu_index"
+grep -Fq '图片上传' "$upload_menu_script"
+grep -Fq 'Office文件上传' "$upload_menu_script"
+grep -Fq '文件提取文字上传' "$upload_menu_script"
+grep -Fq '/opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro' "$candidate_override"
 
 "$stage_dir/scripts/verify-ci-attestation.sh" "$stage_dir"
 cmp -s "$compose_override" "$expected_before"
@@ -57,6 +74,8 @@ test "$office_code_before" = "401"
 test "$office_realm_before" = 'Basic realm="Office Converter"'
 curl -fsS "$main_url/api/config" >/dev/null
 curl -fsS "$main_url/" >/dev/null
+docker exec LibreChat-API grep -Fq 'business-upload-label-patch' /app/client/dist/index.html
+docker exec LibreChat-API grep -Fq 'Office文件上传' /app/client/dist/business-upload-menu.js
 
 if [[ "${PREFLIGHT_ONLY:-false}" = "true" ]]; then
   printf 'preflight=ok\nimage_ref=%s\nimage_id=%s\n' "$image_ref" "$expected_image_id"
@@ -111,6 +130,10 @@ done
 curl -fsS "$admin_url/" >/dev/null
 curl -fsS "$main_url/api/config" >/dev/null
 curl -fsS "$main_url/" >/dev/null
+main_html="$(mktemp)"
+curl -fsS "$main_url/" -o "$main_html"
+test "$(grep -o 'business-upload-label-patch' "$main_html" | wc -l | tr -d '[:space:]')" = "1"
+rm -f "$main_html"
 test "$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/office/")" = "401"
 test "$(curl -ksSI "$main_url/office/" | tr -d '\r' | awk -F': ' 'tolower($1)=="www-authenticate" {print $2; exit}')" = 'Basic realm="Office Converter"'
 test "$(docker inspect LibreChat-CodeAPI --format '{{.State.Health.Status}}')" = "healthy"

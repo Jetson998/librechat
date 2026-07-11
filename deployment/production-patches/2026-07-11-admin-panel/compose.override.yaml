@@ -1,4 +1,8 @@
 services:
+  api:
+    volumes:
+      - /opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro
+
   admin-panel:
     image: registry.librechat.ai/clickhouse/librechat-admin-panel@sha256:1d3916ae84439e83da83507afd4aae14a99bd81ff2e1890079f57d8d377eb8e9
     container_name: LibreChat-Admin-Panel

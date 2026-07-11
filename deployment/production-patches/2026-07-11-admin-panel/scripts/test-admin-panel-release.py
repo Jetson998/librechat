@@ -86,6 +86,11 @@ def main():
     require(env["API_SERVER_URL"] == "http://api:3080", "Admin Panel API URL changed")
     require(env["SESSION_COOKIE_SECURE"] == "true", "secure session cookie is required")
     require("152.32.172.162.sslip.io" in env["VITE_API_BASE_URL"], "public LibreChat API URL changed")
+    require(
+        "/opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro"
+        in services["api"]["volumes"],
+        "persistent upload-menu mount missing",
+    )
     require(services["client"]["depends_on"] == ["api", "admin-panel"], "client dependency changed")
 
     client_nginx = read("client-nginx.conf")
@@ -113,6 +118,9 @@ def main():
         "rollback",
         "LibreChat-CodeAPI",
         "/office/",
+        "business-upload-label-patch",
+        "business-upload-menu.js",
+        "Office文件上传",
     ):
         require(marker in deploy, f"deployment guard missing: {marker}")
 

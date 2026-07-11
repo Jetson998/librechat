@@ -61,6 +61,9 @@ curl -k -L https://152.32.172.162.sslip.io/api/config
 - [ ] Code execution works if code environment changed.
 - [ ] `/office/` reads a small XLSX workbook if Office/Excel backend changed.
 - [ ] Runtime Chinese labels still show if frontend assets changed.
+- [ ] `business-upload-label-patch` is present exactly once in public HTML.
+- [ ] Any release replacing `compose.override.yaml` retains
+      `/opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro`.
 - [ ] Rollback path remains available.
 - [ ] Actual production state matches the committed plan, or differences are
       captured in a follow-up commit.

@@ -9,6 +9,9 @@ env_file="$root_dir/.env"
 config_file="$root_dir/librechat.yaml"
 client_nginx="$root_dir/client/nginx.conf"
 host_nginx="/etc/nginx/conf.d/librechat-admin.conf"
+upload_menu_dist="$root_dir/ui-label-patch/client-dist"
+upload_menu_index="$upload_menu_dist/index.html"
+upload_menu_script="$upload_menu_dist/business-upload-menu.js"
 admin_host="admin.152.32.172.162.sslip.io"
 main_url="https://152.32.172.162.sslip.io"
 admin_url="https://$admin_host"
@@ -31,9 +34,17 @@ for path in \
   "$compose_base" \
   "$env_file" \
   "$config_file" \
-  "$client_nginx"; do
+  "$client_nginx" \
+  "$upload_menu_index" \
+  "$upload_menu_script"; do
   test -f "$path"
 done
+
+grep -Fq 'business-upload-label-patch' "$upload_menu_index"
+grep -Fq '图片上传' "$upload_menu_script"
+grep -Fq 'Office文件上传' "$upload_menu_script"
+grep -Fq '文件提取文字上传' "$upload_menu_script"
+grep -Fq '/opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro' "$candidate_override"
 
 test "$(uname -m)" = "x86_64"
 test "$(docker inspect LibreChat-API --format '{{.State.Running}}')" = "true"
@@ -222,6 +233,12 @@ done
 
 wait_for_url "$main_url/api/config" 120
 wait_for_url "$main_url/" 30
+docker exec LibreChat-API grep -Fq 'business-upload-label-patch' /app/client/dist/index.html
+docker exec LibreChat-API grep -Fq 'Office文件上传' /app/client/dist/business-upload-menu.js
+main_html="$(mktemp)"
+curl -fsS "$main_url/" -o "$main_html"
+test "$(grep -o 'business-upload-label-patch' "$main_html" | wc -l | tr -d '[:space:]')" = "1"
+rm -f "$main_html"
 
 admin_ready=0
 for _ in $(seq 1 120); do
