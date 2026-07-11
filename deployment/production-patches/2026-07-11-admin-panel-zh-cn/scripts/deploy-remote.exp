@@ -4,9 +4,11 @@ set local_tarball [expr {[info exists env(LOCAL_TARBALL)] ? $env(LOCAL_TARBALL) 
 set tarball_sha256 [expr {[info exists env(TARBALL_SHA256)] ? $env(TARBALL_SHA256) : ""}]
 set remote_tarball [expr {[info exists env(REMOTE_TARBALL)] ? $env(REMOTE_TARBALL) : "/tmp/librechat-admin-panel-zh-cn-release-525a22b.tar.gz"}]
 set remote_script [expr {[info exists env(REMOTE_SCRIPT)] ? $env(REMOTE_SCRIPT) : "/tmp/run-remote-release.sh"}]
+set remote_stage_parent [expr {[info exists env(REMOTE_STAGE_PARENT)] ? $env(REMOTE_STAGE_PARENT) : "/tmp/librechat-admin-panel-zh-cn-release-525a22b"}]
 set ssh_host [expr {[info exists env(SSH_HOST)] ? $env(SSH_HOST) : "152.32.172.162"}]
 set ssh_user [expr {[info exists env(SSH_USER)] ? $env(SSH_USER) : "root"}]
 set release_dir [expr {[info exists env(RELEASE_DIR)] ? $env(RELEASE_DIR) : ""}]
+set result_dir [expr {[info exists env(RESULT_DIR)] ? $env(RESULT_DIR) : "$release_dir/results/latest"}]
 
 if {$local_tarball eq ""} {
   puts stderr "LOCAL_TARBALL is required"
@@ -38,6 +40,7 @@ proc wait_with_password {} {
 }
 
 set local_script "$release_dir/scripts/run-remote-release.sh"
+set remote_stage_dir "$remote_stage_parent/librechat-admin-panel-zh-cn-release"
 
 spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 $local_tarball ${ssh_user}@${ssh_host}:$remote_tarball
 set scp_rc [wait_with_password]
@@ -55,4 +58,16 @@ if {$scp_rc != 0} {
 
 spawn ssh -tt -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ${ssh_user}@${ssh_host} bash $remote_script $remote_tarball $tarball_sha256
 set ssh_rc [wait_with_password]
-exit $ssh_rc
+if {$ssh_rc != 0} {
+  exit $ssh_rc
+}
+
+file mkdir $result_dir
+spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ${ssh_user}@${ssh_host}:$remote_stage_dir/BUILD_RESULT.txt ${ssh_user}@${ssh_host}:$remote_stage_dir/DEPLOY_RESULT.txt $result_dir/
+set scp_rc [wait_with_password]
+if {$scp_rc != 0} {
+  puts stderr "result scp failed with exit code $scp_rc"
+  exit $scp_rc
+}
+
+exit 0
