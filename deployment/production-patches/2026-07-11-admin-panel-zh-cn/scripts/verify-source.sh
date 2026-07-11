@@ -13,14 +13,11 @@ test -f "$source_dir/LICENSE"
 test -f "$source_dir/bun.lock"
 test -f "$source_dir/src/locales/zh-Hans/translation.json"
 test -f "$source_dir/scripts/sort-imports.ts"
-test -f "$source_dir/scripts/lint-strict-batches.mjs"
 grep -Fqx '!scripts/sort-imports.ts' "$source_dir/.dockerignore"
-grep -Fqx '!scripts/lint-strict-batches.mjs' "$source_dir/.dockerignore"
-grep -Fq '"lint:strict": "node scripts/lint-strict-batches.mjs"' "$source_dir/package.json"
+grep -Fq '"lint:strict": "eslint src/ --max-warnings 0"' "$source_dir/package.json"
 test "$(python3 "$release_dir/scripts/source-tree-hash.py" "$source_dir")" = "$expected_source_hash"
 
 node "$source_dir/scripts/check-locales.mjs"
-node "$source_dir/scripts/lint-strict-batches.mjs" --plan
 
 if rg -n -i --hidden \
   --glob '!bun.lock' \

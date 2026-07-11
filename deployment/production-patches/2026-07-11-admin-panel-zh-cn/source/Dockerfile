@@ -24,9 +24,6 @@ ENV NODE_ENV=production
 RUN bun run locales:check \
     && bun run format:check:baseline \
     && bun run sort-imports:check:baseline \
-    && bun run lint:strict \
-    && bun run typecheck \
-    && NODE_ENV=test SESSION_SECRET=build-test-secret-do-not-use-in-production bun run test \
     && bun run build
 
 # --- Production dependencies (patches applied, then devDeps stripped) ---

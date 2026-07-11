@@ -107,7 +107,8 @@ Repository checks:
 1. Verify the source revision and archive checksum.
 2. Compare English and Simplified Chinese key sets exactly.
 3. Compare interpolation placeholders for every translated entry.
-4. Run upstream format, lint, typecheck, and unit tests.
+4. Run format, full-tree lint, typecheck, unit tests, and build in GitHub Actions;
+   publish an immutable `admin-ci-<source-hash>` tag only after all pass.
 5. Build the production image and record its immutable ID/digest.
 
 Browser checks at desktop and mobile widths:
@@ -120,7 +121,8 @@ Browser checks at desktop and mobile widths:
 4. Switch to English in Settings; verify the visible page and document language
    update immediately and survive reload.
 5. Switch back to Simplified Chinese and verify persistence.
-6. Confirm the modified-source link is visible and points to this repository.
+6. Require the matching CI verification tag before production packaging, then
+   confirm the modified-source link is visible and points to this repository.
 7. Confirm there is no untranslated `com_*` key, overlapping control, clipped
    Chinese text, or browser-console error.
 8. Verify an Admin read and a harmless settings navigation; do not change any

@@ -1,0 +1,64 @@
+name: Admin Panel zh-CN CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/admin-panel-zh-cn-ci.yml'
+      - 'deployment/production-patches/2026-07-11-admin-panel-zh-cn/SOURCE_TREE_SHA256'
+      - 'deployment/production-patches/2026-07-11-admin-panel-zh-cn/source/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: admin-panel-zh-cn-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Full source verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_DIR: deployment/production-patches/2026-07-11-admin-panel-zh-cn
+      SOURCE_DIR: deployment/production-patches/2026-07-11-admin-panel-zh-cn/source
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+
+      - name: Verify pinned source
+        run: "$RELEASE_DIR/scripts/verify-source.sh"
+
+      - name: Install dependencies
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: bun install --frozen-lockfile
+
+      - name: Run complete quality gate
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          bun run locales:check
+          bun run format:check:baseline
+          bun run sort-imports:check:baseline
+          bun run lint:strict
+          bun run typecheck
+          NODE_ENV=test SESSION_SECRET=ci-test-secret-do-not-use-in-production bun run test
+          bun run build
+
+      - name: Publish verified source tag
+        run: |
+          source_hash=$(cat "$RELEASE_DIR/SOURCE_TREE_SHA256")
+          tag="admin-ci-${source_hash:0:12}"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git tag --force "$tag" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$tag"
