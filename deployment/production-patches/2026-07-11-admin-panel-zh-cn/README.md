@@ -65,6 +65,16 @@ Run the source and localization preflight with:
 scripts/verify-source.sh
 ```
 
+Create a reproducible release tarball locally with:
+
+```bash
+scripts/package-release.sh
+```
+
+That command writes a tarball under `/tmp`, extracts it into a sibling verify
+directory, and reruns the source and CI-attestation gates against the packed
+artifact. Use the printed `archive_sha256` as the remote integrity check.
+
 After the implementation commit is pushed, wait for the matching
 `admin-ci-<source-hash>` tag and record that attestation in the release. Then
 stage the release on the production host and build it without changing a running
@@ -77,6 +87,34 @@ scripts/build-image.sh
 PREFLIGHT_ONLY=true scripts/deploy.sh /tmp/librechat-admin-panel-zh-cn-release
 scripts/deploy.sh /tmp/librechat-admin-panel-zh-cn-release
 ```
+
+For password-based SSH deployment, use the repository-owned remote runner
+instead of generating temporary `/tmp` scripts on the operator machine:
+
+```bash
+RELEASE_DIR="$PWD" \
+LOCAL_TARBALL=/tmp/librechat-admin-panel-zh-cn-release-525a22b.tar.gz \
+TARBALL_SHA256=abfb64293059d3fc4fffc40c74fa8a58ff070d99f35b317f9b424b47bf875b96 \
+SSH_HOST=152.32.172.162 \
+SSH_USER=root \
+SSH_PASS='...' \
+expect scripts/deploy-remote.exp
+```
+
+`scripts/deploy-remote.exp` uploads only the tarball and the checked-in
+`scripts/run-remote-release.sh`, then executes that remote script with the
+tarball path and SHA-256. The remote runner performs, in order:
+
+- recovery audit and protected-service health checks;
+- tarball SHA-256 verification;
+- source and CI-attestation verification;
+- `1 GiB / 0.5 CPU / 45m` BuildKit image build;
+- deploy preflight and one-service Admin Panel recreate;
+- post-deploy protected-container ID checks;
+- agreed BuildKit and Open WebUI cleanup.
+
+This keeps future production runs on fixed repository scripts and avoids the
+approval fragility of ad hoc generated deployment scripts.
 
 `build-image.sh` fails unless the recorded CI source hash matches the current
 source tree and the recorded tag is exactly `admin-ci-<source-hash>`. The build

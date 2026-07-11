@@ -1,0 +1,58 @@
+set timeout -1
+
+set local_tarball [expr {[info exists env(LOCAL_TARBALL)] ? $env(LOCAL_TARBALL) : ""}]
+set tarball_sha256 [expr {[info exists env(TARBALL_SHA256)] ? $env(TARBALL_SHA256) : ""}]
+set remote_tarball [expr {[info exists env(REMOTE_TARBALL)] ? $env(REMOTE_TARBALL) : "/tmp/librechat-admin-panel-zh-cn-release-525a22b.tar.gz"}]
+set remote_script [expr {[info exists env(REMOTE_SCRIPT)] ? $env(REMOTE_SCRIPT) : "/tmp/run-remote-release.sh"}]
+set ssh_host [expr {[info exists env(SSH_HOST)] ? $env(SSH_HOST) : "152.32.172.162"}]
+set ssh_user [expr {[info exists env(SSH_USER)] ? $env(SSH_USER) : "root"}]
+set release_dir [expr {[info exists env(RELEASE_DIR)] ? $env(RELEASE_DIR) : ""}]
+
+if {$local_tarball eq ""} {
+  puts stderr "LOCAL_TARBALL is required"
+  exit 2
+}
+if {$release_dir eq ""} {
+  puts stderr "RELEASE_DIR is required"
+  exit 2
+}
+if {$tarball_sha256 eq ""} {
+  puts stderr "TARBALL_SHA256 is required"
+  exit 2
+}
+if {![info exists env(SSH_PASS)]} {
+  puts stderr "SSH_PASS is required"
+  exit 2
+}
+
+proc wait_with_password {} {
+  expect {
+    -re "(?i)password:" {
+      send -- "$::env(SSH_PASS)\r"
+      exp_continue
+    }
+    eof
+  }
+  catch wait result
+  return [lindex $result 3]
+}
+
+set local_script "$release_dir/scripts/run-remote-release.sh"
+
+spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 $local_tarball ${ssh_user}@${ssh_host}:$remote_tarball
+set scp_rc [wait_with_password]
+if {$scp_rc != 0} {
+  puts stderr "tarball scp failed with exit code $scp_rc"
+  exit $scp_rc
+}
+
+spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 $local_script ${ssh_user}@${ssh_host}:$remote_script
+set scp_rc [wait_with_password]
+if {$scp_rc != 0} {
+  puts stderr "script scp failed with exit code $scp_rc"
+  exit $scp_rc
+}
+
+spawn ssh -tt -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ${ssh_user}@${ssh_host} bash $remote_script $remote_tarball $tarball_sha256
+set ssh_rc [wait_with_password]
+exit $ssh_rc
