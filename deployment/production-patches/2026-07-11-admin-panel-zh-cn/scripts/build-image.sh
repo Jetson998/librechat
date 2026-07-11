@@ -15,14 +15,18 @@ test "$(uname -m)" = "x86_64"
 test "$actual_source_hash" = "$expected_source_hash"
 command -v timeout >/dev/null
 docker buildx version >/dev/null
-"$release_dir/scripts/verify-source.sh"
+REQUIRE_CI_ATTESTATION=true "$release_dir/scripts/verify-source.sh"
+
+ci_verified_commit="$(cat "$release_dir/CI_VERIFIED_COMMIT")"
+ci_verified_tag="$(cat "$release_dir/CI_VERIFIED_TAG")"
+ci_verified_run="$(cat "$release_dir/CI_VERIFIED_RUN")"
 
 cleanup_builder() {
   docker buildx rm --force "$builder_name" >/dev/null 2>&1 || true
 }
 trap cleanup_builder EXIT
 
-# Isolate the complete upstream quality gate and build from production workloads.
+# Isolate the exact CI-attested application build from production workloads.
 docker buildx create \
   --name "$builder_name" \
   --driver docker-container \
@@ -52,6 +56,9 @@ image_id=$image_id
 architecture=$architecture
 source_tree_sha256=$expected_source_hash
 upstream_revision=$(cat "$release_dir/UPSTREAM_REVISION")
+ci_verified_commit=$ci_verified_commit
+ci_verified_tag=$ci_verified_tag
+ci_verified_run=$ci_verified_run
 build_memory=$build_memory
 build_cpu_quota=$build_cpu_quota
 build_timeout=$build_timeout

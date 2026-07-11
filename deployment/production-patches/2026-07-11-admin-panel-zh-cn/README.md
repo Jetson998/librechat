@@ -4,6 +4,16 @@ Date: 2026-07-11
 
 Status: implementation prepared; production deployment pending.
 
+Repository CI verification passed before production packaging:
+
+```text
+source sha256: 95388ccb14d2d6c61b68ccb4d04faaafd47ea9b50628a23d7d5b91a82739460d
+commit:        5f1f280f7240aaa75dfe5c3f8dd445d22a71f304
+tag:           admin-ci-95388ccb14d2
+workflow run:  29149061012
+result:        22/22 test files and 760/760 tests passed; build passed
+```
+
 The first production-host build attempt exhausted host responsiveness before an
 image was produced. No deployment ran. See `INCIDENT_2026-07-11.md` for the
 confirmed boundary and mandatory recovery gate.
@@ -67,6 +77,11 @@ scripts/build-image.sh
 PREFLIGHT_ONLY=true scripts/deploy.sh /tmp/librechat-admin-panel-zh-cn-release
 scripts/deploy.sh /tmp/librechat-admin-panel-zh-cn-release
 ```
+
+`build-image.sh` fails unless the recorded CI source hash matches the current
+source tree and the recorded tag is exactly `admin-ci-<source-hash>`. The build
+result carries the verified commit, tag, and workflow run; `deploy.sh` checks
+those values again before any production write.
 
 `BUILD_MEMORY`, `BUILD_CPU_QUOTA`, and `BUILD_TIMEOUT` may be lowered after the
 host capacity check. They must not be raised on a production host without first

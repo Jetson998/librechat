@@ -10,19 +10,29 @@ candidate_override="$stage_dir/compose.override.yaml"
 expected_before="$stage_dir/compose.before.yaml"
 image_ref="$(cat "$stage_dir/IMAGE_REF")"
 expected_image_id="$(cat "$stage_dir/BUILT_IMAGE_ID")"
+expected_source_hash="$(cat "$stage_dir/SOURCE_TREE_SHA256")"
+ci_verified_commit="$(cat "$stage_dir/CI_VERIFIED_COMMIT")"
+ci_verified_tag="$(cat "$stage_dir/CI_VERIFIED_TAG")"
+ci_verified_run="$(cat "$stage_dir/CI_VERIFIED_RUN")"
+build_result="$stage_dir/BUILD_RESULT.txt"
 main_url="https://152.32.172.162.sslip.io"
 admin_url="https://admin.152.32.172.162.sslip.io"
 timestamp="$(date +%Y%m%d%H%M%S)"
 backup_dir="$root_dir/backups/admin-panel-zh-cn-$timestamp"
 
-for path in "$compose_base" "$compose_override" "$env_file" "$candidate_override" "$expected_before"; do
+for path in "$compose_base" "$compose_override" "$env_file" "$candidate_override" "$expected_before" "$build_result"; do
   test -f "$path"
 done
 
+"$stage_dir/scripts/verify-ci-attestation.sh" "$stage_dir"
 cmp -s "$compose_override" "$expected_before"
 test "$(docker image inspect "$image_ref" --format '{{.Id}}')" = "$expected_image_id"
 test "$(docker image inspect "$image_ref" --format '{{.Architecture}}')" = "amd64"
 grep -Fqx "    image: $image_ref" "$candidate_override"
+grep -Fqx "source_tree_sha256=$expected_source_hash" "$build_result"
+grep -Fqx "ci_verified_commit=$ci_verified_commit" "$build_result"
+grep -Fqx "ci_verified_tag=$ci_verified_tag" "$build_result"
+grep -Fqx "ci_verified_run=$ci_verified_run" "$build_result"
 
 docker compose \
   --env-file "$env_file" \
@@ -118,6 +128,10 @@ timestamp=$timestamp
 backup_dir=$backup_dir
 image_ref=$image_ref
 image_id=$expected_image_id
+source_tree_sha256=$expected_source_hash
+ci_verified_commit=$ci_verified_commit
+ci_verified_tag=$ci_verified_tag
+ci_verified_run=$ci_verified_run
 admin_container_id_before=$admin_container_id_before
 admin_image_ref_before=$admin_image_ref_before
 admin_image_id_before=$admin_image_id_before

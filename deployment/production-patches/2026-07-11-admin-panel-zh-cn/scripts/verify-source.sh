@@ -21,4 +21,8 @@ test "$(python3 "$release_dir/scripts/source-tree-hash.py" "$source_dir")" = "$e
 node "$source_dir/scripts/check-locales.mjs"
 python3 "$release_dir/scripts/scan-release-secrets.py" "$release_dir"
 
+if [ "${REQUIRE_CI_ATTESTATION:-false}" = "true" ]; then
+  "$release_dir/scripts/verify-ci-attestation.sh" "$release_dir"
+fi
+
 echo "Verified pinned Admin Panel source and localization release."
