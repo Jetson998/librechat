@@ -8,6 +8,54 @@ https://152.32.172.162.sslip.io/
 
 Latest verification date: 2026-07-11
 
+## Admin Panel Simplified Chinese Deployment
+
+Repository gate:
+
+- `7b1ede0` - repository-owned remote deployment runners committed and pushed.
+- `858e344` - deploy-result capture committed and pushed.
+- `feedcc5` - release packaging corrected to strip macOS metadata before
+  production deployment.
+- `2a48314` - production build and deploy results committed and pushed.
+
+Final production deployment timestamp: `20260711231635`.
+
+Backup created by deployment:
+
+```text
+/opt/librechat/backups/admin-panel-zh-cn-20260711231635
+```
+
+Released image:
+
+```text
+librechat-admin-panel-zh-cn:95388ccb14d2
+```
+
+Production result:
+
+- Admin Panel is available at
+  `https://admin.152.32.172.162.sslip.io/`.
+- A direct probe on 2026-07-11 returned `HTTP/2 200`.
+- The deployed image ID is
+  `sha256:99c0dc20fbdfc1b96afd87a2758214de63341019d42f1f6b74164a8c48d271d5`.
+- The verified source tree hash is
+  `95388ccb14d2d6c61b68ccb4d04faaafd47ea9b50628a23d7d5b91a82739460d`.
+- The CI attestation matched commit `5f1f280f7240aaa75dfe5c3f8dd445d22a71f304`,
+  tag `admin-ci-95388ccb14d2`, and workflow run `29149061012`.
+- Only `LibreChat-Admin-Panel` changed container identity.
+- `LibreChat-API`, `LibreChat-NGINX`, `LibreChat-CodeAPI`, and
+  `chat-mongodb` remained unchanged.
+- `/office/` remained `401` with `realm="Office Converter"`.
+- MongoDB `configs` count remained `0` before and after deploy.
+
+Rollback: restore
+`/opt/librechat/backups/admin-panel-zh-cn-20260711231635/compose.override.yaml`
+to `/opt/librechat/compose.override.yaml`, recreate only `admin-panel`, then
+repeat Admin root, main root, `/api/config`, `/office/`, and protected-service
+checks. See
+`deployment/production-patches/2026-07-11-admin-panel-zh-cn/ROLLBACK.md`.
+
 ## Official Admin Panel Deployment
 
 Repository gate:

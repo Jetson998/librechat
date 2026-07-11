@@ -2,7 +2,7 @@
 
 Date: 2026-07-11
 
-Status: implementation prepared; production deployment pending.
+Status: deployed to production on 2026-07-11 23:16:35 Asia/Hong_Kong.
 
 Repository CI verification passed before production packaging:
 
@@ -17,6 +17,14 @@ result:        22/22 test files and 760/760 tests passed; build passed
 The first production-host build attempt exhausted host responsiveness before an
 image was produced. No deployment ran. See `INCIDENT_2026-07-11.md` for the
 confirmed boundary and mandatory recovery gate.
+
+The corrected repository-owned deployment completed successfully. The
+production evidence is recorded in:
+
+```text
+results/latest/BUILD_RESULT.txt
+results/latest/DEPLOY_RESULT.txt
+```
 
 This release will derive a bilingual Admin Panel image from the official source
 revision:
@@ -133,6 +141,20 @@ and MongoDB container IDs remain unchanged. Any failed post-write assertion
 restores the official image override and recreates only the Admin Panel.
 The deployment result records the actual before/after IDs for every protected
 container and the Admin Panel's before/after container and image identities.
+
+This release can be rolled back without touching MongoDB data, LibreChat API,
+CodeAPI, Office helper routing, or the main site Nginx path. Use:
+
+```text
+ROLLBACK.md
+```
+
+Any post-deployment Admin Panel changes made through the browser UI must be
+logged separately from this image release. Use:
+
+```text
+ADMIN_PANEL_RUNTIME_CONFIG.md
+```
 
 Production deployment must not begin until this implementation is committed,
 pushed, and verified. The derived image must be built from this committed source
