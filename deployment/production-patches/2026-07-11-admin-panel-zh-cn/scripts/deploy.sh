@@ -35,6 +35,9 @@ for container in LibreChat-API LibreChat-NGINX LibreChat-CodeAPI chat-mongodb; d
   test "$(docker inspect "$container" --format '{{.State.Running}}')" = "true"
   protected_ids[$container]="$(docker inspect "$container" --format '{{.Id}}')"
 done
+admin_container_id_before="$(docker inspect LibreChat-Admin-Panel --format '{{.Id}}')"
+admin_image_ref_before="$(docker inspect LibreChat-Admin-Panel --format '{{.Config.Image}}')"
+admin_image_id_before="$(docker inspect LibreChat-Admin-Panel --format '{{.Image}}')"
 
 config_count_before="$(docker exec chat-mongodb mongosh --quiet LibreChat --eval 'db.configs.countDocuments({})' | tail -n 1 | tr -d '[:space:]')"
 office_code_before="$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/office/")"
@@ -105,18 +108,35 @@ test "$(docker exec chat-mongodb mongosh --quiet LibreChat --eval 'db.configs.co
 docker exec LibreChat-Admin-Panel sh -lc "grep -R -q '简体中文' /app/dist"
 docker exec LibreChat-Admin-Panel sh -lc "grep -R -q '修改版源代码' /app/dist"
 
+admin_container_id_after="$(docker inspect LibreChat-Admin-Panel --format '{{.Id}}')"
+admin_image_ref_after="$(docker inspect LibreChat-Admin-Panel --format '{{.Config.Image}}')"
+admin_image_id_after="$(docker inspect LibreChat-Admin-Panel --format '{{.Image}}')"
+
 trap - ERR
 cat >"$stage_dir/DEPLOY_RESULT.txt" <<EOF
 timestamp=$timestamp
 backup_dir=$backup_dir
 image_ref=$image_ref
 image_id=$expected_image_id
+admin_container_id_before=$admin_container_id_before
+admin_image_ref_before=$admin_image_ref_before
+admin_image_id_before=$admin_image_id_before
+admin_container_id_after=$admin_container_id_after
+admin_image_ref_after=$admin_image_ref_after
+admin_image_id_after=$admin_image_id_after
 config_count_before=$config_count_before
 config_count_after=$config_count_before
 office_status=401
 office_realm=Office Converter
 protected_containers_unchanged=true
 EOF
+for container in LibreChat-API LibreChat-NGINX LibreChat-CodeAPI chat-mongodb; do
+  key="${container//-/_}"
+  current_id="$(docker inspect "$container" --format '{{.Id}}')"
+  printf 'protected_%s_before=%s\nprotected_%s_after=%s\n' \
+    "$key" "${protected_ids[$container]}" "$key" "$current_id" \
+    >>"$stage_dir/DEPLOY_RESULT.txt"
+done
 cp "$stage_dir/DEPLOY_RESULT.txt" "$backup_dir/DEPLOY_RESULT.txt"
 printf 'deployment=ok\nbackup_dir=%s\nimage_ref=%s\nimage_id=%s\n' \
   "$backup_dir" "$image_ref" "$expected_image_id"

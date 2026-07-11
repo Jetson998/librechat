@@ -68,6 +68,8 @@ The deployment runner requires the current official Compose override to match
 `LibreChat-Admin-Panel`. It records and verifies that the API, Nginx, CodeAPI,
 and MongoDB container IDs remain unchanged. Any failed post-write assertion
 restores the official image override and recreates only the Admin Panel.
+The deployment result records the actual before/after IDs for every protected
+container and the Admin Panel's before/after container and image identities.
 
 Production deployment must not begin until this implementation is committed,
 pushed, and verified. The derived image must be built from this committed source
