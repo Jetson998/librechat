@@ -45,13 +45,19 @@ scripts/verify-source.sh
 ```
 
 After the implementation commit is pushed, stage this release on the production
-host and build it without changing a running container:
+host and build it without changing a running container. The build script uses a
+disposable BuildKit container capped at 1.25 GiB and 0.75 CPU by default, with a
+45-minute hard timeout; it fails closed if those controls are unavailable:
 
 ```bash
 scripts/build-image.sh
 PREFLIGHT_ONLY=true scripts/deploy.sh /tmp/librechat-admin-panel-zh-cn-release
 scripts/deploy.sh /tmp/librechat-admin-panel-zh-cn-release
 ```
+
+`BUILD_MEMORY`, `BUILD_CPU_QUOTA`, and `BUILD_TIMEOUT` may be lowered after the
+host capacity check. They must not be raised on a production host without first
+confirming enough headroom for all running services.
 
 The deployment runner requires the current official Compose override to match
 `compose.before.yaml`, changes only the Admin Panel image, and recreates only

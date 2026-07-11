@@ -145,7 +145,8 @@ Production regression checks:
    language control, tests, and build scripts.
 3. Run all repository and local image checks.
 4. Commit and push the implementation before any production write.
-5. Stage the committed release on the server and rerun preflight.
+5. Stage the committed release on the server and build it in a disposable,
+   CPU- and memory-limited BuildKit container with a hard timeout.
 6. Back up Compose state and the currently running Admin image reference.
 7. Build or load the derived image, update only the Admin service image, and
    recreate only the Admin container.
