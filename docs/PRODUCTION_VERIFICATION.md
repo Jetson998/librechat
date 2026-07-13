@@ -1,5 +1,34 @@
 # Production Verification
 
+## Production User Creation - 2026-07-13
+
+Created the local LibreChat user `vip998@example.local` through the supported
+application script after the production operation was documented and pushed.
+The password was supplied out of band through non-echoed standard input and was
+not placed in a command, repository file, or verification log.
+
+Repository gate:
+
+- `28b74ee` added the user lifecycle SOP and the planned production operation.
+- The first container preflight used the upstream npm command, but the
+  production API container starts in `/app/api`; it exited with
+  `MODULE_NOT_FOUND` for `/app/api/create-user.js` before any MongoDB write.
+- `e943fc7` corrected the committed production command to the absolute
+  `/app/config/create-user.js` path and was pushed before the write.
+
+Production result at 2026-07-13 16:55 HKT:
+
+```text
+CREATE_USER_RESULT=created
+EMAIL_VERIFIED=true
+POST /api/auth/login=200
+emailLoginEnabled=true
+registrationEnabled=false
+```
+
+No service was restarted and no production file, environment variable, or
+Admin Panel setting changed. The account deletion rollback was not used.
+
 ## GPT-5.6-SOL Sender Label Configuration - 2026-07-12
 
 - Implementation commit `35cc853` was pushed to `origin/main` before the

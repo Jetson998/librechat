@@ -2,7 +2,7 @@
 
 Date: 2026-07-13
 
-Status: planned; production write not yet executed.
+Status: completed in production on 2026-07-13 16:55 HKT.
 
 ## Reason
 
@@ -78,3 +78,30 @@ retention decision.
 
 The user can sign in at `https://152.32.172.162.sslip.io/login` with the new
 email and supplied password. No public sign-up option is enabled.
+
+## Production Result
+
+The production gate was satisfied before the write:
+
+- `28b74ee` recorded the account operation, verification, rollback, and SOP.
+- `e943fc7` recorded the production container's required absolute CLI path
+  after the relative npm command failed before touching MongoDB.
+- Both commits were pushed to `origin/main`, and the local branch was aligned
+  with `origin/main` before account creation.
+
+The corrected command completed successfully:
+
+```text
+CREATE_USER_RESULT=created
+EMAIL_VERIFIED=true
+```
+
+Post-write verification:
+
+- `POST /api/auth/login` with the new credentials returned `HTTP 200`; the
+  response body was discarded so authentication tokens were not logged.
+- `/api/config` continued to report `emailLoginEnabled: true` and
+  `registrationEnabled: false`.
+- No container restart, production file change, environment change, or Admin
+  Panel configuration change was performed.
+- Rollback was not required.
