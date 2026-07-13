@@ -204,6 +204,30 @@ Do not:
 - Assume a config flag proves a backend capability works.
 - Enable public registration without an explicit product decision.
 
+### User Account Lifecycle
+
+The Admin Panel `/access` page manages roles and groups; it does not create
+LibreChat login accounts. Public registration is disabled in production, so
+new accounts must be created with LibreChat's supported CLI after passing the
+mandatory production change gate:
+
+```sh
+cd /opt/librechat
+docker compose exec api npm run create-user -- <email> <name> <username>
+```
+
+- Enter the password interactively or through non-echoed standard input. Never
+  pass it as a command argument or record it in this repository.
+- Keep email verification enabled for locally managed accounts when production
+  email delivery is disabled.
+- Verify the new credentials through `POST /api/auth/login` without printing or
+  saving returned access or refresh tokens.
+- Use `/access` only after account creation when role or group membership needs
+  to change.
+- For an immediate rollback of an unused account, use the supported
+  `npm run delete-user -- <email>` flow and confirm that the account has no user
+  data before deletion.
+
 ## 9. Model And Provider Changes
 
 When adding or changing a model/provider:
