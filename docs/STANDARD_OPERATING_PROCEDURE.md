@@ -213,8 +213,14 @@ mandatory production change gate:
 
 ```sh
 cd /opt/librechat
-docker compose exec api npm run create-user -- <email> <name> <username>
+docker compose exec api node /app/config/create-user.js \
+  <email> <name> <username>
 ```
+
+Use the absolute script path for this deployment. The production API
+container starts in `/app/api`, so invoking `npm run create-user` inside that
+container currently resolves the script as `/app/api/create-user.js` and
+fails before touching MongoDB.
 
 - Enter the password interactively or through non-echoed standard input. Never
   pass it as a command argument or record it in this repository.
@@ -225,8 +231,8 @@ docker compose exec api npm run create-user -- <email> <name> <username>
 - Use `/access` only after account creation when role or group membership needs
   to change.
 - For an immediate rollback of an unused account, use the supported
-  `npm run delete-user -- <email>` flow and confirm that the account has no user
-  data before deletion.
+  `node /app/config/delete-user.js <email>` flow and confirm that the account
+  has no user data before deletion.
 
 ## 9. Model And Provider Changes
 

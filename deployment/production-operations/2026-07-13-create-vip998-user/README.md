@@ -35,13 +35,19 @@ Run from the production host:
 
 ```sh
 cd /opt/librechat
-docker compose exec api npm run create-user -- \
+docker compose exec api node /app/config/create-user.js \
   vip998@example.local vip998 vip998
 ```
 
 Enter the password interactively and accept the default verified-email setting.
 An automated operator may use `docker compose exec -T` and non-echoed standard
 input, provided the password is never placed in the command line.
+
+The production API container starts in `/app/api`. A preflight attempt using
+`npm run create-user` therefore resolved the script as
+`/app/api/create-user.js` and exited with `MODULE_NOT_FOUND` before any account
+or MongoDB record was created. The absolute `/app/config/create-user.js` path
+above is the corrected production command.
 
 ## Verification
 
@@ -60,7 +66,8 @@ any user data, run:
 
 ```sh
 cd /opt/librechat
-docker compose exec api npm run delete-user -- vip998@example.local
+docker compose exec api node /app/config/delete-user.js \
+  vip998@example.local
 ```
 
 Confirm deletion of the account and its associated data. Do not use this
