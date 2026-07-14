@@ -25,4 +25,24 @@ restores it automatically if restart or runtime verification fails.
 
 ## Production Result
 
-Pending.
+Deployed on 2026-07-14 after implementation commit `e267d84` and
+self-contained release commit `b6d8625` were pushed to `origin/main`.
+
+```text
+timestamp=20260714134018
+backup_id=title-config-20260714134018
+configVersion=23 -> 24
+titleEndpoint=MuskAPI
+titleModel=gpt-5.6-sol
+```
+
+The remote release test and preflight passed before the write. The API restart
+passed `/api/config` readiness and Mongo runtime assertions. A synthetic title
+probe through the configured relay returned:
+
+```text
+title_probe=ok model=gpt-5.6-sol title=主流模型性能对比
+```
+
+No conversation row was created by the probe. Existing historical titles were
+not rewritten.

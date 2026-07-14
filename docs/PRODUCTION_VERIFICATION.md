@@ -1,5 +1,20 @@
 # Production Verification
 
+## MuskAPI Conversation Title Configuration - 2026-07-14
+
+- Implementation commit `e267d84` and self-contained release commit
+  `b6d8625` were pushed before the production write.
+- Deployment timestamp: `20260714134018`.
+- Mongo backup ID: `title-config-20260714134018`.
+- Active base config advanced from version 23 to 24.
+- Runtime title configuration is `titleEndpoint: MuskAPI`,
+  `titleModel: gpt-5.6-sol`, `titleMessageRole: user`, with the constrained
+  Chinese title prompt and no custom prompt template.
+- API restart, `/api/config` readiness, Mongo runtime assertions, and a direct
+  relay title probe passed.
+- The probe returned `主流模型性能对比`; it created no LibreChat conversation
+  and did not rewrite historical titles.
+
 ## Production User Creation - 2026-07-13
 
 Created the local LibreChat user `vip998@example.local` through the supported

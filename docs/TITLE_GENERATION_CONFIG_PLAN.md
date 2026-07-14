@@ -2,7 +2,7 @@
 
 Date: 2026-07-14
 
-Status: approved for implementation; production deployment pending.
+Status: deployed and server-side verified.
 
 ## Objective
 
@@ -48,3 +48,20 @@ its supported default title prompt construction.
 5. Restart only `LibreChat-API` and verify `/api/config` readiness.
 6. Create a new conversation and confirm a topic-specific title is persisted.
 7. Record the deployment and verification in the repository.
+
+## Deployment Record
+
+Implementation commit `e267d84` and release packaging commit `b6d8625` were
+pushed before production deployment.
+
+```text
+timestamp=20260714134018
+backup_id=title-config-20260714134018
+configVersion=23 -> 24
+```
+
+The committed release test, remote preflight, Mongo backup, API restart,
+`/api/config` readiness, and runtime field assertions passed. A synthetic
+MuskAPI probe generated `主流模型性能对比` from the sample first message
+`50个字返回不同主流模型性能`, confirming that the model returns a topical
+title instead of repeating or responding to the title instruction.
