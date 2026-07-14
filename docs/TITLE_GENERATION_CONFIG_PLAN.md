@@ -2,7 +2,7 @@
 
 Date: 2026-07-14
 
-Status: deployed and server-side verified.
+Status: follow-up context fix prepared for deployment.
 
 ## Objective
 
@@ -18,10 +18,18 @@ set to `gpt-5.6-sol`. These fields have different meanings:
 - `titleEndpoint` is the configured endpoint name and must be `MuskAPI`.
 - `titleModel` is the provider model slug and must be `gpt-5.6-sol`.
 
-LibreChat logs confirm it tried to resolve `gpt-5.6-sol` as a provider and
-reported `Provider gpt-5.6-sol not supported`. It then fell back and generated
-the generic title `生成简洁会话标题` instead of summarizing the first user
-message.
+LibreChat logs confirm it previously tried to resolve `gpt-5.6-sol` as a
+provider and reported `Provider gpt-5.6-sol not supported`. Correcting the
+endpoint fixed that routing error, but a real conversation still generated
+the generic title `生成简洁会话标题`.
+
+The production runtime source shows why: `createCompletionTitleRunnable`
+constructs its chat prompt directly from a configured `titlePrompt`. The
+conversation is available only through the `{convo}` template variable. The
+configured custom prompt did not reference `{convo}`, so the title model saw
+the instruction but never saw the first user message. A direct relay probe did
+not exercise this LibreChat template path and therefore could not detect the
+defect.
 
 ## Chosen Configuration
 
@@ -31,13 +39,14 @@ titleEndpoint: MuskAPI
 titleModel: gpt-5.6-sol
 titleMessageRole: user
 titlePrompt: >-
-  根据用户的首条消息生成简洁、准确的会话标题。只输出标题本身，不要解释，
+  根据以下对话生成简洁、准确的会话标题。对话内容：{convo}。
+  只输出标题本身，不要解释，
   不要提问，不要使用引号，不要添加“标题：”等前缀。标题应概括核心主题，
   中文最多20个汉字；如果原内容不是中文，则使用原内容对应的语言。
 ```
 
-Leave `titlePromptTemplate` unset so LibreChat injects the first message using
-its supported default title prompt construction.
+Leave `titlePromptTemplate` unset. The custom `titlePrompt` itself must contain
+`{convo}`; this is the input consumed by LibreChat's completion title chain.
 
 ## Release Gate
 
