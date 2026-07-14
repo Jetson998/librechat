@@ -1,5 +1,23 @@
 # Production Verification
 
+## MuskAPI Title Prompt Conversation Context - 2026-07-14
+
+- Root cause: the custom `titlePrompt` omitted LibreChat's `{convo}` variable,
+  so the title request contained only the instruction and not the first user
+  message.
+- Implementation commit `86ad3a0` was pushed to `origin/main` before the
+  production write.
+- Deployment timestamp: `20260714150105`.
+- Mongo backup ID: `title-config-20260714150105`.
+- Active base config advanced from version 24 to 25.
+- Remote release test, preflight, API restart, `/api/config` readiness, and
+  runtime assertions passed.
+- Real LibreChat conversation `064d9483-c03d-48e1-971e-2392d24c6784`
+  displayed and persisted `主流AI模型多维能力对比` from a topic-specific first
+  message.
+- Existing historical titles were not rewritten. Office, CodeAPI, frontend
+  assets, normal message handling, and model selection were unchanged.
+
 ## MuskAPI Conversation Title Configuration - 2026-07-14
 
 - Implementation commit `e267d84` and self-contained release commit

@@ -29,5 +29,20 @@ restores it automatically if restart or runtime verification fails.
 
 ## Production Result
 
-Pending repository gate, production deployment, and a real LibreChat
-conversation-path verification.
+Deployed after implementation commit `86ad3a0` was pushed to `origin/main`.
+
+```text
+timestamp=20260714150105
+backup_id=title-config-20260714150105
+configVersion=24 -> 25
+titleEndpoint=MuskAPI
+titleModel=gpt-5.6-sol
+```
+
+The remote release test, preflight, API restart, `/api/config` readiness, and
+runtime Mongo assertions passed. A real signed-in LibreChat conversation used
+the first message `验证标题上下文：比较主流AI模型在代码、长文本和多模态方面的优势`.
+The sidebar updated to `主流AI模型多维能力对比`, and Mongo persisted the same
+title on conversation `064d9483-c03d-48e1-971e-2392d24c6784`.
+
+Existing historical titles were not rewritten.

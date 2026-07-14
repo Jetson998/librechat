@@ -2,7 +2,7 @@
 
 Date: 2026-07-14
 
-Status: follow-up context fix prepared for deployment.
+Status: follow-up context fix deployed and verified through LibreChat.
 
 ## Objective
 
@@ -74,3 +74,22 @@ The committed release test, remote preflight, Mongo backup, API restart,
 MuskAPI probe generated `主流模型性能对比` from the sample first message
 `50个字返回不同主流模型性能`, confirming that the model returns a topical
 title instead of repeating or responding to the title instruction.
+
+## Context Fix Deployment Record
+
+The initial direct relay probe did not exercise LibreChat's prompt-template
+construction. Commit `86ad3a0` added the required `{convo}` variable, a
+self-contained release, and regression assertions, and was pushed before the
+production write.
+
+```text
+timestamp=20260714150105
+backup_id=title-config-20260714150105
+configVersion=24 -> 25
+```
+
+The remote test, preflight, backup, API restart, readiness check, and runtime
+assertions passed. Real signed-in conversation
+`064d9483-c03d-48e1-971e-2392d24c6784` generated and displayed
+`主流AI模型多维能力对比`; Mongo persisted the same title. Historical titles
+were intentionally left unchanged.
