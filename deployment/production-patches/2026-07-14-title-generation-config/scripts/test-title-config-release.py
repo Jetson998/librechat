@@ -6,7 +6,6 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = ROOT.parents[2]
 
 
 def require(condition, message):
@@ -15,9 +14,7 @@ def require(condition, message):
 
 
 def main():
-    baseline_path = REPO / "deployment/production-patches/2026-07-11-admin-panel/librechat.yaml"
-    config = yaml.safe_load(baseline_path.read_text(encoding="utf-8"))
-    endpoint = next(item for item in config["endpoints"]["custom"] if item["name"] == "MuskAPI")
+    endpoint = yaml.safe_load((ROOT / "title-config.yaml").read_text(encoding="utf-8"))
     require(endpoint["titleConvo"] is True, "title generation disabled")
     require(endpoint["titleEndpoint"] == "MuskAPI", "title endpoint mismatch")
     require(endpoint["titleModel"] == "gpt-5.6-sol", "title model mismatch")
