@@ -73,6 +73,13 @@ def main():
     )
     require(by_name["claude-fable-5"].get("default") is False, "Fable must remain non-default")
 
+    muskapi = next(item for item in config["endpoints"]["custom"] if item["name"] == "MuskAPI")
+    require(muskapi.get("titleConvo") is True, "MuskAPI title generation disabled")
+    require(muskapi.get("titleEndpoint") == "MuskAPI", "MuskAPI title endpoint mismatch")
+    require(muskapi.get("titleModel") == "gpt-5.6-sol", "MuskAPI title model mismatch")
+    require(muskapi.get("titleMessageRole") == "user", "MuskAPI title role mismatch")
+    require("只输出标题本身" in muskapi.get("titlePrompt", ""), "MuskAPI title prompt incomplete")
+
     compose = load_yaml("compose.override.yaml")
     services = compose["services"]
     admin = services["admin-panel"]
