@@ -47,14 +47,18 @@ expect scripts/deploy-remote.exp
 
 The transport does not contain credentials. It uploads only the checked-in
 remote runner, which checks out the exact commit, runs the release test and a
-read-only production preflight, backs up the current skill, replaces only
-`SKILL.md`, restarts only `LibreChat-API`, and verifies `/`, `/api/config`, and
-the protected `/office/` boundary.
+read-only production preflight, backs up the current skill, and atomically
+replaces only `SKILL.md`. It does not restart any container. The release
+verifies the bind-mounted file hash inside `LibreChat-API`, confirms the API
+container ID, start time, and restart count are unchanged, and checks `/`,
+`/api/config`, and the protected `/office/` boundary.
 
 ## Rollback
 
-Restore `SKILL.md` from the backup directory reported in `DEPLOY_RESULT.txt`
-and restart only `LibreChat-API`.
+Restore `SKILL.md` from the backup directory reported in `DEPLOY_RESULT.txt`.
+Do not restart a container for this rollback. If a new conversation proves the
+running API cached the old skill body, report that limitation rather than
+restarting without a separately approved release.
 
 ## Production Result
 

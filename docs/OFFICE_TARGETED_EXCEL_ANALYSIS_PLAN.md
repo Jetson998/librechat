@@ -69,6 +69,8 @@ Production acceptance in a fresh normal conversation:
 
 ## Rollback
 
-Restore the timestamped production `SKILL.md` backup created by the release and
-restart only `LibreChat-API`. No database, upload, Office converter, frontend,
-or CodeAPI rollback is required.
+Restore the timestamped production `SKILL.md` backup created by the release.
+The release and rollback do not restart any container. If a fresh conversation
+shows that the running API cached the previous skill body, record the file as
+updated-but-not-active and require a separately approved restart release. No
+database, upload, Office converter, frontend, or CodeAPI rollback is required.

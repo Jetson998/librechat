@@ -63,7 +63,9 @@ const deployMarkers = [
   'expected_current_sha=',
   'PREFLIGHT_ONLY',
   'office-targeted-excel-analysis-',
-  'docker restart "$api_container"',
+  'container_sha=',
+  'api_restarted=false',
+  'api_started_before=',
   'status=deployed',
 ];
 
@@ -76,6 +78,8 @@ for (const marker of deployMarkers) {
 const unsafeDeployPatterns = [
   /docker compose down/,
   /docker system prune/,
+  /docker restart/,
+  /docker compose (?:up|restart)/,
   /LibreChat-CodeAPI/,
   /MongoDB/,
   /office-context-patch/,

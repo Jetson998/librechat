@@ -17,6 +17,12 @@ node "$release_dir/scripts/test-release.js"
 
 candidate_sha="$(sha256sum "$candidate" | awk '{print $1}')"
 current_sha="$(sha256sum "$target" | awk '{print $1}')"
+api_id_before="$(docker inspect "$api_container" --format '{{.Id}}')"
+api_started_before="$(docker inspect "$api_container" --format '{{.State.StartedAt}}')"
+api_restarts_before="$(docker inspect "$api_container" --format '{{.RestartCount}}')"
+container_current_sha="$(docker exec "$api_container" sha256sum /app/skill/office-document-parser/SKILL.md | awk '{print $1}')"
+
+test "$container_current_sha" = "$current_sha"
 
 if [[ "$current_sha" == "$candidate_sha" ]]; then
   printf 'status=already_deployed\ncurrent_sha=%s\n' "$current_sha" >"$result_file"
@@ -45,7 +51,6 @@ cp -a "$target" "$backup_dir/SKILL.md"
 applied=0
 rollback() {
   cp -a "$backup_dir/SKILL.md" "$target"
-  docker restart "$api_container" >/dev/null
 }
 
 on_error() {
@@ -66,7 +71,8 @@ mv "$next" "$target"
 applied=1
 
 test "$(sha256sum "$target" | awk '{print $1}')" = "$candidate_sha"
-docker restart "$api_container" >/dev/null
+container_sha="$(docker exec "$api_container" sha256sum /app/skill/office-document-parser/SKILL.md | awk '{print $1}')"
+test "$container_sha" = "$candidate_sha"
 
 api_ready=0
 for _ in $(seq 1 60); do
@@ -80,6 +86,12 @@ test "$api_ready" = "1"
 curl -ksSf "$main_url/" >/dev/null
 test "$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/office/")" = "401"
 test "$(docker inspect "$api_container" --format '{{.State.Running}}')" = "true"
+api_id_after="$(docker inspect "$api_container" --format '{{.Id}}')"
+api_started_after="$(docker inspect "$api_container" --format '{{.State.StartedAt}}')"
+api_restarts_after="$(docker inspect "$api_container" --format '{{.RestartCount}}')"
+test "$api_id_after" = "$api_id_before"
+test "$api_started_after" = "$api_started_before"
+test "$api_restarts_after" = "$api_restarts_before"
 
 trap - ERR
 
@@ -89,7 +101,12 @@ timestamp=$timestamp
 backup_dir=$backup_dir
 previous_sha=$current_sha
 deployed_sha=$candidate_sha
+container_sha=$container_sha
 api_running=true
+api_restarted=false
+api_container_id=$api_id_after
+api_started_at=$api_started_after
+api_restart_count=$api_restarts_after
 api_config=200
 root=200
 office=401
