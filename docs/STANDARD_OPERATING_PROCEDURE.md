@@ -8,7 +8,7 @@ Production URL:
 https://152.32.172.162.sslip.io/
 ```
 
-Last external verification in this project: 2026-07-10.
+Last external verification in this project: 2026-07-15.
 
 ## 1. Scope
 
@@ -174,6 +174,14 @@ metadata in MongoDB.
 
 5. Restart only the services that must restart.
 
+   Deployment skills are a restart-required case in this LibreChat version.
+   The API reads deployment `SKILL.md` files into an in-memory
+   `DeploymentSkillRegistry` during startup. Replacing a bind-mounted skill
+   file without restarting changes the filesystem only; it does not refresh
+   the active `skill.body`. If a release explicitly forbids restart, record it
+   as "file deployed, runtime activation pending" and do not claim that the new
+   skill behavior passed production acceptance.
+
 6. Run post-change verification:
 
    - HTTP check.
@@ -297,6 +305,10 @@ Operational rules:
   intermediates unless the user explicitly requests an export. Reopen the
   original workbook on later tool calls instead of persisting a complete text
   copy. Only requested deliverables should become download cards.
+- Treat deployment-skill disk state and runtime state as separate checks. A
+  matching host/container `SKILL.md` hash proves only that the file is mounted;
+  a fresh conversation can prove the new behavior only after the API registry
+  has been reloaded by an approved restart.
 - If a conversation returns empty content after an upload, inspect backend logs
   and saved message metadata before assuming the model is slow or that PPT
   generation is unsupported.

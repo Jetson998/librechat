@@ -839,3 +839,61 @@ Interpretation:
   boundary.
 - End-to-end Excel extraction was not re-tested in this probe because it
   requires authenticated access to the Office converter.
+
+## Targeted Excel Analysis Skill File Deployment
+
+Deployment date: 2026-07-15 HKT.
+
+Repository gate:
+
+- `cc24b4f` added the structure-first Excel skill, release tests, design note,
+  and deployment plan.
+- `c07a24c` added the repository-owned SSH transport.
+- `64c3390` removed all API restart behavior from this release.
+- `22d0ca4bfc747bcd10673198e85960075ec975d9` staged the locally verified
+  release directory directly so the private production host did not require
+  GitHub access.
+
+Production result:
+
+```text
+timestamp=20260715192958
+backup_dir=/opt/librechat/backups/office-targeted-excel-analysis-20260715192958
+previous_sha=98e97c17e1753a0b0316e95be8162f68a6adaf88b13951053539f258a8c33c21
+deployed_sha=29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a
+container_sha=29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a
+api_restarted=false
+api_restart_count=0
+root=200
+api_config=200
+office=401
+```
+
+Scope verification:
+
+- Only `/opt/librechat/skill/office-document-parser/SKILL.md` was replaced.
+- The previous file was backed up before the atomic replacement.
+- Host and bind-mounted container hashes matched the release candidate.
+- API container ID, start time, and restart count were unchanged.
+- Root and `/api/config` remained available; `/office/` remained protected by
+  the expected `401` boundary.
+
+Runtime activation finding:
+
+- LibreChat's deployment-skill implementation reads `SKILL.md` into
+  `skill.body` while `initializeDeploymentSkills()` builds an in-memory
+  `DeploymentSkillRegistry` at API startup.
+- Runtime skill lookup returns the cached registry object; no file watcher or
+  supported live-reload path was found in the deployed implementation.
+- Therefore this no-restart release updated the production filesystem but did
+  not activate the new structure-first Excel instructions in the running API.
+- Fresh-conversation acceptance is not marked passed. It must be run only after
+  a separately approved API restart reloads the deployment-skill registry.
+
+Browser harness note:
+
+- A new logged-in LibreChat conversation was opened successfully and the three
+  upload choices rendered correctly.
+- Automated fixture upload was blocked locally because the ChatGPT Chrome
+  extension did not have file-URL access. This is a test-client permission
+  limitation, not evidence of a LibreChat upload failure.
