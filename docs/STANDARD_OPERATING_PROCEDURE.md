@@ -289,6 +289,14 @@ Operational rules:
   Excel generation/modification uses `openpyxl`; generated files must be saved
   under `/mnt/data`. The skill is not always applied and must not redirect users
   to `/office/` when the current code session is missing an upload.
+- Excel analysis must use the original workbook as the fact source. For initial
+  review requests, return structure, headers, counts, key fields, and bounded
+  previews; filter and aggregate in Python before sending data into model
+  context.
+- Do not create whole-workbook TXT, Markdown, CSV, JSON, or `full_dump`
+  intermediates unless the user explicitly requests an export. Reopen the
+  original workbook on later tool calls instead of persisting a complete text
+  copy. Only requested deliverables should become download cards.
 - If a conversation returns empty content after an upload, inspect backend logs
   and saved message metadata before assuming the model is slow or that PPT
   generation is unsupported.

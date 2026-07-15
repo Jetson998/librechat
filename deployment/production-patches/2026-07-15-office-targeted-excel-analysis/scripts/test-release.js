@@ -1,0 +1,92 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
+const releaseRoot = path.resolve(__dirname, '..');
+const skillPath = path.join(
+  releaseRoot,
+  'skill',
+  'office-document-parser',
+  'SKILL.md',
+);
+const deployPath = path.join(releaseRoot, 'scripts', 'deploy.sh');
+const remoteRunnerPath = path.join(releaseRoot, 'scripts', 'run-remote-release.sh');
+const skill = fs.readFileSync(skillPath, 'utf8');
+const deploy = fs.readFileSync(deployPath, 'utf8');
+const remoteRunner = fs.readFileSync(remoteRunnerPath, 'utf8');
+
+const required = [
+  'name: office-document-parser',
+  'allowed-tools:',
+  '  - execute_code',
+  'use `openpyxl`',
+  'sheet names, row numbers, cell references',
+  'Do not convert an',
+  'file named `full_dump`',
+  'structure-first pass',
+  'Do not print every cell',
+  'Reopen the original workbook',
+  'Intermediate analysis',
+  'A complete export remains opt-in',
+  'Only create a file under `/mnt/data`',
+];
+
+for (const marker of required) {
+  if (!skill.includes(marker)) {
+    throw new Error(`Missing required skill marker: ${marker}`);
+  }
+}
+
+const forbidden = [
+  /^always-apply:/m,
+  /office_to_markdown\.py/,
+  /https?:\/\/152\.32\.172\.162/,
+  /Gap_Analysis/i,
+  /Remediation_Traceability/i,
+  /clipboard_\d+/i,
+];
+
+for (const pattern of forbidden) {
+  if (pattern.test(skill)) {
+    throw new Error(`Forbidden skill content matched: ${pattern}`);
+  }
+}
+
+const lineCount = skill.split('\n').length;
+if (lineCount > 130) {
+  throw new Error(`SKILL.md is too long: ${lineCount} lines`);
+}
+
+const deployMarkers = [
+  '/opt/librechat/skill/office-document-parser/SKILL.md',
+  'expected_current_sha=',
+  'PREFLIGHT_ONLY',
+  'office-targeted-excel-analysis-',
+  'docker restart "$api_container"',
+  'status=deployed',
+];
+
+for (const marker of deployMarkers) {
+  if (!deploy.includes(marker)) {
+    throw new Error(`Missing deploy marker: ${marker}`);
+  }
+}
+
+const unsafeDeployPatterns = [
+  /docker compose down/,
+  /docker system prune/,
+  /LibreChat-CodeAPI/,
+  /MongoDB/,
+  /office-context-patch/,
+];
+
+for (const pattern of unsafeDeployPatterns) {
+  if (pattern.test(deploy)) {
+    throw new Error(`Unexpected deploy scope matched: ${pattern}`);
+  }
+}
+
+if (!remoteRunner.includes('git -C "$checkout" checkout --detach "$release_commit"')) {
+  throw new Error('Remote runner does not pin the release commit');
+}
+
+console.log(`office targeted analysis skill passed (${lineCount} lines)`);

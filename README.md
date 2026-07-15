@@ -29,6 +29,8 @@ email/password login enabled.
 - [File pipeline simplification plan](docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md):
   the deployed `/mnt/data` upload, code execution, artifact, and download-card
   contract.
+- [Targeted Excel analysis plan](docs/OFFICE_TARGETED_EXCEL_ANALYSIS_PLAN.md):
+  structure-first workbook review without unrequested full-text dump artifacts.
 - [Empty response and regeneration recovery plan](docs/EMPTY_RESPONSE_REGENERATION_PLAN.md):
   generic handling for poisoned empty history, blank model completions, and
   no-content aborts.
