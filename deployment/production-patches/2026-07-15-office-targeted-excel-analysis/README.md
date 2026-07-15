@@ -36,14 +36,17 @@ node scripts/test-release.js
 
 ## Deployment
 
-After the release commit is pushed to `origin/main`, stage
-`scripts/run-remote-release.sh` on the production host and run:
+After the release commit is pushed to `origin/main`, run the checked-in remote
+transport from a trusted operator machine:
 
 ```sh
-scripts/run-remote-release.sh <release-commit>
+SSH_PASS='supplied out of band' \
+RELEASE_COMMIT='<release-commit>' \
+expect scripts/deploy-remote.exp
 ```
 
-The remote runner checks out the exact commit, runs the release test and a
+The transport does not contain credentials. It uploads only the checked-in
+remote runner, which checks out the exact commit, runs the release test and a
 read-only production preflight, backs up the current skill, replaces only
 `SKILL.md`, restarts only `LibreChat-API`, and verifies `/`, `/api/config`, and
 the protected `/office/` boundary.

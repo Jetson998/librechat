@@ -1,0 +1,48 @@
+set timeout 300
+
+foreach required {SSH_PASS RELEASE_COMMIT} {
+  if {![info exists env($required)] || $env($required) eq ""} {
+    puts stderr "$required is required"
+    exit 2
+  }
+}
+
+set ssh_host [expr {[info exists env(SSH_HOST)] ? $env(SSH_HOST) : "152.32.172.162"}]
+set ssh_user [expr {[info exists env(SSH_USER)] ? $env(SSH_USER) : "root"}]
+set script_dir [file dirname [file normalize [info script]]]
+set runner [file join $script_dir run-remote-release.sh]
+set remote_runner "/tmp/librechat-office-targeted-analysis-$env(RELEASE_COMMIT).sh"
+
+if {![file exists $runner]} {
+  puts stderr "remote runner not found: $runner"
+  exit 2
+}
+
+proc wait_with_password {} {
+  expect {
+    -re "(?i)are you sure you want to continue connecting" {
+      send -- "yes\r"
+      exp_continue
+    }
+    -re "(?i)password:" {
+      send -- "$::env(SSH_PASS)\r"
+      exp_continue
+    }
+    eof
+  }
+  catch wait result
+  return [lindex $result 3]
+}
+
+spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+  $runner ${ssh_user}@${ssh_host}:$remote_runner
+set scp_rc [wait_with_password]
+if {$scp_rc != 0} {
+  puts stderr "scp failed with exit code $scp_rc"
+  exit $scp_rc
+}
+
+spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+  ${ssh_user}@${ssh_host} "bash $remote_runner $env(RELEASE_COMMIT); rc=\$?; rm -f $remote_runner; exit \$rc"
+set ssh_rc [wait_with_password]
+exit $ssh_rc

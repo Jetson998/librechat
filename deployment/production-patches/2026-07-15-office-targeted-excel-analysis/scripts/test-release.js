@@ -10,9 +10,11 @@ const skillPath = path.join(
 );
 const deployPath = path.join(releaseRoot, 'scripts', 'deploy.sh');
 const remoteRunnerPath = path.join(releaseRoot, 'scripts', 'run-remote-release.sh');
+const remoteTransportPath = path.join(releaseRoot, 'scripts', 'deploy-remote.exp');
 const skill = fs.readFileSync(skillPath, 'utf8');
 const deploy = fs.readFileSync(deployPath, 'utf8');
 const remoteRunner = fs.readFileSync(remoteRunnerPath, 'utf8');
+const remoteTransport = fs.readFileSync(remoteTransportPath, 'utf8');
 
 const required = [
   'name: office-document-parser',
@@ -87,6 +89,12 @@ for (const pattern of unsafeDeployPatterns) {
 
 if (!remoteRunner.includes('git -C "$checkout" checkout --detach "$release_commit"')) {
   throw new Error('Remote runner does not pin the release commit');
+}
+
+for (const marker of ['SSH_PASS', 'RELEASE_COMMIT', 'run-remote-release.sh']) {
+  if (!remoteTransport.includes(marker)) {
+    throw new Error(`Missing remote transport marker: ${marker}`);
+  }
 }
 
 console.log(`office targeted analysis skill passed (${lineCount} lines)`);
