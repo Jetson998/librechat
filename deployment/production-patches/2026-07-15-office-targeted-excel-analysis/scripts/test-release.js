@@ -91,11 +91,20 @@ for (const pattern of unsafeDeployPatterns) {
   }
 }
 
-if (!remoteRunner.includes('git -C "$checkout" checkout --detach "$release_commit"')) {
-  throw new Error('Remote runner does not pin the release commit');
+if (!remoteRunner.includes('release_dir="$(cd')) {
+  throw new Error('Remote runner does not resolve its staged release directory');
+}
+if (/git clone|github\.com/i.test(remoteRunner)) {
+  throw new Error('Remote runner must not require GitHub access');
 }
 
-for (const marker of ['SSH_PASS', 'RELEASE_COMMIT', 'run-remote-release.sh']) {
+for (const marker of [
+  'SSH_PASS',
+  'RELEASE_COMMIT',
+  'rev-parse HEAD',
+  'scp -r',
+  'run-remote-release.sh',
+]) {
   if (!remoteTransport.includes(marker)) {
     throw new Error(`Missing remote transport marker: ${marker}`);
   }

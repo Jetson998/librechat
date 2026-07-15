@@ -45,13 +45,15 @@ RELEASE_COMMIT='<release-commit>' \
 expect scripts/deploy-remote.exp
 ```
 
-The transport does not contain credentials. It uploads only the checked-in
-remote runner, which checks out the exact commit, runs the release test and a
-read-only production preflight, backs up the current skill, and atomically
-replaces only `SKILL.md`. It does not restart any container. The release
-verifies the bind-mounted file hash inside `LibreChat-API`, confirms the API
-container ID, start time, and restart count are unchanged, and checks `/`,
-`/api/config`, and the protected `/office/` boundary.
+The transport does not contain credentials. It verifies that local `HEAD`
+exactly matches `RELEASE_COMMIT`, then uploads only that checked-in release
+directory. The production host does not need GitHub credentials or repository
+access. The staged runner executes the release test and read-only preflight,
+backs up the current skill, and atomically replaces only `SKILL.md`. It does
+not restart any container. The release verifies the bind-mounted file hash
+inside `LibreChat-API`, confirms the API container ID, start time, and restart
+count are unchanged, and checks `/`, `/api/config`, and the protected
+`/office/` boundary.
 
 ## Rollback
 

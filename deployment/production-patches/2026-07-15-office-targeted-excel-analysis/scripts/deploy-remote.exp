@@ -10,11 +10,25 @@ foreach required {SSH_PASS RELEASE_COMMIT} {
 set ssh_host [expr {[info exists env(SSH_HOST)] ? $env(SSH_HOST) : "152.32.172.162"}]
 set ssh_user [expr {[info exists env(SSH_USER)] ? $env(SSH_USER) : "root"}]
 set script_dir [file dirname [file normalize [info script]]]
-set runner [file join $script_dir run-remote-release.sh]
-set remote_runner "/tmp/librechat-office-targeted-analysis-$env(RELEASE_COMMIT).sh"
+set release_dir [file normalize [file join $script_dir ..]]
+set repo_root [file normalize [file join $release_dir .. .. ..]]
+set runner [file join $release_dir scripts run-remote-release.sh]
+set remote_stage "/tmp/librechat-office-targeted-analysis-$env(RELEASE_COMMIT)"
 
 if {![file exists $runner]} {
   puts stderr "remote runner not found: $runner"
+  exit 2
+}
+
+set local_head [string trim [exec git -C $repo_root rev-parse HEAD]]
+if {$local_head ne $env(RELEASE_COMMIT)} {
+  puts stderr "local HEAD does not match RELEASE_COMMIT"
+  exit 2
+}
+
+set release_files [glob -nocomplain -directory $release_dir *]
+if {[llength $release_files] == 0} {
+  puts stderr "release directory is empty"
   exit 2
 }
 
@@ -34,8 +48,16 @@ proc wait_with_password {} {
   return [lindex $result 3]
 }
 
-spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
-  $runner ${ssh_user}@${ssh_host}:$remote_runner
+spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+  ${ssh_user}@${ssh_host} "mkdir -p $remote_stage"
+set mkdir_rc [wait_with_password]
+if {$mkdir_rc != 0} {
+  puts stderr "remote stage creation failed with exit code $mkdir_rc"
+  exit $mkdir_rc
+}
+
+spawn scp -r -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+  {*}$release_files ${ssh_user}@${ssh_host}:$remote_stage/
 set scp_rc [wait_with_password]
 if {$scp_rc != 0} {
   puts stderr "scp failed with exit code $scp_rc"
@@ -43,6 +65,6 @@ if {$scp_rc != 0} {
 }
 
 spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
-  ${ssh_user}@${ssh_host} "bash $remote_runner $env(RELEASE_COMMIT); rc=\$?; rm -f $remote_runner; exit \$rc"
+  ${ssh_user}@${ssh_host} "bash $remote_stage/scripts/run-remote-release.sh $env(RELEASE_COMMIT)"
 set ssh_rc [wait_with_password]
 exit $ssh_rc

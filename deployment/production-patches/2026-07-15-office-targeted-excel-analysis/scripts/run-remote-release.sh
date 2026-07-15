@@ -2,17 +2,15 @@
 set -Eeuo pipefail
 
 release_commit="${1:?release commit is required}"
-repository="https://github.com/Jetson998/librechat.git"
-stage_parent="$(mktemp -d /tmp/librechat-office-targeted-analysis.XXXXXX)"
-checkout="$stage_parent/repository"
-release_dir="$checkout/deployment/production-patches/2026-07-15-office-targeted-excel-analysis"
+release_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-git clone --filter=blob:none --no-checkout "$repository" "$checkout"
-git -C "$checkout" checkout --detach "$release_commit"
-test "$(git -C "$checkout" rev-parse HEAD)" = "$release_commit"
+test -n "$release_commit"
+test -f "$release_dir/skill/office-document-parser/SKILL.md"
+test -f "$release_dir/scripts/deploy.sh"
 
 node "$release_dir/scripts/test-release.js"
 PREFLIGHT_ONLY=true "$release_dir/scripts/deploy.sh" "$release_dir"
 "$release_dir/scripts/deploy.sh" "$release_dir"
 
+printf 'release_commit=%s\n' "$release_commit"
 cat "$release_dir/DEPLOY_RESULT.txt"
