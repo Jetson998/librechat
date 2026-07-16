@@ -20,7 +20,7 @@ if {![file exists $runner]} {
   exit 2
 }
 
-set local_head [string trim [exec git -C $repo_root rev-parse HEAD]]
+set local_head [string trim [exec git -C $repo_root rev-parse HEAD 2>@stderr]]
 if {$local_head ne $env(RELEASE_COMMIT)} {
   puts stderr "local HEAD does not match RELEASE_COMMIT"
   exit 2

@@ -144,6 +144,10 @@ fileConfig:
     require("SSH_PASS" in transport, "SSH password transport missing")
     require("RELEASE_COMMIT" in transport, "release commit guard missing")
     require("local HEAD does not match RELEASE_COMMIT" in transport, "HEAD guard missing")
+    require(
+        "rev-parse HEAD 2>@stderr" in transport,
+        "PTY-safe git stderr redirect missing",
+    )
 
     combined = "\n".join(
         path.read_text(encoding="utf-8")
