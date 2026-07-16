@@ -18,6 +18,9 @@ email/password login enabled.
   handling, and incident response.
 - [Development standards](docs/DEVELOPMENT_STANDARDS.md): code, patch,
   verification, security, rollback, and production deployment standards.
+- [Generic project development workflow](docs/GENERIC_PROJECT_DEVELOPMENT_WORKFLOW.md):
+  reusable template for GitHub, coding, verification, deployment, and rollback
+  standards in any project.
 - [Release checklist](docs/RELEASE_CHECKLIST.md): short pre-change and
   post-change checklist for small production updates.
 - [Development and GitHub workflow](docs/DEVELOPMENT_AND_GITHUB_WORKFLOW.md):
