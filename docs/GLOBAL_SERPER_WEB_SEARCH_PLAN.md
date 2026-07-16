@@ -2,8 +2,9 @@
 
 Date: 2026-07-16
 
-Status: design gate amended after read-only production preflight; production
-not yet changed.
+Status: initial credential/model release deployed; browser acceptance is
+blocked by the explicit agents capability allowlist. See
+`GLOBAL_SERPER_WEB_SEARCH_CAPABILITY_FIX_PLAN.md` for the follow-up gate.
 
 ## Problem
 
