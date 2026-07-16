@@ -28,6 +28,8 @@ email/password login enabled.
   Admin service architecture, repository gate, verification, and rollback.
 - [Admin Panel production release](deployment/production-patches/2026-07-11-admin-panel/README.md):
   deployed image, proxy configuration, release runner, and production result.
+- [Odysseia login-page release](deployment/production-patches/2026-07-17-odysseia-login-page/README.md):
+  runtime login-page skin, deployment runner, verification, and rollback.
 - [Admin Panel Simplified Chinese plan](docs/ADMIN_PANEL_ZH_CN_PLAN.md): pinned
   upstream source, bilingual UI design, verification, license, and rollback.
 - [File pipeline simplification plan](docs/FILE_PIPELINE_SIMPLIFICATION_PLAN.md):
