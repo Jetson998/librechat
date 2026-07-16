@@ -2,7 +2,8 @@
 
 Date: 2026-07-16
 
-Status: design gate; production not yet changed.
+Status: design gate amended after read-only production preflight; production
+not yet changed.
 
 ## Problem
 
@@ -14,6 +15,9 @@ Verified production behavior:
 
 - the Admin Panel base configuration contains a Serper environment-variable
   reference with the API key accidentally embedded in the variable name;
+- the same base Admin Config document contains `overrides.modelSpecs.list`
+  entries for `gpt-5.6-sol` and `claude-fable-5`; neither entry currently has
+  web search enabled, so this active override cannot be deleted or ignored;
 - the user-side web-search dialog therefore asks for search and scraper keys;
 - a new `GPT-5.6-Sol` conversation reports that no web-search tool is
   available and produces no `web_search` call.
@@ -30,8 +34,9 @@ This release will change only:
 - `/opt/librechat/.env` by setting `SERPER_API_KEY` without printing it;
 - `/opt/librechat/librechat.yaml` by adding the global Serper configuration and
   enabling `webSearch: true` for the `gpt-5.6-sol` model spec;
-- the base Admin Config override by removing its stale `webSearch` section so
-  the committed YAML configuration is authoritative;
+- the base Admin Config override by removing only its stale `webSearch`
+  section and setting `webSearch: true` only on its unique
+  `gpt-5.6-sol` model-spec entry;
 - the `LibreChat-API` container, which must be force-recreated to receive the
   environment variable and reload YAML.
 
@@ -40,7 +45,9 @@ It will not change:
 - frontend bundles, upload menus, Office routes, deployment-skill files,
   CodeAPI, model endpoints, conversation data, user files, or generated
   artifacts;
-- `claude-fable-5` or any other model spec;
+- the existing `overrides.modelSpecs` object, labels, presets,
+  `claude-fable-5`, or any other model-spec field beyond the one targeted GPT
+  web-search flag;
 - Serper account settings or billing.
 
 Known restart side effect:
@@ -78,6 +85,9 @@ The recovered value remains only in shell memory and the protected production
 2. Run read-only production preflight:
    - confirm exactly one base Admin Config document contains the current
      `webSearch` override;
+   - confirm exactly one active Admin Config document contains
+     `modelSpecs.list`, that it is the same base document, and that it contains
+     exactly one `gpt-5.6-sol` entry;
    - confirm the current provider values and supported malformed-reference
      shape;
    - confirm `gpt-5.6-sol` exists exactly once in production YAML;
@@ -86,8 +96,11 @@ The recovered value remains only in shell memory and the protected production
    under `/opt/librechat/backups/global-serper-web-search-<timestamp>/` with
    restrictive permissions.
 4. Write `SERPER_API_KEY` to `.env`, structurally merge the global web-search
-   YAML, set `webSearch: true` only on `gpt-5.6-sol`, and remove the stale base
-   Admin Config `webSearch` override.
+   YAML, set `webSearch: true` only on YAML's `gpt-5.6-sol`, then atomically
+   remove the stale base Admin Config `webSearch` override and set
+   `webSearch: true` only on the matching Admin Config model entry. Preserve
+   the complete remaining Admin Config document byte-for-byte in the rollback
+   backup and field-for-field in the targeted update.
 5. Force-recreate only the Compose `api` service.
 6. Verify the new API container has a non-empty `SERPER_API_KEY` without
    printing it, the resolved config uses Serper, HTTP checks pass, CodeAPI stays
@@ -115,6 +128,9 @@ The rollback must not alter conversations, files, or other containers.
 - Resolved global configuration uses `searchProvider: serper`,
   `scraperProvider: serper`, and `serperApiKey: ${SERPER_API_KEY}`.
 - `gpt-5.6-sol` resolves with `webSearch: true`.
+- The Admin Config still contains both existing model specs; only
+  `gpt-5.6-sol.webSearch` is added, while `claude-fable-5` and all unrelated
+  override fields remain unchanged.
 - A normal user is not asked to enter a personal Serper key.
 - A new conversation produces a successful `web_search` tool call and real
   source links.
