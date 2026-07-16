@@ -18,6 +18,8 @@ email/password login enabled.
   handling, and incident response.
 - [Release checklist](docs/RELEASE_CHECKLIST.md): short pre-change and
   post-change checklist for small production updates.
+- [Development and GitHub workflow](docs/DEVELOPMENT_AND_GITHUB_WORKFLOW.md):
+  new-computer setup, SSH GitHub access, commit/push flow, and production gate.
 - [Production verification log](docs/PRODUCTION_VERIFICATION.md): current
   externally verified facts about the live site.
 - [Admin Panel deployment plan](docs/ADMIN_PANEL_DEPLOYMENT_PLAN.md): official
