@@ -18,11 +18,16 @@ The release changes only:
 - `/opt/librechat/.env` (`SERPER_API_KEY`, value never printed);
 - `/opt/librechat/librechat.yaml` (global Serper configuration and
   `webSearch: true` on `gpt-5.6-sol` only);
-- the base Admin Config document's stale `overrides.webSearch` section;
+- the base Admin Config document: remove its stale `overrides.webSearch`
+  section and set `webSearch: true` only on the existing `gpt-5.6-sol` model
+  entry;
 - the Compose `api` service, which is force-recreated once.
 
 It does not change frontend assets, Office routes, CodeAPI, deployment-skill
-files, provider endpoints, conversations, uploads, or other model specs.
+files, provider endpoints, conversations, uploads, the existing Admin Config
+model list, or any non-target model-spec field. The runner hashes the complete
+remaining Admin Config `overrides` object before and after the targeted update
+and rolls back if anything else changes.
 
 The required API recreation will activate the already-deployed 2026-07-15
 `office-document-parser` file that is currently present on disk but cached out
@@ -77,6 +82,9 @@ approved 40-character hexadecimal shape. It never prints the key.
 - `SERPER_API_KEY` is non-empty inside `LibreChat-API` without revealing it.
 - YAML resolves to Serper search and scrape, with `gpt-5.6-sol.webSearch=true`.
 - The stale Admin Config `webSearch` override is absent.
+- The existing Admin Config model list remains present and its unique
+  `gpt-5.6-sol` entry has `webSearch: true`; a normalized preservation hash
+  proves all unrelated override fields stayed unchanged.
 - Direct Serper search and scrape probes succeed.
 - Root and `/api/config` return `200`.
 - `/office/` remains `401`.

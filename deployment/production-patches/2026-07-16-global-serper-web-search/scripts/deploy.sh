@@ -108,6 +108,35 @@ wait_for_url() {
   return 1
 }
 
+admin_gpt_web_search_state() {
+  docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
+    const docs = db.configs.find({"overrides.modelSpecs": {$exists: true}}).toArray();
+    if (docs.length !== 1) quit(2);
+    const list = docs[0]?.overrides?.modelSpecs?.list;
+    if (!Array.isArray(list)) quit(3);
+    const matches = list.filter((item) => item?.name === "gpt-5.6-sol");
+    if (matches.length !== 1) quit(4);
+    if (matches[0].webSearch === true) print("true");
+    else if (matches[0].webSearch === false) print("false");
+    else print("absent");
+  ' | tail -n 1 | tr -d '[:space:]'
+}
+
+admin_override_preserved_sha() {
+  docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
+    const doc = db.configs.findOne({"overrides.modelSpecs": {$exists: true}});
+    if (!doc) quit(2);
+    const overrides = EJSON.parse(EJSON.stringify(doc.overrides || {}));
+    delete overrides.webSearch;
+    const list = overrides?.modelSpecs?.list;
+    if (!Array.isArray(list)) quit(3);
+    const matches = list.filter((item) => item?.name === "gpt-5.6-sol");
+    if (matches.length !== 1) quit(4);
+    delete matches[0].webSearch;
+    print(EJSON.stringify(overrides));
+  ' | tail -n 1 | sha256sum | awk '{print $1}'
+}
+
 web_override_count="$(
   docker exec "$mongo_container" mongosh --quiet LibreChat --eval \
     'print(db.configs.countDocuments({"overrides.webSearch": {$exists: true}}))' \
@@ -121,7 +150,22 @@ model_override_count="$(
     'print(db.configs.countDocuments({"overrides.modelSpecs": {$exists: true}}))' \
     | tail -n 1 | tr -d '[:space:]'
 )"
-test "$model_override_count" = "0"
+test "$model_override_count" = "1"
+
+joint_override_count="$(
+  docker exec "$mongo_container" mongosh --quiet LibreChat --eval \
+    'print(db.configs.countDocuments({"overrides.webSearch": {$exists: true}, "overrides.modelSpecs": {$exists: true}}))' \
+    | tail -n 1 | tr -d '[:space:]'
+)"
+test "$joint_override_count" = "$web_override_count"
+
+admin_model_state="$(admin_gpt_web_search_state)"
+case "$admin_model_state" in
+  true|false|absent) ;;
+  *) exit 1 ;;
+esac
+
+admin_override_preserved_sha_before="$(admin_override_preserved_sha)"
 
 current_reference=""
 if [[ "$web_override_count" = "1" ]]; then
@@ -177,6 +221,7 @@ nginx_id_before="$(docker inspect "$nginx_container" --format '{{.Id}}')"
 already_configured=false
 if cmp -s "$config_file" "$candidate_config" \
   && [[ "$web_override_count" = "0" ]] \
+  && [[ "$admin_model_state" = "true" ]] \
   && docker exec "$api_container" sh -lc 'test -n "$SERPER_API_KEY"'; then
   already_configured=true
 fi
@@ -186,6 +231,8 @@ if [[ "${PREFLIGHT_ONLY:-false}" = "true" ]]; then
   printf 'secret_source=%s\n' "$secret_source"
   printf 'web_override_count=%s\n' "$web_override_count"
   printf 'model_override_count=%s\n' "$model_override_count"
+  printf 'admin_model_state=%s\n' "$admin_model_state"
+  printf 'admin_override_preserved_sha=%s\n' "$admin_override_preserved_sha_before"
   printf 'config_sha_before=%s\n' "$config_sha_before"
   printf 'candidate_sha=%s\n' "$candidate_sha"
   printf 'already_configured=%s\n' "$already_configured"
@@ -200,6 +247,9 @@ config_sha=$config_sha_before
 api_container_id=$api_id_before
 api_started_at=$api_started_before
 api_restart_count=$api_restarts_before
+admin_model_override_count=$model_override_count
+admin_gpt_web_search=true
+admin_override_preserved_sha=$admin_override_preserved_sha_before
 EOF
   cat "$result_file"
   unset serper_key
@@ -211,17 +261,12 @@ chmod 700 "$backup_dir"
 cp -a "$env_file" "$backup_dir/env"
 cp -a "$config_file" "$backup_dir/librechat.yaml"
 
-if [[ "$web_override_count" = "1" ]]; then
-  docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
-    const doc = db.configs.findOne({"overrides.webSearch": {$exists: true}});
-    if (!doc) quit(2);
-    print(EJSON.stringify(doc));
-  ' | tail -n 1 >"$backup_dir/config-doc.ejson"
-  chmod 600 "$backup_dir/config-doc.ejson"
-else
-  : >"$backup_dir/config-doc.absent"
-  chmod 600 "$backup_dir/config-doc.absent"
-fi
+docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
+  const docs = db.configs.find({"overrides.modelSpecs": {$exists: true}}).toArray();
+  if (docs.length !== 1) quit(2);
+  print(EJSON.stringify(docs[0]));
+' | tail -n 1 >"$backup_dir/config-doc.ejson"
+chmod 600 "$backup_dir/config-doc.ejson"
 
 applied=0
 api_recreated=0
@@ -273,24 +318,30 @@ chmod --reference="$config_file" "$next_config"
 chown --reference="$config_file" "$next_config"
 mv "$next_config" "$config_file"
 
-if [[ "$web_override_count" = "1" ]]; then
-  test "$(
-    docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
-      const doc = db.configs.findOne({"overrides.webSearch": {$exists: true}});
-      if (!doc) quit(2);
-      const result = db.configs.updateOne(
-        {_id: doc._id},
-        {
-          $unset: {"overrides.webSearch": ""},
-          $inc: {configVersion: 1},
-          $set: {updatedAt: new Date()}
-        }
-      );
-      if (result.matchedCount !== 1) quit(3);
-      print("removed");
-    ' | tail -n 1 | tr -d '[:space:]'
-  )" = "removed"
-fi
+test "$(
+  docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
+    const docs = db.configs.find({"overrides.modelSpecs": {$exists: true}}).toArray();
+    if (docs.length !== 1) quit(2);
+    const doc = docs[0];
+    const list = doc?.overrides?.modelSpecs?.list;
+    if (!Array.isArray(list)) quit(3);
+    if (list.filter((item) => item?.name === "gpt-5.6-sol").length !== 1) quit(4);
+    const result = db.configs.updateOne(
+      {_id: doc._id},
+      {
+        $unset: {"overrides.webSearch": ""},
+        $set: {
+          "overrides.modelSpecs.list.$[target].webSearch": true,
+          updatedAt: new Date()
+        },
+        $inc: {configVersion: 1}
+      },
+      {arrayFilters: [{"target.name": "gpt-5.6-sol"}]}
+    );
+    if (result.matchedCount !== 1 || result.modifiedCount !== 1) quit(5);
+    print("updated");
+  ' | tail -n 1 | tr -d '[:space:]'
+)" = "updated"
 
 api_recreated=1
 cd "$root_dir"
@@ -318,6 +369,17 @@ test "$(
     'print(db.configs.countDocuments({"overrides.webSearch": {$exists: true}}))' \
     | tail -n 1 | tr -d '[:space:]'
 )" = "0"
+
+test "$(
+  docker exec "$mongo_container" mongosh --quiet LibreChat --eval \
+    'print(db.configs.countDocuments({"overrides.modelSpecs": {$exists: true}}))' \
+    | tail -n 1 | tr -d '[:space:]'
+)" = "1"
+
+test "$(admin_gpt_web_search_state)" = "true"
+
+admin_override_preserved_sha_after="$(admin_override_preserved_sha)"
+test "$admin_override_preserved_sha_after" = "$admin_override_preserved_sha_before"
 
 docker exec -w /app/api "$api_container" node -e '
   const fs = require("node:fs");
@@ -391,6 +453,9 @@ api_restart_count_before=$api_restarts_before
 api_restart_count_after=$api_restarts_after
 codeapi_unchanged=true
 nginx_unchanged=true
+admin_model_override_count=$model_override_count
+admin_gpt_web_search=true
+admin_override_preserved_sha=$admin_override_preserved_sha_after
 office_skill_sha=$expected_office_skill_sha
 office_skill_runtime_loaded=true
 serper_search_probe=ok

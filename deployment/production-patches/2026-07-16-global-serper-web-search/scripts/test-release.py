@@ -134,11 +134,30 @@ fileConfig:
         "rollback",
         "LibreChat-CodeAPI",
         "LibreChat-NGINX",
+        "joint_override_count",
+        "admin_model_state",
+        "admin_override_preserved_sha_before",
+        '"overrides.modelSpecs.list.$[target].webSearch": true',
+        'arrayFilters: [{"target.name": "gpt-5.6-sol"}]',
+        "admin_override_preserved_sha_after",
         "expected_office_skill_sha",
         "[deploymentSkills] Loaded",
         "/office/",
     ):
         require(marker in deploy, f"deployment guard missing: {marker}")
+    require(
+        'test "$model_override_count" = "1"' in deploy,
+        "Admin model override preflight must require exactly one document",
+    )
+    require(
+        'test "$admin_override_preserved_sha_after" = '
+        '"$admin_override_preserved_sha_before"' in deploy,
+        "Admin override preservation hash check missing",
+    )
+    require(
+        'test "$model_override_count" = "0"' not in deploy,
+        "stale zero-model-override assumption remains",
+    )
 
     transport = transport_script.read_text(encoding="utf-8")
     require("SSH_PASS" in transport, "SSH password transport missing")
