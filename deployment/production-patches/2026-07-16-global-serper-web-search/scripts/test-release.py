@@ -149,6 +149,20 @@ fileConfig:
         "PTY-safe git stderr redirect missing",
     )
 
+    runner = runner_script.read_text(encoding="utf-8")
+    require(
+        runner.count('bash "$release_dir/scripts/deploy.sh"') == 2,
+        "remote runner must invoke both deploy phases through bash",
+    )
+    require(
+        re.search(
+            r'(?m)^(?:PREFLIGHT_ONLY=true )?"\$release_dir/scripts/deploy\.sh"',
+            runner,
+        )
+        is None,
+        "remote runner still depends on the deploy script executable bit",
+    )
+
     combined = "\n".join(
         path.read_text(encoding="utf-8")
         for path in ROOT.rglob("*")

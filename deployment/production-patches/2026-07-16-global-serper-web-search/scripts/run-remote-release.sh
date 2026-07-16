@@ -9,8 +9,8 @@ test -f "$release_dir/scripts/deploy.sh"
 test -f "$release_dir/scripts/test-release.py"
 
 python3 "$release_dir/scripts/test-release.py"
-PREFLIGHT_ONLY=true "$release_dir/scripts/deploy.sh" "$release_dir"
-"$release_dir/scripts/deploy.sh" "$release_dir"
+PREFLIGHT_ONLY=true bash "$release_dir/scripts/deploy.sh" "$release_dir"
+bash "$release_dir/scripts/deploy.sh" "$release_dir"
 
 printf 'release_commit=%s\n' "$release_commit"
 cat "$release_dir/DEPLOY_RESULT.txt"
