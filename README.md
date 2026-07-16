@@ -16,6 +16,8 @@ email/password login enabled.
 - [Standard operating procedure](docs/STANDARD_OPERATING_PROCEDURE.md): daily
   checks, release workflow, rollback, model/provider changes, file-upload
   handling, and incident response.
+- [Development standards](docs/DEVELOPMENT_STANDARDS.md): code, patch,
+  verification, security, rollback, and production deployment standards.
 - [Release checklist](docs/RELEASE_CHECKLIST.md): short pre-change and
   post-change checklist for small production updates.
 - [Development and GitHub workflow](docs/DEVELOPMENT_AND_GITHUB_WORKFLOW.md):

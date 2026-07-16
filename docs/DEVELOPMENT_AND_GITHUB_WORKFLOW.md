@@ -18,6 +18,9 @@ This document is the portable operating guide for using this repository from a
 new computer. It covers local setup, GitHub access, routine development, and
 the production-change gate.
 
+For coding, patching, verification, security, rollback, and deployment
+standards, read `docs/DEVELOPMENT_STANDARDS.md` first.
+
 ## 1. Non-Negotiable Rules
 
 - Do not apply production hotfixes that are not represented in this repository.
