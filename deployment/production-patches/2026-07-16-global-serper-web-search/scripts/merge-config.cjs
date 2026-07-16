@@ -34,6 +34,18 @@ function assertSemanticContract(before, after) {
     serperApiKey: '${SERPER_API_KEY}',
   };
 
+  const capabilities = expected?.endpoints?.agents?.capabilities;
+  if (!Array.isArray(capabilities)) {
+    throw new Error('endpoints.agents.capabilities is missing');
+  }
+  const capabilityMatches = capabilities.filter((item) => item === 'web_search').length;
+  if (capabilityMatches > 1) {
+    throw new Error('endpoints.agents.capabilities contains duplicate web_search entries');
+  }
+  if (capabilityMatches === 0) {
+    capabilities.push('web_search');
+  }
+
   const specs = expected?.modelSpecs?.list;
   if (!Array.isArray(specs)) {
     throw new Error('modelSpecs.list is missing');
@@ -90,6 +102,71 @@ if (existingWebSearch) {
     throw new Error('top-level modelSpecs section is missing');
   }
   lines.splice(modelSpecsIndex, 0, ...webSearchLines);
+}
+
+const endpointsBounds = topLevelBlockBounds(lines, 'endpoints');
+if (!endpointsBounds) {
+  throw new Error('top-level endpoints section is missing');
+}
+
+const agentsMatches = [];
+for (let index = endpointsBounds.start + 1; index < endpointsBounds.end; index += 1) {
+  const match = lines[index].match(/^(\s*)agents:\s*(?:#.*)?$/);
+  if (match) agentsMatches.push({ index, indent: match[1].length });
+}
+if (agentsMatches.length !== 1) {
+  throw new Error(`expected one endpoints.agents block, found ${agentsMatches.length}`);
+}
+
+const agents = agentsMatches[0];
+let agentsEnd = endpointsBounds.end;
+for (let index = agents.index + 1; index < endpointsBounds.end; index += 1) {
+  const line = lines[index];
+  if (!line.trim()) continue;
+  const indent = line.match(/^\s*/)[0].length;
+  if (indent <= agents.indent) {
+    agentsEnd = index;
+    break;
+  }
+}
+
+const agentsPropertyIndent = ' '.repeat(agents.indent + 2);
+const capabilitiesMatches = [];
+for (let index = agents.index + 1; index < agentsEnd; index += 1) {
+  if (lines[index].startsWith(`${agentsPropertyIndent}capabilities:`)) {
+    capabilitiesMatches.push(index);
+  }
+}
+if (capabilitiesMatches.length !== 1) {
+  throw new Error(
+    `expected one endpoints.agents.capabilities property, found ${capabilitiesMatches.length}`,
+  );
+}
+
+const capabilitiesIndex = capabilitiesMatches[0];
+const capabilityItemIndent = `${agentsPropertyIndent}  `;
+let capabilitiesEnd = agentsEnd;
+for (let index = capabilitiesIndex + 1; index < agentsEnd; index += 1) {
+  const line = lines[index];
+  if (!line.trim()) continue;
+  const indent = line.match(/^\s*/)[0].length;
+  if (indent <= agents.indent + 2) {
+    capabilitiesEnd = index;
+    break;
+  }
+}
+
+const webSearchCapabilityLines = [];
+for (let index = capabilitiesIndex + 1; index < capabilitiesEnd; index += 1) {
+  if (/^\s*-\s*["']?web_search["']?\s*(?:#.*)?$/.test(lines[index])) {
+    webSearchCapabilityLines.push(index);
+  }
+}
+if (webSearchCapabilityLines.length > 1) {
+  throw new Error('endpoints.agents.capabilities contains duplicate web_search entries');
+}
+if (webSearchCapabilityLines.length === 0) {
+  lines.splice(capabilitiesEnd, 0, `${capabilityItemIndent}- web_search`);
 }
 
 const modelBounds = topLevelBlockBounds(lines, 'modelSpecs');

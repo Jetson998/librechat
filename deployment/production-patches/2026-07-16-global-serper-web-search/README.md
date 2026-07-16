@@ -2,7 +2,8 @@
 
 Date: 2026-07-16
 
-Status: implementation prepared; not yet deployed.
+Status: initial credential/model release deployed; capability follow-up
+prepared and awaiting deployment.
 
 ## Reason
 
@@ -11,17 +12,23 @@ for personal API keys and a real conversation receives no `web_search` tool.
 The saved base override contains a malformed environment-variable reference,
 so LibreChat cannot resolve system-defined Serper authentication.
 
+The first production release fixed those gates, but browser acceptance exposed
+one more runtime gate: the explicit non-empty
+`endpoints.agents.capabilities` allowlist omitted `web_search`, so ToolService
+filtered the otherwise valid tool.
+
 ## Production Scope
 
 The release changes only:
 
 - `/opt/librechat/.env` (`SERPER_API_KEY`, value never printed);
 - `/opt/librechat/librechat.yaml` (global Serper configuration and
-  `webSearch: true` on `gpt-5.6-sol` only);
+  `webSearch: true` on `gpt-5.6-sol` only, plus one `web_search` entry in the
+  existing agents capability allowlist);
 - the base Admin Config document: remove its stale `overrides.webSearch`
   section and set `webSearch: true` only on the existing `gpt-5.6-sol` model
   entry;
-- the Compose `api` service, which is force-recreated once.
+- the Compose `api` service, which is force-recreated with `--no-deps`.
 
 It does not change frontend assets, Office routes, CodeAPI, deployment-skill
 files, provider endpoints, conversations, uploads, the existing Admin Config
@@ -49,6 +56,7 @@ scripts/test-release.py
 
 - The system Serper key is available to all users through the API container.
 - `gpt-5.6-sol` receives the LibreChat `web_search` tool by default.
+- The explicit agents capability allowlist permits `web_search`.
 - Users no longer need to enter personal Serper credentials.
 - Search and scrape both use Serper.
 
@@ -81,6 +89,8 @@ approved 40-character hexadecimal shape. It never prints the key.
 - Host and container YAML hashes match.
 - `SERPER_API_KEY` is non-empty inside `LibreChat-API` without revealing it.
 - YAML resolves to Serper search and scrape, with `gpt-5.6-sol.webSearch=true`.
+- YAML resolves `endpoints.agents.capabilities` with exactly one
+  `web_search` entry.
 - The stale Admin Config `webSearch` override is absent.
 - The existing Admin Config model list remains present and its unique
   `gpt-5.6-sol` entry has `webSearch: true`; a normalized preservation hash
@@ -88,7 +98,8 @@ approved 40-character hexadecimal shape. It never prints the key.
 - Direct Serper search and scrape probes succeed.
 - Root and `/api/config` return `200`.
 - `/office/` remains `401`.
-- `LibreChat-CodeAPI` and `LibreChat-NGINX` are not recreated.
+- `LibreChat-RAG-API`, `LibreChat-CodeAPI`, and `LibreChat-NGINX` IDs and start
+  times do not change during the capability follow-up.
 - The unchanged `office-document-parser` file still hashes to
   `29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a`,
   and the new API startup loads deployment skills successfully.
@@ -110,4 +121,25 @@ is changed.
 
 ## Production Result
 
-Pending deployment and browser acceptance.
+Initial deployment:
+
+- release commit:
+  `1b0018d89a848e31d02bbda7be5f5ab2d4b8eb04`;
+- timestamp: `20260716234101`;
+- backup: `/opt/librechat/backups/global-serper-web-search-20260716234101`;
+- config SHA changed from
+  `f07f13bd5de22b380c4c2cf377316e9e0e5fc254b9f9ea8e003468098a60e94b`
+  to
+  `0b17950db7562b2196cee5423f987785508f595c2059d3608c58da3ce0eab004`;
+- Serper search and scrape probes passed; root and `/api/config` returned 200;
+  `/office/` returned 401;
+- Admin Config preservation SHA remained
+  `90caa491b7e0d8d9a0ce83b4a20f438afdb79f4a4e1cc4843028c38ca0d24701`;
+- browser conversation
+  `https://152.32.172.162.sslip.io/c/167958ed-e533-444c-bac6-79a61bdce781`
+  still received no `web_search` tool;
+- the initial `docker compose up` also recreated RAG-API through its dependency
+  graph. RAG-API returned healthy, and the follow-up changes both deploy and
+  rollback commands to `--no-deps`.
+
+Capability follow-up deployment and browser acceptance are pending.

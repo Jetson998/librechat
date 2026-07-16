@@ -8,6 +8,7 @@ config_file="$root_dir/librechat.yaml"
 compose_file="$root_dir/compose.yaml"
 api_container="LibreChat-API"
 codeapi_container="LibreChat-CodeAPI"
+rag_container="LibreChat-RAG-API"
 nginx_container="LibreChat-NGINX"
 mongo_container="chat-mongodb"
 office_skill_host="$root_dir/skill/office-document-parser/SKILL.md"
@@ -34,7 +35,12 @@ done
 python3 "$test_script"
 docker exec -w /app/api "$api_container" node -e 'require("js-yaml")'
 
-for container in "$api_container" "$codeapi_container" "$nginx_container" "$mongo_container"; do
+for container in \
+  "$api_container" \
+  "$codeapi_container" \
+  "$rag_container" \
+  "$nginx_container" \
+  "$mongo_container"; do
   test "$(docker inspect "$container" --format '{{.State.Running}}')" = "true"
 done
 
@@ -137,6 +143,14 @@ admin_override_preserved_sha() {
   ' | tail -n 1 | sha256sum | awk '{print $1}'
 }
 
+admin_config_document_sha() {
+  docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
+    const doc = db.configs.findOne({"overrides.modelSpecs": {$exists: true}});
+    if (!doc) quit(2);
+    print(EJSON.stringify(doc));
+  ' | tail -n 1 | sha256sum | awk '{print $1}'
+}
+
 web_override_count="$(
   docker exec "$mongo_container" mongosh --quiet LibreChat --eval \
     'print(db.configs.countDocuments({"overrides.webSearch": {$exists: true}}))' \
@@ -166,6 +180,7 @@ case "$admin_model_state" in
 esac
 
 admin_override_preserved_sha_before="$(admin_override_preserved_sha)"
+admin_config_sha_before="$(admin_config_document_sha)"
 
 current_reference=""
 if [[ "$web_override_count" = "1" ]]; then
@@ -211,12 +226,17 @@ build_candidate "$candidate_config" "$candidate_twice"
 cmp -s "$candidate_config" "$candidate_twice"
 
 config_sha_before="$(sha256sum "$config_file" | awk '{print $1}')"
+env_sha_before="$(sha256sum "$env_file" | awk '{print $1}')"
 candidate_sha="$(sha256sum "$candidate_config" | awk '{print $1}')"
 api_id_before="$(docker inspect "$api_container" --format '{{.Id}}')"
 api_started_before="$(docker inspect "$api_container" --format '{{.State.StartedAt}}')"
 api_restarts_before="$(docker inspect "$api_container" --format '{{.RestartCount}}')"
 codeapi_id_before="$(docker inspect "$codeapi_container" --format '{{.Id}}')"
+codeapi_started_before="$(docker inspect "$codeapi_container" --format '{{.State.StartedAt}}')"
+rag_id_before="$(docker inspect "$rag_container" --format '{{.Id}}')"
+rag_started_before="$(docker inspect "$rag_container" --format '{{.State.StartedAt}}')"
 nginx_id_before="$(docker inspect "$nginx_container" --format '{{.Id}}')"
+nginx_started_before="$(docker inspect "$nginx_container" --format '{{.State.StartedAt}}')"
 
 already_configured=false
 if cmp -s "$config_file" "$candidate_config" \
@@ -233,6 +253,8 @@ if [[ "${PREFLIGHT_ONLY:-false}" = "true" ]]; then
   printf 'model_override_count=%s\n' "$model_override_count"
   printf 'admin_model_state=%s\n' "$admin_model_state"
   printf 'admin_override_preserved_sha=%s\n' "$admin_override_preserved_sha_before"
+  printf 'admin_config_sha=%s\n' "$admin_config_sha_before"
+  printf 'env_sha_before=%s\n' "$env_sha_before"
   printf 'config_sha_before=%s\n' "$config_sha_before"
   printf 'candidate_sha=%s\n' "$candidate_sha"
   printf 'already_configured=%s\n' "$already_configured"
@@ -247,9 +269,17 @@ config_sha=$config_sha_before
 api_container_id=$api_id_before
 api_started_at=$api_started_before
 api_restart_count=$api_restarts_before
+env_sha=$env_sha_before
 admin_model_override_count=$model_override_count
 admin_gpt_web_search=true
 admin_override_preserved_sha=$admin_override_preserved_sha_before
+admin_config_sha=$admin_config_sha_before
+codeapi_container_id=$codeapi_id_before
+codeapi_started_at=$codeapi_started_before
+rag_container_id=$rag_id_before
+rag_started_at=$rag_started_before
+nginx_container_id=$nginx_id_before
+nginx_started_at=$nginx_started_before
 EOF
   cat "$result_file"
   unset serper_key
@@ -270,6 +300,8 @@ chmod 600 "$backup_dir/config-doc.ejson"
 
 applied=0
 api_recreated=0
+env_changed=false
+admin_config_changed=false
 
 restore_config_document() {
   if [[ ! -f "$backup_dir/config-doc.ejson" ]]; then
@@ -292,7 +324,7 @@ rollback() {
   restore_config_document
   if [[ "$api_recreated" = "1" ]]; then
     cd "$root_dir"
-    docker compose up -d --force-recreate api >/dev/null 2>&1
+    docker compose up -d --no-deps --force-recreate api >/dev/null 2>&1
     wait_for_url "$main_url/api/config" 120 || true
   fi
 }
@@ -309,7 +341,10 @@ on_error() {
 trap on_error ERR
 
 applied=1
-write_env_value SERPER_API_KEY "$serper_key"
+if [[ "$secret_source" = "migrated_admin_reference" ]]; then
+  write_env_value SERPER_API_KEY "$serper_key"
+  env_changed=true
+fi
 unset serper_key
 
 next_config="$config_file.next-$timestamp"
@@ -318,34 +353,37 @@ chmod --reference="$config_file" "$next_config"
 chown --reference="$config_file" "$next_config"
 mv "$next_config" "$config_file"
 
-test "$(
-  docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
-    const docs = db.configs.find({"overrides.modelSpecs": {$exists: true}}).toArray();
-    if (docs.length !== 1) quit(2);
-    const doc = docs[0];
-    const list = doc?.overrides?.modelSpecs?.list;
-    if (!Array.isArray(list)) quit(3);
-    if (list.filter((item) => item?.name === "gpt-5.6-sol").length !== 1) quit(4);
-    const result = db.configs.updateOne(
-      {_id: doc._id},
-      {
-        $unset: {"overrides.webSearch": ""},
-        $set: {
-          "overrides.modelSpecs.list.$[target].webSearch": true,
-          updatedAt: new Date()
+if [[ "$web_override_count" = "1" || "$admin_model_state" != "true" ]]; then
+  test "$(
+    docker exec "$mongo_container" mongosh --quiet LibreChat --eval '
+      const docs = db.configs.find({"overrides.modelSpecs": {$exists: true}}).toArray();
+      if (docs.length !== 1) quit(2);
+      const doc = docs[0];
+      const list = doc?.overrides?.modelSpecs?.list;
+      if (!Array.isArray(list)) quit(3);
+      if (list.filter((item) => item?.name === "gpt-5.6-sol").length !== 1) quit(4);
+      const result = db.configs.updateOne(
+        {_id: doc._id},
+        {
+          $unset: {"overrides.webSearch": ""},
+          $set: {
+            "overrides.modelSpecs.list.$[target].webSearch": true,
+            updatedAt: new Date()
+          },
+          $inc: {configVersion: 1}
         },
-        $inc: {configVersion: 1}
-      },
-      {arrayFilters: [{"target.name": "gpt-5.6-sol"}]}
-    );
-    if (result.matchedCount !== 1 || result.modifiedCount !== 1) quit(5);
-    print("updated");
-  ' | tail -n 1 | tr -d '[:space:]'
-)" = "updated"
+        {arrayFilters: [{"target.name": "gpt-5.6-sol"}]}
+      );
+      if (result.matchedCount !== 1 || result.modifiedCount !== 1) quit(5);
+      print("updated");
+    ' | tail -n 1 | tr -d '[:space:]'
+  )" = "updated"
+  admin_config_changed=true
+fi
 
 api_recreated=1
 cd "$root_dir"
-docker compose up -d --force-recreate api >/dev/null
+docker compose up -d --no-deps --force-recreate api >/dev/null
 
 wait_for_url "$main_url/api/config" 120
 wait_for_url "$main_url/" 30
@@ -353,6 +391,7 @@ test "$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/office/")" = "401"
 
 test "$(docker inspect "$api_container" --format '{{.State.Running}}')" = "true"
 test "$(docker inspect "$codeapi_container" --format '{{.State.Running}}')" = "true"
+test "$(docker inspect "$rag_container" --format '{{.State.Running}}')" = "true"
 test "$(docker inspect "$nginx_container" --format '{{.State.Running}}')" = "true"
 docker exec "$api_container" sh -lc 'test -n "$SERPER_API_KEY"'
 test "$(docker exec "$api_container" sha256sum "$office_skill_container" | awk '{print $1}')" = "$expected_office_skill_sha"
@@ -360,9 +399,13 @@ deployment_skill_log="$(docker logs "$api_container" 2>&1 | grep -F '[deployment
 test -n "$deployment_skill_log"
 
 host_config_sha="$(sha256sum "$config_file" | awk '{print $1}')"
+env_sha_after="$(sha256sum "$env_file" | awk '{print $1}')"
 container_config_sha="$(docker exec "$api_container" sha256sum /app/librechat.yaml | awk '{print $1}')"
 test "$host_config_sha" = "$candidate_sha"
 test "$container_config_sha" = "$candidate_sha"
+if [[ "$env_changed" = "false" ]]; then
+  test "$env_sha_after" = "$env_sha_before"
+fi
 
 test "$(
   docker exec "$mongo_container" mongosh --quiet LibreChat --eval \
@@ -380,6 +423,10 @@ test "$(admin_gpt_web_search_state)" = "true"
 
 admin_override_preserved_sha_after="$(admin_override_preserved_sha)"
 test "$admin_override_preserved_sha_after" = "$admin_override_preserved_sha_before"
+admin_config_sha_after="$(admin_config_document_sha)"
+if [[ "$admin_config_changed" = "false" ]]; then
+  test "$admin_config_sha_after" = "$admin_config_sha_before"
+fi
 
 docker exec -w /app/api "$api_container" node -e '
   const fs = require("node:fs");
@@ -391,6 +438,8 @@ docker exec -w /app/api "$api_container" node -e '
   const specs = config?.modelSpecs?.list ?? [];
   const matches = specs.filter((spec) => spec?.name === "gpt-5.6-sol");
   if (matches.length !== 1 || matches[0].webSearch !== true) process.exit(5);
+  const capabilities = config?.endpoints?.agents?.capabilities ?? [];
+  if (capabilities.filter((item) => item === "web_search").length !== 1) process.exit(6);
 ' >/dev/null
 
 docker exec "$api_container" node -e '
@@ -427,12 +476,20 @@ api_id_after="$(docker inspect "$api_container" --format '{{.Id}}')"
 api_started_after="$(docker inspect "$api_container" --format '{{.State.StartedAt}}')"
 api_restarts_after="$(docker inspect "$api_container" --format '{{.RestartCount}}')"
 codeapi_id_after="$(docker inspect "$codeapi_container" --format '{{.Id}}')"
+codeapi_started_after="$(docker inspect "$codeapi_container" --format '{{.State.StartedAt}}')"
+rag_id_after="$(docker inspect "$rag_container" --format '{{.Id}}')"
+rag_started_after="$(docker inspect "$rag_container" --format '{{.State.StartedAt}}')"
 nginx_id_after="$(docker inspect "$nginx_container" --format '{{.Id}}')"
+nginx_started_after="$(docker inspect "$nginx_container" --format '{{.State.StartedAt}}')"
 
 test "$api_id_after" != "$api_id_before"
 test "$api_started_after" != "$api_started_before"
 test "$codeapi_id_after" = "$codeapi_id_before"
+test "$codeapi_started_after" = "$codeapi_started_before"
+test "$rag_id_after" = "$rag_id_before"
+test "$rag_started_after" = "$rag_started_before"
 test "$nginx_id_after" = "$nginx_id_before"
+test "$nginx_started_after" = "$nginx_started_before"
 
 trap - ERR
 
@@ -441,6 +498,9 @@ status=deployed
 timestamp=$timestamp
 backup_dir=$backup_dir
 secret_source=$secret_source
+env_changed=$env_changed
+env_sha_before=$env_sha_before
+env_sha_after=$env_sha_after
 config_sha_before=$config_sha_before
 config_sha_after=$host_config_sha
 container_config_sha=$container_config_sha
@@ -452,10 +512,20 @@ api_started_after=$api_started_after
 api_restart_count_before=$api_restarts_before
 api_restart_count_after=$api_restarts_after
 codeapi_unchanged=true
+codeapi_container_id=$codeapi_id_after
+codeapi_started_at=$codeapi_started_after
+rag_unchanged=true
+rag_container_id=$rag_id_after
+rag_started_at=$rag_started_after
 nginx_unchanged=true
+nginx_container_id=$nginx_id_after
+nginx_started_at=$nginx_started_after
+admin_config_changed=$admin_config_changed
 admin_model_override_count=$model_override_count
 admin_gpt_web_search=true
 admin_override_preserved_sha=$admin_override_preserved_sha_after
+admin_config_sha_before=$admin_config_sha_before
+admin_config_sha_after=$admin_config_sha_after
 office_skill_sha=$expected_office_skill_sha
 office_skill_runtime_loaded=true
 serper_search_probe=ok

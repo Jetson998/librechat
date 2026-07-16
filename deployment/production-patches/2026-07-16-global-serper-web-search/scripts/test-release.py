@@ -53,6 +53,18 @@ def main():
 
     fixture = """version: 1.2.8
 endpoints:
+  agents:
+    allowedProviders:
+      - anthropic
+      - MuskAPI
+    capabilities:
+      - deferred_tools
+      - execute_code
+      - file_search
+      - artifacts
+      - tools
+      - skills
+      - context
   custom:
     - name: MuskAPI
 modelSpecs:
@@ -108,6 +120,20 @@ fileConfig:
             },
             "global Serper config mismatch",
         )
+        require(
+            config["endpoints"]["agents"]["capabilities"]
+            == [
+                "deferred_tools",
+                "execute_code",
+                "file_search",
+                "artifacts",
+                "tools",
+                "skills",
+                "context",
+                "web_search",
+            ],
+            "agents web_search capability mismatch",
+        )
         specs = config["modelSpecs"]["list"]
         by_name = {item["name"]: item for item in specs}
         require(by_name["gpt-5.6-sol"].get("webSearch") is True, "GPT webSearch missing")
@@ -125,7 +151,7 @@ fileConfig:
     deploy = deploy_script.read_text(encoding="utf-8")
     for marker in (
         "SERPER_API_KEY",
-        "docker compose up -d --force-recreate api",
+        "docker compose up -d --no-deps --force-recreate api",
         "overrides.webSearch",
         "config-doc.ejson",
         "serper_search_probe=ok",
@@ -133,6 +159,7 @@ fileConfig:
         "PREFLIGHT_ONLY",
         "rollback",
         "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
         "LibreChat-NGINX",
         "joint_override_count",
         "admin_model_state",
@@ -140,6 +167,10 @@ fileConfig:
         '"overrides.modelSpecs.list.$[target].webSearch": true',
         'arrayFilters: [{"target.name": "gpt-5.6-sol"}]',
         "admin_override_preserved_sha_after",
+        "admin_config_document_sha",
+        "env_changed=false",
+        "admin_config_changed=false",
+        'capabilities.filter((item) => item === "web_search").length !== 1',
         "expected_office_skill_sha",
         "[deploymentSkills] Loaded",
         "/office/",
@@ -157,6 +188,28 @@ fileConfig:
     require(
         'test "$model_override_count" = "0"' not in deploy,
         "stale zero-model-override assumption remains",
+    )
+    require(
+        deploy.count("docker compose up -d --no-deps --force-recreate api") == 2,
+        "deploy and rollback must both isolate the API service",
+    )
+    require(
+        "docker compose up -d --force-recreate api" not in deploy,
+        "dependency-recreating Compose command remains",
+    )
+    require(
+        'if [[ "$secret_source" = "migrated_admin_reference" ]]' in deploy,
+        "existing environment key rewrite guard missing",
+    )
+    require(
+        'if [[ "$web_override_count" = "1" || "$admin_model_state" != "true" ]]'
+        in deploy,
+        "Admin Config no-op guard missing",
+    )
+    require(
+        'test "$rag_id_after" = "$rag_id_before"' in deploy
+        and 'test "$rag_started_after" = "$rag_started_before"' in deploy,
+        "RAG container preservation checks missing",
     )
 
     transport = transport_script.read_text(encoding="utf-8")
