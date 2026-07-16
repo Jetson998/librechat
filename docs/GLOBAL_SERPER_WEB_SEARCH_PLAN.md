@@ -37,10 +37,20 @@ This release will change only:
 
 It will not change:
 
-- frontend bundles, upload menus, Office routes, deployment skills, CodeAPI,
-  model endpoints, conversation data, user files, or generated artifacts;
+- frontend bundles, upload menus, Office routes, deployment-skill files,
+  CodeAPI, model endpoints, conversation data, user files, or generated
+  artifacts;
 - `claude-fable-5` or any other model spec;
 - Serper account settings or billing.
+
+Known restart side effect:
+
+- the API recreation will load the already-deployed 2026-07-15
+  `office-document-parser` file into the in-memory deployment-skill registry;
+- this release must verify the expected skill hash
+  `29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a`
+  and record that its previously pending runtime activation occurred;
+- the Serper release must not modify that skill file.
 
 ## Secret Migration
 
@@ -81,7 +91,8 @@ The recovered value remains only in shell memory and the protected production
 5. Force-recreate only the Compose `api` service.
 6. Verify the new API container has a non-empty `SERPER_API_KEY` without
    printing it, the resolved config uses Serper, HTTP checks pass, CodeAPI stays
-   healthy, and `/office/` remains protected.
+   healthy, `/office/` remains protected, and the expected deployment skill is
+   loaded from its unchanged bind-mounted file.
 7. Run a new browser conversation that requests current football news and
    confirm a `web_search` tool call plus source links.
 
@@ -109,5 +120,8 @@ The rollback must not alter conversations, files, or other containers.
   source links.
 - Root and `/api/config` return `200`; `/office/` returns `401`; CodeAPI remains
   healthy.
+- The unchanged `office-document-parser` file has the expected hash and the
+  recreated API logs a successful deployment-skill load. Runtime activation is
+  recorded separately from Serper behavior.
 - Backup paths, hashes, container metadata, and browser acceptance are recorded
   in the release README and `docs/PRODUCTION_VERIFICATION.md`.
