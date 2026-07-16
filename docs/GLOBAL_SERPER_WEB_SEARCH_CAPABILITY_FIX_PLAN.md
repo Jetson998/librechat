@@ -2,7 +2,7 @@
 
 Date: 2026-07-16
 
-Status: design gate; follow-up implementation not yet deployed.
+Status: completed, deployed, and browser-accepted on 2026-07-17.
 
 ## Current Production State
 
@@ -96,3 +96,19 @@ On failure after the YAML write:
 - API returns healthy after recreation.
 - RAG-API, CodeAPI, and Nginx container IDs and start times do not change.
 - The release result and browser conversation URL are committed and pushed.
+
+## Completion Result
+
+- Implementation commit:
+  `c6ece337e0add11ea845d1ba32afe0333c000b06`.
+- Production deployment timestamp: `20260717004307`.
+- Only the API service was recreated with `--no-deps`; RAG-API, CodeAPI, and
+  Nginx remained unchanged.
+- Resolved configuration contains `web_search` exactly once in
+  `endpoints.agents.capabilities`.
+- Serper search and scrape probes passed; root and `/api/config` returned 200;
+  `/office/` remained protected with 401.
+- Fresh browser acceptance conversation:
+  `https://152.32.172.162.sslip.io/c/2d6e3538-faeb-4883-80ae-a6ded86b0f2b`.
+  It displayed `Searched the web - 13 sources` and returned three current
+  football-news items with clickable links and a retrieval date.

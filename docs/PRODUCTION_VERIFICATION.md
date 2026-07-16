@@ -897,3 +897,60 @@ Browser harness note:
 - Automated fixture upload was blocked locally because the ChatGPT Chrome
   extension did not have file-URL access. This is a test-client permission
   limitation, not evidence of a LibreChat upload failure.
+
+## Global Serper Web Search
+
+Final deployment date: 2026-07-17 HKT.
+
+Repository gates:
+
+- `1b0018d89a848e31d02bbda7be5f5ab2d4b8eb04` deployed the system Serper
+  credential/configuration and enabled web search on the existing
+  `gpt-5.6-sol` model spec while preserving unrelated Admin Config fields.
+- `02d33e1` recorded the follow-up design after browser acceptance identified
+  the explicit agents capability allowlist as the remaining blocker.
+- `c6ece337e0add11ea845d1ba32afe0333c000b06` added `web_search` exactly once
+  to that allowlist and restricted recreation to the API service with
+  `--no-deps`.
+
+Production result:
+
+```text
+timestamp=20260717004307
+backup_dir=/opt/librechat/backups/global-serper-web-search-20260717004307
+env_changed=false
+admin_config_changed=false
+config_sha_before=0b17950db7562b2196cee5423f987785508f595c2059d3608c58da3ce0eab004
+config_sha_after=f67ddcfdd45df03ad3f2cbab0c2cd5f3fcb24bfb08627a09f7483113e5cd1e10
+container_config_sha=f67ddcfdd45df03ad3f2cbab0c2cd5f3fcb24bfb08627a09f7483113e5cd1e10
+api_recreated=true
+codeapi_unchanged=true
+rag_unchanged=true
+nginx_unchanged=true
+serper_search_probe=ok
+serper_scrape_probe=ok
+root=200
+api_config=200
+office=401
+```
+
+Scope verification:
+
+- Existing `.env` and Admin Config values were reused without modification;
+  no credential value was printed or committed.
+- Only `LibreChat-API` was recreated. RAG-API, CodeAPI, and Nginx IDs and start
+  times remained unchanged.
+- The Office deployment skill remained unchanged at SHA
+  `29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a`
+  and loaded successfully after API startup.
+- The earlier browser conversation
+  `https://152.32.172.162.sslip.io/c/167958ed-e533-444c-bac6-79a61bdce781`
+  correctly captured the pre-fix failure: five runtime tools and no
+  `web_search`.
+- Fresh browser conversation
+  `https://152.32.172.162.sslip.io/c/2d6e3538-faeb-4883-80ae-a6ded86b0f2b`
+  displayed `Searched the web - 13 sources` and completed with three current
+  football-news items, clickable links, and retrieval date `2026-07-16`.
+
+Acceptance: passed. Global Serper-backed web search is available to normal
+users of `gpt-5.6-sol` without a personal API-key prompt.

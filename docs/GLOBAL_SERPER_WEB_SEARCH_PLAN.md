@@ -2,9 +2,9 @@
 
 Date: 2026-07-16
 
-Status: initial credential/model release deployed; browser acceptance is
-blocked by the explicit agents capability allowlist. See
-`GLOBAL_SERPER_WEB_SEARCH_CAPABILITY_FIX_PLAN.md` for the follow-up gate.
+Status: completed and browser-accepted on 2026-07-17. The explicit agents
+capability allowlist follow-up is documented in
+`GLOBAL_SERPER_WEB_SEARCH_CAPABILITY_FIX_PLAN.md`.
 
 ## Problem
 

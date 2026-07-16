@@ -2,8 +2,7 @@
 
 Date: 2026-07-16
 
-Status: initial credential/model release deployed; capability follow-up
-prepared and awaiting deployment.
+Status: deployed and browser-accepted on 2026-07-17.
 
 ## Reason
 
@@ -103,8 +102,10 @@ approved 40-character hexadecimal shape. It never prints the key.
 - The unchanged `office-document-parser` file still hashes to
   `29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a`,
   and the new API startup loads deployment skills successfully.
-- A browser conversation must still confirm a real `web_search` tool call and
-  source links before the release is marked fully accepted.
+- Browser conversation
+  `https://152.32.172.162.sslip.io/c/2d6e3538-faeb-4883-80ae-a6ded86b0f2b`
+  confirmed a real `web_search` call over 13 sources and returned three current
+  news items with clickable links and the retrieval date.
 
 ## Rollback
 
@@ -142,4 +143,29 @@ Initial deployment:
   graph. RAG-API returned healthy, and the follow-up changes both deploy and
   rollback commands to `--no-deps`.
 
-Capability follow-up deployment and browser acceptance are pending.
+Capability follow-up:
+
+- release commit:
+  `c6ece337e0add11ea845d1ba32afe0333c000b06`;
+- timestamp: `20260717004307`;
+- backup:
+  `/opt/librechat/backups/global-serper-web-search-20260717004307`;
+- config SHA changed from
+  `0b17950db7562b2196cee5423f987785508f595c2059d3608c58da3ce0eab004`
+  to
+  `f67ddcfdd45df03ad3f2cbab0c2cd5f3fcb24bfb08627a09f7483113e5cd1e10`,
+  matching the API-container config SHA;
+- `.env` and Admin Config were unchanged; the existing Admin Config
+  preservation SHA remained
+  `90caa491b7e0d8d9a0ce83b4a20f438afdb79f4a4e1cc4843028c38ca0d24701`;
+- only `LibreChat-API` was recreated with `--no-deps`; RAG-API, CodeAPI, and
+  Nginx container IDs and start times remained unchanged;
+- Serper search and scrape probes passed; root and `/api/config` returned 200;
+  `/office/` returned 401;
+- the unchanged Office skill retained SHA
+  `29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a`
+  and loaded at API startup;
+- fresh browser conversation
+  `https://152.32.172.162.sslip.io/c/2d6e3538-faeb-4883-80ae-a6ded86b0f2b`
+  displayed `Searched the web - 13 sources` and returned three clickable
+  football-news links with retrieval date `2026-07-16`.
