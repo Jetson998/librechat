@@ -92,6 +92,44 @@ Browser verification after deployment:
 4. Confirm the login form is usable.
 5. Sign in and confirm the chat app is not restyled as a login page.
 
+## Production Result
+
+Deployment completed on 2026-07-17 from repository commit
+`447a17633510762f1c773336c2f921e7a30ea974`. The implementation commit was
+pushed to `origin/main` before the production write.
+
+Because the production host could not clone the GitHub repository over HTTPS
+without credentials, the release directory was staged from a local
+`git archive` of the same pushed commit and then executed on the host.
+
+```text
+timestamp=20260717115644
+backup_dir=/opt/librechat/backups/odysseia-login-20260717115644
+api_image=registry.librechat.ai/danny-avila/librechat-dev-api:latest
+api_container_before=d8939269903e6ededc46118f4a02ee5d3a5351a6e5f17d89ce2882c8c952e685
+api_container_after=d67f514c468ebbd81d7a5f637dfd283f4a66876712a6585fb8f96586e77da680
+nginx_container_unchanged=true
+codeapi_container_unchanged=true
+mongo_container_unchanged=true
+compose_mount=/opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro
+public_index_sha256=6227db29a08eff17d6674cd0ae7225fde944076660a2d92d0c372b594cc5fd24
+public_script_sha256=2471b8a06d8c08081eb63c43e69d7efbf7e2648e7ff5839a143b5980b1ca50d5
+public_upload_script_sha256=a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9
+office_status=401
+codeapi_health=healthy
+patch_marker_count=1
+```
+
+External post-deploy checks confirmed:
+
+- Public HTML contains `odysseia-login-page-patch`.
+- Public HTML still contains `business-upload-label-patch`.
+- `/odysseia-login.js` contains `Odýsseia Studio`,
+  `Start your Agent Studio.`, `font-weight: 400`, and the video URL.
+- `/business-upload-menu.js` still contains `Office文件上传`,
+  `图片上传`, and `文件提取文字上传`.
+- `/office/` still returns HTTP `401`.
+
 ## Rollback
 
 Restore the timestamped backup directory printed in `DEPLOY_RESULT.txt`:
