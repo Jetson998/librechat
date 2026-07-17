@@ -7,6 +7,22 @@ const extractApiErrorMock = vi.fn(async (_response: Response, fallback: string) 
   throw new Error(fallback);
 });
 
+vi.mock('zod', () => {
+  const schema = {
+    email: () => schema,
+    max: () => schema,
+    min: () => schema,
+  };
+  return {
+    z: {
+      boolean: () => schema,
+      nativeEnum: () => schema,
+      object: () => schema,
+      string: () => schema,
+    },
+  };
+});
+
 vi.mock('./utils/api', () => ({
   apiFetch: (path: string, init?: RequestInit) => apiFetchMock(path, init),
   extractApiError: (response: Response, fallback: string) =>
