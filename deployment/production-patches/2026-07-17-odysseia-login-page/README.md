@@ -197,6 +197,40 @@ Live browser verification at `1280x720` confirmed:
 - Injected script URL is
   `/odysseia-login.js?v=2cf28a290fe5`, preventing reuse of the old patch.
 
+### Branding And Field Refinement Production Result
+
+Branding, English field placeholders, label cleanup, and the pale cyan submit
+button were implemented in commit `1345a24`. The final typography proportions
+were implemented in commit `e1b0700`. Both commits were pushed to `origin/main`
+before production deployment.
+
+```text
+timestamp=20260717134029
+backup_dir=/opt/librechat/backups/odysseia-login-20260717134029
+api_container_before=ae487813e075a9cb06f688d475ccced3a9097e2b2de24919c808718ed677ca4c
+api_container_after=d2b4d2ab501305d4c529f69f825799c889c614bbfabe5810a758562ee45b516f
+nginx_container_unchanged=true
+codeapi_container_unchanged=true
+mongo_container_unchanged=true
+public_index_sha256=a7895e0a6956634ac61b683203a501f50a376bec216a1f424424e69d30fedaf8
+public_script_sha256=51657fddfea282aef42818e1a21d8750693be95704b51dce684c6dae5002c846
+public_upload_script_sha256=a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9
+script_cache_key=51657fddfea2
+office_status=401
+codeapi_health=healthy
+patch_marker_count=1
+```
+
+Live browser verification at `1280x720` confirmed:
+
+- Upper-left `Odýsseia Studio` wordmark is approximately `30.72px`.
+- Login-card heading is approximately `25.6px` and fits on one line.
+- The card contains no duplicate Odysseia eyebrow branding.
+- Inputs show `Email` and `Password`; floating labels are not visible.
+- Submit button uses the approved pale cyan glow gradient.
+- Exactly one login panel remains active.
+- Injected script URL is `/odysseia-login.js?v=51657fddfea2`.
+
 ## Rollback
 
 Restore the timestamped backup directory printed in `DEPLOY_RESULT.txt`:
