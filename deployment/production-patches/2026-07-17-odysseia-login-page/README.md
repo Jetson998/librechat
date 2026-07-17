@@ -154,6 +154,41 @@ External post-deploy checks confirmed:
   `图片上传`, and `文件提取文字上传`.
 - `/office/` still returns HTTP `401`.
 
+### Layout Correction Production Result
+
+The single-panel layout correction was implemented in commit `ffae4cf` and the
+content-hash cache-busting follow-up was implemented in commit `91c67f4`. Both
+commits were pushed to `origin/main` before their production deployments.
+
+Final production deployment:
+
+```text
+timestamp=20260717125455
+backup_dir=/opt/librechat/backups/odysseia-login-20260717125455
+api_container_before=262ed51c1026191114685d00a907ab69dd361725273a632687c15ffc5adde90b
+api_container_after=ae487813e075a9cb06f688d475ccced3a9097e2b2de24919c808718ed677ca4c
+nginx_container_unchanged=true
+codeapi_container_unchanged=true
+mongo_container_unchanged=true
+public_index_sha256=3ddc9446031821e1f9a461a3490f60fe393f9f8fe4eaeb855be0fbd1adfc854b
+public_script_sha256=2cf28a290fe55dca811dc3eba334e3cf173a7d4c8816506cc989ff7185cfd0b8
+public_upload_script_sha256=a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9
+script_cache_key=2cf28a290fe5
+office_status=401
+codeapi_health=healthy
+patch_marker_count=1
+```
+
+Live browser verification at `1280x720` confirmed:
+
+- Exactly one `.odysseia-login-panel`, attached to the form card `DIV`.
+- Panel width `408px`, right gap approximately `77px`, vertically centered.
+- Shell direction `row` and desktop alignment `flex-end`.
+- Original LibreChat shell siblings hidden.
+- Title fits without clipping.
+- Injected script URL is
+  `/odysseia-login.js?v=2cf28a290fe5`, preventing reuse of the old patch.
+
 ## Rollback
 
 Restore the timestamped backup directory printed in `DEPLOY_RESULT.txt`:
