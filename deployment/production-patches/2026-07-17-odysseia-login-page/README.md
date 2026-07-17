@@ -14,6 +14,8 @@ odysseia-login-page-patch -> /odysseia-login.js
 
 - The unauthenticated email/password login page uses the Odysseia visual style.
 - The page keeps the current right-side dark glass login panel direction.
+- The LibreChat logo/header/footer shell is hidden while the login skin is
+  active, leaving one clean login card instead of nested panels.
 - The heading is `Start your Agent Studio.` with normal `font-weight: 400`.
 - The panel contains subtle mythology line art instead of the removed planet
   logo.
@@ -91,6 +93,26 @@ Browser verification after deployment:
 3. Confirm `Start your Agent Studio.` is not bold.
 4. Confirm the login form is usable.
 5. Sign in and confirm the chat app is not restyled as a login page.
+
+## 2026-07-17 Layout Correction
+
+Observed production defect:
+
+- The runtime panel finder kept walking past the form card and decorated both
+  the card and its parent `main` after MutationObserver reruns.
+- This produced a tall outer dark panel, a second nested login card, clipped
+  title text, and the original LibreChat logo above the panel.
+
+Correction:
+
+- Select only the form's direct card container.
+- Remove stale Odysseia decorations from every non-target ancestor before each
+  render.
+- Hide the original LibreChat login shell siblings while the skin is active.
+- Constrain `main` to the card width so the single card remains vertically
+  centered and right-aligned on desktop; mobile remains centered.
+- Override LibreChat's inherited `flex-col` shell direction so desktop
+  `justify-content: flex-end` acts on the horizontal axis as intended.
 
 ## Production Result
 

@@ -37,11 +37,24 @@
     body.odysseia-login-active [data-odysseia-login-shell="true"] {
       position: relative !important;
       display: flex !important;
+      flex-direction: row !important;
       min-height: 100vh !important;
       width: 100% !important;
       align-items: center !important;
       justify-content: flex-end !important;
       padding: 32px clamp(28px, 6vw, 96px) !important;
+      background: transparent !important;
+    }
+
+    body.odysseia-login-active [data-odysseia-login-shell="true"] > :not(main) {
+      display: none !important;
+    }
+
+    body.odysseia-login-active [data-odysseia-login-shell="true"] > main {
+      display: block !important;
+      flex: 0 1 408px !important;
+      min-height: 0 !important;
+      width: min(100%, 408px) !important;
       background: transparent !important;
     }
 
@@ -114,6 +127,7 @@
 
     body.odysseia-login-active .odysseia-login-panel {
       position: relative !important;
+      box-sizing: border-box !important;
       width: min(100%, 408px) !important;
       max-width: 408px !important;
       margin: 0 !important;
@@ -437,19 +451,34 @@
       return null;
     }
 
-    let node = anchor.closest('form') || anchor.parentElement;
-    let best = node;
-    for (let depth = 0; node && depth < 8; depth += 1) {
-      if (node === document.body || node.id === 'root') {
-        break;
-      }
-      const rect = node.getBoundingClientRect();
-      if (rect.width >= 260 && rect.width <= 640 && rect.height >= 160) {
-        best = node;
-      }
-      node = node.parentElement;
+    const form = anchor.closest('form');
+    if (!form) {
+      return anchor.parentElement;
     }
-    return best;
+
+    const card = form.parentElement;
+    if (!card || card === document.body || card.id === 'root') {
+      return form;
+    }
+    return card;
+  };
+
+  const clearPanelDecorations = (keepPanel = null) => {
+    document.querySelectorAll('.odysseia-login-panel').forEach((element) => {
+      if (element === keepPanel) {
+        return;
+      }
+      element.classList.remove('odysseia-login-panel');
+      element.querySelectorAll(':scope > .odysseia-panel-mythic, :scope > .odysseia-login-header').forEach((child) => {
+        child.remove();
+      });
+    });
+
+    document.querySelectorAll('[data-odysseia-original-heading="true"]').forEach((heading) => {
+      if (!keepPanel || !keepPanel.contains(heading)) {
+        delete heading.dataset.odysseiaOriginalHeading;
+      }
+    });
   };
 
   const markShell = (panel) => {
@@ -508,9 +537,7 @@
     }
     if (!active) {
       clearShellMarks();
-      document
-        .querySelectorAll('.odysseia-login-panel')
-        .forEach((element) => element.classList.remove('odysseia-login-panel'));
+      clearPanelDecorations();
       if (document.title === 'Odýsseia Login') {
         document.title = 'LibreChat';
       }
@@ -532,6 +559,7 @@
 
     ensureBackdrop();
     setActive(true);
+    clearPanelDecorations(panel);
     markShell(panel);
     decoratePanel(panel);
     document.title = 'Odýsseia Login';
@@ -562,7 +590,7 @@
 
   window.__odysseiaLoginPatch = Object.freeze({
     id: PATCH_ID,
-    version: '2026-07-17',
+    version: '2026-07-17.1',
     videoUrl: VIDEO_URL,
     title: 'Start your Agent Studio.',
   });

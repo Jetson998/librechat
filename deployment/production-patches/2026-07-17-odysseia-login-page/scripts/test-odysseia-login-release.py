@@ -75,11 +75,17 @@ def test_script_contract():
         "odysseia-login-active",
         "odysseia-login-panel",
         "odysseia-panel-mythic",
+        "clearPanelDecorations(panel)",
+        "const card = form.parentElement",
+        "flex-direction: row !important",
+        '[data-odysseia-login-shell="true"] > :not(main)',
+        '[data-odysseia-login-shell="true"] > main',
         "odysseia-login-page-patch",
         "__odysseiaLoginPatchInstalled",
         "https://image01.vidu.zone/vidu/landing-page/login-bg.c7293340.mp4",
         "input[type=\"password\"]",
         "MutationObserver",
+        "version: '2026-07-17.1'",
     )
     for value in required:
         require(value in script, f"missing login patch contract value: {value}")
