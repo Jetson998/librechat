@@ -102,7 +102,7 @@
       gap: 9px;
       color: rgba(255, 255, 255, 0.96);
       font-family: Georgia, "Times New Roman", serif;
-      font-size: clamp(20px, 1.8vw, 28px);
+      font-size: clamp(26px, 2.4vw, 34px);
       font-weight: 400;
       letter-spacing: 0;
       line-height: 1;
@@ -110,7 +110,7 @@
     }
 
     #${BACKDROP_ID} .odysseia-wordmark::before {
-      width: 22px;
+      width: 26px;
       height: 1px;
       background: rgba(186, 230, 253, 0.9);
       box-shadow: 0 0 12px rgba(125, 211, 252, 0.8);
@@ -316,7 +316,7 @@
       width: 100%;
       margin: 0 auto;
       color: #f8fafc;
-      font-size: clamp(25px, 2.3vw, 30px);
+      font-size: clamp(23px, 2vw, 27px);
       font-weight: 400;
       line-height: 1.12;
       letter-spacing: 0;
@@ -440,7 +440,7 @@
       }
 
       .odysseia-login-title {
-        font-size: clamp(22px, 6.4vw, 28px);
+        font-size: clamp(21px, 6vw, 26px);
       }
     }
 
