@@ -58,8 +58,12 @@ const { buildPipeline, formatResult, parseQuery } = require(path.resolve(moduleP
     costIncomplete: result.summary.costIncomplete,
   }));
 })()
-  .finally(() => mongoose.disconnect())
-  .catch((error) => {
+  .then(async () => {
+    await mongoose.disconnect();
+    process.exit(0);
+  })
+  .catch(async (error) => {
     console.error(error);
-    process.exitCode = 1;
+    await mongoose.disconnect().catch(() => {});
+    process.exit(1);
   });
