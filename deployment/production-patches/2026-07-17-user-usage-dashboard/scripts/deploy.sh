@@ -13,7 +13,7 @@ release_root="$root_dir/user-usage-dashboard/$release_key-$timestamp"
 release_client="$release_root/client-dist"
 backup_dir="$root_dir/backups/user-usage-dashboard-$timestamp"
 
-expected_override_sha="59c5e1970b26a5f5738f2f8ba212be30a49a30931c20180c5628c01f6e87bb47"
+expected_override_sha="3b960e2b71c1145625cd75f2c7af661ec975018f382f503b1e00465d1cca3d58"
 expected_user_route_sha="6a535ba377dace4e81e3f5b3913704884adb21586c1088d102cf22e53e949280"
 expected_client_index_sha="15a4e35d4e01085c8510f6b42f146607e17318e6e239854023cd9d0ed2d18d01"
 source_client="$root_dir/ui-label-patch/client-dist"
@@ -61,9 +61,17 @@ with open(source, encoding="utf-8") as handle:
     data = yaml.safe_load(handle)
 api = data.setdefault("services", {}).setdefault("api", {})
 volumes = api.setdefault("volumes", [])
-volumes = [f"{release_root}/client-dist:/app/client/dist:ro" if str(item).endswith(":/app/client/dist:ro") else item for item in volumes]
-for item in [f"{release_root}/user.js:/app/api/server/routes/user.js:ro", f"{release_root}/usage-dashboard.js:/app/api/server/routes/usage-dashboard.js:ro"]:
-    if item not in volumes: volumes.append(item)
+managed_targets = (
+    ":/app/client/dist:ro",
+    ":/app/api/server/routes/user.js:ro",
+    ":/app/api/server/routes/usage-dashboard.js:ro",
+)
+volumes = [item for item in volumes if not str(item).endswith(managed_targets)]
+volumes.extend([
+    f"{release_root}/client-dist:/app/client/dist:ro",
+    f"{release_root}/user.js:/app/api/server/routes/user.js:ro",
+    f"{release_root}/usage-dashboard.js:/app/api/server/routes/usage-dashboard.js:ro",
+])
 api["volumes"] = volumes
 environment = api.setdefault("environment", [])
 if isinstance(environment, dict):

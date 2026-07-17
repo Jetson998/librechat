@@ -23,6 +23,7 @@ assert "lc-usage-settings-layout" in style
 assert "lc-usage-section-nav" in style
 assert "lc-usage-dashboard-root" in style
 assert "position: sticky" in style
+assert "managed_targets" in (ROOT / "scripts" / "deploy.sh").read_text(encoding="utf-8")
 assert "@media (max-width: 680px)" in style
 assert "data-conversation-link" in script
 assert "localStorage.getItem('token')" in script
