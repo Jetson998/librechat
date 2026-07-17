@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SystemRoles } from 'librechat-data-provider';
+
+const USER_ROLE = 'USER' as never;
 
 const apiFetchMock = vi.fn();
 const extractApiErrorMock = vi.fn(async (_response: Response, fallback: string) => {
@@ -39,7 +40,7 @@ describe('createUserFn', () => {
       name: 'Example User',
       email: 'user@example.local',
       username: 'example',
-      role: SystemRoles.USER,
+      role: USER_ROLE,
     };
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ user }), {
@@ -56,7 +57,7 @@ describe('createUserFn', () => {
           username: ' example ',
           password: 'password123',
           confirmPassword: 'password123',
-          role: SystemRoles.USER,
+          role: USER_ROLE,
           emailVerified: true,
         },
       }),
@@ -69,7 +70,7 @@ describe('createUserFn', () => {
         email: 'user@example.local',
         username: 'example',
         password: 'password123',
-        role: SystemRoles.USER,
+        role: USER_ROLE,
         emailVerified: true,
       }),
     });
@@ -84,7 +85,7 @@ describe('createUserFn', () => {
           username: 'example',
           password: 'password123',
           confirmPassword: 'different123',
-          role: SystemRoles.USER,
+          role: USER_ROLE,
           emailVerified: true,
         },
       }),
@@ -103,7 +104,7 @@ describe('createUserFn', () => {
           username: 'example',
           password: 'password123',
           confirmPassword: 'password123',
-          role: SystemRoles.USER,
+          role: USER_ROLE,
           emailVerified: true,
         },
       }),
