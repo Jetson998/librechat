@@ -2,7 +2,7 @@
 
 Date: 2026-07-17
 
-Status: design gate; production baseline and implementation pending.
+Status: implementation complete; production deployment pending.
 
 ## Reason
 
@@ -20,23 +20,64 @@ LibreChat `My` menu.
 - show provider logos without provider text;
 - protect all data by authenticated user identity.
 
+## API And Data Rules
+
+The release adds one authenticated endpoint:
+
+```text
+GET /api/user/usage-dashboard
+```
+
+- identity is derived only from `req.user.id`;
+- one log row is one successful assistant reply;
+- transaction rows are joined by authenticated user plus reply `messageId`;
+- only `context=message` is included;
+- Agent-internal calls sharing the reply message are included;
+- title and summarization transactions are excluded;
+- transaction `rawAmount` is the authoritative Token source;
+- transaction `tokenValue / 1e6` is authoritative USD cost;
+- production converts USD to CNY once on the server with `USER_USAGE_USD_TO_CNY=7.2`;
+- missing historical cost remains `null` and is marked incomplete in totals.
+
+The endpoint never returns prompts, responses, file names, credentials, or a browser-supplied
+user ID.
+
+## Included Files
+
+```text
+api/user.js
+api/usage-dashboard.js
+client/user-usage-dashboard.js
+client/user-usage-dashboard.css
+client/anthropic-mark.svg
+scripts/test-usage-dashboard.js
+scripts/test-production-aggregation.js
+scripts/test-client-release.py
+scripts/deploy.sh
+scripts/run-remote-release.sh
+baseline/user.js
+baseline/compose.override.yaml
+PREFLIGHT.md
+```
+
 ## Intended Services
 
-Expected scope, subject to production preflight:
+Required runtime change:
 
 ```text
 LibreChat-API
-LibreChat-Client
 ```
 
-The release must not recreate MongoDB, CodeAPI, Office Converter, Nginx, RAG,
-or Admin Panel unless the committed implementation proves one is required.
+The active Client build is copied into a versioned release directory and mounted by the API
+container. The release must not recreate MongoDB, CodeAPI, Office Converter, Nginx, RAG, or
+Admin Panel.
 
 ## Source And Baseline
 
-The active production API and Client baselines must be collected read-only and
-archived in this directory before implementation. Do not use a historical July
-patch as the active baseline without hash and mount verification.
+The verified active route and Compose baselines are archived under `baseline/`. Runtime hashes,
+container identities, schema evidence, and capacity are recorded in `PREFLIGHT.md`.
+
+Deployment aborts if the audited Compose, user route, or Client index hash has drifted.
 
 ## Included Design Artifact
 
