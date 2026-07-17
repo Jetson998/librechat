@@ -84,7 +84,11 @@ export function CreateUserDialog({ open, onClose }: t.CreateUserDialogProps) {
   const handleEmailChange = (value: string) => {
     setEmail(value);
     if (!usernameTouched) {
-      const suggested = value.split('@')[0]?.replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 64) ?? '';
+      const suggested =
+        value
+          .split('@')[0]
+          ?.replace(/[^a-zA-Z0-9._-]/g, '')
+          .slice(0, 64) ?? '';
       setUsername(suggested);
     }
   };
@@ -135,7 +139,10 @@ export function CreateUserDialog({ open, onClose }: t.CreateUserDialogProps) {
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="user-username" className="text-sm font-medium text-(--cui-color-text-default)">
+        <label
+          htmlFor="user-username"
+          className="text-sm font-medium text-(--cui-color-text-default)"
+        >
           {localize('com_users_username_label')}
         </label>
         <input
@@ -153,7 +160,10 @@ export function CreateUserDialog({ open, onClose }: t.CreateUserDialogProps) {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="user-password" className="text-sm font-medium text-(--cui-color-text-default)">
+          <label
+            htmlFor="user-password"
+            className="text-sm font-medium text-(--cui-color-text-default)"
+          >
             {localize('com_users_password_label')}
           </label>
           <input
@@ -167,7 +177,10 @@ export function CreateUserDialog({ open, onClose }: t.CreateUserDialogProps) {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="user-confirm-password" className="text-sm font-medium text-(--cui-color-text-default)">
+          <label
+            htmlFor="user-confirm-password"
+            className="text-sm font-medium text-(--cui-color-text-default)"
+          >
             {localize('com_users_confirm_password_label')}
           </label>
           <input
