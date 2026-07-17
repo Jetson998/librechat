@@ -22,6 +22,8 @@ ARG VITE_BASE_PATH=/
 ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 ENV NODE_ENV=production
 RUN bun run locales:check \
+    && bun run test src/server/users.test.ts \
+    && bun run typecheck \
     && bun run format:check:baseline \
     && bun run sort-imports:check:baseline \
     && bun run build
