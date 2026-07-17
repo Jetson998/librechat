@@ -77,6 +77,9 @@ def test_script_contract():
         "odysseia-wordmark",
         "font-size: clamp(28px, 2.7vw, 38px)",
         "localizeLoginFields(panel)",
+        "localizeSubmitButton(panel)",
+        "submit.value = 'Continue'",
+        "label.textContent = 'Continue'",
         "['password', 'Password']",
         "odysseia-field-label",
         "linear-gradient(135deg, #a5e4ff, #58c7f3 52%, #38bdf8)",
@@ -94,7 +97,7 @@ def test_script_contract():
         "https://image01.vidu.zone/vidu/landing-page/login-bg.c7293340.mp4",
         "input[type=\"password\"]",
         "MutationObserver",
-        "version: '2026-07-17.3'",
+        "version: '2026-07-17.4'",
     )
     for value in required:
         require(value in script, f"missing login patch contract value: {value}")

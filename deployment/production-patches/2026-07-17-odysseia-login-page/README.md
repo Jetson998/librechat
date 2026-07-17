@@ -24,6 +24,8 @@ odysseia-login-page-patch -> /odysseia-login.js
   inside the login card.
 - Login fields use the English placeholders `Email` and `Password` without the
   conflicting white floating-label backgrounds.
+- The primary login submit button uses the English label `Continue`; transient
+  loading or error text is left under LibreChat's control.
 - The submit button uses a pale cyan glow treatment.
 - The panel contains subtle mythology line art instead of the removed planet
   logo.

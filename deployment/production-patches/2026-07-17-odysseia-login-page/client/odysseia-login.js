@@ -611,6 +611,29 @@
     });
   };
 
+  const localizeSubmitButton = (panel) => {
+    const submit = panel.querySelector('button[type="submit"], input[type="submit"]');
+    if (!submit) {
+      return;
+    }
+
+    submit.setAttribute('aria-label', 'Continue');
+    const staticLabel = /^(继续|continue|sign in|log in|登录|登入)$/i;
+    if (submit instanceof HTMLInputElement) {
+      if (staticLabel.test(submit.value.trim())) {
+        submit.value = 'Continue';
+      }
+      return;
+    }
+
+    const label = [submit, ...submit.querySelectorAll('span, div')].find(
+      (candidate) => candidate.childElementCount === 0 && staticLabel.test(getText(candidate)),
+    );
+    if (label) {
+      label.textContent = 'Continue';
+    }
+  };
+
   const setActive = (active) => {
     document.body.classList.toggle('odysseia-login-active', active);
     const backdrop = document.getElementById(BACKDROP_ID);
@@ -645,6 +668,7 @@
     markShell(panel);
     decoratePanel(panel);
     localizeLoginFields(panel);
+    localizeSubmitButton(panel);
     document.title = 'Odýsseia Login';
   };
 
@@ -673,7 +697,7 @@
 
   window.__odysseiaLoginPatch = Object.freeze({
     id: PATCH_ID,
-    version: '2026-07-17.3',
+    version: '2026-07-17.4',
     videoUrl: VIDEO_URL,
     title: 'Start your Agent Studio.',
   });
