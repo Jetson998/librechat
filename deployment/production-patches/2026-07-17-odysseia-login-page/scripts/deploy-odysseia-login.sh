@@ -53,7 +53,8 @@ python3 "$builder" --dist "$candidate_dist" >"$work_dir/build-result.txt"
 
 grep -Fq 'odysseia-login-page-patch' "$candidate_dist/index.html"
 grep -Fq 'business-upload-label-patch' "$candidate_dist/index.html"
-grep -Fq 'Odýsseia Studio' "$candidate_dist/odysseia-login.js"
+grep -Fq 'odysseia-wordmark' "$candidate_dist/odysseia-login.js"
+grep -Fq "['password', 'Password']" "$candidate_dist/odysseia-login.js"
 grep -Fq 'Start your Agent Studio.' "$candidate_dist/odysseia-login.js"
 grep -Fq 'font-weight: 400' "$candidate_dist/odysseia-login.js"
 
@@ -144,7 +145,7 @@ docker inspect "$api_container" --format '{{range .Mounts}}{{println .Source ":"
   | grep -Fq "$patch_root/client-dist : /app/client/dist ro"
 docker exec "$api_container" grep -Fq 'business-upload-label-patch' /app/client/dist/index.html
 docker exec "$api_container" grep -Fq 'odysseia-login-page-patch' /app/client/dist/index.html
-docker exec "$api_container" grep -Fq 'Odýsseia Studio' /app/client/dist/odysseia-login.js
+docker exec "$api_container" grep -Fq 'odysseia-wordmark' /app/client/dist/odysseia-login.js
 
 public_index="$work_dir/public-index-after.html"
 public_script="$work_dir/odysseia-login-after.js"
@@ -155,7 +156,7 @@ curl -ksS --compressed "$main_url/business-upload-menu.js?odysseia-login-release
 test "$(grep -o 'odysseia-login-page-patch' "$public_index" | wc -l | tr -d '[:space:]')" = "1"
 test "$(grep -o 'business-upload-label-patch' "$public_index" | wc -l | tr -d '[:space:]')" = "1"
 for value in \
-  'Odýsseia Studio' \
+  'odysseia-wordmark' \
   'Start your Agent Studio.' \
   'font-weight: 400' \
   'https://image01.vidu.zone/vidu/landing-page/login-bg.c7293340.mp4'; do

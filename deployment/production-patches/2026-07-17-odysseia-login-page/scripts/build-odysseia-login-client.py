@@ -95,8 +95,11 @@ def build(dist, source):
     verify_assets(dist, html)
 
     required = (
-        "Odýsseia Studio",
+        "Odýsseia",
+        "odysseia-wordmark",
         "Start your Agent Studio.",
+        "['password', 'Password']",
+        "linear-gradient(135deg, #a5e4ff, #58c7f3 52%, #38bdf8)",
         "font-weight: 400",
         "https://image01.vidu.zone/vidu/landing-page/login-bg.c7293340.mp4",
         "__odysseiaLoginPatchInstalled",

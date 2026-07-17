@@ -92,6 +92,39 @@
       mix-blend-mode: screen;
     }
 
+    #${BACKDROP_ID} .odysseia-wordmark {
+      position: absolute;
+      top: clamp(24px, 4vw, 48px);
+      left: clamp(24px, 4.5vw, 72px);
+      z-index: 2;
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
+      color: rgba(255, 255, 255, 0.96);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(20px, 1.8vw, 28px);
+      font-weight: 400;
+      letter-spacing: 0;
+      line-height: 1;
+      text-shadow: 0 2px 24px rgba(3, 8, 18, 0.55);
+    }
+
+    #${BACKDROP_ID} .odysseia-wordmark::before {
+      width: 22px;
+      height: 1px;
+      background: rgba(186, 230, 253, 0.9);
+      box-shadow: 0 0 12px rgba(125, 211, 252, 0.8);
+      content: "";
+    }
+
+    #${BACKDROP_ID} .odysseia-wordmark-studio {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.5em;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
     #${BACKDROP_ID} .odysseia-stage::before {
       position: absolute;
       top: clamp(38px, 6vh, 74px);
@@ -266,7 +299,7 @@
     .odysseia-login-header {
       position: relative;
       z-index: 1;
-      margin: 0 0 30px;
+      margin: 8px 0 32px;
       text-align: center;
     }
 
@@ -316,6 +349,11 @@
       color: rgba(203, 213, 225, 0.62) !important;
     }
 
+    body.odysseia-login-active .odysseia-login-panel .odysseia-field-label {
+      display: none !important;
+      background: transparent !important;
+    }
+
     body.odysseia-login-active .odysseia-login-panel button {
       min-height: 48px;
       border-radius: 16px !important;
@@ -325,6 +363,25 @@
     body.odysseia-login-active .odysseia-login-panel form button,
     body.odysseia-login-active .odysseia-login-panel [role="button"] {
       font-weight: 700;
+    }
+
+    body.odysseia-login-active .odysseia-login-panel button[type="submit"] {
+      border: 1px solid rgba(186, 230, 253, 0.76) !important;
+      background: linear-gradient(135deg, #a5e4ff, #58c7f3 52%, #38bdf8) !important;
+      color: #06121f !important;
+      box-shadow:
+        0 10px 30px rgba(56, 189, 248, 0.3),
+        0 0 22px rgba(125, 211, 252, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.56) !important;
+      text-shadow: none !important;
+    }
+
+    body.odysseia-login-active .odysseia-login-panel button[type="submit"]:hover {
+      background: linear-gradient(135deg, #c3edff, #72d4fa 52%, #4ac8f6) !important;
+      box-shadow:
+        0 12px 34px rgba(56, 189, 248, 0.38),
+        0 0 28px rgba(125, 211, 252, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.62) !important;
     }
 
     @keyframes odysseia-oracle-drift {
@@ -420,11 +477,15 @@
     const backdrop = document.createElement('div');
     backdrop.id = BACKDROP_ID;
     backdrop.setAttribute('aria-hidden', 'true');
-    backdrop.innerHTML = `
+      backdrop.innerHTML = `
       <video autoplay muted loop playsinline preload="auto">
         <source src="${VIDEO_URL}" type="video/mp4">
       </video>
       <span class="odysseia-stage"></span>
+      <div class="odysseia-wordmark">
+        <span>Odýsseia</span>
+        <span class="odysseia-wordmark-studio">Studio</span>
+      </div>
     `;
     document.body.prepend(backdrop);
   };
@@ -511,12 +572,13 @@
       const header = document.createElement('div');
       header.className = 'odysseia-login-header';
       header.innerHTML = `
-        <p class="odysseia-login-eyebrow">Odýsseia Studio</p>
         <h1 class="odysseia-login-title">Start your Agent Studio.</h1>
       `;
       const art = panel.querySelector('.odysseia-panel-mythic');
       art?.after(header);
     }
+
+    panel.querySelectorAll('.odysseia-login-eyebrow').forEach((eyebrow) => eyebrow.remove());
 
     panel.querySelectorAll('h1, h2').forEach((heading) => {
       if (heading.closest('.odysseia-login-header')) {
@@ -525,6 +587,26 @@
       const text = getText(heading);
       if (/^(librechat|sign in|log in|welcome|登录|登入|欢迎)/i.test(text)) {
         heading.dataset.odysseiaOriginalHeading = 'true';
+      }
+    });
+  };
+
+  const localizeLoginFields = (panel) => {
+    const fields = [
+      ['email', 'Email'],
+      ['password', 'Password'],
+    ];
+    fields.forEach(([id, label]) => {
+      const input = panel.querySelector(`#${id}`);
+      if (!input) {
+        return;
+      }
+      input.setAttribute('placeholder', label);
+      input.setAttribute('aria-label', label);
+      const floatingLabel = panel.querySelector(`label[for="${id}"]`);
+      if (floatingLabel) {
+        floatingLabel.textContent = label;
+        floatingLabel.classList.add('odysseia-field-label');
       }
     });
   };
@@ -562,6 +644,7 @@
     clearPanelDecorations(panel);
     markShell(panel);
     decoratePanel(panel);
+    localizeLoginFields(panel);
     document.title = 'Odýsseia Login';
   };
 
@@ -590,7 +673,7 @@
 
   window.__odysseiaLoginPatch = Object.freeze({
     id: PATCH_ID,
-    version: '2026-07-17.1',
+    version: '2026-07-17.2',
     videoUrl: VIDEO_URL,
     title: 'Start your Agent Studio.',
   });

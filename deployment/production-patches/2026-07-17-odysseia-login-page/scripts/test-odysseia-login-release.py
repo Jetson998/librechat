@@ -72,8 +72,13 @@ def test_script_contract():
     script_path = PATCH_ROOT / "client" / "odysseia-login.js"
     script = read(script_path)
     required = (
-        "Odýsseia Studio",
+        "Odýsseia",
         "Start your Agent Studio.",
+        "odysseia-wordmark",
+        "localizeLoginFields(panel)",
+        "['password', 'Password']",
+        "odysseia-field-label",
+        "linear-gradient(135deg, #a5e4ff, #58c7f3 52%, #38bdf8)",
         "font-weight: 400",
         "odysseia-login-active",
         "odysseia-login-panel",
@@ -88,7 +93,7 @@ def test_script_contract():
         "https://image01.vidu.zone/vidu/landing-page/login-bg.c7293340.mp4",
         "input[type=\"password\"]",
         "MutationObserver",
-        "version: '2026-07-17.1'",
+        "version: '2026-07-17.2'",
     )
     for value in required:
         require(value in script, f"missing login patch contract value: {value}")
