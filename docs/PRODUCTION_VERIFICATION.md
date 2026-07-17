@@ -1031,3 +1031,43 @@ Browser lifecycle verification:
 
 Acceptance: passed. Admin Panel can create, list, authenticate, and delete real
 local LibreChat users without enabling public registration.
+
+## User Price And Usage Dashboard
+
+Final deployment date: 2026-07-18 HKT.
+
+Repository gates:
+
+- `953ab95` committed the approved UX and data design before production writes;
+- `4c2bbcf` implemented the authenticated aggregation API, Client panel, tests, rollback, and
+  baseline archive;
+- `07e228f` aligned the standalone Client request with LibreChat's official refresh-token flow;
+- `34842d0` merged duplicate provider rows into one model distribution row and updated the exact
+  production release baseline.
+
+Production result:
+
+```text
+timestamp=20260718013439
+release_commit=34842d07cf973b231aa9d487f040676d2417a2d1
+release_root=/opt/librechat/user-usage-dashboard/34842d07cf97-20260718013439
+backup_dir=/opt/librechat/backups/user-usage-dashboard-auth-fix-20260718013439
+api_container_after=84090ea8a6acd3fd5be294608dbe5639a46eeb68789be7772eacddbf4efcb315
+protected_containers_unchanged=true
+api_config_health=ok
+unauthenticated_endpoint_status=401
+browser_visible_acceptance=passed
+```
+
+Acceptance evidence:
+
+- normal authenticated Gracey API request returned `200` and nine user-scoped successful rows;
+- the existing Bill browser session displayed exactly one `价格用量统计` entry under account
+  settings;
+- six metric cards, 20 current-page log rows, and two unique model-distribution rows rendered;
+- 7-day, 30-day, and all-time ranges refreshed without an error state;
+- model cells showed provider marks plus model names without provider text;
+- Nginx, CodeAPI, RAG-API, MongoDB, and Admin Panel container IDs remained unchanged.
+
+Acceptance: passed. The customer-facing price and usage dashboard is live under
+`我的 -> 价格用量统计`.

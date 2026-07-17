@@ -2,7 +2,7 @@
 
 Date: 2026-07-17
 
-Status: implementation complete; production deployment pending.
+Status: deployed and browser-verified.
 
 ## Reason
 
@@ -60,6 +60,8 @@ scripts/deploy-auth-fix.sh
 baseline/user.js
 baseline/compose.override.yaml
 PREFLIGHT.md
+DEPLOY_RESULT.txt
+LIVE_ACCEPTANCE.md
 ```
 
 ## Intended Services
@@ -106,4 +108,12 @@ login, chat, upload-label, and Office boundary smoke tests.
 
 ## Production Result
 
-Not deployed.
+Final release commit:
+
+```text
+34842d07cf973b231aa9d487f040676d2417a2d1
+```
+
+Only `LibreChat-API` was recreated. The final release root, backup path, hashes, container IDs,
+authenticated API results, and browser evidence are recorded in `DEPLOY_RESULT.txt` and
+`LIVE_ACCEPTANCE.md`.
