@@ -22,6 +22,16 @@ uploads, conversations, and existing users are unchanged.
 The API patch was downloaded from the active production container before
 editing. Baseline hashes are recorded in `BASELINE_SHA256`.
 
+The production preflight also found a historical July 11 bundle at
+`/opt/librechat/office-context-patch/api-index.cjs`. It was not mounted in the
+running API after the July 17 Web Search recreation, so it is not the active
+baseline. This release leaves that historical file untouched and installs its
+candidate under the scoped path below:
+
+```text
+/opt/librechat/admin-user-creation/api-index.cjs
+```
+
 Admin Panel source:
 
 ```text
@@ -54,6 +64,12 @@ Admin Panel source copy at `admin-panel-source`.
 Only `LibreChat-API` and `LibreChat-Admin-Panel` are recreated. Nginx, Mongo,
 CodeAPI, Office Converter, and all other services must retain their container
 IDs.
+
+The runner gates the bundle hash against the running API container, verifies
+that no competing bundle mount is active, then mounts the committed candidate
+and admin users route from `/opt/librechat/admin-user-creation/`. Rollback
+restores the previous Compose override and therefore returns the API to its
+image bundle without touching the historical Office patch archive.
 
 ## Production Result
 

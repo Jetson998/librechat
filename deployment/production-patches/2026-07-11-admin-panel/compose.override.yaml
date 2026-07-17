@@ -2,6 +2,7 @@ services:
   api:
     volumes:
       - /opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro
+      - /opt/librechat/admin-user-creation/api-index.cjs:/app/packages/api/dist/index.cjs:ro
       - /opt/librechat/admin-user-creation/users.js:/app/api/server/routes/admin/users.js:ro
 
   admin-panel:

@@ -2,7 +2,7 @@
 
 Date: 2026-07-17
 
-Status: design gate; implementation and production deployment pending.
+Status: implementation committed; corrected production preflight pending.
 
 ## Objective
 
@@ -69,6 +69,19 @@ list on success, and clear password fields when closing.
 7. Restart only the API and Admin Panel services required to load the change.
 8. Create a temporary user through the browser, verify login, then delete it
    through the supported lifecycle before recording success.
+
+## Preflight Baseline Correction
+
+The first production preflight on 2026-07-17 stopped before any build or write
+because `/opt/librechat/office-context-patch/api-index.cjs` did not match the
+active container hash. Read-only inspection established that this file is a
+historical July 11 patch and is no longer mounted after the July 17 API
+recreation.
+
+The release therefore uses the active API container bundle as its only code
+baseline and installs the candidate at the release-scoped host path
+`/opt/librechat/admin-user-creation/api-index.cjs`. The historical Office file
+is neither overwritten nor reactivated as part of this change.
 
 ## Rollback
 

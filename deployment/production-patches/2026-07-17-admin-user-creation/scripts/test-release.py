@@ -36,6 +36,7 @@ def main():
     dialog = (ADMIN_SOURCE / "src/components/users/CreateUserDialog.tsx").read_text(
         encoding="utf-8"
     )
+    deploy_script = (ROOT / "scripts/build-and-deploy.sh").read_text(encoding="utf-8")
 
     for marker in (
         "async function createUserHandler",
@@ -80,6 +81,25 @@ def main():
             "API bundle was not modified")
     require(sha256(route) != "69c8e49b22a188fc222c21aaa927a4e05946afe8e08c4b1d4428cc35966cd469",
             "admin users route was not modified")
+    require(
+        'api_bundle_host="$route_patch_dir/api-index.cjs"' in deploy_script,
+        "API candidate must use the scoped admin-user-creation host path",
+    )
+    require(
+        'docker exec "$api_container" sha256sum /app/packages/api/dist/index.cjs'
+        in deploy_script,
+        "deployment must gate against the active container bundle",
+    )
+    require(
+        "/opt/librechat/admin-user-creation/api-index.cjs:/app/packages/api/dist/index.cjs:ro"
+        in deploy_script,
+        "candidate compose must mount the API bundle",
+    )
+    require(
+        'api_bundle_host="$root_dir/office-context-patch/api-index.cjs"'
+        not in deploy_script,
+        "historical Office bundle must not be overwritten",
+    )
     print("admin_user_creation_release: ok")
 
 

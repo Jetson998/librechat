@@ -9,8 +9,8 @@ mongo_container="chat-mongodb"
 compose_base="$root_dir/compose.yaml"
 compose_override="$root_dir/compose.override.yaml"
 env_file="$root_dir/.env"
-api_bundle_host="$root_dir/office-context-patch/api-index.cjs"
 route_patch_dir="$root_dir/admin-user-creation"
+api_bundle_host="$route_patch_dir/api-index.cjs"
 route_patch_host="$route_patch_dir/users.js"
 candidate_bundle="$stage_dir/api-patch/api-index.cjs"
 candidate_route="$stage_dir/api-patch/users.js"
@@ -18,13 +18,13 @@ admin_source="$stage_dir/admin-panel-source"
 release_commit="${RELEASE_COMMIT:-unknown}"
 main_url="https://152.32.172.162.sslip.io"
 admin_url="https://admin.152.32.172.162.sslip.io"
-expected_bundle_before="2eff0d333af8f058455932a0d077f732d48d16175ebed32cf7ed79193f19dd2d"
+expected_active_bundle_before="2eff0d333af8f058455932a0d077f732d48d16175ebed32cf7ed79193f19dd2d"
 expected_route_before="69c8e49b22a188fc222c21aaa927a4e05946afe8e08c4b1d4428cc35966cd469"
 timestamp="$(date +%Y%m%d%H%M%S)"
 backup_dir="$root_dir/backups/admin-user-creation-$timestamp"
 
 for path in \
-  "$compose_base" "$compose_override" "$env_file" "$api_bundle_host" \
+  "$compose_base" "$compose_override" "$env_file" \
   "$candidate_bundle" "$candidate_route" "$admin_source/Dockerfile"; do
   test -e "$path"
 done
@@ -32,10 +32,10 @@ done
 ADMIN_PANEL_SOURCE="$admin_source" python3 "$stage_dir/scripts/test-release.py"
 node --check "$candidate_bundle"
 node --check "$candidate_route"
-test "$(sha256sum "$api_bundle_host" | awk '{print $1}')" = "$expected_bundle_before"
+test "$(docker exec "$api_container" sha256sum /app/packages/api/dist/index.cjs | awk '{print $1}')" = "$expected_active_bundle_before"
 test "$(docker exec "$api_container" sha256sum /app/api/server/routes/admin/users.js | awk '{print $1}')" = "$expected_route_before"
-docker inspect "$api_container" --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}' \
-  | grep -Fqx "$api_bundle_host -> /app/packages/api/dist/index.cjs"
+test -z "$(docker inspect "$api_container" --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}' \
+  | awk '$3 == "/app/packages/api/dist/index.cjs" {print $1}')"
 
 candidate_test_path="/app/packages/api/dist/admin-user-candidate.cjs"
 docker cp "$candidate_bundle" "$api_container:$candidate_test_path"
@@ -74,8 +74,14 @@ with open(source, encoding="utf-8") as handle:
 services = data.setdefault("services", {})
 api = services.setdefault("api", {})
 volumes = api.setdefault("volumes", [])
+bundle_mount = "/opt/librechat/admin-user-creation/api-index.cjs:/app/packages/api/dist/index.cjs:ro"
 mount = "/opt/librechat/admin-user-creation/users.js:/app/api/server/routes/admin/users.js:ro"
-volumes = [item for item in volumes if not str(item).endswith(":/app/api/server/routes/admin/users.js:ro")]
+volumes = [
+    item for item in volumes
+    if not str(item).endswith(":/app/packages/api/dist/index.cjs:ro")
+    and not str(item).endswith(":/app/api/server/routes/admin/users.js:ro")
+]
+volumes.append(bundle_mount)
 volumes.append(mount)
 api["volumes"] = volumes
 admin = services.setdefault("admin-panel", {})
@@ -95,6 +101,8 @@ api_id_before="$(docker inspect "$api_container" --format '{{.Id}}')"
 admin_id_before="$(docker inspect "$admin_container" --format '{{.Id}}')"
 route_existed=0
 test -e "$route_patch_host" && route_existed=1
+bundle_existed=0
+test -e "$api_bundle_host" && bundle_existed=1
 
 if [[ "${PREFLIGHT_ONLY:-false}" = "true" ]]; then
   printf 'preflight=ok\nimage_ref=%s\nimage_id=%s\nsource_hash=%s\n' \
@@ -104,15 +112,21 @@ fi
 
 mkdir -p "$backup_dir" "$route_patch_dir"
 chmod 700 "$backup_dir"
-cp -a "$api_bundle_host" "$backup_dir/api-index.cjs"
+docker cp "$api_container:/app/packages/api/dist/index.cjs" "$backup_dir/api-index.cjs.active-before"
+docker cp "$api_container:/app/api/server/routes/admin/users.js" "$backup_dir/users.js.active-before"
 cp -a "$compose_override" "$backup_dir/compose.override.yaml"
+if [[ "$bundle_existed" = "1" ]]; then cp -a "$api_bundle_host" "$backup_dir/api-index.cjs.host-before"; fi
 if [[ "$route_existed" = "1" ]]; then cp -a "$route_patch_host" "$backup_dir/users.js"; fi
 
 applied=0
 rollback() {
   set +e
-  cp -a "$backup_dir/api-index.cjs" "$api_bundle_host"
   cp -a "$backup_dir/compose.override.yaml" "$compose_override"
+  if [[ "$bundle_existed" = "1" ]]; then
+    cp -a "$backup_dir/api-index.cjs.host-before" "$api_bundle_host"
+  else
+    rm -f "$api_bundle_host"
+  fi
   if [[ "$route_existed" = "1" ]]; then
     cp -a "$backup_dir/users.js" "$route_patch_host"
   else
@@ -157,6 +171,10 @@ docker exec "$api_container" node --check /app/packages/api/dist/index.cjs
 docker exec "$api_container" node --check /app/api/server/routes/admin/users.js
 docker exec "$api_container" grep -Fq 'createUser: createUserHandler' /app/packages/api/dist/index.cjs
 docker exec "$api_container" grep -Fq "router.post('/', requireManageUsers, handlers.createUser)" /app/api/server/routes/admin/users.js
+docker inspect "$api_container" --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}' \
+  | grep -Fqx "$api_bundle_host -> /app/packages/api/dist/index.cjs"
+docker inspect "$api_container" --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}' \
+  | grep -Fqx "$route_patch_host -> /app/api/server/routes/admin/users.js"
 docker exec "$admin_container" sh -lc "grep -R -q 'com_users_password_mismatch' /app/src/server /app/dist"
 curl -ksSf "$main_url/" >/dev/null
 curl -ksSf "$admin_url/" >/dev/null
