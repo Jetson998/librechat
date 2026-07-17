@@ -1,5 +1,20 @@
 # Production Verification
 
+## Gracey Production User - 2026-07-17
+
+- Repository gate commit `21d7b60` was pushed before the production write.
+- Created local user `gracey@example.local` with username `gracey`, role
+  `USER`, provider `local`, and `emailVerified: true` through LibreChat's
+  supported `/app/config/create-user.js` script.
+- `POST /api/auth/login` returned HTTP 200.
+- The API container ID and `StartedAt` value were unchanged before and after
+  creation; no service was restarted or recreated.
+- The password was supplied out of band through an ephemeral mode-0600 file,
+  removed immediately, and was not committed or passed as a command argument.
+- Two preliminary interactive-input attempts ended before any user record was
+  created. The final command explicitly set `--email-verified=true` to avoid
+  the upstream CLI's second interactive prompt.
+
 ## MuskAPI Title Prompt Conversation Context - 2026-07-14
 
 - Root cause: the custom `titlePrompt` omitted LibreChat's `{convo}` variable,
