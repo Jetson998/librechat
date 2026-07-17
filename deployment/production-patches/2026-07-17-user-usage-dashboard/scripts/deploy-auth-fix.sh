@@ -9,14 +9,14 @@ env_file="$root_dir/.env"
 release_commit="${RELEASE_COMMIT:?RELEASE_COMMIT is required}"
 release_key="${release_commit:0:12}"
 timestamp="$(date +%Y%m%d%H%M%S)"
-source_root="$root_dir/user-usage-dashboard/4c2bbcf875d8-20260718002958"
+source_root="$root_dir/user-usage-dashboard/e75ec5bc765f-20260718012146"
 release_root="$root_dir/user-usage-dashboard/$release_key-$timestamp"
 release_client="$release_root/client-dist"
 backup_dir="$root_dir/backups/user-usage-dashboard-auth-fix-$timestamp"
 
-expected_override_sha="2ffe5f78f449cb5def5e2084ea557ea792c4368eee413ca3cb6a7eb45fe42e22"
-expected_index_sha="fdac283ba9e31b87bc71f088d618fc84b1d33d45defb2269f7aba0cb1365367f"
-expected_client_js_sha="886e005120d96f4750e50a9c7aa3906a675dea28c3f16bd89bc9044b61662b4f"
+expected_override_sha="e1f8138ca171786c27d5b9f58ac48cfbec6bd94e954f52141dc2287b21c10a57"
+expected_index_sha="69e8483e20f6e64725fdc57c0549aa4f72161028f21203542bd3b6cf82bbf0dd"
+expected_client_js_sha="d7558a72a12783756c8415670f8acec60a1194de0440e5fe79ea727cb926f08d"
 expected_user_route_sha="6a535ba377dace4e81e3f5b3913704884adb21586c1088d102cf22e53e949280"
 expected_usage_route_sha="47873c3b3c58eff47c91884faf488bbdee99c4f6a8be984a669053ff223af700"
 
@@ -82,6 +82,7 @@ PY
 docker compose --env-file "$env_file" -f "$compose_base" -f "$candidate_override" config >/dev/null
 grep -Fq "user-usage-dashboard.js?v=$release_key" "$release_client/index.html"
 grep -Fq "localStorage.getItem('token')" "$release_client/user-usage-dashboard.js"
+grep -Fq "fetch('/api/auth/refresh'" "$release_client/user-usage-dashboard.js"
 
 declare -A protected_ids
 for container in LibreChat-NGINX LibreChat-CodeAPI LibreChat-RAG-API chat-mongodb LibreChat-Admin-Panel; do protected_ids[$container]="$(docker inspect "$container" --format '{{.Id}}')"; done
@@ -102,7 +103,7 @@ curl -ksSf https://152.32.172.162.sslip.io/api/config >/dev/null
 test "$(curl -ksS -o /dev/null -w '%{http_code}' https://152.32.172.162.sslip.io/api/user/usage-dashboard)" = "401"
 curl -ksSf https://152.32.172.162.sslip.io/ >/dev/null
 docker exec LibreChat-API grep -Fq "user-usage-dashboard.js?v=$release_key" /app/client/dist/index.html
-docker exec LibreChat-API grep -Fq "localStorage.getItem('token')" /app/client/dist/user-usage-dashboard.js
+docker exec LibreChat-API grep -Fq "fetch('/api/auth/refresh'" /app/client/dist/user-usage-dashboard.js
 
 for container in "${!protected_ids[@]}"; do test "$(docker inspect "$container" --format '{{.Id}}')" = "${protected_ids[$container]}"; done
 api_id_after="$(docker inspect LibreChat-API --format '{{.Id}}')"

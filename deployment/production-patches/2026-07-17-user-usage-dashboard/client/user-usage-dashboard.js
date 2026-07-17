@@ -384,6 +384,20 @@
     bindFilters();
   }
 
+  async function getAccessToken() {
+    const storedToken = window.localStorage.getItem('token');
+    if (storedToken) return storedToken;
+
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return '';
+    const payload = await response.json().catch(() => null);
+    return typeof payload?.token === 'string' ? payload.token : '';
+  }
+
   async function loadDashboard() {
     if (state.loading) return;
     state.loading = true;
@@ -396,7 +410,7 @@
     if (state.model) params.set('model', state.model);
     if (state.conversation) params.set('conversation', state.conversation);
     try {
-      const token = window.localStorage.getItem('token');
+      const token = await getAccessToken();
       const response = await fetch(`/api/user/usage-dashboard?${params}`, {
         credentials: 'same-origin',
         headers: {

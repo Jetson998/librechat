@@ -19,5 +19,7 @@ assert "lc-usage-overlay" in style
 assert "@media (max-width: 680px)" in style
 assert "data-conversation-link" in script
 assert "localStorage.getItem('token')" in script
+assert "fetch('/api/auth/refresh'" in script
+assert "credentials: 'include'" in script
 assert "Authorization: `Bearer ${token}`" in script
 print("client release checks: ok")
