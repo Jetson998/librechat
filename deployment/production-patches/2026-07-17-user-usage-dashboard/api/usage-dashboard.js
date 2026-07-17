@@ -257,10 +257,10 @@ function buildPipeline({ userId, transactionUserId, options, currencyRate, timez
             $group: {
               _id: {
                 model: { $ifNull: ['$model', 'Unknown model'] },
-                endpoint: { $ifNull: ['$endpoint', ''] },
-                iconURL: { $ifNull: ['$iconURL', ''] },
               },
               tokens: { $sum: '$usageTokens' },
+              endpoint: { $first: { $ifNull: ['$endpoint', ''] } },
+              iconURL: { $first: { $ifNull: ['$iconURL', ''] } },
             },
           },
           { $sort: { tokens: -1, '_id.model': 1 } },
@@ -268,8 +268,8 @@ function buildPipeline({ userId, transactionUserId, options, currencyRate, timez
             $project: {
               _id: 0,
               model: '$_id.model',
-              endpoint: '$_id.endpoint',
-              iconURL: '$_id.iconURL',
+              endpoint: 1,
+              iconURL: 1,
               tokens: 1,
             },
           },
