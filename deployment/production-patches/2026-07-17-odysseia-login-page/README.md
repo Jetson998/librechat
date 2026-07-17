@@ -259,6 +259,35 @@ Automated production verification confirmed the new script hash, one login
 patch marker, preserved upload menu script, protected Office route, healthy
 CodeAPI, and unchanged Nginx, CodeAPI, and Mongo containers.
 
+### English Login Action Production Result
+
+The English `Continue` login action was implemented in commit `0f4489d` and
+pushed to `origin/main` before production deployment.
+
+```text
+timestamp=20260717142455
+backup_dir=/opt/librechat/backups/odysseia-login-20260717142455
+api_container_before=0828126c50d674dbfc366b998e340ca463cdf4f5724bbbb398014d6e43148b41
+api_container_after=f4c7ae080715a468ada024b0510e40fede6b29b6bf6cbec4a81e2e6d459cb972
+nginx_container_unchanged=true
+codeapi_container_unchanged=true
+mongo_container_unchanged=true
+public_index_sha256=15a4e35d4e01085c8510f6b42f146607e17318e6e239854023cd9d0ed2d18d01
+public_script_sha256=aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27
+public_upload_script_sha256=a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9
+script_cache_key=aeb91c87012e
+office_status=401
+codeapi_health=healthy
+patch_marker_count=1
+```
+
+Live browser verification confirmed:
+
+- Submit button text and `aria-label` are `Continue`.
+- Email placeholder remains `Email`.
+- Upper-left wordmark is `34.56px` at the inspected desktop viewport.
+- Injected script URL is `/odysseia-login.js?v=aeb91c87012e`.
+
 ## Rollback
 
 Restore the timestamped backup directory printed in `DEPLOY_RESULT.txt`:
