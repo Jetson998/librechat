@@ -13,7 +13,7 @@ release_root="$root_dir/user-usage-dashboard/$release_key-$timestamp"
 release_client="$release_root/client-dist"
 backup_dir="$root_dir/backups/user-usage-dashboard-$timestamp"
 
-expected_override_sha="3b960e2b71c1145625cd75f2c7af661ec975018f382f503b1e00465d1cca3d58"
+expected_override_sha="20b0a41b0f37829f15f373f4a14062df1d06abaf008e2d7fdab59c46613eee17"
 expected_user_route_sha="6a535ba377dace4e81e3f5b3913704884adb21586c1088d102cf22e53e949280"
 expected_client_index_sha="15a4e35d4e01085c8510f6b42f146607e17318e6e239854023cd9d0ed2d18d01"
 source_client="$root_dir/ui-label-patch/client-dist"

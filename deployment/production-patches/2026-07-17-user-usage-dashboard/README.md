@@ -4,6 +4,8 @@ Date: 2026-07-17
 
 Status: deployed and browser-verified.
 
+Current release commit: `59efa3bf975458988bc9a22b4d2d6be9ae78c27e`
+
 ## Reason
 
 Expose a lightweight, user-isolated price and usage dashboard from the main
@@ -17,6 +19,10 @@ LibreChat `My` menu.
   and average turns;
 - show a successful-reply conversation log;
 - support searchable model and conversation filters;
+- use a Settings-style left navigation for overview and logs;
+- use My Files-style table headers, typography, row spacing, and pagination;
+- keep overview within the available desktop height without a vertical scrollbar;
+- close searchable filters by toggle, outside click, or Escape;
 - show provider logos without provider text;
 - protect all data by authenticated user identity.
 
@@ -111,9 +117,9 @@ login, chat, upload-label, and Office boundary smoke tests.
 Final release commit:
 
 ```text
-34842d07cf973b231aa9d487f040676d2417a2d1
+59efa3bf975458988bc9a22b4d2d6be9ae78c27e
 ```
 
 Only `LibreChat-API` was recreated. The final release root, backup path, hashes, container IDs,
-authenticated API results, and browser evidence are recorded in `DEPLOY_RESULT.txt` and
-`LIVE_ACCEPTANCE.md`.
+authenticated API results, browser evidence, and the deduplicated Compose mounts are recorded in
+`DEPLOY_RESULT.txt` and `LIVE_ACCEPTANCE.md`.
