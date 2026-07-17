@@ -221,13 +221,13 @@
         background: transparent;
         color: #30343a;
         text-align: left;
-        font-size: 13px;
+        font-size: 14px;
       }
 
       .menu-item:hover,
       .menu-item.active {
-        background: var(--brand-soft);
-        color: #0b635c;
+        background: #eceef1;
+        color: var(--text);
       }
 
       .menu-note {
@@ -288,12 +288,14 @@
       }
 
       .overlay {
-        position: absolute;
+        position: fixed;
         inset: 0;
         z-index: 20;
         display: flex;
-        justify-content: flex-end;
-        background: rgba(23, 25, 28, 0.28);
+        align-items: center;
+        justify-content: center;
+        padding: 5vh 4.2vw;
+        background: rgba(0, 0, 0, 0.48);
       }
 
       .overlay.hidden {
@@ -302,36 +304,43 @@
 
       .usage-panel {
         display: flex;
-        width: min(920px, calc(100vw - 280px));
-        min-width: 680px;
-        height: 100%;
+        width: 100%;
+        min-width: 0;
+        height: 90vh;
+        max-height: 90vh;
         flex-direction: column;
+        overflow: hidden;
+        border-radius: 16px;
         background: var(--panel);
         box-shadow: var(--shadow);
       }
 
       .panel-header {
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        min-height: 72px;
-        padding: 14px 24px;
-        border-bottom: 1px solid var(--border);
+        min-height: 66px;
+        padding: 20px 54px 10px 24px;
       }
 
       .panel-title {
         margin: 0;
         font-size: 18px;
-        font-weight: 700;
+        font-weight: 600;
+        line-height: 18px;
       }
 
       .panel-subtitle {
-        margin: 4px 0 0;
+        margin: 7px 0 0;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 13px;
       }
 
       .panel-tools {
+        position: absolute;
+        top: 16px;
+        right: 16px;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -346,9 +355,9 @@
         width: 28px;
         height: 28px;
         place-items: center;
-        border: 1px solid var(--border);
-        border-radius: 50%;
-        background: var(--panel);
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
         color: var(--muted);
         font-size: 12px;
         font-weight: 700;
@@ -356,9 +365,31 @@
 
       .help-button:hover,
       .help-button[aria-expanded="true"] {
-        border-color: #b6d8d3;
-        background: var(--brand-soft);
-        color: #0b635c;
+        background: #eceef1;
+        color: var(--text);
+      }
+
+      .panel-close {
+        display: grid;
+        width: 24px;
+        height: 24px;
+        place-items: center;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--text);
+        opacity: 0.7;
+      }
+
+      .panel-close:hover {
+        background: #eceef1;
+        opacity: 1;
+      }
+
+      .panel-close svg {
+        width: 18px;
+        height: 18px;
       }
 
       .help-popover {
@@ -397,19 +428,88 @@
       }
 
       .panel-body {
+        display: flex;
         flex: 1;
-        overflow: auto;
-        padding: 20px 24px 28px;
-        background: var(--panel-subtle);
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 12px 24px 24px;
+        background: var(--panel);
       }
 
-      .toolbar {
+      .dashboard-nav {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
         margin-bottom: 16px;
+      }
+
+      .dashboard-nav-left,
+      .dashboard-nav-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .view-tabs {
+        display: inline-flex;
+        gap: 24px;
+        height: 40px;
+        padding: 0;
+        border: 0;
+        border-bottom: 1px solid var(--border);
+        background: transparent;
+      }
+
+      .view-tab {
+        position: relative;
+        min-width: 0;
+        padding: 0 2px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 550;
+      }
+
+      .view-tab.active {
+        color: var(--text);
+        font-weight: 650;
+      }
+
+      .view-tab.active::after {
+        position: absolute;
+        right: 0;
+        bottom: -1px;
+        left: 0;
+        height: 2px;
+        border-radius: 1px;
+        background: var(--text);
+        content: "";
+      }
+
+      .view-pane {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+      }
+
+      .view-pane[hidden] {
+        display: none;
+      }
+
+      .logs-pane {
+        overflow: hidden;
+      }
+
+      .overview-pane {
+        display: flex;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
       }
 
       .segmented {
@@ -465,7 +565,7 @@
       .metric-group-title {
         margin: 0 0 7px 2px;
         color: var(--muted);
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 650;
       }
 
@@ -501,7 +601,7 @@
         justify-content: space-between;
         gap: 8px;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 13px;
       }
 
       .metric-dot {
@@ -543,14 +643,22 @@
       .metric-meta {
         margin-top: 7px;
         color: var(--muted);
-        font-size: 11px;
+        font-size: 12px;
       }
 
       .dashboard-grid {
         display: grid;
+        flex: 1;
         grid-template-columns: minmax(0, 1.65fr) minmax(240px, 0.85fr);
+        min-height: 180px;
         gap: 12px;
         margin-top: 12px;
+      }
+
+      .dashboard-grid > .surface {
+        display: flex;
+        min-height: 0;
+        flex-direction: column;
       }
 
       .surface {
@@ -571,7 +679,7 @@
       }
 
       .surface-title {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 680;
       }
 
@@ -582,7 +690,7 @@
       .surface-subtitle {
         margin-top: 3px;
         color: var(--muted);
-        font-size: 10px;
+        font-size: 12px;
       }
 
       .trend-tabs {
@@ -602,7 +710,7 @@
         border-radius: 4px;
         background: transparent;
         color: var(--muted);
-        font-size: 10px;
+        font-size: 11px;
       }
 
       .trend-tab.active {
@@ -613,7 +721,8 @@
       }
 
       .chart-wrap {
-        height: 228px;
+        flex: 1;
+        min-height: 0;
         padding: 14px;
       }
 
@@ -625,7 +734,8 @@
 
       .model-list {
         display: flex;
-        height: 228px;
+        flex: 1;
+        min-height: 0;
         flex-direction: column;
         justify-content: center;
         gap: 18px;
@@ -636,7 +746,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 8px 12px;
-        font-size: 12px;
+        font-size: 13px;
       }
 
       .model-name-row {
@@ -674,7 +784,10 @@
       }
 
       .requests {
-        margin-top: 12px;
+        display: flex;
+        height: 100%;
+        min-height: 0;
+        flex-direction: column;
       }
 
       .request-filters {
@@ -700,7 +813,7 @@
         outline: 0;
         background: var(--panel);
         color: #3f444b;
-        font-size: 11px;
+        font-size: 13px;
       }
 
       .search-input:focus {
@@ -753,7 +866,7 @@
         background: transparent;
         color: #3f444b;
         text-align: left;
-        font-size: 11px;
+        font-size: 13px;
       }
 
       .search-option:hover,
@@ -763,7 +876,9 @@
       }
 
       .table-wrap {
-        overflow-x: auto;
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
       }
 
       table {
@@ -771,7 +886,7 @@
         min-width: 700px;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 11px;
+        font-size: 13px;
       }
 
       th,
@@ -784,6 +899,9 @@
       }
 
       th {
+        position: sticky;
+        z-index: 2;
+        top: 0;
         height: 38px;
         background: #fafbfc;
         color: var(--muted);
@@ -849,10 +967,11 @@
       .cell-sub {
         margin-top: 3px;
         color: var(--muted);
-        font-size: 10px;
+        font-size: 11px;
       }
 
       .panel-footer {
+        flex: 0 0 auto;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -860,7 +979,7 @@
         padding: 0 15px;
         border-top: 1px solid var(--border);
         color: var(--muted);
-        font-size: 10px;
+        font-size: 12px;
       }
 
       .pagination {
@@ -887,6 +1006,230 @@
       .page-button:disabled {
         cursor: default;
         opacity: 0.4;
+      }
+
+      /* Match LibreChat's Settings navigation and My Files data table. */
+      .panel-header {
+        min-height: 72px;
+        padding: 0 56px 0 24px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .panel-title {
+        font-size: 20px;
+        font-weight: 650;
+        line-height: 24px;
+      }
+
+      .panel-subtitle {
+        margin-top: 3px;
+        font-size: 12px;
+      }
+
+      .panel-body {
+        display: block;
+        padding: 0 24px 24px;
+      }
+
+      .settings-layout {
+        display: grid;
+        height: 100%;
+        min-height: 0;
+        grid-template-columns: 220px minmax(0, 1fr);
+      }
+
+      .section-nav {
+        min-width: 0;
+        padding: 24px 20px 24px 0;
+        border-right: 1px solid var(--border);
+      }
+
+      .view-tabs {
+        display: flex;
+        width: 100%;
+        height: auto;
+        flex-direction: column;
+        gap: 4px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+      }
+
+      .view-tab {
+        display: flex;
+        width: 100%;
+        height: 48px;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 12px;
+        background: transparent;
+        color: #404247;
+        font-size: 15px;
+        font-weight: 500;
+        text-align: left;
+      }
+
+      .view-tab:hover,
+      .view-tab.active {
+        background: #ececef;
+        color: var(--text);
+      }
+
+      .view-tab.active {
+        font-weight: 600;
+      }
+
+      .view-tab.active::after {
+        display: none;
+      }
+
+      .view-tab svg {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+      }
+
+      .dashboard-content {
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        padding: 20px 0 0 24px;
+      }
+
+      .dashboard-toolbar {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .metric-group-title {
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .metric-label,
+      .metric-meta,
+      .model-row {
+        font-size: 12px;
+      }
+
+      .metric-value {
+        font-size: 23px;
+        font-weight: 680;
+      }
+
+      .surface,
+      .metric {
+        border-color: #e5e5e7;
+        border-radius: 10px;
+      }
+
+      .requests .surface-header {
+        min-height: 64px;
+        padding: 10px 16px;
+      }
+
+      .requests .surface-title {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .requests .surface-subtitle {
+        font-size: 12px;
+      }
+
+      .search-select {
+        width: 190px;
+      }
+
+      .search-select.instance-filter {
+        width: 230px;
+      }
+
+      .search-input {
+        height: 38px;
+        padding: 0 34px 0 12px;
+        border-color: #dedfe2;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+
+      .search-arrow {
+        width: 34px;
+        height: 38px;
+      }
+
+      table {
+        min-width: 760px;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        height: 58px;
+        padding: 0 16px;
+      }
+
+      th {
+        height: 48px;
+        background: #f6f6f7;
+        color: #42454a;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      tbody tr:hover {
+        background: #f8f8f9;
+      }
+
+      .cell-sub {
+        margin-top: 2px;
+        font-size: 11px;
+      }
+
+      .vendor-logo {
+        width: 20px;
+        height: 20px;
+      }
+
+      .panel-footer {
+        min-height: 58px;
+        padding: 0 16px;
+        color: #55585e;
+        font-size: 13px;
+      }
+
+      .pagination {
+        gap: 10px;
+      }
+
+      .pagination strong {
+        margin-right: 4px;
+        color: #303238;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .page-button {
+        width: auto;
+        min-width: 66px;
+        height: 38px;
+        padding: 0 14px;
+        border-color: #dedfe2;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+
+      .page-button.active {
+        border-color: #dedfe2;
+        background: var(--panel);
+        color: #50555c;
       }
 
       @media (max-width: 900px) {
@@ -921,9 +1264,25 @@
           width: 210px;
         }
 
-        .usage-panel {
-          width: calc(100vw - 72px);
-          min-width: 0;
+        .settings-layout {
+          grid-template-columns: 168px minmax(0, 1fr);
+        }
+
+        .section-nav {
+          padding-right: 14px;
+        }
+
+        .dashboard-content {
+          padding-left: 16px;
+        }
+
+        .view-tab {
+          padding: 0 10px;
+          font-size: 14px;
+        }
+
+        .overview-pane {
+          overflow: auto;
         }
 
         .metric-groups {
@@ -956,13 +1315,22 @@
         }
 
         .workspace,
-        .overlay,
         .usage-panel {
-          position: static;
           width: 100%;
           min-width: 0;
           height: auto;
           min-height: 100vh;
+        }
+
+        .overlay {
+          position: fixed;
+          padding: 0;
+        }
+
+        .usage-panel {
+          height: 100vh;
+          max-height: 100vh;
+          border-radius: 0;
         }
 
         .panel-header {
@@ -973,11 +1341,37 @@
         }
 
         .panel-body {
-          overflow: visible;
+          overflow: hidden;
           padding: 16px;
         }
 
-        .toolbar {
+        .settings-layout {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .section-nav {
+          padding: 0 0 12px;
+          border-right: 0;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .view-tabs {
+          flex-direction: row;
+        }
+
+        .view-tab {
+          flex: 1;
+          justify-content: center;
+          border-radius: 8px;
+        }
+
+        .dashboard-content {
+          flex: 1;
+          padding: 12px 0 0;
+        }
+
+        .dashboard-toolbar {
           align-items: stretch;
           flex-direction: column;
         }
@@ -1057,7 +1451,7 @@
           <div class="profile-menu" id="profileMenu">
             <button class="menu-item" type="button">我的账户</button>
             <button class="menu-item active" id="usageMenuItem" type="button">
-              <span>用量与请求</span><span class="menu-note">新</span>
+              <span>价格用量统计</span><span class="menu-note">新</span>
             </button>
             <button class="menu-item" type="button">设置</button>
             <button class="menu-item" type="button">退出登录</button>
@@ -1095,8 +1489,8 @@
           <section class="usage-panel" aria-labelledby="usageTitle">
             <header class="panel-header">
               <div>
-                <h1 class="panel-title" id="usageTitle">用量与请求</h1>
-                <p class="panel-subtitle">查看当前账户的模型使用情况和请求记录</p>
+                <h1 class="panel-title" id="usageTitle">价格用量统计</h1>
+                <p class="panel-subtitle">查看当前账户的对话消耗与使用记录</p>
               </div>
               <div class="panel-tools">
                 <div class="help-wrap">
@@ -1119,21 +1513,46 @@
                     <p><strong>平均对话轮次</strong>：对话轮次除以对话实例数。</p>
                   </div>
                 </div>
-                <button class="icon-button" id="closePanel" type="button" aria-label="关闭">×</button>
+                <button class="panel-close" id="closePanel" type="button" aria-label="关闭" title="关闭">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <path d="M18 6 6 18"></path>
+                    <path d="m6 6 12 12"></path>
+                  </svg>
+                </button>
               </div>
             </header>
 
             <div class="panel-body">
-              <div class="toolbar">
-                <div class="segmented" role="group" aria-label="统计周期">
-                  <button class="segment" type="button" data-range="7">近 7 天</button>
-                  <button class="segment active" type="button" data-range="30">近 30 天</button>
-                  <button class="segment" type="button" data-range="all">全部</button>
-                </div>
-                <span class="demo-badge">演示数据 · 不代表真实消耗</span>
-              </div>
+              <div class="settings-layout">
+                <aside class="section-nav" aria-label="价格用量统计导航">
+                  <div class="view-tabs" role="tablist" aria-label="用量统计视图">
+                    <button class="view-tab active" id="overviewTab" type="button" role="tab" aria-selected="true" aria-controls="overviewPane" data-view="overview">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 3v18h18"></path><path d="m7 16 4-5 4 3 5-7"></path>
+                      </svg>
+                      <span>用量概览</span>
+                    </button>
+                    <button class="view-tab" id="logsTab" type="button" role="tab" aria-selected="false" aria-controls="logsPane" data-view="logs">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path>
+                      </svg>
+                      <span>对话日志</span>
+                    </button>
+                  </div>
+                </aside>
 
-              <section class="metric-groups" aria-label="核心统计">
+                <div class="dashboard-content">
+                  <div class="dashboard-toolbar">
+                  <div class="segmented" role="group" aria-label="统计周期">
+                    <button class="segment" type="button" data-range="7">近 7 天</button>
+                    <button class="segment active" type="button" data-range="30">近 30 天</button>
+                    <button class="segment" type="button" data-range="all">全部</button>
+                  </div>
+                  <span class="demo-badge">演示数据 · 不代表真实消耗</span>
+                  </div>
+
+                  <div class="view-pane overview-pane" id="overviewPane" role="tabpanel" aria-labelledby="overviewTab" data-view-pane="overview">
+                <section class="metric-groups" aria-label="核心统计">
                 <div class="metric-group consumption">
                   <h2 class="metric-group-title">消耗统计</h2>
                   <div class="metric-group-grid">
@@ -1181,9 +1600,9 @@
                     </article>
                   </div>
                 </div>
-              </section>
+                </section>
 
-              <div class="dashboard-grid">
+                <div class="dashboard-grid">
                 <section class="surface" aria-labelledby="trendTitle">
                   <div class="surface-header">
                     <span class="surface-title" id="trendTitle">用量趋势</span>
@@ -1217,9 +1636,11 @@
                     </div>
                   </div>
                 </section>
-              </div>
+                </div>
+                  </div>
 
-              <section class="surface requests" aria-labelledby="requestsTitle">
+                  <div class="view-pane logs-pane" id="logsPane" role="tabpanel" aria-labelledby="logsTab" data-view-pane="logs" hidden>
+                <section class="surface requests" aria-labelledby="requestsTitle">
                 <div class="surface-header">
                   <div class="surface-title-group">
                     <div class="surface-title" id="requestsTitle">对话日志</div>
@@ -1271,12 +1692,15 @@
                 <div class="panel-footer">
                   <span id="resultCount">共 5 条回复记录</span>
                   <div class="pagination">
-                    <button class="page-button" type="button" aria-label="上一页" disabled>‹</button>
-                    <button class="page-button active" type="button">1</button>
-                    <button class="page-button" type="button" aria-label="下一页" disabled>›</button>
+                    <strong>页面 1 / 1</strong>
+                    <button class="page-button" type="button" aria-label="上一页" disabled>上一页</button>
+                    <button class="page-button" type="button" aria-label="下一页" disabled>下一页</button>
                   </div>
                 </div>
-              </section>
+                </section>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -1297,6 +1721,8 @@
       const instanceOptions = document.getElementById('instanceOptions');
       const requestRows = document.getElementById('requestRows');
       const resultCount = document.getElementById('resultCount');
+      const viewTabs = document.querySelectorAll('.view-tab');
+      const viewPanes = document.querySelectorAll('[data-view-pane]');
 
       const rows = [
         { time: '2026-07-17 14:32', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '23.0K', cost: '¥1.26', turn: 4 },
@@ -1343,7 +1769,7 @@
         requestRows.querySelectorAll('.instance-link').forEach((button) => {
           button.addEventListener('click', () => usageOverlay.classList.add('hidden'));
         });
-        resultCount.textContent = `共 ${filtered.length} 条回复记录`;
+        resultCount.textContent = `共 ${filtered.length} 条记录`;
       }
 
       function uniqueValues(key) {
@@ -1372,6 +1798,9 @@
         const wrapper = input.closest('.search-select');
         const arrow = wrapper.querySelector('.search-arrow');
         const openOptions = () => {
+          document.querySelectorAll('.search-options').forEach((options) => {
+            if (options !== container) options.hidden = true;
+          });
           renderOptions(container, values, input.value, input);
           container.hidden = false;
         };
@@ -1380,11 +1809,38 @@
           openOptions();
           renderRows();
         });
-        arrow.addEventListener('click', () => {
-          if (container.hidden) openOptions();
-          else container.hidden = true;
-          input.focus();
+        arrow.addEventListener('mousedown', (event) => event.preventDefault());
+        arrow.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (container.hidden) {
+            input.focus();
+            openOptions();
+          } else {
+            container.hidden = true;
+            input.blur();
+          }
         });
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            container.hidden = true;
+            input.blur();
+          }
+        });
+      }
+
+      function switchView(view) {
+        viewTabs.forEach((tab) => {
+          const active = tab.dataset.view === view;
+          tab.classList.toggle('active', active);
+          tab.setAttribute('aria-selected', String(active));
+        });
+        viewPanes.forEach((pane) => {
+          pane.hidden = pane.dataset.viewPane !== view;
+        });
+        document.querySelectorAll('.search-options').forEach((options) => {
+          options.hidden = true;
+        });
+        if (view === 'overview') requestAnimationFrame(() => drawChart(currentRange));
       }
 
       profileButton.addEventListener('click', () => {
@@ -1409,10 +1865,21 @@
         usageOverlay.classList.add('hidden');
         helpPopover.hidden = true;
         helpButton.setAttribute('aria-expanded', 'false');
+        document.querySelectorAll('.search-options').forEach((options) => {
+          options.hidden = true;
+        });
+      });
+
+      usageOverlay.addEventListener('click', (event) => {
+        if (event.target === usageOverlay) closePanel.click();
       });
 
       setupSearchSelect(modelFilter, modelOptions, uniqueValues('model'));
       setupSearchSelect(instanceFilter, instanceOptions, uniqueValues('instance'));
+
+      viewTabs.forEach((tab) => {
+        tab.addEventListener('click', () => switchView(tab.dataset.view));
+      });
 
       document.addEventListener('click', (event) => {
         if (!event.target.closest('.help-wrap')) {
@@ -1422,6 +1889,12 @@
         document.querySelectorAll('.search-select').forEach((wrapper) => {
           if (!wrapper.contains(event.target)) wrapper.querySelector('.search-options').hidden = true;
         });
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !usageOverlay.classList.contains('hidden')) {
+          closePanel.click();
+        }
       });
 
       const chartSets = {

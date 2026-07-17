@@ -11,11 +11,18 @@ for marker in [
     "对话实例数", "对话轮次", "平均上下文", "平均对话轮次",
     "时间</th><th>模型</th><th>对话实例</th><th>轮次</th><th>Token 消耗</th><th>费用消耗",
     "近 7 天", "近 30 天", "全部",
+    'data-view="overview"', 'data-view="logs"',
+    "页面 ${state.page} / ${totalPages}", "上一页", "下一页",
+    "data-filter-toggle", "event.key !== 'Escape'", "input.blur()",
 ]:
     assert marker in script, f"missing client marker: {marker}"
 for forbidden in ["对话回合", "本轮次", "本轮费用", "成功状态"]:
     assert forbidden not in script, f"forbidden terminology: {forbidden}"
 assert "lc-usage-overlay" in style
+assert "lc-usage-settings-layout" in style
+assert "lc-usage-section-nav" in style
+assert "lc-usage-dashboard-root" in style
+assert "position: sticky" in style
 assert "@media (max-width: 680px)" in style
 assert "data-conversation-link" in script
 assert "localStorage.getItem('token')" in script

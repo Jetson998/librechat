@@ -2,7 +2,21 @@
 
 Date: 2026-07-17
 
-Status: design gate; implementation and production preflight pending.
+Status: implemented; native-style UI refinement prepared for release.
+
+## UI Refinement Gate (2026-07-18)
+
+The customer-facing surface follows the existing LibreChat `设置` and `我的文件`
+patterns:
+
+- use a left vertical navigation for `用量概览` and `对话日志`;
+- keep `近 7 天` / `近 30 天` / `全部` as a separate range control;
+- use the existing file-list table language for header background, row height,
+  typography, borders, and pagination;
+- keep overview content within the available height without a page-level
+  scrollbar;
+- give the log table its own scroll region with a sticky header and fixed footer;
+- allow searchable filters to close by toggle, outside click, or `Escape`.
 
 ## Objective
 

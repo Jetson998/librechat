@@ -5,6 +5,7 @@
   window.__librechatUserUsageDashboardInstalled = true;
 
   const state = {
+    view: 'overview',
     range: '30',
     trend: 'tokens',
     model: '',
@@ -99,19 +100,37 @@
                 <p><b>平均对话轮次</b>：对话轮次 / 对话实例数。</p>
               </div>
             </div>
-            <button class="lc-usage-icon-button" data-action="close" type="button" aria-label="关闭" title="关闭">×</button>
+            <button class="lc-usage-icon-button lc-usage-close" data-action="close" type="button" aria-label="关闭" title="关闭">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+            </button>
           </div>
         </header>
         <div class="lc-usage-content">
-          <div class="lc-usage-toolbar">
-            <div class="lc-usage-ranges" role="group" aria-label="统计周期">
-              <button type="button" data-range="7">近 7 天</button>
-              <button type="button" data-range="30">近 30 天</button>
-              <button type="button" data-range="all">全部</button>
+          <div class="lc-usage-settings-layout">
+            <aside class="lc-usage-section-nav" aria-label="价格用量统计导航">
+              <div class="lc-usage-view-tabs" role="tablist" aria-label="用量统计视图">
+                <button type="button" role="tab" data-view="overview" aria-controls="lcUsageDashboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="m7 16 4-5 4 3 5-7"></path></svg>
+                  <span>用量概览</span>
+                </button>
+                <button type="button" role="tab" data-view="logs" aria-controls="lcUsageDashboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg>
+                  <span>对话日志</span>
+                </button>
+              </div>
+            </aside>
+            <div class="lc-usage-dashboard-content">
+              <div class="lc-usage-toolbar">
+                <div class="lc-usage-ranges" role="group" aria-label="统计周期">
+                  <button type="button" data-range="7">近 7 天</button>
+                  <button type="button" data-range="30">近 30 天</button>
+                  <button type="button" data-range="all">全部</button>
+                </div>
+                <span class="lc-usage-authority">费用按后台模型单价估算</span>
+              </div>
+              <div id="lcUsageDashboard" class="lc-usage-dashboard-root" data-role="dashboard" role="tabpanel"></div>
             </div>
-            <span class="lc-usage-authority">费用按后台模型单价估算</span>
           </div>
-          <div data-role="dashboard"></div>
         </div>
       </section>`;
 
@@ -137,6 +156,16 @@
       if (page > 0 && page !== state.page) {
         state.page = page;
         loadDashboard();
+      }
+      const view = event.target.closest('[data-view]')?.dataset.view;
+      if (view && view !== state.view) {
+        state.view = view;
+        renderDashboard();
+      }
+      if (!event.target.closest('.lc-usage-search')) {
+        overlay.querySelectorAll('.lc-usage-options').forEach((options) => {
+          options.hidden = true;
+        });
       }
     });
 
@@ -254,9 +283,9 @@
         <footer class="lc-usage-log-footer">
           <span>共 ${data.pagination.total} 条记录</span>
           <div>
-            <button type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>‹</button>
-            <span>${state.page} / ${totalPages}</span>
-            <button type="button" data-page="${state.page + 1}" ${state.page >= totalPages ? 'disabled' : ''}>›</button>
+            <strong>页面 ${state.page} / ${totalPages}</strong>
+            <button type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>上一页</button>
+            <button type="button" data-page="${state.page + 1}" ${state.page >= totalPages ? 'disabled' : ''}>下一页</button>
           </div>
         </footer>
       </section>`;
@@ -268,7 +297,7 @@
     return `
       <div class="lc-usage-search" data-filter="${name}">
         <input type="search" autocomplete="off" value="${escapeHtml(selected?.label || '')}" placeholder="${placeholder}" aria-label="${placeholder}" />
-        <button type="button" data-filter-clear="${name}" aria-label="清除${placeholder}" title="清除" ${selectedValue ? '' : 'hidden'}>×</button>
+        <button type="button" data-filter-toggle="${name}" aria-label="展开${placeholder}" title="展开">⌄</button>
         <div class="lc-usage-options" hidden></div>
       </div>`;
   }
@@ -279,8 +308,12 @@
       const name = root.dataset.filter;
       const input = root.querySelector('input');
       const optionsBox = root.querySelector('.lc-usage-options');
+      const toggle = root.querySelector('[data-filter-toggle]');
       const options = name === 'model' ? state.data.modelOptions : state.data.conversationOptions;
       const drawOptions = () => {
+        panel.querySelectorAll('.lc-usage-options').forEach((candidate) => {
+          if (candidate !== optionsBox) candidate.hidden = true;
+        });
         const query = input.value.trim().toLowerCase();
         const matches = options
           .filter((item) => !query || item.label.toLowerCase().includes(query))
@@ -302,19 +335,28 @@
         }
         drawOptions();
       });
+      input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        optionsBox.hidden = true;
+        input.blur();
+      });
+      toggle.addEventListener('mousedown', (event) => event.preventDefault());
+      toggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (optionsBox.hidden) {
+          input.focus();
+          drawOptions();
+        } else {
+          optionsBox.hidden = true;
+          input.blur();
+        }
+      });
       optionsBox.addEventListener('click', (event) => {
         const option = event.target.closest('[data-value]');
         if (!option) return;
         state[name] = option.dataset.value;
         state.page = 1;
         optionsBox.hidden = true;
-        loadDashboard();
-      });
-    });
-    panel.querySelectorAll('[data-filter-clear]').forEach((button) => {
-      button.addEventListener('click', () => {
-        state[button.dataset.filterClear] = '';
-        state.page = 1;
         loadDashboard();
       });
     });
@@ -329,6 +371,11 @@
   function renderDashboard() {
     const panel = getPanel();
     const root = panel.querySelector('[data-role="dashboard"]');
+    panel.querySelectorAll('[data-view]').forEach((button) => {
+      const active = button.dataset.view === state.view;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
     panel.querySelectorAll('[data-range]').forEach((button) => {
       button.classList.toggle('is-active', button.dataset.range === state.range);
     });
@@ -346,42 +393,48 @@
     const data = state.data;
     const summary = data.summary;
     const incomplete = summary.costIncomplete ? '<span class="lc-usage-cost-note">部分历史记录无费用</span>' : '';
+    if (state.view === 'logs') {
+      root.innerHTML = renderLogs(data);
+      bindFilters();
+      return;
+    }
+
     root.innerHTML = `
-      <section class="lc-usage-metric-groups" aria-label="核心统计">
-        <div><h2>消耗统计</h2><div class="lc-usage-metric-grid">
-          ${metric('Token 消耗', formatNumber(summary.tokens), '对话请求的 Token 数', 'token')}
-          ${metric('费用消耗', `${formatCost(summary.cost, data.currency)}${incomplete}`, '对话请求 Token 的费用', 'cost')}
-        </div></div>
-        <div><h2>对话统计</h2><div class="lc-usage-metric-grid">
-          ${metric('对话实例数', formatNumber(summary.conversationInstances, 0), '产生的对话窗口数', 'instance')}
-          ${metric('对话轮次', formatNumber(summary.conversationTurns, 0), '产生回复的对话轮次', 'turn')}
-        </div></div>
-        <div><h2>对话复杂度</h2><div class="lc-usage-metric-grid">
-          ${metric('平均上下文', formatNumber(summary.averageContext), '对话 Token / 对话实例数', 'context')}
-          ${metric('平均对话轮次', Number(summary.averageTurns || 0).toFixed(1), '对话轮次 / 对话实例数', 'average')}
-        </div></div>
-      </section>
-      <div class="lc-usage-main-grid">
-        <section class="lc-usage-surface">
-          <div class="lc-usage-surface-header"><h2>用量趋势</h2><div class="lc-usage-trend-tabs">
-            ${[
-              ['tokens', 'Token 消耗'],
-              ['conversationInstances', '对话实例数'],
-              ['averageContext', '平均上下文'],
-              ['cost', '费用消耗'],
-            ]
-              .map(([key, label]) => `<button type="button" data-trend="${key}" class="${state.trend === key ? 'is-active' : ''}">${label}</button>`)
-              .join('')}
+      <div class="lc-usage-overview">
+        <section class="lc-usage-metric-groups" aria-label="核心统计">
+          <div><h2>消耗统计</h2><div class="lc-usage-metric-grid">
+            ${metric('Token 消耗', formatNumber(summary.tokens), '对话请求的 Token 数', 'token')}
+            ${metric('费用消耗', `${formatCost(summary.cost, data.currency)}${incomplete}`, '对话请求 Token 的费用', 'cost')}
           </div></div>
-          <div class="lc-usage-chart-wrap">${renderChart(data.trends, state.trend, data.currency)}</div>
+          <div><h2>对话统计</h2><div class="lc-usage-metric-grid">
+            ${metric('对话实例数', formatNumber(summary.conversationInstances, 0), '产生的对话窗口数', 'instance')}
+            ${metric('对话轮次', formatNumber(summary.conversationTurns, 0), '产生回复的对话轮次', 'turn')}
+          </div></div>
+          <div><h2>对话复杂度</h2><div class="lc-usage-metric-grid">
+            ${metric('平均上下文', formatNumber(summary.averageContext), '对话 Token / 对话实例数', 'context')}
+            ${metric('平均对话轮次', Number(summary.averageTurns || 0).toFixed(1), '对话轮次 / 对话实例数', 'average')}
+          </div></div>
         </section>
-        <section class="lc-usage-surface">
-          <div class="lc-usage-surface-header"><div><h2>模型分布</h2><p>按 Token 消耗</p></div></div>
-          <div class="lc-usage-model-list">${renderModelDistribution(data.models)}</div>
-        </section>
-      </div>
-      ${renderLogs(data)}`;
-    bindFilters();
+        <div class="lc-usage-main-grid">
+          <section class="lc-usage-surface">
+            <div class="lc-usage-surface-header"><h2>用量趋势</h2><div class="lc-usage-trend-tabs">
+              ${[
+                ['tokens', 'Token 消耗'],
+                ['conversationInstances', '对话实例数'],
+                ['averageContext', '平均上下文'],
+                ['cost', '费用消耗'],
+              ]
+                .map(([key, label]) => `<button type="button" data-trend="${key}" class="${state.trend === key ? 'is-active' : ''}">${label}</button>`)
+                .join('')}
+            </div></div>
+            <div class="lc-usage-chart-wrap">${renderChart(data.trends, state.trend, data.currency)}</div>
+          </section>
+          <section class="lc-usage-surface">
+            <div class="lc-usage-surface-header"><div><h2>模型分布</h2><p>按 Token 消耗</p></div></div>
+            <div class="lc-usage-model-list">${renderModelDistribution(data.models)}</div>
+          </section>
+        </div>
+      </div>`;
   }
 
   async function getAccessToken() {
