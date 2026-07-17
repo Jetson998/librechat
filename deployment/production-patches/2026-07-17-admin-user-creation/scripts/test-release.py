@@ -8,13 +8,11 @@ import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = ROOT.parents[2]
-ADMIN_SOURCE = Path(
-    os.environ.get(
-        "ADMIN_PANEL_SOURCE",
-        REPO / "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source",
-    )
-)
+if os.environ.get("ADMIN_PANEL_SOURCE"):
+    ADMIN_SOURCE = Path(os.environ["ADMIN_PANEL_SOURCE"])
+else:
+    REPO = ROOT.parents[2]
+    ADMIN_SOURCE = REPO / "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source"
 
 
 def require(condition, message):
