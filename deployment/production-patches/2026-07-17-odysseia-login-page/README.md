@@ -113,6 +113,8 @@ Correction:
   centered and right-aligned on desktop; mobile remains centered.
 - Override LibreChat's inherited `flex-col` shell direction so desktop
   `justify-content: flex-end` acts on the horizontal axis as intended.
+- Add a content-hash query parameter to the injected script URL so browsers do
+  not reuse the previous login patch after a production release.
 
 ## Production Result
 

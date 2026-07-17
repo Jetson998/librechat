@@ -12,7 +12,6 @@ from urllib.parse import urlsplit
 
 PATCH_ID = "odysseia-login-page-patch"
 PATCH_FILE = "odysseia-login.js"
-PATCH_TAG = f'<script id="{PATCH_ID}" src="/{PATCH_FILE}"></script>'
 SCRIPT_PATTERN = re.compile(
     rf"\s*<script\b[^>]*\bid=[\"']{re.escape(PATCH_ID)}[\"'][^>]*>.*?</script>",
     re.IGNORECASE | re.DOTALL,
@@ -83,7 +82,11 @@ def build(dist, source):
     html = SCRIPT_PATTERN.sub("", html)
     if html.lower().count("</body>") != 1:
         raise RuntimeError("frontend index must contain exactly one closing body tag")
-    html = re.sub(r"</body>", f"    {PATCH_TAG}\n  </body>", html, count=1, flags=re.I)
+    cache_key = sha256(source)[:12]
+    patch_tag = (
+        f'<script id="{PATCH_ID}" src="/{PATCH_FILE}?v={cache_key}"></script>'
+    )
+    html = re.sub(r"</body>", f"    {patch_tag}\n  </body>", html, count=1, flags=re.I)
     if html.count(PATCH_ID) != 1:
         raise RuntimeError("odysseia patch marker must occur exactly once")
 
@@ -105,6 +108,7 @@ def build(dist, source):
 
     print(f"index_sha256={sha256(index)}")
     print(f"script_sha256={sha256(dist / PATCH_FILE)}")
+    print(f"script_cache_key={cache_key}")
     print(f"patch_marker_count={html.count(PATCH_ID)}")
 
 

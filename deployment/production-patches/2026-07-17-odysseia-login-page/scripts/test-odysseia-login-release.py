@@ -60,7 +60,10 @@ def test_builder_idempotence_and_coexistence():
         html = read(dist / "index.html")
         require(html.count("odysseia-login-page-patch") == 1, "builder is not idempotent")
         require(html.count("business-upload-label-patch") == 1, "upload patch marker was changed")
-        require('src="/odysseia-login.js"' in html, "external odysseia script tag is missing")
+        require(
+            re.search(r'src="/odysseia-login\.js\?v=[0-9a-f]{12}"', html) is not None,
+            "versioned external odysseia script tag is missing",
+        )
         require((dist / "odysseia-login.js").is_file(), "patch source was not copied")
         require((dist / "business-upload-menu.js").is_file(), "upload patch script was not preserved")
 
