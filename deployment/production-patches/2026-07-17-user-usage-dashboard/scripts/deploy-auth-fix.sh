@@ -100,7 +100,9 @@ docker compose up -d --no-deps --force-recreate api >/dev/null
 for _ in $(seq 1 120); do curl -ksSf https://152.32.172.162.sslip.io/api/config >/dev/null 2>&1 && break; sleep 1; done
 curl -ksSf https://152.32.172.162.sslip.io/api/config >/dev/null
 test "$(curl -ksS -o /dev/null -w '%{http_code}' https://152.32.172.162.sslip.io/api/user/usage-dashboard)" = "401"
-curl -ksSf https://152.32.172.162.sslip.io/ | grep -Fq "user-usage-dashboard.js?v=$release_key"
+curl -ksSf https://152.32.172.162.sslip.io/ >/dev/null
+docker exec LibreChat-API grep -Fq "user-usage-dashboard.js?v=$release_key" /app/client/dist/index.html
+docker exec LibreChat-API grep -Fq "localStorage.getItem('token')" /app/client/dist/user-usage-dashboard.js
 
 for container in "${!protected_ids[@]}"; do test "$(docker inspect "$container" --format '{{.Id}}')" = "${protected_ids[$container]}"; done
 api_id_after="$(docker inspect LibreChat-API --format '{{.Id}}')"
