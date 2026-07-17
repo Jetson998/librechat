@@ -83,6 +83,18 @@ baseline and installs the candidate at the release-scoped host path
 `/opt/librechat/admin-user-creation/api-index.cjs`. The historical Office file
 is neither overwritten nor reactivated as part of this change.
 
+## Production Build Resource Guard
+
+The production host has approximately 4 GB RAM and initially had no swap. A
+full Admin Panel TypeScript check exhausted available memory during preflight,
+making HTTPS and SSH temporarily unavailable. No release files had been
+applied, and the existing containers recovered after the host restarted.
+
+This release now requires a dedicated 4 GB persistent build swap file before
+Docker build. The setup is idempotent and does not restart services. The
+runner blocks the build unless swap and combined memory thresholds are met,
+and the TypeScript process is capped to a 1 GB Node heap.
+
 ## Rollback
 
 Restore the timestamp-matched API bundle, admin users route, Admin Panel image,

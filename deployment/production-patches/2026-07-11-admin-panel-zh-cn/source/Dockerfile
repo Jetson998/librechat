@@ -21,9 +21,10 @@ COPY . .
 ARG VITE_BASE_PATH=/
 ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 ENV NODE_ENV=production
+ENV NODE_OPTIONS=--max-old-space-size=1024
 RUN bun run locales:check \
     && bun run test src/server/users.test.ts \
-    && bun run typecheck \
+    && node node_modules/typescript/bin/tsc --noEmit \
     && bun run format:check:baseline \
     && bun run sort-imports:check:baseline \
     && bun run build

@@ -71,6 +71,25 @@ and admin users route from `/opt/librechat/admin-user-creation/`. Rollback
 restores the previous Compose override and therefore returns the API to its
 image bundle without touching the historical Office patch archive.
 
+## Production Build Resource Guard
+
+The first successful API-handler preflight exposed a production-host resource
+limit: the 4 GB host had no swap, and the Admin Panel TypeScript check caused
+memory-reclaim thrashing. The build was interrupted before deployment writes;
+the host later restarted and all existing containers recovered automatically.
+
+Before another image build, run the committed idempotent setup script:
+
+```bash
+scripts/ensure-build-swap.sh
+```
+
+It enables a dedicated 4 GB swap file and records it in `/etc/fstab`; it does
+not restart or stop any service. The deployment runner refuses to start a
+Docker build unless at least 3 GB swap is configured and combined available
+memory plus free swap is at least 4 GB. The Admin Panel build also caps the
+Node heap used by TypeScript at 1 GB.
+
 ## Production Result
 
 Pending implementation gate, deployment, browser verification, and repository

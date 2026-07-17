@@ -37,6 +37,7 @@ def main():
         encoding="utf-8"
     )
     deploy_script = (ROOT / "scripts/build-and-deploy.sh").read_text(encoding="utf-8")
+    swap_script = (ROOT / "scripts/ensure-build-swap.sh").read_text(encoding="utf-8")
 
     for marker in (
         "async function createUserHandler",
@@ -100,6 +101,19 @@ def main():
         not in deploy_script,
         "historical Office bundle must not be overwritten",
     )
+    require('swap_total_mb" -ge 3072' in deploy_script, "build swap gate missing")
+    require(
+        'mem_available_mb + swap_free_mb' in deploy_script,
+        "combined memory gate missing",
+    )
+    for marker in (
+        "/swapfile-librechat-build",
+        "fallocate",
+        "mkswap",
+        "swapon",
+        "/etc/fstab",
+    ):
+        require(marker in swap_script, f"swap setup marker missing: {marker}")
     print("admin_user_creation_release: ok")
 
 
