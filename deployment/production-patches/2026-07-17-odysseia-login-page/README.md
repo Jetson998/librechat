@@ -231,6 +231,32 @@ Live browser verification at `1280x720` confirmed:
 - Exactly one login panel remains active.
 - Injected script URL is `/odysseia-login.js?v=51657fddfea2`.
 
+### Wordmark Size Refinement Production Result
+
+The upper-left wordmark size refinement was implemented in commit `d3a762b`
+and pushed to `origin/main` before production deployment.
+
+```text
+timestamp=20260717141133
+backup_dir=/opt/librechat/backups/odysseia-login-20260717141133
+api_container_before=d2b4d2ab501305d4c529f69f825799c889c614bbfabe5810a758562ee45b516f
+api_container_after=0828126c50d674dbfc366b998e340ca463cdf4f5724bbbb398014d6e43148b41
+nginx_container_unchanged=true
+codeapi_container_unchanged=true
+mongo_container_unchanged=true
+public_index_sha256=1f184c9b1e7575ffaa059d243a5b75c4c86fa815c174036c5dc1fa5f66cb80c6
+public_script_sha256=a5bf9529d29e1a0ee742948e4dc18246372b3b33a52284f284b2c339f7ff34dc
+public_upload_script_sha256=a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9
+script_cache_key=a5bf9529d29e
+office_status=401
+codeapi_health=healthy
+patch_marker_count=1
+```
+
+Automated production verification confirmed the new script hash, one login
+patch marker, preserved upload menu script, protected Office route, healthy
+CodeAPI, and unchanged Nginx, CodeAPI, and Mongo containers.
+
 ## Rollback
 
 Restore the timestamped backup directory printed in `DEPLOY_RESULT.txt`:
