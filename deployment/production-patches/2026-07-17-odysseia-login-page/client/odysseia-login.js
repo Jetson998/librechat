@@ -102,7 +102,7 @@
       gap: 9px;
       color: rgba(255, 255, 255, 0.96);
       font-family: Georgia, "Times New Roman", serif;
-      font-size: clamp(26px, 2.4vw, 34px);
+      font-size: clamp(28px, 2.7vw, 38px);
       font-weight: 400;
       letter-spacing: 0;
       line-height: 1;
@@ -673,7 +673,7 @@
 
   window.__odysseiaLoginPatch = Object.freeze({
     id: PATCH_ID,
-    version: '2026-07-17.2',
+    version: '2026-07-17.3',
     videoUrl: VIDEO_URL,
     title: 'Start your Agent Studio.',
   });

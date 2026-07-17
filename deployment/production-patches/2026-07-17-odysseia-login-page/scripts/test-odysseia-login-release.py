@@ -75,6 +75,7 @@ def test_script_contract():
         "Odýsseia",
         "Start your Agent Studio.",
         "odysseia-wordmark",
+        "font-size: clamp(28px, 2.7vw, 38px)",
         "localizeLoginFields(panel)",
         "['password', 'Password']",
         "odysseia-field-label",
@@ -93,7 +94,7 @@ def test_script_contract():
         "https://image01.vidu.zone/vidu/landing-page/login-bg.c7293340.mp4",
         "input[type=\"password\"]",
         "MutationObserver",
-        "version: '2026-07-17.2'",
+        "version: '2026-07-17.3'",
     )
     for value in required:
         require(value in script, f"missing login patch contract value: {value}")

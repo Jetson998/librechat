@@ -20,7 +20,7 @@ odysseia-login-page-patch -> /odysseia-login.js
 - The heading uses a restrained `23px` to `27px` responsive size so it remains
   a single centered line without dominating the login card.
 - `Odýsseia Studio` is a standalone white wordmark in the page's upper-left
-  corner, uses a `26px` to `34px` responsive size, and is no longer repeated
+  corner, uses a `28px` to `38px` responsive size, and is no longer repeated
   inside the login card.
 - Login fields use the English placeholders `Email` and `Password` without the
   conflicting white floating-label backgrounds.
