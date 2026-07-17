@@ -396,9 +396,13 @@
     if (state.model) params.set('model', state.model);
     if (state.conversation) params.set('conversation', state.conversation);
     try {
+      const token = window.localStorage.getItem('token');
       const response = await fetch(`/api/user/usage-dashboard?${params}`, {
         credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       state.data = await response.json();

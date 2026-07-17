@@ -56,6 +56,7 @@ scripts/test-client-release.py
 scripts/deploy.sh
 scripts/run-remote-release.sh
 scripts/verify-deployment.sh
+scripts/deploy-auth-fix.sh
 baseline/user.js
 baseline/compose.override.yaml
 PREFLIGHT.md

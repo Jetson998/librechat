@@ -18,4 +18,6 @@ for forbidden in ["对话回合", "本轮次", "本轮费用", "成功状态"]:
 assert "lc-usage-overlay" in style
 assert "@media (max-width: 680px)" in style
 assert "data-conversation-link" in script
+assert "localStorage.getItem('token')" in script
+assert "Authorization: `Bearer ${token}`" in script
 print("client release checks: ok")
