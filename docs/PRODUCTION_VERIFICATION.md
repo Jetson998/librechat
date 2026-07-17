@@ -1001,6 +1001,33 @@ office=401
 
 Only `LibreChat-API` and `LibreChat-Admin-Panel` were recreated. Nginx,
 MongoDB, and CodeAPI retained their container IDs. Browser verification then
-found the upstream `/users` route and sidebar entry were still disabled, so
-end-to-end acceptance remains pending the committed Admin Panel-only UI
-activation follow-up.
+found the upstream `/users` route and sidebar entry were still disabled, so a
+separate Admin Panel-only UI activation follow-up was required.
+
+UI activation follow-up result:
+
+```text
+timestamp=20260717175908
+backup_dir=/opt/librechat/backups/admin-user-ui-activation-20260717175908
+release_commit=e97962331de8e687ed6af3d8de6964fa65eb83b0
+image_ref=librechat-admin-panel-user-ui:e6a103c4218b
+admin_container_before=b6690f50efae88acf6588d88321328258b56f744cae3e852e5a3560e3a69179a
+admin_container_after=bd888ea33f65c88d571c15dd8cff7b9a09be749ffb7ef3566cde56040a5fa8aa
+api_and_data_containers_unchanged=true
+```
+
+Browser lifecycle verification:
+
+- the capability-filtered `用户` sidebar item was visible;
+- `/users` rendered the full user list and `添加用户` control;
+- creating `Codex E2E User` increased the list from four users to five and
+  displayed the success notification;
+- `POST /api/auth/login` for the temporary account returned HTTP `200`, role
+  `USER`, `emailVerified=true`, and a token;
+- deletion through the visible user action menu returned the list to four and
+  displayed the delete-success notification;
+- login after deletion returned HTTP `404`;
+- the pre-existing `Gracey` account remained present and unchanged.
+
+Acceptance: passed. Admin Panel can create, list, authenticate, and delete real
+local LibreChat users without enabling public registration.

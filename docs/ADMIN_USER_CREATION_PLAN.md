@@ -2,7 +2,7 @@
 
 Date: 2026-07-17
 
-Status: implementation committed; corrected production preflight pending.
+Status: deployed and browser lifecycle acceptance passed.
 
 ## Objective
 
@@ -106,6 +106,11 @@ The follow-up release activates the existing Users page, guards it with
 `READ_USERS`, restores the capability-filtered sidebar item, and recreates only
 the Admin Panel. The already deployed API, Nginx, MongoDB, and CodeAPI must keep
 their container IDs.
+
+Production deployment recreated only the Admin Panel. Browser verification
+created a temporary verified local user, confirmed a successful main LibreChat
+login, deleted the user through the Admin Panel, and confirmed the deleted
+credentials returned `404`. The pre-existing `Gracey` account remained intact.
 
 ## Rollback
 
