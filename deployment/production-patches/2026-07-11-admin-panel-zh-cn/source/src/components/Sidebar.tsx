@@ -17,13 +17,12 @@ const navItems: t.NavItem[] = [
     icon: 'settings',
     capability: SystemCapabilities.READ_CONFIGS,
   },
-  // TODO: re-enable once user management is ready
-  // {
-  //   labelKey: 'com_nav_users',
-  //   path: '/users',
-  //   icon: 'users',
-  //   capability: SystemCapabilities.READ_USERS,
-  // },
+  {
+    labelKey: 'com_nav_users',
+    path: '/users',
+    icon: 'users',
+    capability: SystemCapabilities.READ_USERS,
+  },
   {
     labelKey: 'com_nav_access',
     path: '/access',

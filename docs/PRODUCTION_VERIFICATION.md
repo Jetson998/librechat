@@ -969,3 +969,38 @@ Scope verification:
 
 Acceptance: passed. Global Serper-backed web search is available to normal
 users of `gpt-5.6-sol` without a personal API-key prompt.
+
+## Admin Panel User Creation
+
+Initial deployment date: 2026-07-17 HKT.
+
+Repository gates:
+
+- `e7a9b3c` recorded the design before implementation.
+- `904e7be` implemented the protected Admin API and complete bilingual form.
+- `b20d072`, `dd4821e`, `78825ca`, and `85e42be` corrected the active runtime
+  baseline, container test isolation, formatting, and production build gates.
+- `8c2d864` added a persistent 4 GB build swap and memory threshold after the
+  no-swap production host became unresponsive during an interrupted preflight.
+
+Production result:
+
+```text
+timestamp=20260717173147
+backup_dir=/opt/librechat/backups/admin-user-creation-20260717173147
+release_commit=85e42be25974ce8ed0dd5a9282d98b0b3a8f32c9
+image_ref=librechat-admin-panel-user-creation:b659a7f7412d
+api_bundle_sha=2cc88bec7011b3d063f5528171d98835ab295e4fefc679bd2e4963fa5e66ee20
+admin_route_sha=b384199dfbd1b24ed55d12575d03744baa1696ba1202a842fb758bbd895ab571
+protected_containers_unchanged=true
+main=200
+api_config=200
+admin=200
+office=401
+```
+
+Only `LibreChat-API` and `LibreChat-Admin-Panel` were recreated. Nginx,
+MongoDB, and CodeAPI retained their container IDs. Browser verification then
+found the upstream `/users` route and sidebar entry were still disabled, so
+end-to-end acceptance remains pending the committed Admin Panel-only UI
+activation follow-up.

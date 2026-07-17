@@ -36,6 +36,11 @@ def main():
     dialog = (ADMIN_SOURCE / "src/components/users/CreateUserDialog.tsx").read_text(
         encoding="utf-8"
     )
+    users_page = (ADMIN_SOURCE / "src/components/users/UsersPage.tsx").read_text(
+        encoding="utf-8"
+    )
+    users_route = (ADMIN_SOURCE / "src/routes/_app/users.tsx").read_text(encoding="utf-8")
+    sidebar = (ADMIN_SOURCE / "src/components/Sidebar.tsx").read_text(encoding="utf-8")
     deploy_script = (ROOT / "scripts/build-and-deploy.sh").read_text(encoding="utf-8")
     swap_script = (ROOT / "scripts/ensure-build-swap.sh").read_text(encoding="utf-8")
 
@@ -59,6 +64,13 @@ def main():
     require("/api/admin/users" in server_users, "Admin Panel create API path missing")
     for marker in ("confirmPassword", "emailVerified", "user-username", "user-password"):
         require(marker in dialog, f"create dialog field missing: {marker}")
+    require("component: UsersRoute" in users_route, "users route is not active")
+    require("SystemCapabilities.READ_USERS" in users_route, "users route capability guard missing")
+    require("redirect({ to: '/' })" not in users_route, "users route still redirects home")
+    require("path: '/users'" in sidebar, "users sidebar item missing")
+    require("TODO: re-enable once user management is ready" not in sidebar,
+            "users sidebar item remains disabled")
+    require("admin-user-ui-activation" in users_page, "users page release marker missing")
 
     for locale in ("en", "zh-Hans"):
         data = json.loads(

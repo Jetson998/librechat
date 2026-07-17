@@ -108,6 +108,7 @@ export function UsersPage() {
     <div
       role="region"
       aria-label={localize('com_nav_users')}
+      data-release-marker="admin-user-ui-activation"
       className="flex flex-1 flex-col gap-6 overflow-auto p-6"
     >
       <section aria-label={localize('com_users_list')}>

@@ -92,5 +92,12 @@ Node heap used by TypeScript at 1 GB.
 
 ## Production Result
 
-Pending implementation gate, deployment, browser verification, and repository
-closeout.
+Deployed on 2026-07-17 after commit `85e42be25974ce8ed0dd5a9282d98b0b3a8f32c9`.
+The API bundle, protected admin users route, and complete create-user form are
+active. Deployment evidence is stored in `DEPLOY_RESULT.txt`.
+
+Post-deployment browser verification found that the upstream `/users` route
+still redirected to the dashboard and the Users sidebar item remained hidden.
+That Admin Panel-only activation is tracked in the adjacent
+`2026-07-17-admin-user-ui-activation` release and must pass its own repository
+and deployment gates before browser lifecycle acceptance is complete.

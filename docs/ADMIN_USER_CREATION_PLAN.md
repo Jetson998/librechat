@@ -95,6 +95,18 @@ Docker build. The setup is idempotent and does not restart services. The
 runner blocks the build unless swap and combined memory thresholds are met,
 and the TypeScript process is capped to a 1 GB Node heap.
 
+## UI Activation Follow-up
+
+Post-deployment browser verification found that upstream Admin Panel source
+still redirected `/users` to `/` and kept the Users sidebar item commented
+out. The API and form were deployed correctly but were unreachable through the
+visible interface.
+
+The follow-up release activates the existing Users page, guards it with
+`READ_USERS`, restores the capability-filtered sidebar item, and recreates only
+the Admin Panel. The already deployed API, Nginx, MongoDB, and CodeAPI must keep
+their container IDs.
+
 ## Rollback
 
 Restore the timestamp-matched API bundle, admin users route, Admin Panel image,
