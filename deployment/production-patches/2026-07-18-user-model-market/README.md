@@ -96,3 +96,10 @@ The user API/client release and the Admin Panel image are deployed as separate
 units. The guarded user release recreates only `LibreChat-API`; the Admin Panel
 release recreates only `LibreChat-Admin-Panel`. Either unit can be rolled back
 without reverting the other or changing MongoDB pricing data.
+
+## Follow-up Status
+
+As of 2026-07-19, the Admin publication controls are deployed, two models are
+published, and the user market is browser-verified with live prices. The later
+table-layout release is recorded in
+`../2026-07-19-model-market-layout/DEPLOY_RESULT.md`.

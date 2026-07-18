@@ -2,6 +2,8 @@
 
 Date: 2026-07-19
 
+Status: deployed and browser-verified.
+
 ## Objective
 
 Stabilize the model-market table column allocation and present the official
@@ -31,3 +33,8 @@ and all other mounted client assets remain unchanged.
 
 Restore the backed-up Compose override and recreate only `LibreChat-API`.
 
+## Production Result
+
+See `DEPLOY_RESULT.md`. The release changed only the client mount and recreated
+only `LibreChat-API`; the usage API route and all protected services remained
+unchanged.
