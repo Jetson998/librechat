@@ -33,6 +33,38 @@ const WRAPPER_TYPES = new Set([
 const INDEXED_ARRAY_RE = /^(.+)\.(\d+)$/;
 const ARRAY_INDEX_KEY_RE = /^(0|[1-9]\d*)$/;
 
+export function configValuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((value, index) => configValuesEqual(value, right[index]))
+    );
+  }
+  if (
+    left === null ||
+    right === null ||
+    typeof left !== 'object' ||
+    typeof right !== 'object'
+  ) {
+    return false;
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord);
+  const rightKeys = Object.keys(rightRecord);
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(rightRecord, key) &&
+        configValuesEqual(leftRecord[key], rightRecord[key]),
+    )
+  );
+}
+
 function unwrapSchema(schema: t.ZodSchemaLike): t.ZodSchemaLike {
   const seen = new Set<t.ZodSchemaLike>();
   let current = schema;
@@ -1156,9 +1188,7 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
     if (
       (Object.keys(expected).length === 0 && hasPersistedModel) ||
       (Object.keys(expected).length > 0 &&
-        (!persisted ||
-          Object.keys(expected).some((field) => persisted[field] !== expected[field]) ||
-          Object.keys(persisted).some((field) => expected[field] !== persisted[field])))
+        (!persisted || !configValuesEqual(persisted, expected)))
     ) {
       throw new Error('Model pricing was not persisted; reload and retry');
     }

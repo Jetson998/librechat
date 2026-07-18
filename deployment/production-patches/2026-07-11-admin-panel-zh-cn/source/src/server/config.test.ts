@@ -19,6 +19,7 @@ import {
   normalizeAppServiceKeys,
   mergeConfigArraySources,
   mergeIndexedArrayEntriesIntoBase,
+  configValuesEqual,
 } from './config';
 
 interface ZodV3Schema extends t.ZodSchemaLike {
@@ -76,6 +77,26 @@ function findField(fields: t.SchemaField[], key: string): t.SchemaField | undefi
   }
   return undefined;
 }
+
+describe('configValuesEqual', () => {
+  it('compares nested model pricing metadata by value', () => {
+    expect(
+      configValuesEqual(
+        { prompt: 0.6, market: { published: true } },
+        { market: { published: true }, prompt: 0.6 },
+      ),
+    ).toBe(true);
+  });
+
+  it('detects nested model pricing differences', () => {
+    expect(
+      configValuesEqual(
+        { prompt: 0.6, market: { published: true } },
+        { prompt: 0.6, market: { published: false } },
+      ),
+    ).toBe(false);
+  });
+});
 
 describe('extractSchemaTree', () => {
   it('extracts basic scalar types', () => {
