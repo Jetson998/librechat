@@ -184,6 +184,95 @@
   border-right: 1px solid var(--lc-usage-border);
 }
 
+.lc-usage-toolbar[hidden] {
+  display: none;
+}
+
+.lc-usage-market {
+  min-width: 0;
+}
+
+.lc-usage-market-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.lc-usage-market-heading h2 {
+  margin: 0;
+  color: var(--lc-usage-text);
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.lc-usage-market-heading p,
+.lc-usage-market-note {
+  margin: 5px 0 0;
+  color: var(--lc-usage-muted);
+  font-size: 12px;
+}
+
+.lc-usage-market-heading > span {
+  flex: 0 0 auto;
+  color: var(--lc-usage-muted);
+  font-size: 12px;
+}
+
+.lc-usage-market-table-wrap {
+  overflow-x: auto;
+}
+
+.lc-usage-market-table {
+  min-width: 760px;
+}
+
+.lc-usage-market-table th,
+.lc-usage-market-table td {
+  white-space: nowrap;
+}
+
+.lc-usage-market-model,
+.lc-usage-market-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lc-usage-market-price {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lc-usage-market-price strong {
+  color: var(--lc-usage-text);
+  font-weight: 650;
+}
+
+.lc-usage-market-official,
+.lc-usage-market-benchmark {
+  color: var(--lc-usage-muted);
+  font-size: 11px;
+}
+
+.lc-usage-market-discount {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--lc-usage-accent) 12%, transparent);
+  color: var(--lc-usage-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.lc-usage-market-note {
+  margin-top: 12px;
+}
+
 .lc-usage-view-tabs {
   display: flex;
   width: 100%;

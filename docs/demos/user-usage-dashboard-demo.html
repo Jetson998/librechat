@@ -512,6 +512,40 @@
         overflow: hidden;
       }
 
+      .market-pane {
+        overflow: hidden;
+      }
+
+      .market-surface {
+        height: 100%;
+      }
+
+      .market-price {
+        display: flex;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .market-price strong {
+        color: #24272b;
+        font-size: 14px;
+      }
+
+      .market-official {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .market-discount {
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #e8f6f2;
+        color: #087a69;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
       .overview-pane {
         display: flex;
         min-height: 0;
@@ -1249,6 +1283,10 @@
         margin-bottom: 14px;
       }
 
+      .dashboard-toolbar[hidden] {
+        display: none;
+      }
+
       .metric-group-title {
         font-size: 12px;
         font-weight: 600;
@@ -1692,6 +1730,12 @@
                       </svg>
                       <span>对话日志</span>
                     </button>
+                    <button class="view-tab" id="marketTab" type="button" role="tab" aria-selected="false" aria-controls="marketPane" data-view="market">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 9l2-5h14l2 5"></path><path d="M5 13v7h14v-7"></path><path d="M9 20v-5h6v5"></path><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"></path>
+                      </svg>
+                      <span>模型市场</span>
+                    </button>
                   </div>
                 </aside>
 
@@ -1801,6 +1845,7 @@
                     <div class="surface-title" id="requestsTitle">对话日志</div>
                     <div class="surface-subtitle">按产生回复的对话轮次记录</div>
                   </div>
+
                   <div class="request-filters">
                     <div class="search-select" data-search-select="model">
                       <input
@@ -1854,6 +1899,42 @@
                 </div>
                 </section>
                   </div>
+
+                  <div class="view-pane market-pane" id="marketPane" role="tabpanel" aria-labelledby="marketTab" data-view-pane="market" hidden>
+                    <section class="surface requests market-surface" aria-labelledby="marketTitle">
+                      <div class="surface-header">
+                        <div class="surface-title-group">
+                          <div class="surface-title" id="marketTitle">模型市场</div>
+                          <div class="surface-subtitle">API 价格均为每百万 Token 的美元价格</div>
+                        </div>
+                        <span class="demo-badge">2 个公开模型</span>
+                      </div>
+                      <div class="table-wrap">
+                        <table>
+                          <colgroup>
+                            <col style="width: 20%" /><col style="width: 12%" /><col style="width: 22%" />
+                            <col style="width: 15%" /><col style="width: 15%" /><col style="width: 16%" />
+                          </colgroup>
+                          <thead><tr><th>模型名称</th><th>上下文</th><th>输入单价</th><th>输出单价</th><th>缓存写入</th><th>缓存命中</th></tr></thead>
+                          <tbody>
+                            <tr>
+                              <td><div class="model-cell"><span id="marketOpenAILogo"></span><span class="model-cell-name">gpt-5.6-sol</span></div></td>
+                              <td>800K</td>
+                              <td><div class="market-price"><strong>$0.60/M</strong><span class="market-official">官方 $1.25/M</span><span class="market-discount">优惠 52%</span></div></td>
+                              <td>$3.60/M</td><td>$0.75/M</td><td>$0.06/M</td>
+                            </tr>
+                            <tr>
+                              <td><div class="model-cell"><span id="marketFableLogo"></span><span class="model-cell-name">claude-fable-5</span></div></td>
+                              <td>200K</td>
+                              <td><div class="market-price"><strong>$2.40/M</strong><span class="market-official">官方 $3.00/M</span><span class="market-discount">优惠 20%</span></div></td>
+                              <td>$12.00/M</td><td>$3.00/M</td><td>$0.24/M</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="panel-footer"><span>输入优惠率按当前输入单价相对官方输入价计算</span></div>
+                    </section>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1880,6 +1961,7 @@
       const resultCount = document.getElementById('resultCount');
       const viewTabs = document.querySelectorAll('.view-tab');
       const viewPanes = document.querySelectorAll('[data-view-pane]');
+      const dashboardToolbar = document.querySelector('.dashboard-toolbar');
       const chartTooltip = document.getElementById('chartTooltip');
 
       const rows = [
@@ -2031,6 +2113,7 @@
         document.querySelectorAll('.search-options').forEach((options) => {
           options.hidden = true;
         });
+        dashboardToolbar.hidden = view === 'market';
         if (view === 'overview') requestAnimationFrame(() => drawChart(currentRange));
       }
 
@@ -2177,6 +2260,8 @@
       });
 
       renderRows();
+      document.getElementById('marketOpenAILogo').innerHTML = vendorLogo('openai');
+      document.getElementById('marketFableLogo').innerHTML = vendorLogo('anthropic');
       requestAnimationFrame(() => drawChart(currentRange));
     </script>
   </body>

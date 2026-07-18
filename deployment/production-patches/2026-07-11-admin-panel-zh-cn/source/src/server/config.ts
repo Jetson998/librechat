@@ -1054,6 +1054,8 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
       completion: z.number().nonnegative().nullable(),
       cacheRead: z.number().nonnegative().nullable(),
       cacheWrite: z.number().nonnegative().nullable(),
+      marketPublished: z.boolean(),
+      officialPrompt: z.number().positive().nullable(),
     }),
   )
   .handler(async ({ data }) => {
@@ -1098,6 +1100,14 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
       const value = data[field];
       if (value == null) delete modelConfig[field];
       else modelConfig[field] = value;
+    }
+    if (data.marketPublished || data.officialPrompt != null) {
+      modelConfig.market = {
+        published: data.marketPublished,
+        ...(data.officialPrompt == null ? {} : { officialPrompt: data.officialPrompt }),
+      };
+    } else {
+      delete modelConfig.market;
     }
     const fieldPath = `endpoints.custom.${data.endpointIndex}.tokenConfig`;
     const response = await apiFetch(`/api/admin/config/role/${BASE_CONFIG_PRINCIPAL_ID}/fields`, {

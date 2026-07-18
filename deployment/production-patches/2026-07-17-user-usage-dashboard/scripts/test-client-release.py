@@ -16,6 +16,7 @@ for marker in [
     'pointermove', 'focusin',
     'lc-usage-token-detail', 'lc-usage-cost-detail', '普通输入', '缓存读取', '缓存写入', '历史明细不可拆分',
     'formatCostBreakdown', '费用合计', '实际费用', '×',
+    'data-view="market"', '模型市场', 'renderMarket', '输入优惠率', 'officialPrompt',
     "页面 ${state.page} / ${totalPages}", "上一页", "下一页",
     "data-filter-toggle", "event.key !== 'Escape'", "input.blur()",
 ]:

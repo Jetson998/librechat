@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const {
   buildPipeline,
+  buildModelMarket,
   createUsageDashboardHandler,
   formatResult,
   buildPricingIndex,
@@ -89,6 +90,34 @@ const duplicateDecorated = decorateCostBreakdown({ endpoint: 'agents', model: 'g
 assert.equal(duplicateDecorated.costBreakdownAvailable, true, 'identical duplicate prices must resolve by model');
 assert.equal(duplicateDecorated.costBreakdown.cacheWrite, undefined, 'missing zero-Token price must not block detail');
 assert.equal(duplicateDecorated.costBreakdownMatches, true);
+const market = buildModelMarket({ endpoints: { custom: [
+  {
+    name: 'MuskAPI',
+    tokenConfig: {
+      'gpt-5.6-sol': {
+        context: 800000,
+        prompt: 0.6,
+        completion: 3.6,
+        cacheRead: 0.06,
+        cacheWrite: 0.75,
+        market: { published: true, officialPrompt: 1.25 },
+      },
+      hidden: { prompt: 1, market: { published: false, officialPrompt: 2 } },
+    },
+  },
+] } });
+assert.deepEqual(market, [{
+  model: 'gpt-5.6-sol',
+  context: 800000,
+  prompt: 0.6,
+  completion: 3.6,
+  cacheWrite: 0.75,
+  cacheRead: 0.06,
+  officialPrompt: 1.25,
+  inputDiscount: 52,
+}]);
+assert.equal(JSON.stringify(market).includes('MuskAPI'), false, 'endpoint names must not leak');
+assert.equal(JSON.stringify(market).includes('hidden'), false, 'unpublished models must not leak');
 assert.equal(formatted.pagination.total, 2);
 
 let capturedPipeline;

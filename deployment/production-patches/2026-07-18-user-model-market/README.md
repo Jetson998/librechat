@@ -2,7 +2,7 @@
 
 Date: 2026-07-18
 
-Status: design approved; implementation pending.
+Status: implementation complete and locally verified; production deployment pending.
 
 ## Objective
 
@@ -77,6 +77,14 @@ as a separate design and release. Do not add these fields to phase one.
 Only published models and their public prices are returned. Internal endpoint
 names, credentials, unpublished models, and full configuration are never sent
 to the user client.
+
+## Verification
+
+- user API aggregation and publication filtering tests;
+- user client static release checks;
+- Admin Panel pricing helper tests and TypeScript typecheck;
+- Admin Panel production build;
+- phase-one boundary check that excludes the business-contact workflow.
 
 ## Rollback
 

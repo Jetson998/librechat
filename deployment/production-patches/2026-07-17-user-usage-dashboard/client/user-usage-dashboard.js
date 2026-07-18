@@ -132,6 +132,10 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg>
                   <span>对话日志</span>
                 </button>
+                <button type="button" role="tab" data-view="market" aria-controls="lcUsageDashboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l2-5h14l2 5"></path><path d="M5 13v7h14v-7"></path><path d="M9 20v-5h6v5"></path><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"></path></svg>
+                  <span>模型市场</span>
+                </button>
               </div>
             </aside>
             <div class="lc-usage-dashboard-content">
@@ -440,6 +444,61 @@
       </section>`;
   }
 
+  function formatMarketPrice(value, currency) {
+    return value == null ? '—' : formatRate(value, currency);
+  }
+
+  function formatMarketContext(value) {
+    if (value == null) return '—';
+    return formatNumber(value, value >= 1000000 ? 1 : 0);
+  }
+
+  function renderMarket(data) {
+    const models = data.market || [];
+    const rows = models.length
+      ? models
+          .map((item) => {
+            const discount = Number(item.inputDiscount);
+            const discountLabel =
+              item.inputDiscount == null
+                ? ''
+                : discount > 0
+                  ? `<span class="lc-usage-market-discount">优惠 ${formatNumber(discount, 1)}%</span>`
+                  : discount === 0
+                    ? '<span class="lc-usage-market-benchmark">官方同价</span>'
+                    : `<span class="lc-usage-market-benchmark">高于官方 ${formatNumber(Math.abs(discount), 1)}%</span>`;
+            const official =
+              item.officialPrompt == null
+                ? ''
+                : `<span class="lc-usage-market-official">官方 ${formatMarketPrice(item.officialPrompt, data.currency)}</span>`;
+            return `
+              <tr>
+                <td><div class="lc-usage-market-model">${providerLogo(item)}<strong>${escapeHtml(item.model)}</strong></div></td>
+                <td>${formatMarketContext(item.context)}</td>
+                <td><div class="lc-usage-market-price"><strong>${formatMarketPrice(item.prompt, data.currency)}</strong>${official}${discountLabel}</div></td>
+                <td>${formatMarketPrice(item.completion, data.currency)}</td>
+                <td>${formatMarketPrice(item.cacheWrite, data.currency)}</td>
+                <td>${formatMarketPrice(item.cacheRead, data.currency)}</td>
+              </tr>`;
+          })
+          .join('')
+      : '<tr><td colspan="6"><div class="lc-usage-empty">暂无公开模型价格</div></td></tr>';
+    return `
+      <div class="lc-usage-market">
+        <div class="lc-usage-market-heading">
+          <div><h2>模型市场</h2><p>API 价格均为每百万 Token 的美元价格</p></div>
+          <span>${models.length} 个模型</span>
+        </div>
+        <div class="lc-usage-table-wrap lc-usage-market-table-wrap">
+          <table class="lc-usage-table lc-usage-market-table">
+            <thead><tr><th>模型名称</th><th>上下文</th><th>输入单价</th><th>输出单价</th><th>缓存写入</th><th>缓存命中</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <p class="lc-usage-market-note">输入优惠率按当前输入单价相对官方输入价计算，实际计费以请求记录为准。</p>
+      </div>`;
+  }
+
   function searchFilter(name, placeholder, options) {
     const selectedValue = state[name];
     const selected = options.find((item) => item.value === selectedValue);
@@ -528,6 +587,8 @@
     panel.querySelectorAll('[data-range]').forEach((button) => {
       button.classList.toggle('is-active', button.dataset.range === state.range);
     });
+    const toolbar = panel.querySelector('.lc-usage-toolbar');
+    if (toolbar) toolbar.hidden = state.view === 'market';
 
     if (state.loading && !state.data) {
       root.innerHTML = '<div class="lc-usage-status"><i></i><span>正在加载用量数据</span></div>';
@@ -540,6 +601,10 @@
     }
 
     const data = state.data;
+    if (state.view === 'market') {
+      root.innerHTML = renderMarket(data);
+      return;
+    }
     const summary = data.summary;
     const incomplete = summary.costIncomplete ? '<span class="lc-usage-cost-note">部分历史记录无费用</span>' : '';
     if (state.view === 'logs') {

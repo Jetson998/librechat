@@ -4,6 +4,10 @@ export const PRICE_FIELDS = ['prompt', 'completion', 'cacheRead', 'cacheWrite'] 
 
 export type PriceField = (typeof PRICE_FIELDS)[number];
 export type PricingDraft = Record<PriceField, string>;
+export type MarketDraft = {
+  published: boolean;
+  officialPrompt: string;
+};
 export type CustomEndpoint = Record<string, t.ConfigValue> & {
   name?: string;
   models?: {
@@ -18,6 +22,11 @@ export const EMPTY_PRICING_DRAFT: PricingDraft = {
   completion: '',
   cacheRead: '',
   cacheWrite: '',
+};
+
+export const EMPTY_MARKET_DRAFT: MarketDraft = {
+  published: false,
+  officialPrompt: '',
 };
 
 function isRecord(value: unknown): value is Record<string, t.ConfigValue> {
@@ -51,6 +60,33 @@ function getModelConfig(endpoint: CustomEndpoint | undefined, model: string) {
   if (!endpoint || !isRecord(endpoint.tokenConfig)) return undefined;
   const value = endpoint.tokenConfig[model];
   return isRecord(value) ? value : undefined;
+}
+
+export function getMarketDraft(endpoint: CustomEndpoint | undefined, model: string): MarketDraft {
+  const modelConfig = getModelConfig(endpoint, model);
+  const market = modelConfig?.market;
+  if (!isRecord(market)) return { ...EMPTY_MARKET_DRAFT };
+  const officialPrompt = market.officialPrompt;
+  return {
+    published: market.published === true,
+    officialPrompt:
+      typeof officialPrompt === 'number' && Number.isFinite(officialPrompt)
+        ? String(officialPrompt)
+        : '',
+  };
+}
+
+export function parseMarketDraft(draft: MarketDraft): {
+  published: boolean;
+  officialPrompt: number | null;
+} {
+  const raw = draft.officialPrompt.trim();
+  if (!raw) return { published: draft.published, officialPrompt: null };
+  const officialPrompt = Number(raw);
+  if (!Number.isFinite(officialPrompt) || officialPrompt <= 0) {
+    throw new Error('officialPrompt must be a positive number');
+  }
+  return { published: draft.published, officialPrompt };
 }
 
 export function hasComplexPricing(endpoint: CustomEndpoint | undefined, model: string): boolean {

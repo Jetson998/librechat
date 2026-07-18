@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   getEndpointModels,
+  getMarketDraft,
   getPricingDraft,
   hasComplexPricing,
   updateModelPricing,
+  parseMarketDraft,
   type CustomEndpoint,
 } from './modelPricing';
 
@@ -28,6 +30,29 @@ describe('model pricing helpers', () => {
       cacheRead: '',
       cacheWrite: '',
     });
+  });
+
+  it('reads and validates market metadata independently from billing prices', () => {
+    const marketEndpoint: CustomEndpoint = {
+      ...endpoint,
+      tokenConfig: {
+        ...endpoint.tokenConfig,
+        'gpt-5.6-sol': {
+          context: 800000,
+          prompt: 0.5,
+          market: { published: true, officialPrompt: 1.25 },
+        },
+      },
+    };
+    expect(getMarketDraft(marketEndpoint, 'gpt-5.6-sol')).toEqual({
+      published: true,
+      officialPrompt: '1.25',
+    });
+    expect(parseMarketDraft({ published: true, officialPrompt: '1.25' })).toEqual({
+      published: true,
+      officialPrompt: 1.25,
+    });
+    expect(() => parseMarketDraft({ published: true, officialPrompt: '0' })).toThrow();
   });
 
   it('updates native prices while preserving non-price fields', () => {

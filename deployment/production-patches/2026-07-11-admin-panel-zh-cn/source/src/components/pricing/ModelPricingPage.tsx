@@ -3,12 +3,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   EMPTY_PRICING_DRAFT,
+  EMPTY_MARKET_DRAFT,
   PRICE_FIELDS,
   getCustomEndpoints,
   getEndpointModels,
+  getMarketDraft,
   getPricingDraft,
   hasComplexPricing,
   parsePricingDraft,
+  parseMarketDraft,
+  type MarketDraft,
   type PriceField,
   type PricingDraft,
 } from './modelPricing';
@@ -54,6 +58,7 @@ export function ModelPricingPage() {
   const [modelSearch, setModelSearch] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [draft, setDraft] = useState<PricingDraft>({ ...EMPTY_PRICING_DRAFT });
+  const [marketDraft, setMarketDraft] = useState<MarketDraft>({ ...EMPTY_MARKET_DRAFT });
 
   useEffect(() => {
     if (endpointIndex >= endpoints.length) setEndpointIndex(0);
@@ -67,24 +72,45 @@ export function ModelPricingPage() {
     () => getPricingDraft(endpoint, selectedModel),
     [endpoint, selectedModel],
   );
+  const savedMarketDraft = useMemo(
+    () => getMarketDraft(endpoint, selectedModel),
+    [endpoint, selectedModel],
+  );
 
   useEffect(() => {
     setDraft(savedDraft);
   }, [savedDraft]);
 
+  useEffect(() => {
+    setMarketDraft(savedMarketDraft);
+  }, [savedMarketDraft]);
+
   const filteredModels = models.filter((model) =>
     model.toLowerCase().includes(modelSearch.trim().toLowerCase()),
   );
   const isComplex = hasComplexPricing(endpoint, selectedModel);
-  const isDirty = PRICE_FIELDS.some((field) => draft[field] !== savedDraft[field]);
+  const isDirty =
+    PRICE_FIELDS.some((field) => draft[field] !== savedDraft[field]) ||
+    marketDraft.published !== savedMarketDraft.published ||
+    marketDraft.officialPrompt !== savedMarketDraft.officialPrompt;
 
   let preview: Partial<Record<PriceField, number>> = {};
+  let marketPreview: { published: boolean; officialPrompt: number | null } = {
+    published: false,
+    officialPrompt: null,
+  };
   let validationError = '';
   try {
     preview = parsePricingDraft(draft);
+    marketPreview = parseMarketDraft(marketDraft);
   } catch {
     validationError = localize('com_pricing_invalid_price');
   }
+
+  const inputDiscount =
+    preview.prompt != null && marketPreview.officialPrompt != null
+      ? ((marketPreview.officialPrompt - preview.prompt) / marketPreview.officialPrompt) * 100
+      : null;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -96,6 +122,8 @@ export function ModelPricingPage() {
           completion: preview.completion ?? null,
           cacheRead: preview.cacheRead ?? null,
           cacheWrite: preview.cacheWrite ?? null,
+          marketPublished: marketPreview.published,
+          officialPrompt: marketPreview.officialPrompt,
         },
       });
     },
@@ -247,6 +275,87 @@ export function ModelPricingPage() {
             <section className="overflow-hidden rounded-lg border border-(--cui-color-stroke-default)">
               <div className="border-b border-(--cui-color-stroke-default) bg-(--cui-color-background-muted) px-4 py-3">
                 <h2 className="text-sm font-semibold text-(--cui-color-text-default)">
+                  {localize('com_pricing_market_title')}
+                </h2>
+                <p className="mt-0.5 text-xs text-(--cui-color-text-muted)">
+                  {localize('com_pricing_market_desc')}
+                </p>
+              </div>
+              <div className="divide-y divide-(--cui-color-stroke-default)">
+                <label className="grid grid-cols-[minmax(180px,1fr)_minmax(240px,320px)] items-center gap-6 px-4 py-3.5">
+                  <span>
+                    <span className="block text-sm font-medium text-(--cui-color-text-default)">
+                      {localize('com_pricing_market_publish')}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-(--cui-color-text-muted)">
+                      {localize('com_pricing_market_publish_desc')}
+                    </span>
+                  </span>
+                  <span className="flex justify-end">
+                    <input
+                      type="checkbox"
+                      checked={marketDraft.published}
+                      disabled={!canManage || isComplex || saveMutation.isPending}
+                      onChange={(event) =>
+                        setMarketDraft((current) => ({
+                          ...current,
+                          published: event.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 accent-(--cui-color-accent-default)"
+                    />
+                  </span>
+                </label>
+                <div className="grid grid-cols-[minmax(180px,1fr)_minmax(240px,320px)] items-center gap-6 px-4 py-3.5">
+                  <div>
+                    <label
+                      htmlFor="pricing-official-prompt"
+                      className="text-sm font-medium text-(--cui-color-text-default)"
+                    >
+                      {localize('com_pricing_official_prompt')}
+                    </label>
+                    <p className="mt-0.5 text-xs text-(--cui-color-text-muted)">
+                      {localize('com_pricing_official_prompt_desc')}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex h-9 items-center overflow-hidden rounded-md border border-(--cui-color-stroke-default) bg-(--cui-color-background-default) focus-within:border-(--cui-color-stroke-intense)">
+                      <input
+                        id="pricing-official-prompt"
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="any"
+                        value={marketDraft.officialPrompt}
+                        disabled={!canManage || isComplex || saveMutation.isPending}
+                        onChange={(event) =>
+                          setMarketDraft((current) => ({
+                            ...current,
+                            officialPrompt: event.target.value,
+                          }))
+                        }
+                        placeholder={localize('com_pricing_input_price')}
+                        className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-(--cui-color-text-default) outline-none placeholder:text-(--cui-color-text-disabled) disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                      <span className="shrink-0 border-l border-(--cui-color-stroke-default) px-3 text-xs text-(--cui-color-text-muted)">
+                        $/1M tokens
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-right text-xs text-(--cui-color-text-muted)">
+                      {inputDiscount == null
+                        ? localize('com_pricing_market_discount_unavailable')
+                        : localize('com_pricing_market_discount_preview', {
+                            percent: Math.max(0, inputDiscount).toFixed(1),
+                          })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-lg border border-(--cui-color-stroke-default)">
+              <div className="border-b border-(--cui-color-stroke-default) bg-(--cui-color-background-muted) px-4 py-3">
+                <h2 className="text-sm font-semibold text-(--cui-color-text-default)">
                   {localize('com_pricing_save_preview')}
                 </h2>
                 <p className="mt-0.5 text-xs text-(--cui-color-text-muted)">
@@ -291,7 +400,10 @@ export function ModelPricingPage() {
           <Button
             type="secondary"
             label={localize('com_pricing_discard')}
-            onClick={() => setDraft(savedDraft)}
+            onClick={() => {
+              setDraft(savedDraft);
+              setMarketDraft(savedMarketDraft);
+            }}
             disabled={!isDirty || saveMutation.isPending}
           />
           <Button

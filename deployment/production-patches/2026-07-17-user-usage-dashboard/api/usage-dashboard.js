@@ -81,6 +81,39 @@ function buildPricingIndex(config = {}) {
   return { byEndpointModel, byModel };
 }
 
+function buildModelMarket(config = {}) {
+  const source = config?.endpoints ? config : config?.overrides || config?.config || {};
+  const published = new Map();
+  for (const endpoint of source.endpoints?.custom || []) {
+    for (const [model, rates] of Object.entries(endpoint.tokenConfig || {})) {
+      if (!rates || typeof rates !== 'object' || Array.isArray(rates)) continue;
+      const market = rates.market;
+      if (!market || typeof market !== 'object' || Array.isArray(market) || market.published !== true) {
+        continue;
+      }
+      const prompt = normalizePrice(rates.prompt);
+      const officialPrompt = normalizePrice(market.officialPrompt);
+      const inputDiscount =
+        prompt != null && officialPrompt != null && officialPrompt > 0
+          ? Math.round(((officialPrompt - prompt) / officialPrompt) * 1000) / 10
+          : null;
+      if (!published.has(model)) {
+        published.set(model, {
+          model,
+          context: normalizePrice(rates.context),
+          prompt,
+          completion: normalizePrice(rates.completion),
+          cacheWrite: normalizePrice(rates.cacheWrite),
+          cacheRead: normalizePrice(rates.cacheRead),
+          officialPrompt: officialPrompt > 0 ? officialPrompt : null,
+          inputDiscount,
+        });
+      }
+    }
+  }
+  return [...published.values()].sort((left, right) => left.model.localeCompare(right.model));
+}
+
 function resolvePricing(pricingIndex, row) {
   if (!pricingIndex) return null;
   return (
@@ -481,7 +514,7 @@ function round(value, decimals = 2) {
   return Math.round(value * factor) / factor;
 }
 
-function formatResult(raw, options, currency, pricingIndex = null) {
+function formatResult(raw, options, currency, pricingIndex = null, market = []) {
   const emptySummary = {
     tokens: 0,
     cost: 0,
@@ -513,6 +546,7 @@ function formatResult(raw, options, currency, pricingIndex = null) {
     })),
     modelOptions: raw.modelOptions || [],
     conversationOptions: raw.conversationOptions || [],
+    market,
     logs: (raw.logs || []).map((item) =>
       decorateCostBreakdown(
         { ...item, cost: item.cost == null ? null : round(item.cost, 4) },
@@ -561,7 +595,15 @@ function createUsageDashboardHandler({ mongoose, logger, now = () => new Date() 
         pricingCutoffModels,
       });
       const [raw = {}] = await Message.aggregate(pipeline).allowDiskUse(false).exec();
-      return res.json(formatResult(raw, options, currency, buildPricingIndex(req.config)));
+      return res.json(
+        formatResult(
+          raw,
+          options,
+          currency,
+          buildPricingIndex(req.config),
+          buildModelMarket(req.config),
+        ),
+      );
     } catch (error) {
       logger?.error?.('[usage-dashboard] Failed to aggregate user usage', error);
       return res.status(500).json({ error: 'Unable to load usage statistics' });
@@ -571,6 +613,7 @@ function createUsageDashboardHandler({ mongoose, logger, now = () => new Date() 
 
 module.exports = {
   buildPipeline,
+  buildModelMarket,
   buildPricingIndex,
   createUsageDashboardHandler,
   decorateCostBreakdown,
