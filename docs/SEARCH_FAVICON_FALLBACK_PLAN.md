@@ -2,8 +2,7 @@
 
 Date: 2026-07-18
 
-Status: design and implementation prepared; production deployment has not
-started.
+Status: deployed and browser-verified.
 
 ## Problem
 
@@ -46,17 +45,17 @@ The release must not:
 ## Production Baseline
 
 ```text
-compose_override_sha=cb932ad87bfb18469d0c883d4825377aae76ab67bb5b024be7228cfcb83a0582
-client_mount=/opt/librechat/user-usage-cost-detail-availability/72075ad1a389-20260718221835/client-dist
-client_index_sha=68b0f7dcbe8822ec3a786569994bc573bc76f79187ef83efaa69c6cac8b3725f
-usage_route=/opt/librechat/user-usage-cost-detail-availability/72075ad1a389-20260718221835/usage-dashboard.js
+compose_override_sha=0414a99197a5594ef18b06393f615331327b5fc53f15897f2763a4ece52ca68c
+client_mount=/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/client-dist
+client_index_sha=b6834a3533fef6ca1a65d5061ebe63f274c15516bd9a92d14a6ec6b2a84aac87
+usage_route=/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/usage-dashboard.js
 usage_route_sha=5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9
 ```
 
 The first preflight correctly stopped before a production write when the
 parallel usage-cost-detail release changed the Client and Compose baseline.
-The release was then rebased to the audited `72075ad` production mount shown
-above.
+The release was then rebased to the audited `de2beea` production mount shown
+above after a second guarded stop caught the final pricing-data follow-up.
 
 The release will copy the complete current Client, inject one inline marker,
 replace only `/app/client/dist:ro`, and recreate only `LibreChat-API`.
@@ -76,3 +75,20 @@ replace only `/app/client/dist:ro`, and recreate only `LibreChat-API`.
 
 Restore the timestamped Compose override backup and recreate only
 `LibreChat-API`. No database or file-storage rollback is required.
+
+## Final Result
+
+The release passed preflight and production deployment at `20260718230646`.
+
+```text
+release_commit=14b9fc7972f5b9c257a610d8a5e7b92d90533427
+release_root=/opt/librechat/search-favicon-fallback/14b9fc7972f5-20260718230646
+backup_dir=/opt/librechat/backups/search-favicon-fallback-20260718230646
+client_index_sha=27dd78be6e3862a4297e6a20b12a758513c11ebfcd515d05b550fa32a2903921
+search_asset_sha=6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade
+```
+
+The existing conversation contained 26 source images after expansion. All 26
+used local SVG data URLs, none retained a Google favicon URL, and none were
+broken. The conversation remained at two user and two assistant turns with an
+empty composer.

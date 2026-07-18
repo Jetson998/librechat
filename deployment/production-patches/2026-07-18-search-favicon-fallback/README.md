@@ -2,7 +2,7 @@
 
 Date: 2026-07-18
 
-Status: prepared; not deployed.
+Status: deployed and browser-verified.
 
 ## Behavior
 
@@ -31,7 +31,7 @@ scripts/deploy-remote.exp
 The guarded release starts from:
 
 ```text
-/opt/librechat/user-usage-cost-detail-availability/72075ad1a389-20260718221835/client-dist
+/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/client-dist
 ```
 
 It creates a new versioned Client, replaces only the Client Compose mount, and
@@ -60,3 +60,16 @@ create or send a chat.
 
 Restore the release backup's `compose.override.yaml` and recreate only
 `LibreChat-API`.
+
+## Production Result
+
+The guarded release completed at `20260718230646` from commit `14b9fc7`.
+
+```text
+release_root=/opt/librechat/search-favicon-fallback/14b9fc7972f5-20260718230646
+backup_dir=/opt/librechat/backups/search-favicon-fallback-20260718230646
+```
+
+Browser acceptance found 26 local fallback images, zero remaining Google
+favicon URLs, and zero broken images in the existing football-news
+conversation. See `DEPLOY_RESULT.md` for the complete evidence.
