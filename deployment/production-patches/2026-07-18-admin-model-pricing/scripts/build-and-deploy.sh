@@ -31,13 +31,16 @@ source_hash="$({
     | xargs -0 sha256sum
 } | sha256sum | awk '{print $1}')"
 image_ref="librechat-admin-panel-model-pricing:${source_hash:0:12}"
-mem_available_mb="$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)"
-swap_total_mb="$(awk '/^SwapTotal:/ {print int($2 / 1024)}' /proc/meminfo)"
-swap_free_mb="$(awk '/^SwapFree:/ {print int($2 / 1024)}' /proc/meminfo)"
-test "$swap_total_mb" -ge 3072
-test "$((mem_available_mb + swap_free_mb))" -ge 4096
-
-docker build --build-arg "MODIFIED_SOURCE_REVISION=$release_commit" -t "$image_ref" "$admin_source"
+if [[ "${REUSE_PREFLIGHT_IMAGE:-false}" == "true" ]]; then
+  docker image inspect "$image_ref" >/dev/null
+else
+  mem_available_mb="$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)"
+  swap_total_mb="$(awk '/^SwapTotal:/ {print int($2 / 1024)}' /proc/meminfo)"
+  swap_free_mb="$(awk '/^SwapFree:/ {print int($2 / 1024)}' /proc/meminfo)"
+  test "$swap_total_mb" -ge 3072
+  test "$((mem_available_mb + swap_free_mb))" -ge 4096
+  docker build --build-arg "MODIFIED_SOURCE_REVISION=$release_commit" -t "$image_ref" "$admin_source"
+fi
 image_id="$(docker image inspect "$image_ref" --format '{{.Id}}')"
 test "$(docker image inspect "$image_ref" --format '{{.Architecture}}')" = "amd64"
 

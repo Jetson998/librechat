@@ -88,6 +88,7 @@ def main() -> None:
             "production Compose baseline missing")
     require("force-recreate admin-panel" in deploy, "deployment does not scope recreation to Admin Panel")
     require("force-recreate api" not in deploy, "deployment unexpectedly recreates API")
+    require("REUSE_PREFLIGHT_IMAGE" in deploy, "verified preflight image reuse is missing")
     print("admin_model_pricing_release: ok")
 
 

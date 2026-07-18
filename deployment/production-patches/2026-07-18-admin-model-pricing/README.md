@@ -62,6 +62,11 @@ array index, the API accepted the request but did not retain the dynamic model
 price record. The release test now requires the dedicated tokenConfig action
 and rejects the generic full-array save from the pricing page.
 
+After a complete preflight has built the source-hash-tagged image, production
+deployment may set `REUSE_PREFLIGHT_IMAGE=true`. The script then requires that
+exact image and architecture instead of rebuilding under a second memory gate;
+all container and health checks still run.
+
 ## Intended Initial Prices
 
 ```text
