@@ -1,24 +1,30 @@
 services:
-  api:
-    volumes:
-      - /opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro
-      - /opt/librechat/admin-user-creation/api-index.cjs:/app/packages/api/dist/index.cjs:ro
-      - /opt/librechat/admin-user-creation/users.js:/app/api/server/routes/admin/users.js:ro
-
   admin-panel:
-    image: librechat-admin-panel-zh-cn:95388ccb14d2
+    image: librechat-admin-panel-zh-cn:e6802a820c8e
     container_name: LibreChat-Admin-Panel
     depends_on:
-      - api
+    - api
     restart: always
     environment:
-      - PORT=3000
-      - SESSION_SECRET=${ADMIN_PANEL_SESSION_SECRET}
-      - API_SERVER_URL=http://api:3080
-      - VITE_API_BASE_URL=${DOMAIN_CLIENT:-https://152.32.172.162.sslip.io}
-      - SESSION_COOKIE_SECURE=true
-
+    - PORT=3000
+    - SESSION_SECRET=${ADMIN_PANEL_SESSION_SECRET}
+    - API_SERVER_URL=http://api:3080
+    - VITE_API_BASE_URL=${DOMAIN_CLIENT:-https://152.32.172.162.sslip.io}
+    - SESSION_COOKIE_SECURE=true
   client:
     depends_on:
-      - api
-      - admin-panel
+    - api
+    - admin-panel
+  api:
+    volumes:
+    - /opt/librechat/admin-user-creation/users.js:/app/api/server/routes/admin/users.js:ro
+    - /opt/librechat/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs:/app/packages/api/dist/index.cjs:ro
+    - /opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/user.js:/app/api/server/routes/user.js:ro
+    - /opt/librechat/user-model-market/6bfb5be23255-20260718235639/client-dist:/app/client/dist:ro
+    - /opt/librechat/user-model-market/6bfb5be23255-20260718235639/usage-dashboard.js:/app/api/server/routes/usage-dashboard.js:ro
+    environment:
+    - USER_USAGE_TIMEZONE=Asia/Singapore
+    - USER_USAGE_CURRENCY=USD
+    - USER_USAGE_USD_RATE=1
+    - USER_USAGE_PRICING_CUTOFF=2026-07-18T12:23:34.480Z
+    - USER_USAGE_PRICING_CUTOFF_MODELS=gpt-5.6-sol,claude-fable-5
