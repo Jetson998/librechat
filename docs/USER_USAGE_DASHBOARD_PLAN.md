@@ -104,9 +104,8 @@ Cost rules:
 - reuse LibreChat's authoritative token-value calculation;
 - `tokenValue` is treated according to the active LibreChat contract, currently
   documented in the active bundle as USD multiplied by 1,000,000;
-- currency conversion, if the UI displays CNY, must happen once on the server
-  through an explicit production setting;
-- do not label USD values with the CNY symbol;
+- display transaction cost directly in USD with a server rate of `1`;
+- do not apply CNY conversion or label USD values with the CNY symbol;
 - historical rows without authoritative cost must return `null`, not fabricated
   zero cost.
 
@@ -132,7 +131,7 @@ Response shape:
 
 ```json
 {
-  "currency": "CNY",
+  "currency": "USD",
   "summary": {
     "tokens": 0,
     "cost": 0,

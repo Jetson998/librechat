@@ -44,7 +44,8 @@ GET /api/user/usage-dashboard
 - title and summarization transactions are excluded;
 - transaction `rawAmount` is the authoritative Token source;
 - transaction `tokenValue / 1e6` is authoritative USD cost;
-- production converts USD to CNY once on the server with `USER_USAGE_USD_TO_CNY=7.2`;
+- production displays authoritative transaction cost in USD with
+  `USER_USAGE_CURRENCY=USD` and `USER_USAGE_USD_RATE=1`;
 - missing historical cost remains `null` and is marked incomplete in totals.
 
 The endpoint never returns prompts, responses, file names, credentials, or a browser-supplied

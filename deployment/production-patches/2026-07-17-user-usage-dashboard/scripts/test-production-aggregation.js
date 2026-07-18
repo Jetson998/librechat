@@ -30,12 +30,12 @@ const { buildPipeline, formatResult, parseQuery } = require(path.resolve(moduleP
     userId: String(scope._id),
     transactionUserId: new mongoose.Types.ObjectId(scope._id),
     options,
-    currencyRate: 7.2,
+    currencyRate: 1,
     timezone: 'Asia/Singapore',
     now: new Date(),
   });
   const [raw = {}] = await Message.aggregate(pipeline).allowDiskUse(false).exec();
-  const result = formatResult(raw, options, 'CNY');
+  const result = formatResult(raw, options, 'USD');
 
   if (result.pagination.total < result.logs.length) {
     throw new Error('Pagination total is smaller than the returned log page');

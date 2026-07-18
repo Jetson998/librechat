@@ -38,7 +38,7 @@
     return number.toLocaleString('zh-CN', { maximumFractionDigits: digits });
   };
 
-  const formatCost = (value, currency = 'CNY') => {
+  const formatCost = (value, currency = 'USD') => {
     if (value == null) return '不可用';
     return new Intl.NumberFormat('zh-CN', {
       style: 'currency',

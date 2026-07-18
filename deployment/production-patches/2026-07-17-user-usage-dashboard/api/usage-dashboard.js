@@ -367,11 +367,11 @@ function createUsageDashboardHandler({ mongoose, logger, now = () => new Date() 
       }
 
       const options = parseQuery(req.query);
-      const currency = String(process.env.USER_USAGE_CURRENCY || 'CNY').toUpperCase();
-      const currencyRate = Number(process.env.USER_USAGE_USD_TO_CNY || 7.2);
+      const currency = String(process.env.USER_USAGE_CURRENCY || 'USD').toUpperCase();
+      const currencyRate = Number(process.env.USER_USAGE_USD_RATE || 1);
       const timezone = process.env.USER_USAGE_TIMEZONE || 'Asia/Singapore';
       if (!Number.isFinite(currencyRate) || currencyRate <= 0) {
-        throw new Error('USER_USAGE_USD_TO_CNY must be a positive number');
+        throw new Error('USER_USAGE_USD_RATE must be a positive number');
       }
 
       const pipeline = buildPipeline({

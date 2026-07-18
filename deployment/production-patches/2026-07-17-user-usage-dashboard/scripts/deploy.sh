@@ -75,11 +75,17 @@ volumes.extend([
 api["volumes"] = volumes
 environment = api.setdefault("environment", [])
 if isinstance(environment, dict):
-    environment.update({"USER_USAGE_CURRENCY": "CNY", "USER_USAGE_USD_TO_CNY": "7.2", "USER_USAGE_TIMEZONE": "Asia/Singapore"})
+    environment.pop("USER_USAGE_USD_TO_CNY", None)
+    environment.update({"USER_USAGE_CURRENCY": "USD", "USER_USAGE_USD_RATE": "1", "USER_USAGE_TIMEZONE": "Asia/Singapore"})
 else:
-    keys = {str(item).split("=", 1)[0] for item in environment}
-    for item in ["USER_USAGE_CURRENCY=CNY", "USER_USAGE_USD_TO_CNY=7.2", "USER_USAGE_TIMEZONE=Asia/Singapore"]:
-        if item.split("=", 1)[0] not in keys: environment.append(item)
+    updates = {"USER_USAGE_CURRENCY": "USD", "USER_USAGE_USD_RATE": "1", "USER_USAGE_TIMEZONE": "Asia/Singapore"}
+    environment = [
+        item for item in environment
+        if str(item).split("=", 1)[0] not in updates
+        and str(item).split("=", 1)[0] != "USER_USAGE_USD_TO_CNY"
+    ]
+    environment.extend(f"{key}={value}" for key, value in updates.items())
+    api["environment"] = environment
 with open(destination, "w", encoding="utf-8") as handle:
     yaml.safe_dump(data, handle, allow_unicode=True, sort_keys=False)
 PY

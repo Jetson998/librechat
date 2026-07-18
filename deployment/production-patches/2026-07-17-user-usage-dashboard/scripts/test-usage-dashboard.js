@@ -17,7 +17,7 @@ assert.deepEqual(options, { range: '7', model: 'gpt-5.6-sol', conversation: 'con
 assert.equal(parseQuery({ range: 'bad', page: '-1', limit: '0' }).range, '30');
 assert.equal(getCutoff('all'), null);
 
-const pipeline = buildPipeline({ userId, transactionUserId, options, currencyRate: 7.2, timezone: 'Asia/Singapore', now: new Date('2026-07-18T00:00:00+08:00') });
+const pipeline = buildPipeline({ userId, transactionUserId, options, currencyRate: 1, timezone: 'Asia/Singapore', now: new Date('2026-07-18T00:00:00+08:00') });
 assert.equal(pipeline[0].$match.user, userId, 'message query must be user-scoped');
 assert.equal(pipeline[0].$match.isCreatedByUser, false, 'only assistant replies are billable rows');
 const transactionLookup = pipeline.find((stage) => stage.$lookup?.from === 'transactions').$lookup;
@@ -34,7 +34,7 @@ const formatted = formatResult({
   models: [{ model: 'gpt-5.6-sol', tokens: 900 }, { model: 'claude-fable-5', tokens: 300 }],
   logs: [{ cost: null }, { cost: 0.123456 }],
   pagination: [{ total: 2 }],
-}, { page: 1, limit: 20 }, 'CNY');
+}, { page: 1, limit: 20 }, 'USD');
 assert.equal(formatted.summary.cost, 1.2346);
 assert.equal(formatted.models[0].percentage, 75);
 assert.equal(formatted.logs[0].cost, null, 'missing historical cost must remain null');
