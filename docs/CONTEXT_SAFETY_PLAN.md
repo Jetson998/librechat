@@ -2,7 +2,8 @@
 
 Date: 2026-07-18
 
-Status: design gate; implementation and production deployment pending.
+Status: design gate passed; Stage A implementation prepared and locally
+verified. Commit, push, and production deployment are pending.
 
 ## Scope
 

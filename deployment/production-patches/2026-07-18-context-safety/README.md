@@ -2,7 +2,8 @@
 
 Date: 2026-07-18
 
-Status: design gate; not deployed.
+Status: Stage A implementation locally verified; commit, push, and deployment
+pending. Stage B browser notices remain a separate release.
 
 ## Reason
 
@@ -48,6 +49,50 @@ Stage B expected targets:
 No conversation rows, uploaded files, generated artifacts, user records,
 CodeAPI session directories, Office route, RAG service, Nginx configuration, or
 WebAI/OpenWebUI resources are in scope.
+
+## Files
+
+```text
+README.md
+config/large-file-batch-contract.txt
+scripts/merge-config.cjs
+scripts/mongo-config.js
+scripts/test-release.py
+scripts/deploy.sh
+scripts/run-remote-release.sh
+scripts/deploy-remote.exp
+```
+
+`merge-config.cjs` updates only the three approved agent values and the marked
+prompt block on the two active model specs. `mongo-config.js` applies the same
+contract to the unique active base config document and provides preflight,
+verification, preservation-hash, backup, and rollback modes.
+
+## Local Test
+
+```bash
+python3 scripts/test-release.py
+git diff --check
+```
+
+Current local result:
+
+```text
+context_safety_release: ok
+```
+
+## Deployment
+
+After the implementation commit is pushed to `origin/main`, stage this release
+with `deploy-remote.exp`. The transport accepts the SSH password only through
+the process environment, checks that local `HEAD` equals `RELEASE_COMMIT`, and
+does not store credentials in the repository or on the server.
+
+The remote runner executes the local contract test and a read-only preflight
+before the production write. The production runner backs up YAML and the full
+active base config, performs idempotent structural updates, recreates only the
+API service with `--no-deps`, verifies protected container identities, and
+rolls back both config layers on failure.
 
 ## Design Gate Evidence
 
