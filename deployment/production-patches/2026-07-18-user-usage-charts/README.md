@@ -34,6 +34,10 @@ Only the mounted Client directory changes. The deployment script:
 6. recreates only `LibreChat-API`;
 7. verifies protected container identities remain unchanged.
 
+Live asset checks download responses to stage files before assertion so shell
+`pipefail` cannot misclassify an intentional `grep -q` early close as a curl
+transport failure.
+
 No API route, MongoDB data, CodeAPI, Office Converter, RAG, Nginx, Admin Panel,
 model configuration, or pricing configuration is changed.
 

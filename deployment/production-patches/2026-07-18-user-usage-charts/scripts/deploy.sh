@@ -121,9 +121,12 @@ for _ in $(seq 1 120); do
 done
 curl -ksSf https://152.32.172.162.sslip.io/api/config >/dev/null
 test "$(curl -ksS -o /dev/null -w '%{http_code}' https://152.32.172.162.sslip.io/api/user/usage-dashboard)" = "401"
-curl -ksSf https://152.32.172.162.sslip.io/ | grep -Fq "user-usage-dashboard.js?v=$release_key"
-curl -ksSf https://152.32.172.162.sslip.io/user-usage-dashboard.js | grep -Fq 'lc-usage-model-chart'
-curl -ksSf https://152.32.172.162.sslip.io/user-usage-dashboard.css | grep -Fq 'lc-usage-chart-tooltip'
+curl -ksSf -o "$stage_dir/live-index.html" https://152.32.172.162.sslip.io/
+curl -ksSf -o "$stage_dir/live-user-usage-dashboard.js" https://152.32.172.162.sslip.io/user-usage-dashboard.js
+curl -ksSf -o "$stage_dir/live-user-usage-dashboard.css" https://152.32.172.162.sslip.io/user-usage-dashboard.css
+grep -Fq "user-usage-dashboard.js?v=$release_key" "$stage_dir/live-index.html"
+grep -Fq 'lc-usage-model-chart' "$stage_dir/live-user-usage-dashboard.js"
+grep -Fq 'lc-usage-chart-tooltip' "$stage_dir/live-user-usage-dashboard.css"
 
 for container in "${!protected_ids[@]}"; do
   test "$(docker inspect "$container" --format '{{.Id}}')" = "${protected_ids[$container]}"
