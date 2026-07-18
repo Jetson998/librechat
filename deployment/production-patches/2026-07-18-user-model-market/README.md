@@ -90,3 +90,8 @@ to the user client.
 
 Remove the user market asset and route mounts, and restore the prior Admin Panel
 image. Native billing and historical transactions remain untouched.
+
+The user API/client release and the Admin Panel image are deployed as separate
+units. The guarded user release recreates only `LibreChat-API`; the Admin Panel
+release recreates only `LibreChat-Admin-Panel`. Either unit can be rolled back
+without reverting the other or changing MongoDB pricing data.

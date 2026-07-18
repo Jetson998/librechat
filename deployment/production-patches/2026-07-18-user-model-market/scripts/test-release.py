@@ -17,6 +17,7 @@ admin_helpers = (ADMIN / "src/components/pricing/modelPricing.ts").read_text(enc
 admin_server = (ADMIN / "src/server/config.ts").read_text(encoding="utf-8")
 admin_tests = (ADMIN / "src/components/pricing/modelPricing.test.ts").read_text(encoding="utf-8")
 demo = (REPO / "docs/demos/user-usage-dashboard-demo.html").read_text(encoding="utf-8")
+deploy = (PATCHES / "2026-07-18-user-model-market/scripts/deploy.sh").read_text(encoding="utf-8")
 
 for marker in ("buildModelMarket", "officialPrompt", "inputDiscount", "market.published"):
     assert marker in api, f"missing market API marker: {marker}"
@@ -59,4 +60,12 @@ for locale in ("en", "zh-Hans"):
 assert 'data-view="market"' in demo
 assert "优惠 52%" in demo
 assert "如需大额采购" not in client, "phase-two contact CTA must not enter phase one"
+for marker in (
+    "docker compose up -d --no-deps --force-recreate api",
+    "search-favicon-fallback-14b9fc7972f5.js",
+    "protected_containers_unchanged=true",
+    "test-production-aggregation.js",
+):
+    assert marker in deploy, f"missing guarded deployment marker: {marker}"
+assert "force-recreate LibreChat-Admin-Panel" not in deploy
 print("user model market phase-one release checks: ok")
