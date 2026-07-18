@@ -112,9 +112,5 @@ jobs:
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker tag "$local_image" "$image_ref"
           docker push "$image_ref"
-          curl --fail-with-body --request PUT \
-            --header "Accept: application/vnd.github+json" \
-            --header "Authorization: Bearer $GH_TOKEN" \
-            --header "X-GitHub-Api-Version: 2022-11-28" \
-            --data '{"visibility":"public"}' \
-            "https://api.github.com/user/packages/container/librechat-admin-panel-zh-cn/visibility"
+          docker logout ghcr.io
+          docker manifest inspect "$image_ref" >/dev/null

@@ -20,7 +20,7 @@ services:
     - /opt/librechat/admin-user-creation/users.js:/app/api/server/routes/admin/users.js:ro
     - /opt/librechat/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs:/app/packages/api/dist/index.cjs:ro
     - /opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/user.js:/app/api/server/routes/user.js:ro
-    - /opt/librechat/user-model-market/6bfb5be23255-20260718235639/client-dist:/app/client/dist:ro
+    - /opt/librechat/context-safety-ui/702fc0c9988e-20260719002157/client-dist:/app/client/dist:ro
     - /opt/librechat/user-model-market/6bfb5be23255-20260718235639/usage-dashboard.js:/app/api/server/routes/usage-dashboard.js:ro
     environment:
     - USER_USAGE_TIMEZONE=Asia/Singapore
