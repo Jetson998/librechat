@@ -18,6 +18,12 @@ const navItems: t.NavItem[] = [
     capability: SystemCapabilities.READ_CONFIGS,
   },
   {
+    labelKey: 'com_nav_model_pricing',
+    path: '/pricing',
+    icon: 'payment',
+    capability: SystemCapabilities.READ_CONFIGS,
+  },
+  {
     labelKey: 'com_nav_users',
     path: '/users',
     icon: 'users',

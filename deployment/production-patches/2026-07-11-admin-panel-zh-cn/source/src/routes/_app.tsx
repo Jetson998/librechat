@@ -13,6 +13,7 @@ import { Header } from '@/components/Header';
 const ROUTE_TITLE_KEYS: Record<string, string> = {
   '/': 'com_dash_title',
   '/configuration': 'com_config_title',
+  '/pricing': 'com_pricing_title',
   '/users': 'com_users_title',
   '/access': 'com_access_title',
   '/grants': 'com_grants_title',
