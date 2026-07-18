@@ -4,7 +4,7 @@ Date: 2026-07-18
 
 Status: the filename-versioned `9fa04ab` release passed its server gates, but
 Chrome browser acceptance still executed the pre-filter script body. The final
-inline release is rebased to the active search-favicon Client and requires
+inline release is rebased to the active user-model-market Client and requires
 commit, push, preflight, deployment, and final browser acceptance.
 
 ## Scope
@@ -52,10 +52,10 @@ inflating a user conversation.
 ## Production Boundary
 
 The next guarded release copies the complete active Client from the successful
-search-favicon release:
+user-model-market release:
 
 ```text
-/opt/librechat/search-favicon-fallback/14b9fc7972f5-20260718230646/client-dist
+/opt/librechat/user-model-market/6bfb5be23255-20260718235639/client-dist
 ```
 
 It installs only `context-safety-ui.js`, `context-safety-ui.css`, and the smoke
@@ -109,7 +109,7 @@ Commit-derived external copies remain available for SHA verification, while
 the smoke fixture is also inlined and copied to a commit-derived filename.
 
 After the later usage-detail and search-favicon releases, the final Stage B
-baseline is:
+baseline was:
 
 ```text
 compose_override_sha=4f93345987c1913c8379792d54db2dea7a417106cbb978a1bae5269e07f6aa8f
@@ -123,6 +123,23 @@ search_asset_sha=6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdad
 
 The deployment guards the usage route and search-favicon asset before and
 after the API recreation.
+
+The user-model-market release then changed the protected Client and usage
+route while preserving the search, upload, login, and context assets. The
+current rebase baseline is:
+
+```text
+compose_override_sha=82690eb847fe78401258d7ccb5f469d370cd21d764af30478f9503716979b6ec
+client_mount=/opt/librechat/user-model-market/6bfb5be23255-20260718235639/client-dist
+client_index_sha=b2205004f64846905701eddec56c068b8761a4d44708b639ef08ef305309090e
+usage_route=/opt/librechat/user-model-market/6bfb5be23255-20260718235639/usage-dashboard.js
+usage_route_sha=dfb57eedf861c14a342b0821e7d1fca6f004f3cb7bfa671f24bbb892f37455a8
+usage_js_sha=1f03cbd793319a80ea59229889c510fa5801d30cf2b8074ae5c58064812dc115
+usage_css_sha=121b1907784ff2214246e2c7ad67933faf01038d480e23ee581f5d2c85d6c3a1
+```
+
+The candidate and live gates also require the model-market markers
+`data-view="market"` and `renderMarket` in the preserved usage dashboard.
 
 No Nginx, MongoDB, Admin Panel, CodeAPI, RAG-API, Office Skill, model config,
 conversation, user, file, generated artifact, or WebAI/OpenWebUI resource is

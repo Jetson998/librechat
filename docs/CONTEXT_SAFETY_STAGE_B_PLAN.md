@@ -4,8 +4,8 @@ Date: 2026-07-18
 
 Status: implementation and initial releases completed. The filename-versioned
 release passed server gates but failed final browser acceptance. The final
-inline follow-up is rebased to the active search-favicon Client before another
-preflight and browser acceptance.
+inline follow-up is being rebased to the active user-model-market Client before
+another preflight and browser acceptance.
 
 ## Objective
 
@@ -155,6 +155,24 @@ search_asset_sha=6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdad
 The Stage B builder may replace only its own style and script markers. The
 candidate and live gates must prove the search-favicon inline runtime and its
 standalone verification asset remain unchanged.
+
+The subsequent user-model-market deployment changed the active Client, usage
+route, and Compose override after the search-favicon baseline. Read-only
+discovery found the current protected baseline:
+
+```text
+compose_override_sha=82690eb847fe78401258d7ccb5f469d370cd21d764af30478f9503716979b6ec
+client_mount=/opt/librechat/user-model-market/6bfb5be23255-20260718235639/client-dist
+client_index_sha=b2205004f64846905701eddec56c068b8761a4d44708b639ef08ef305309090e
+usage_route=/opt/librechat/user-model-market/6bfb5be23255-20260718235639/usage-dashboard.js
+usage_route_sha=dfb57eedf861c14a342b0821e7d1fca6f004f3cb7bfa671f24bbb892f37455a8
+user_usage_script_sha=1f03cbd793319a80ea59229889c510fa5801d30cf2b8074ae5c58064812dc115
+user_usage_style_sha=121b1907784ff2214246e2c7ad67933faf01038d480e23ee581f5d2c85d6c3a1
+```
+
+The model-market Client retains the audited search-favicon, upload, login, and
+Stage B source assets. The Stage B candidate and live gates additionally
+require `data-view="market"` and `renderMarket` in the usage dashboard.
 
 The affected production conversation is:
 
