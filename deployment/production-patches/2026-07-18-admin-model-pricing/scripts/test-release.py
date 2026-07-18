@@ -7,13 +7,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = ROOT.parents[2]
-ADMIN_SOURCE = Path(
-    os.environ.get(
-        "ADMIN_PANEL_SOURCE",
-        REPO_ROOT / "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source",
-    )
-)
+SOURCE_OVERRIDE = os.environ.get("ADMIN_PANEL_SOURCE")
+REPO_ROOT = ROOT.parents[2] if len(ROOT.parents) > 2 else None
+ADMIN_SOURCE = Path(SOURCE_OVERRIDE or (REPO_ROOT / "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source"))
 
 
 def require(condition: bool, message: str) -> None:
