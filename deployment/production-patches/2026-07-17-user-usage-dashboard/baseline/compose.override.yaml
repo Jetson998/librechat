@@ -19,9 +19,9 @@ services:
     volumes:
     - /opt/librechat/admin-user-creation/api-index.cjs:/app/packages/api/dist/index.cjs:ro
     - /opt/librechat/admin-user-creation/users.js:/app/api/server/routes/admin/users.js:ro
-    - /opt/librechat/user-usage-dashboard/59efa3bf9754-20260718031600/client-dist:/app/client/dist:ro
-    - /opt/librechat/user-usage-dashboard/59efa3bf9754-20260718031600/user.js:/app/api/server/routes/user.js:ro
-    - /opt/librechat/user-usage-dashboard/59efa3bf9754-20260718031600/usage-dashboard.js:/app/api/server/routes/usage-dashboard.js:ro
+    - /opt/librechat/user-usage-dashboard/65ac5e4d0eb0-20260718135751/client-dist:/app/client/dist:ro
+    - /opt/librechat/user-usage-dashboard/65ac5e4d0eb0-20260718135751/user.js:/app/api/server/routes/user.js:ro
+    - /opt/librechat/user-usage-dashboard/65ac5e4d0eb0-20260718135751/usage-dashboard.js:/app/api/server/routes/usage-dashboard.js:ro
     environment:
     - USER_USAGE_CURRENCY=CNY
     - USER_USAGE_USD_TO_CNY=7.2

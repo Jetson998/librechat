@@ -1,6 +1,6 @@
 # Live Acceptance
 
-Final acceptance time: 2026-07-18 03:18 Asia/Singapore
+Final acceptance time: 2026-07-18 14:01 Asia/Singapore
 
 ## API
 
@@ -14,8 +14,11 @@ Final acceptance time: 2026-07-18 03:18 Asia/Singapore
 
 The existing signed-in browser session was refreshed after the API recreation and re-authenticated as Gracey.
 
-- `账户设置` contained exactly one `价格用量统计` menu item;
-- the committed assets loaded as `user-usage-dashboard.js/css?v=59efa3bf9754`;
+- `账户设置` contained exactly one `用量统计` menu item;
+- the committed assets loaded as `user-usage-dashboard.js/css?v=65ac5e4d0eb0`;
+- the menu entry used the committed 20px Lucide chart icon with an 8px native gap;
+- pointer hover set `data-active-item` and rendered the native `rgb(227, 227, 227)` background;
+- the opened panel heading was `用量统计` and authenticated Token data loaded;
 - the panel opened with two left-side navigation items: `用量概览` and `对话日志`;
 - the overview had no vertical scrollbar at the tested desktop viewport;
 - the log table used the committed header, row, filter, and `页面 1 / 1` pagination layout;
@@ -26,12 +29,12 @@ The existing signed-in browser session was refreshed after the API recreation an
 ## Runtime Boundary
 
 Only `LibreChat-API` was recreated. The final cleanup release also removed duplicate historical
-usage-dashboard mounts from the active Compose override; only the current `59efa3bf9754` Client,
+usage-dashboard mounts from the active Compose override; only the current `65ac5e4d0eb0` Client,
 user-route, and usage-route mounts remain.
 
 ```text
-LibreChat-API before 28371a9783e6ddd98c9dbd311f5e1837bf6e2d18cbc175b0f4e9f3dc94d6899a
-LibreChat-API after  cb31843cb1a7ebd0a9ae134b60cd97ec3dec273ba48492bd7c824d00dde64ad5
+LibreChat-API before cb31843cb1a7ebd0a9ae134b60cd97ec3dec273ba48492bd7c824d00dde64ad5
+LibreChat-API after  4d7253d5dacb01cfd1bf65fc181194a1a316d154f0ad8f529a95c62150f2bbd2
 LibreChat-NGINX     1a5c01b19b73559d6ff2a7b9e053d77d5528946b61bafcd7acae86532f9e03df
 LibreChat-CodeAPI   ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df
 LibreChat-RAG-API   d16e85e1e1036a8d203a338032d367e472f7245e993efc1ef30d06e7bf6373de
