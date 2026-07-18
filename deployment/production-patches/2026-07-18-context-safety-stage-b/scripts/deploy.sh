@@ -10,7 +10,7 @@ config_file="$root_dir/librechat.yaml"
 release_commit="${RELEASE_COMMIT:?RELEASE_COMMIT is required}"
 release_key="${release_commit:0:12}"
 timestamp="$(date +%Y%m%d%H%M%S)"
-source_client="$root_dir/user-usage-dashboard/bbae4f4-charts-20260718175030/client-dist"
+source_client="$root_dir/context-safety-ui/0b87f1bbab06-20260718200800/client-dist"
 release_root="$root_dir/context-safety-ui/$release_key-$timestamp"
 release_client="$release_root/client-dist"
 backup_dir="$root_dir/backups/context-safety-stage-b-$timestamp"
@@ -20,12 +20,14 @@ work_dir="$(mktemp -d /tmp/librechat-context-safety-stage-b.XXXXXX)"
 candidate_client="$work_dir/client-dist"
 candidate_override="$work_dir/compose.override.yaml"
 
-expected_override_sha="a35aaf354dfd7e40a475d0a16b648bef07c3e16d1d2c292117e13a294596a38f"
-expected_index_sha="29306df25134b09716727523eaeea0bfca1d75029a8ffc89ec02b47a4bf105e0"
+expected_override_sha="fbf89bd93b9721e1005209135ae550a5b224ab56057d25f85fe84ecf153db763"
+expected_index_sha="0674e373954f61b4a155562c4ccbf6720d547d7d620438c5d293370443a7ee5f"
 expected_upload_sha="a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9"
 expected_login_sha="aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27"
 expected_usage_js_sha="6f76a7379c01d640460bf34864b88554771ca43c18e063239c5d1a294300433f"
 expected_usage_css_sha="2817b8722535d3d46c514c8b93c8713abe4852860cc0075e5c07df1b0f4a01ff"
+expected_context_script_sha="9a10425cf36171ebe553961c1b725d879327c894e2cc130434789607dfb5fb83"
+expected_context_style_sha="a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d"
 expected_pricing_bundle="$root_dir/model-pricing-dotted-key/42c8ff2-20260718195311/api-index.cjs"
 expected_pricing_bundle_sha="d79ea31769617dccd5eacf8ffec61840c5d03e446108c789d15d4e823b1c4e03"
 expected_admin_image="librechat-admin-panel-model-pricing-keyfix:29cf28804ff8"
@@ -44,7 +46,8 @@ for path in \
   "$expected_pricing_bundle" \
   "$source_client/index.html" "$source_client/business-upload-menu.js" \
   "$source_client/odysseia-login.js" "$source_client/user-usage-dashboard.js" \
-  "$source_client/user-usage-dashboard.css" "$asset_dir/context-safety-ui.js" \
+  "$source_client/user-usage-dashboard.css" "$source_client/context-safety-ui.js" \
+  "$source_client/context-safety-ui.css" "$asset_dir/context-safety-ui.js" \
   "$asset_dir/context-safety-ui.css" "$asset_dir/context-safety-stage-b-smoke.html" \
   "$release_test"; do
   test -f "$path"
@@ -56,6 +59,8 @@ test "$(sha_file "$source_client/business-upload-menu.js")" = "$expected_upload_
 test "$(sha_file "$source_client/odysseia-login.js")" = "$expected_login_sha"
 test "$(sha_file "$source_client/user-usage-dashboard.js")" = "$expected_usage_js_sha"
 test "$(sha_file "$source_client/user-usage-dashboard.css")" = "$expected_usage_css_sha"
+test "$(sha_file "$source_client/context-safety-ui.js")" = "$expected_context_script_sha"
+test "$(sha_file "$source_client/context-safety-ui.css")" = "$expected_context_style_sha"
 test "$(sha_file "$expected_pricing_bundle")" = "$expected_pricing_bundle_sha"
 test "$(docker inspect LibreChat-Admin-Panel --format '{{.Config.Image}}')" = "$expected_admin_image"
 grep -Fq \
@@ -76,6 +81,7 @@ install -m 0444 \
 
 python3 - "$candidate_client/index.html" "$release_key" <<'PY'
 from pathlib import Path
+import re
 import sys
 
 path = Path(sys.argv[1])
@@ -83,10 +89,6 @@ version = sys.argv[2]
 text = path.read_text(encoding="utf-8")
 style_marker = 'id="context-safety-stage-b-style"'
 script_marker = 'id="context-safety-stage-b"'
-if style_marker in text or script_marker in text:
-    raise SystemExit("Stage B asset marker already exists in source Client")
-if text.count("</head>") != 1 or text.count("</body>") != 1:
-    raise SystemExit("unexpected index.html structure")
 style = (
     f'<link id="context-safety-stage-b-style" rel="stylesheet" '
     f'href="/context-safety-ui.css?v={version}">'
@@ -95,8 +97,30 @@ script = (
     f'<script id="context-safety-stage-b" defer '
     f'src="/context-safety-ui.js?v={version}"></script>'
 )
-text = text.replace("</head>", f"{style}</head>", 1)
-text = text.replace("</body>", f"{script}</body>", 1)
+style_count = text.count(style_marker)
+script_count = text.count(script_marker)
+if style_count == 0 and script_count == 0:
+    if text.count("</head>") != 1 or text.count("</body>") != 1:
+        raise SystemExit("unexpected index.html structure")
+    text = text.replace("</head>", f"{style}</head>", 1)
+    text = text.replace("</body>", f"{script}</body>", 1)
+elif style_count == 1 and script_count == 1:
+    text, css_count = re.subn(
+        r'context-safety-ui\.css\?v=[^"\']+',
+        f'context-safety-ui.css?v={version}',
+        text,
+    )
+    text, js_count = re.subn(
+        r'context-safety-ui\.js\?v=[^"\']+',
+        f'context-safety-ui.js?v={version}',
+        text,
+    )
+    if css_count != 1 or js_count != 1:
+        raise SystemExit(f"unexpected Stage B references: css={css_count} js={js_count}")
+else:
+    raise SystemExit(
+        f"mismatched Stage B markers: style={style_count} script={script_count}"
+    )
 path.write_text(text, encoding="utf-8")
 PY
 

@@ -67,7 +67,11 @@
     const seen = new Set();
     for (const value of Array.isArray(values) ? values : []) {
       const name = truncate(normalizeSpace(value).replace(/^(?:下载|Download)\s+/i, ''), 180);
-      if (!name || seen.has(name)) {
+      if (
+        !name ||
+        /^(?:下载|Download|打开|Open|点击以打开|点击打开)$/i.test(name) ||
+        seen.has(name)
+      ) {
         continue;
       }
       seen.add(name);

@@ -48,6 +48,13 @@ client_index_sha=29306df25134b09716727523eaeea0bfca1d75029a8ffc89ec02b47a4bf105e
 The Stage B runner must preserve the model-pricing bundle mount and Admin image
 in addition to the previously listed Client assets.
 
+Initial formal deployment `20260718200800` passed its server-side gates.
+Browser acceptance then found one generic file-control label, `下载`, in the
+bounded new-conversation handoff draft. No message was submitted and no raw
+tool output was transferred. The corrective release must filter generic
+open/download labels, reuse the current versioned Stage B Client as its source,
+and pass the same preflight and browser acceptance before Stage B is closed.
+
 The active Client also contains these protected custom assets:
 
 ```text

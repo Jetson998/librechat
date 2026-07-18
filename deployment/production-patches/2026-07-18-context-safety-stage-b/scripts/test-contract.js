@@ -43,7 +43,7 @@ assert.equal(contract.isRecursionError('Recursion limit documentation example'),
 assert.equal(contract.isRecursionError('without hitting a stop condition'), false);
 
 const manyFiles = Array.from({ length: 28 }, (_, index) => `下载 result-${index}.json`);
-manyFiles.push('下载 result-0.json');
+manyFiles.push('下载 result-0.json', '下载', 'Download', '点击以打开');
 const draft = contract.buildHandoffDraft({
   previousUrl: `https://example.test/c/${'a'.repeat(800)}`,
   latestUserRequest: 'x'.repeat(5000),
@@ -56,6 +56,7 @@ assert.ok(draft.includes('result-0.json'));
 assert.ok(draft.includes('result-19.json'));
 assert.equal(draft.includes('result-20.json'), false);
 assert.equal(contract.normalizeFileNames(manyFiles).length, 20);
+assert.equal(contract.normalizeFileNames(['下载', 'Download', '打开']).length, 0);
 assert.ok(contract.summaryRequest.length < 1000);
 assert.ok(contract.summaryRequest.includes('不要调用任何工具'));
 

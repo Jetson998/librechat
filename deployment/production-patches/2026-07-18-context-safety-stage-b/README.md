@@ -2,9 +2,10 @@
 
 Date: 2026-07-18
 
-Status: implementation locally verified and production baseline rebased after
-the concurrent model-pricing release. Updated commit, push, remote preflight,
-production deployment, and browser acceptance are pending.
+Status: initial production deployment passed. Browser acceptance found one
+generic `下载` label in the bounded handoff file list; a repository follow-up is
+prepared and requires commit, push, preflight, versioned deployment, and final
+browser acceptance.
 
 ## Scope
 
@@ -49,10 +50,10 @@ inflating a user conversation.
 
 ## Production Boundary
 
-The guarded release copies the complete active Client from:
+The follow-up guarded release copies the complete active Client from:
 
 ```text
-/opt/librechat/user-usage-dashboard/bbae4f4-charts-20260718175030/client-dist
+/opt/librechat/context-safety-ui/0b87f1bbab06-20260718200800/client-dist
 ```
 
 It installs only `context-safety-ui.js`, `context-safety-ui.css`, and the smoke
@@ -78,6 +79,14 @@ protected mount while leaving the Client unchanged:
 Stage B was rebased to the newly audited Compose hash
 `a35aaf354dfd7e40a475d0a16b648bef07c3e16d1d2c292117e13a294596a38f`
 and now explicitly preserves that bundle and Admin image.
+
+The first formal Stage B deployment passed at `20260718200800`. Its browser
+acceptance verified all threshold and recursion behavior, then found that one
+generic download control contributed the literal file name `下载` to a handoff
+draft. The follow-up filters generic open/download labels, starts from the
+deployed Stage B Client, updates the existing asset query strings exactly once,
+and uses Compose baseline
+`fbf89bd93b9721e1005209135ae550a5b224ab56057d25f85fe84ecf153db763`.
 
 No Nginx, MongoDB, Admin Panel, CodeAPI, RAG-API, Office Skill, model config,
 conversation, user, file, generated artifact, or WebAI/OpenWebUI resource is
