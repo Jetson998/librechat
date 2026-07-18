@@ -2,7 +2,7 @@
 
 Date: 2026-07-18
 
-Status: implementation complete and locally verified; production deployment pending.
+Status: user API/client deployed and browser-verified; Admin Panel publication controls pending CI attestation and deployment.
 
 ## Objective
 
