@@ -35,12 +35,12 @@ docs/ADMIN_MODEL_PRICING_PLAN.md
 - model: `gpt-5.6-sol`;
 - YAML `tokenConfig`: absent;
 - Mongo base override `tokenConfig`: absent;
-- Admin image: `librechat-admin-panel-model-pricing:606b888f9fca`;
-- Admin container: `1294763c6667334d479863d7341ed869e70eee1ddd288275c59c00dda3dcd503`;
+- Admin image: `librechat-admin-panel-model-pricing:b8a725a0b06a`;
+- Admin container: `95de9f93ec9176fbadad6e66da98598307a6e4e466a3456f6c5f91effc2620c8`;
 - API container at the latest preflight:
   `a834cd68ea0fa5c0e89bab5a301ce07d80ed8da0f484e786ac473a3baac815c8`;
 - Compose override SHA-256:
-  `5d2e58ff45c766916ad67edbcd5ec6da4cdcb5ab9911540f455e21a761f3acfb`.
+  `a2ec0ad577861ede3543b9973ea246e5cd193ba02ec6fc69e5966d744def935d`.
 
 ## Save Contract
 
