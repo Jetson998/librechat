@@ -42,7 +42,7 @@ transport = (SCRIPTS / "deploy-remote.exp").read_text(encoding="utf-8")
 client_source = (CLIENT / "context-safety-ui.js").read_text(encoding="utf-8")
 
 for marker in [
-    "fbf89bd93b9721e1005209135ae550a5b224ab56057d25f85fe84ecf153db763",
+    "bf6f0774569d451e446ea6d2e0cd633c177ab585f17374f5f9edabe4ffff0197",
     "0674e373954f61b4a155562c4ccbf6720d547d7d620438c5d293370443a7ee5f",
     "a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9",
     "aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27",
@@ -50,9 +50,9 @@ for marker in [
     "2817b8722535d3d46c514c8b93c8713abe4852860cc0075e5c07df1b0f4a01ff",
     "9a10425cf36171ebe553961c1b725d879327c894e2cc130434789607dfb5fb83",
     "a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d",
-    "model-pricing-dotted-key/42c8ff2-20260718195311/api-index.cjs",
-    "d79ea31769617dccd5eacf8ffec61840c5d03e446108c789d15d4e823b1c4e03",
-    "librechat-admin-panel-model-pricing-keyfix:29cf28804ff8",
+    "model-pricing-dotted-key/406693a-20260718101634/api-index.cjs",
+    "b9cac9721e5dcbde30b5d3b1052ba8306e15119255d4b8c53bb330ca8b089b27",
+    "librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85",
     "PREFLIGHT_ONLY",
     "--no-deps --force-recreate api",
     "LibreChat-NGINX",

@@ -48,6 +48,20 @@ client_index_sha=29306df25134b09716727523eaeea0bfca1d75029a8ffc89ec02b47a4bf105e
 The Stage B runner must preserve the model-pricing bundle mount and Admin image
 in addition to the previously listed Client assets.
 
+A second model-pricing deployment completed at 20:16 after the initial Stage B
+deployment. It preserved the Stage B Client but changed the protected pricing
+baseline to:
+
+```text
+compose_override_sha=bf6f0774569d451e446ea6d2e0cd633c177ab585f17374f5f9edabe4ffff0197
+pricing_bundle=/opt/librechat/model-pricing-dotted-key/406693a-20260718101634/api-index.cjs
+pricing_bundle_sha=b9cac9721e5dcbde30b5d3b1052ba8306e15119255d4b8c53bb330ca8b089b27
+admin_image=librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85
+```
+
+The corrective Stage B release must use this latest baseline and retain the
+same protected pricing mount.
+
 Initial formal deployment `20260718200800` passed its server-side gates.
 Browser acceptance then found one generic file-control label, `下载`, in the
 bounded new-conversation handoff draft. No message was submitted and no raw

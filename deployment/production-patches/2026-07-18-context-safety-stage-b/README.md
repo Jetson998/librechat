@@ -78,15 +78,20 @@ protected mount while leaving the Client unchanged:
 
 Stage B was rebased to the newly audited Compose hash
 `a35aaf354dfd7e40a475d0a16b648bef07c3e16d1d2c292117e13a294596a38f`
-and now explicitly preserves that bundle and Admin image.
+and now explicitly preserves that bundle and Admin image. A second pricing
+release completed at 20:16 and changed the audited baseline again; the current
+follow-up baseline is `bf6f0774569d451e446ea6d2e0cd633c177ab585f17374f5f9edabe4ffff0197`
+with API bundle
+`/opt/librechat/model-pricing-dotted-key/406693a-20260718101634/api-index.cjs`
+and Admin image `librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85`.
 
 The first formal Stage B deployment passed at `20260718200800`. Its browser
 acceptance verified all threshold and recursion behavior, then found that one
 generic download control contributed the literal file name `下载` to a handoff
 draft. The follow-up filters generic open/download labels, starts from the
 deployed Stage B Client, updates the existing asset query strings exactly once,
-and uses Compose baseline
-`fbf89bd93b9721e1005209135ae550a5b224ab56057d25f85fe84ecf153db763`.
+and uses the latest Compose baseline
+`bf6f0774569d451e446ea6d2e0cd633c177ab585f17374f5f9edabe4ffff0197`.
 
 No Nginx, MongoDB, Admin Panel, CodeAPI, RAG-API, Office Skill, model config,
 conversation, user, file, generated artifact, or WebAI/OpenWebUI resource is
