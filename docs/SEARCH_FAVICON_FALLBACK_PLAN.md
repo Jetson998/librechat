@@ -46,12 +46,17 @@ The release must not:
 ## Production Baseline
 
 ```text
-compose_override_sha=cd6002ddc8893f25a6337dc823c9a9978f928aa5652f7e16ca28ac4d4e8fa6d2
-client_mount=/opt/librechat/user-usage-usd-symbol/0b57393fab4b-20260718214145/client-dist
-client_index_sha=488e92e83bd289e709ae746e766c28af9c176406a4d93d0a8d6d1c7958fea76e
-usage_route=/opt/librechat/user-usage-cutover-cost-detail/57ed9f9-20260718212527/usage-dashboard.js
-usage_route_sha=6d51f0f488790bc117a2ae33a61c0a23a296ee1dbc5a7352e84fa7d09d35e187
+compose_override_sha=cb932ad87bfb18469d0c883d4825377aae76ab67bb5b024be7228cfcb83a0582
+client_mount=/opt/librechat/user-usage-cost-detail-availability/72075ad1a389-20260718221835/client-dist
+client_index_sha=68b0f7dcbe8822ec3a786569994bc573bc76f79187ef83efaa69c6cac8b3725f
+usage_route=/opt/librechat/user-usage-cost-detail-availability/72075ad1a389-20260718221835/usage-dashboard.js
+usage_route_sha=5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9
 ```
+
+The first preflight correctly stopped before a production write when the
+parallel usage-cost-detail release changed the Client and Compose baseline.
+The release was then rebased to the audited `72075ad` production mount shown
+above.
 
 The release will copy the complete current Client, inject one inline marker,
 replace only `/app/client/dist:ro`, and recreate only `LibreChat-API`.

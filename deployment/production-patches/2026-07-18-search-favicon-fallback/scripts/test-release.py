@@ -64,12 +64,12 @@ remote = (SCRIPTS / "run-remote-release.sh").read_text(encoding="utf-8")
 transport = (SCRIPTS / "deploy-remote.exp").read_text(encoding="utf-8")
 
 for marker in [
-    "cd6002ddc8893f25a6337dc823c9a9978f928aa5652f7e16ca28ac4d4e8fa6d2",
-    "488e92e83bd289e709ae746e766c28af9c176406a4d93d0a8d6d1c7958fea76e",
-    "user-usage-usd-symbol/0b57393fab4b-20260718214145/client-dist",
-    "6d51f0f488790bc117a2ae33a61c0a23a296ee1dbc5a7352e84fa7d09d35e187",
+    "cb932ad87bfb18469d0c883d4825377aae76ab67bb5b024be7228cfcb83a0582",
+    "68b0f7dcbe8822ec3a786569994bc573bc76f79187ef83efaa69c6cac8b3725f",
+    "user-usage-cost-detail-availability/72075ad1a389-20260718221835/client-dist",
+    "5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9",
     "6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade",
-    "aba651fe592a0059296fa8f5d679c0eeb693424def58a304c53037fd686248da",
+    "c15452691c0cad96b8846a94242cd6f9884a2c2061ac2cc8784dca8a79279546",
     "724094199fa29f77799331988748b8eef8d88c135b35abf5bea5f2c19a1a494b",
     "b9d40771ae9d679c43bcf03e00a240124643b0187f496ca9771db859b891cb39",
     "model-pricing-dotted-key/406693a-20260718201634/api-index.cjs",
