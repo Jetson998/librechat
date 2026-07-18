@@ -80,6 +80,10 @@ MongoDB directly.
 After save:
 
 - invalidate `baseConfig` and `resolvedConfig` queries;
+- persist `endpoints.custom.<index>.tokenConfig` by replacing the parent custom-endpoint
+  array through the raw Mongo collection so model names containing `.` remain literal keys;
+- use the current `configVersion` as an optimistic concurrency guard;
+- verify the API response contains the exact saved model price record before showing success;
 - reload the saved endpoint/model values;
 - show a success notification;
 - leave unrelated endpoint configuration unchanged.

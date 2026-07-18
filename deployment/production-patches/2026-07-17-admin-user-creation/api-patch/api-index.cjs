@@ -4544,6 +4544,21 @@ const UNSAFE_SEGMENTS = /(?:^|\.)(__[\w]*|constructor|prototype)(?:\.|$)/;
 const MAX_PATCH_ENTRIES = 100;
 const DEFAULT_PRIORITY = 10;
 const BASE_ONLY_OVERRIDE_SECTIONS = new Set(librechat_data_provider.BASE_ONLY_CONFIG_SECTIONS);
+const CUSTOM_ENDPOINT_TOKEN_CONFIG_PATH = /^endpoints\.custom\.(\d+)\.tokenConfig$/;
+function getCustomEndpointTokenConfigPatch(entries) {
+	if (entries.length !== 1) return null;
+	const entry = entries[0];
+	const match = CUSTOM_ENDPOINT_TOKEN_CONFIG_PATH.exec(entry.fieldPath);
+	if (!match) return null;
+	if (entry.value == null || typeof entry.value !== "object" || Array.isArray(entry.value)) throw new Error("tokenConfig must be a plain object");
+	for (const model of Object.keys(entry.value)) {
+		if (!model || model.length > 200 || model.startsWith("$") || model.includes("\0") || ["__proto__", "constructor", "prototype"].includes(model)) throw new Error(`Invalid tokenConfig model key: ${model}`);
+	}
+	return {
+		endpointIndex: Number(match[1]),
+		tokenConfig: entry.value
+	};
+}
 function isValidFieldPath(path) {
 	return typeof path === "string" && path.length > 0 && !path.startsWith(".") && !path.endsWith(".") && !path.includes("..") && !UNSAFE_SEGMENTS.test(path);
 }
@@ -4753,7 +4768,34 @@ function createAdminConfigHandlers(deps) {
 			if (priority != null && !hasBroadManage) _librechat_data_schemas.logger.warn(`[adminConfig] Ignoring caller-supplied priority on section-scoped patch to ${principalType}/${principalId}: only broad manage:configs may modify document priority`);
 			const requestedPriority = hasBroadManage ? priority : void 0;
 			const existing = requestedPriority == null ? await findConfigByPrincipal(principalType, principalId, { includeInactive: true }) : null;
-			const config = await patchConfigFields(principalType, principalId, principalModel(principalType), fields, requestedPriority ?? existing?.priority ?? DEFAULT_PRIORITY);
+			const tokenConfigPatch = getCustomEndpointTokenConfigPatch(validEntries);
+			let config;
+			if (tokenConfigPatch) {
+				const db = mongoose.default.connection.db;
+				if (!db) throw new Error("MongoDB connection is unavailable");
+				const collection = db.collection("configs");
+				const rawConfig = await collection.findOne({ principalType, principalId });
+				if (!rawConfig) throw new Error("Config not found");
+				const currentCustom = rawConfig.overrides?.endpoints?.custom;
+				if (!Array.isArray(currentCustom) || !currentCustom[tokenConfigPatch.endpointIndex]) throw new Error("Custom endpoint not found");
+				const custom = currentCustom.map((endpoint, index) => index === tokenConfigPatch.endpointIndex ? {
+					...endpoint,
+					tokenConfig: tokenConfigPatch.tokenConfig
+				} : endpoint);
+				const writeResult = await collection.updateOne({
+					_id: rawConfig._id,
+					configVersion: rawConfig.configVersion
+				}, {
+					$set: {
+						"overrides.endpoints.custom": custom,
+						updatedAt: /* @__PURE__ */ new Date()
+					},
+					$inc: { configVersion: 1 }
+				});
+				if (writeResult.modifiedCount !== 1) throw new Error("Config changed concurrently; reload and retry");
+				config = await findConfigByPrincipal(principalType, principalId, { includeInactive: true });
+				if (!config) throw new Error("Updated config could not be reloaded");
+			} else config = await patchConfigFields(principalType, principalId, principalModel(principalType), fields, requestedPriority ?? existing?.priority ?? DEFAULT_PRIORITY);
 			invalidateConfigCaches?.(user.tenantId)?.catch((err) => _librechat_data_schemas.logger.error("[adminConfig] Cache invalidation failed after patch:", err));
 			return res.status(200).json({ config });
 		} catch (error) {

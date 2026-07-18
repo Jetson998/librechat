@@ -1111,12 +1111,41 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
       }),
     });
 
+    const result = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      config?: {
+        overrides?: {
+          endpoints?: {
+            custom?: Array<{ tokenConfig?: Record<string, Record<string, unknown>> }>;
+          };
+        };
+      };
+    };
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
       throw new Error(
-        (err as { error?: string }).error ??
+        result.error ??
           `Failed to save custom endpoint token config: ${response.status}`,
       );
+    }
+
+    const persistedTokenConfig =
+      result.config?.overrides?.endpoints?.custom?.[data.endpointIndex]?.tokenConfig;
+    const hasPersistedModel = Object.prototype.hasOwnProperty.call(
+      persistedTokenConfig ?? {},
+      data.model,
+    );
+    const persisted = persistedTokenConfig?.[data.model];
+    const expected = Object.fromEntries(
+      Object.entries(modelConfig).filter(([, value]) => value !== undefined),
+    );
+    if (
+      (Object.keys(expected).length === 0 && hasPersistedModel) ||
+      (Object.keys(expected).length > 0 &&
+        (!persisted ||
+          Object.keys(expected).some((field) => persisted[field] !== expected[field]) ||
+          Object.keys(persisted).some((field) => expected[field] !== persisted[field])))
+    ) {
+      throw new Error('Model pricing was not persisted; reload and retry');
     }
 
     return { success: true };
