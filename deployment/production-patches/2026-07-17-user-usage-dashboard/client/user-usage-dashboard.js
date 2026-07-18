@@ -384,10 +384,12 @@
       cacheWrite: '缓存写入',
       output: '输出',
     };
-    const lines = Object.entries(labelsByKey).map(([key, label]) => {
-      const item = row.costBreakdown[key];
-      return `${label}：${formatExactTokens(item.tokens)} × ${formatRate(item.rate, currency)} = ${formatCost(item.cost, currency)}`;
-    });
+    const lines = Object.entries(labelsByKey)
+      .filter(([key]) => row.costBreakdown[key])
+      .map(([key, label]) => {
+        const item = row.costBreakdown[key];
+        return `${label}：${formatExactTokens(item.tokens)} × ${formatRate(item.rate, currency)} = ${formatCost(item.cost, currency)}`;
+      });
     lines.push(`费用合计：${formatCost(row.calculatedCost, currency)}`);
     if (!row.costBreakdownMatches) lines.push(`实际费用：${formatCost(row.cost, currency)}`);
     return lines.join('\n');

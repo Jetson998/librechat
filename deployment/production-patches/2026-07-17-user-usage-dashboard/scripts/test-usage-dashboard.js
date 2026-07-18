@@ -79,7 +79,16 @@ const decorated = decorateCostBreakdown({ endpoint: 'MuskAPI', model: 'gpt-5.6-s
 assert.equal(decorated.costBreakdown.input.rate, 0.6);
 assert.equal(decorated.costBreakdown.cacheRead.rate, 0.06);
 assert.equal(decorated.costBreakdown.output.rate, 3.6);
+assert.equal(decorated.costBreakdown.cacheWrite, undefined, 'zero-Token components must be omitted');
 assert.equal(decorated.costBreakdownMatches, true);
+const duplicatePricingIndex = buildPricingIndex({ endpoints: { custom: [
+  { name: 'MuskAPI', tokenConfig: { 'gpt-5.6-sol': { prompt: 0.6, completion: 3.6, cacheRead: 0.06 } } },
+  { name: 'MuskAPI-Secondary', tokenConfig: { 'gpt-5.6-sol': { prompt: 0.6, completion: 3.6, cacheRead: 0.06 } } },
+] } });
+const duplicateDecorated = decorateCostBreakdown({ endpoint: 'agents', model: 'gpt-5.6-sol', cost: 0.016442, tokenBreakdownAvailable: true, inputTokens: 2010, cacheReadTokens: 166400, cacheWriteTokens: 0, outputTokens: 1459 }, duplicatePricingIndex);
+assert.equal(duplicateDecorated.costBreakdownAvailable, true, 'identical duplicate prices must resolve by model');
+assert.equal(duplicateDecorated.costBreakdown.cacheWrite, undefined, 'missing zero-Token price must not block detail');
+assert.equal(duplicateDecorated.costBreakdownMatches, true);
 assert.equal(formatted.pagination.total, 2);
 
 let capturedPipeline;

@@ -50,6 +50,12 @@ function normalizePrice(value) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+function pricingMatches(left, right) {
+  return ['prompt', 'completion', 'cacheRead', 'cacheWrite'].every(
+    (key) => left?.[key] === right?.[key],
+  );
+}
+
 function buildPricingIndex(config = {}) {
   const source = config?.endpoints ? config : config?.overrides || config?.config || {};
   const byEndpointModel = new Map();
@@ -64,8 +70,11 @@ function buildPricingIndex(config = {}) {
         cacheWrite: normalizePrice(rates?.cacheWrite),
       };
       byEndpointModel.set(`${endpoint.name}\u0000${model}`, pricing);
-      if (byModel.has(model)) ambiguousModels.add(model);
-      else byModel.set(model, pricing);
+      if (!byModel.has(model)) {
+        byModel.set(model, pricing);
+      } else if (!pricingMatches(byModel.get(model), pricing)) {
+        ambiguousModels.add(model);
+      }
     }
   }
   for (const model of ambiguousModels) byModel.delete(model);
@@ -92,8 +101,12 @@ function decorateCostBreakdown(row, pricingIndex) {
     ['cacheRead', row.cacheReadTokens, pricing?.cacheRead],
     ['cacheWrite', row.cacheWriteTokens, pricing?.cacheWrite],
     ['output', row.outputTokens, pricing?.completion],
-  ];
-  if (!pricing || components.some(([, tokens, rate]) => !Number.isFinite(Number(tokens)) || rate == null)) {
+  ].filter(([, tokens]) => Number(tokens) > 0);
+  if (
+    !pricing ||
+    components.length === 0 ||
+    components.some(([, tokens, rate]) => !Number.isFinite(Number(tokens)) || rate == null)
+  ) {
     return { ...result, costBreakdownAvailable: false, costBreakdownMatches: false };
   }
   const costBreakdown = Object.fromEntries(
