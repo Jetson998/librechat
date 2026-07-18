@@ -11,13 +11,20 @@ The conversation log can show an authoritative total cost while its tooltip says
 across custom endpoints as ambiguous, even when all copies have identical native
 `tokenConfig` prices. It also requires a price for zero-Token components.
 
+Production verification identified the primary runtime cause: the custom
+`/api/user/usage-dashboard` route did not include LibreChat's existing
+`configMiddleware`. Therefore `req.config` was empty and no native model price
+could be resolved, regardless of endpoint matching.
+
 ## Design
 
 1. Treat duplicate model pricing as reusable by model name when all four native
    price fields are identical. Keep genuinely different duplicate prices
    ambiguous unless the log endpoint matches exactly.
-2. Require a price only for components whose Token count is greater than zero.
-3. Expand only the participating cost components:
+2. Add the existing `configMiddleware` to the authenticated usage-dashboard
+   route so the handler receives the effective Admin Panel configuration.
+3. Require a price only for components whose Token count is greater than zero.
+4. Expand only the participating cost components:
 
 ```text
 普通输入：2,010 × $0.60/M = $0.0012
