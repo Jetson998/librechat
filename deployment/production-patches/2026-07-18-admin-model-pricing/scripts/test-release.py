@@ -45,11 +45,22 @@ def main() -> None:
         "dedicated tokenConfig field save is missing",
     )
     require(
-        "entries: [{ fieldPath, value: tokenConfig }]" in server_config,
-        "dedicated tokenConfig save payload is missing",
+        "operation: 'setLiteralModelConfig'" in server_config,
+        "literal model tokenConfig save operation is missing",
     )
-    require("tokenConfig[data.model] = modelConfig" in server_config,
-            "server-side model pricing reconstruction is missing")
+    require("model: data.model" in server_config, "literal model name payload is missing")
+    require(
+        "modelConfig: Object.keys(modelConfig).length > 0 ? modelConfig : null" in server_config,
+        "literal model config payload is missing",
+    )
+    require(
+        "entries: [{ fieldPath, value: tokenConfig }]" not in server_config,
+        "dotted model names must not be sent as JSON object keys",
+    )
+    require(
+        "const currentModelConfig = tokenConfig[data.model]" in server_config,
+        "existing model pricing preservation is missing",
+    )
 
     for marker in (
         "prompt",

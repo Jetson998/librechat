@@ -20,7 +20,12 @@ key.
 ## Fix
 
 - retain the existing authenticated and capability-checked Admin Config route;
+- send a safe operation envelope containing the model name as a string instead
+  of a dotted JSON object key, because request-body sanitization removes dotted
+  keys before the route handler runs;
 - special-case only `endpoints.custom.<index>.tokenConfig` after validation;
+- merge or delete only the requested literal model key while preserving every
+  other model price on the endpoint;
 - replace the parent `overrides.endpoints.custom` array through the raw Mongo
   collection so dotted model keys remain literal object keys;
 - guard the write with the current `configVersion` and reject concurrent edits;

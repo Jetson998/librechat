@@ -1099,14 +1099,20 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
       if (value == null) delete modelConfig[field];
       else modelConfig[field] = value;
     }
-    if (Object.keys(modelConfig).length > 0) tokenConfig[data.model] = modelConfig;
-    else delete tokenConfig[data.model];
-
     const fieldPath = `endpoints.custom.${data.endpointIndex}.tokenConfig`;
     const response = await apiFetch(`/api/admin/config/role/${BASE_CONFIG_PRINCIPAL_ID}/fields`, {
       method: 'PATCH',
       body: JSON.stringify({
-        entries: [{ fieldPath, value: tokenConfig }],
+        entries: [
+          {
+            fieldPath,
+            value: {
+              operation: 'setLiteralModelConfig',
+              model: data.model,
+              modelConfig: Object.keys(modelConfig).length > 0 ? modelConfig : null,
+            },
+          },
+        ],
         priority: 0,
       }),
     });

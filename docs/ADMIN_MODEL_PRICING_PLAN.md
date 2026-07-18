@@ -69,9 +69,12 @@ empty, the model key is removed from `tokenConfig`.
 
 Use a dedicated Admin server action that PATCHes only
 `endpoints.custom.<index>.tokenConfig` through the supported base-config API.
-The browser sends only the endpoint index, model name, and four fixed numeric
-fields. The server action reads the current endpoint and reconstructs the
-dynamic model-keyed tokenConfig while preserving unrelated model fields.
+The browser sends a `setLiteralModelConfig` operation envelope containing the
+endpoint index, model name as a string, and four fixed numeric fields. It must
+not send the dotted model name as a JSON object key because request-body
+sanitization removes dotted keys before route logic runs. The API constructs
+the literal key after sanitization and merges only that model record while
+preserving unrelated model fields.
 The generic indexed-array helper must not be used here: it expands the change
 to the complete `endpoints.custom` array, and the nested dynamic model-price
 record is not preserved by that general editing path. The page must not write

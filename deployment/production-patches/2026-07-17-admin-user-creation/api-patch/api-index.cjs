@@ -4545,12 +4545,23 @@ const MAX_PATCH_ENTRIES = 100;
 const DEFAULT_PRIORITY = 10;
 const BASE_ONLY_OVERRIDE_SECTIONS = new Set(librechat_data_provider.BASE_ONLY_CONFIG_SECTIONS);
 const CUSTOM_ENDPOINT_TOKEN_CONFIG_PATH = /^endpoints\.custom\.(\d+)\.tokenConfig$/;
+const CUSTOM_ENDPOINT_TOKEN_CONFIG_MODEL_OPERATION = "setLiteralModelConfig";
 function getCustomEndpointTokenConfigPatch(entries) {
 	if (entries.length !== 1) return null;
 	const entry = entries[0];
 	const match = CUSTOM_ENDPOINT_TOKEN_CONFIG_PATH.exec(entry.fieldPath);
 	if (!match) return null;
 	if (entry.value == null || typeof entry.value !== "object" || Array.isArray(entry.value)) throw new Error("tokenConfig must be a plain object");
+	if (entry.value.operation === CUSTOM_ENDPOINT_TOKEN_CONFIG_MODEL_OPERATION) {
+		const { model, modelConfig } = entry.value;
+		if (typeof model !== "string" || !model || model.length > 200 || model.startsWith("$") || model.includes("\0") || ["__proto__", "constructor", "prototype"].includes(model)) throw new Error(`Invalid tokenConfig model key: ${model}`);
+		if (modelConfig !== null && (typeof modelConfig !== "object" || Array.isArray(modelConfig))) throw new Error("modelConfig must be a plain object or null");
+		return {
+			endpointIndex: Number(match[1]),
+			model,
+			modelConfig
+		};
+	}
 	for (const model of Object.keys(entry.value)) {
 		if (!model || model.length > 200 || model.startsWith("$") || model.includes("\0") || ["__proto__", "constructor", "prototype"].includes(model)) throw new Error(`Invalid tokenConfig model key: ${model}`);
 	}
@@ -4778,9 +4789,16 @@ function createAdminConfigHandlers(deps) {
 				if (!rawConfig) throw new Error("Config not found");
 				const currentCustom = rawConfig.overrides?.endpoints?.custom;
 				if (!Array.isArray(currentCustom) || !currentCustom[tokenConfigPatch.endpointIndex]) throw new Error("Custom endpoint not found");
+				let tokenConfig;
+				if ("model" in tokenConfigPatch) {
+					const currentTokenConfig = currentCustom[tokenConfigPatch.endpointIndex].tokenConfig;
+					tokenConfig = currentTokenConfig != null && typeof currentTokenConfig === "object" && !Array.isArray(currentTokenConfig) ? { ...currentTokenConfig } : {};
+					if (tokenConfigPatch.modelConfig === null || Object.keys(tokenConfigPatch.modelConfig).length === 0) delete tokenConfig[tokenConfigPatch.model];
+					else tokenConfig[tokenConfigPatch.model] = tokenConfigPatch.modelConfig;
+				} else tokenConfig = tokenConfigPatch.tokenConfig;
 				const custom = currentCustom.map((endpoint, index) => index === tokenConfigPatch.endpointIndex ? {
 					...endpoint,
-					tokenConfig: tokenConfigPatch.tokenConfig
+					tokenConfig
 				} : endpoint);
 				const writeResult = await collection.updateOne({
 					_id: rawConfig._id,
