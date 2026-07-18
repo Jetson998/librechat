@@ -1194,3 +1194,36 @@ not evidence that the raw JSONL entered model context.
 
 Acceptance: passed. Stage A is complete; Stage B context-threshold notices and
 friendly recursion-stop UI remain a separate release.
+
+## Search Favicon Fallback
+
+Final deployment date: 2026-07-18 HKT.
+
+Root cause:
+
+- LibreChat's rendered search-source icon component requested every icon from
+  `https://www.google.com/s2/favicons`;
+- the client network timed out reaching Google and every favicon had zero
+  natural dimensions;
+- search results, source titles, links, and Serper output remained healthy.
+
+Production result:
+
+```text
+release_commit=14b9fc7972f5b9c257a610d8a5e7b92d90533427
+release_root=/opt/librechat/search-favicon-fallback/14b9fc7972f5-20260718230646
+backup_dir=/opt/librechat/backups/search-favicon-fallback-20260718230646
+compose_sha_after=4f93345987c1913c8379792d54db2dea7a417106cbb978a1bae5269e07f6aa8f
+client_index_sha=27dd78be6e3862a4297e6a20b12a758513c11ebfcd515d05b550fa32a2903921
+search_asset_sha=6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade
+```
+
+Browser acceptance used the existing conversation
+`a98930ef-5cc2-46ca-b664-f2b5eab24dea` without creating or sending a chat.
+Both 13-source cards retained their titles and links. All 26 source images used
+deterministic local SVG data URLs, zero Google favicon URLs remained, and zero
+images were broken. Only `LibreChat-API` was recreated; protected containers,
+usage routing, Office, pricing, uploads, login, and Stage B assets remained
+unchanged.
+
+Acceptance: passed.
