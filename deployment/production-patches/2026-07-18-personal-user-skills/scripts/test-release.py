@@ -17,6 +17,9 @@ readme = (ROOT / "README.md").read_text(encoding="utf-8")
 plan = (REPO / "docs" / "PERSONAL_USER_SKILLS_RESTORE_PLAN.md").read_text(
     encoding="utf-8"
 )
+fixture = (ROOT / "fixtures" / "personal-skill-upload-smoke.md").read_text(
+    encoding="utf-8"
+)
 
 for marker in (
     'expected_endpoints="anthropic"',
@@ -70,5 +73,16 @@ for marker in (
 
 require("deploy.sh" in runner and "test-release.py" in runner,
         "remote runner must execute tests and deployment")
+
+require(
+    fixture.startswith("---\n"),
+    "Skill upload fixture must start with YAML frontmatter",
+)
+for marker in (
+    "name: personal-skill-upload-smoke",
+    "description: Repository-owned smoke fixture",
+    "PERSONAL_SKILL_UPLOAD_SMOKE_OK",
+):
+    require(marker in fixture, f"Skill upload fixture marker missing: {marker}")
 
 print("personal user Skills release tests passed")

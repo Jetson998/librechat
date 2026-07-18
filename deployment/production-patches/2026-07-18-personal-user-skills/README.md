@@ -52,8 +52,14 @@ python3 scripts/test-release.py
 
 The test checks the exact old/new endpoint values, atomic `.env` replacement,
 API-only recreation, neighboring-service guards, deployment-Skill guards,
-role-document preservation, rollback, and forbidden platform permission
-changes.
+role-document preservation, rollback, forbidden platform permission changes,
+and the repository-owned normal-user upload fixture.
+
+The reusable browser fixture is:
+
+```text
+fixtures/personal-skill-upload-smoke.md
+```
 
 ## Deployment
 
@@ -91,5 +97,42 @@ are never rewritten.
 
 ## Production Result
 
-Pending implementation commit, preflight, deployment, and normal-USER browser
-acceptance.
+Deployment date: 2026-07-18 HKT.
+
+Repository gates:
+
+- `ec0697f` recorded the personal User Skills design and isolation boundary.
+- `af98ce9` implemented the guarded `ENDPOINTS=anthropic,agents` release.
+
+Production deployment:
+
+```text
+timestamp=20260718161656
+backup_dir=/opt/librechat/backups/personal-user-skills-20260718161656
+endpoints_after=anthropic,agents
+api_recreated=true
+protected_services_unchanged=true
+office_skill_sha=29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a
+```
+
+Browser acceptance:
+
+- normal `USER` Gracey displayed Skills, My Skills, Write skill instructions,
+  and Upload a skill;
+- a form-created personal Skill appeared in the `$` picker and returned
+  `PERSONAL_SKILL_E2E_OK` when invoked;
+- `fixtures/personal-skill-upload-smoke.md` uploaded successfully, was active
+  by default, appeared in the `$` picker, and returned
+  `PERSONAL_SKILL_UPLOAD_SMOKE_OK` when invoked;
+- both temporary personal Skills were deleted after acceptance;
+- ADMIN Bill displayed the same create, upload, and `$` invocation paths after
+  refresh, plus the separate Administrator Settings entry;
+- the deployment `office-document-parser` Skill remained present and was not
+  used as the personal-Skill test fixture.
+
+The `$` picker intentionally lists active, user-invocable Skills. A newly
+created or uploaded personal Skill was active by default in both acceptance
+flows.
+
+Acceptance: passed for the standard `USER` and `ADMIN` personal Skill paths.
+No platform Skill-management capability was added to normal users.

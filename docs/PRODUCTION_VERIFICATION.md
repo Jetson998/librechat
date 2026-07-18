@@ -1071,3 +1071,53 @@ Acceptance evidence:
 
 Acceptance: passed. The customer-facing price and usage dashboard is live under
 `我的 -> 价格用量统计`.
+
+## Personal User Skills
+
+Final deployment date: 2026-07-18 HKT.
+
+Repository gates:
+
+- `ec0697f` recorded the design, role boundary, ownership model, rollback, and
+  browser acceptance requirements;
+- `af98ce9` implemented the guarded production release that changed only the
+  enabled endpoint allowlist from `anthropic` to `anthropic,agents`.
+
+Production result:
+
+```text
+timestamp=20260718161656
+backup_dir=/opt/librechat/backups/personal-user-skills-20260718161656
+endpoints_after=anthropic,agents
+api_recreated=true
+protected_services_unchanged=true
+office_skill_sha=29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a
+```
+
+Scope verification:
+
+- only `LibreChat-API` was recreated;
+- CodeAPI, RAG-API, Nginx, MongoDB, Admin Panel, and the Office deployment Skill
+  remained unchanged;
+- the standard `USER` role retained `SKILLS.USE` and `SKILLS.CREATE` without
+  receiving platform `READ_SKILLS` or `MANAGE_SKILLS` capabilities;
+- deployment Skills and personal resource-ACL Skills remained separate paths.
+
+Browser lifecycle verification:
+
+- Gracey (`USER`) displayed Skills, My Skills, Write skill instructions, and
+  Upload a skill;
+- a form-created personal Skill appeared in the `$` picker and returned
+  `PERSONAL_SKILL_E2E_OK` when invoked;
+- the repository-owned `.md` fixture uploaded successfully, was active by
+  default, appeared in the `$` picker, and returned
+  `PERSONAL_SKILL_UPLOAD_SMOKE_OK` when invoked;
+- both temporary personal Skills were deleted after acceptance;
+- Bill (`ADMIN`) displayed the same personal Skill creation, upload, and `$`
+  invocation paths after refresh, plus Administrator Settings;
+- `office-document-parser` remained present and was not reused as a personal
+  Skill fixture.
+
+Acceptance: passed for standard `USER` and `ADMIN` accounts. Personal Skill
+visibility remains governed by tenant/resource ACLs; this release did not grant
+normal users platform-wide Skill administration.

@@ -2,8 +2,8 @@
 
 Date: 2026-07-18
 
-Status: design committed and pushed in `6831848`; implementation and
-production deployment pending a separate release commit.
+Status: completed. Design gate `ec0697f`, implementation release `af98ce9`,
+and production deployment were completed on 2026-07-18.
 
 ## Requirement
 
@@ -36,7 +36,7 @@ The missing behavior is the normal chat-side Skills entry and `$` picker.
 
 ## Root Cause
 
-Production currently sets:
+Before this release, production set:
 
 ```text
 ENDPOINTS=anthropic
@@ -61,7 +61,7 @@ the direct create route still works, but discovery and selection disappear.
 
 ## Change Scope
 
-The release will change only the production `ENDPOINTS` allowlist from:
+The release changed only the production `ENDPOINTS` allowlist from:
 
 ```text
 anthropic
@@ -73,7 +73,7 @@ to:
 anthropic,agents
 ```
 
-The release will:
+The release:
 
 - back up the production `.env` before the write;
 - replace exactly one `ENDPOINTS` assignment and reject unexpected baselines;
@@ -143,3 +143,22 @@ On any failure after the `.env` write:
 - `READ_SKILLS` and `MANAGE_SKILLS` are not granted to the `USER` role.
 - Only the API container is recreated; adjacent service container IDs stay
   unchanged.
+
+## Final Verification
+
+- Normal `USER` account Gracey displayed Skills, My Skills, Write skill
+  instructions, and Upload a skill.
+- A Skill created through the form was active by default, appeared in the chat
+  `$` picker, ran successfully, and returned the fixture response
+  `PERSONAL_SKILL_E2E_OK`.
+- The repository-owned `.md` fixture
+  `fixtures/personal-skill-upload-smoke.md` imported successfully, appeared in
+  My Skills and the `$` picker, ran successfully, and returned
+  `PERSONAL_SKILL_UPLOAD_SMOKE_OK`.
+- Both temporary personal Skills were deleted after acceptance. The existing
+  deployment `office-document-parser` Skill remained present and unchanged.
+- ADMIN account Bill displayed the same personal Skill create/upload and `$`
+  invocation paths after refresh, plus the separate Administrator Settings
+  entry.
+- The release did not grant `READ_SKILLS` or `MANAGE_SKILLS` to `USER`; resource
+  ACL and tenant isolation remain the personal Skill access boundary.
