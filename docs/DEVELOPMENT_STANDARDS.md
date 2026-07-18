@@ -11,6 +11,9 @@ Related documents:
   commands.
 - `docs/STANDARD_OPERATING_PROCEDURE.md`: production operation rules.
 - `docs/RELEASE_CHECKLIST.md`: minimum gate for production changes.
+- `docs/RELEASE_GOVERNANCE_INDEX.md`: authoritative map of release-governance
+  files and ownership.
+- `docs/RELEASE_EVIDENCE_CONTRACT.md`: provider-neutral release evidence fields.
 
 ## 1. Scope
 
@@ -67,6 +70,11 @@ Before implementation, identify:
 
 For production-affecting changes, this must be written into a patch archive,
 plan, release note, or verification document before production is touched.
+
+For new governed releases, create
+`deployment/release-records/<release-id>/RELEASE.json`. Keep temporary package,
+checkpoint, and full-log evidence under `.release-state/<release-id>/`; do not
+commit `.release-state`.
 
 ## 5. Repository Layout Standards
 
@@ -127,6 +135,13 @@ Scripts:
 - Scripts must print enough evidence to audit: target path, backup path, hash,
   marker check, and verification result.
 - Scripts must not print secrets.
+- New release entry points must not use `PREFLIGHT_ONLY` or another environment
+  switch to turn a read-only command into a write command. Preflight and deploy
+  must be separate entry points.
+- Build release packages from the recorded source revision. Do not package the
+  current working tree with an unrestricted copy command.
+- A deployment wrapper must require explicit release confirmation and a
+  versioned runner inside the configured release roots.
 
 ## 7. Frontend Standards
 
@@ -290,6 +305,13 @@ Required sequence:
 9. Verify production.
 10. Record deployment result.
 11. Commit and push the record.
+
+For the governed adapter, the equivalent gates are `prepare`,
+`preflight_permissions`, `repository_gate`, `package_manifest`,
+`ci_attestation_gate`,
+`target_preflight`, `apply_gate`, `acceptance_gate`, and `release_record`.
+Checkpoint states are `pending`, `passed`, `failed`, `blocked`,
+`not_applicable`, and `invalidated`.
 
 If any step fails, stop and document the blocker. Do not continue with manual
 untracked fixes.

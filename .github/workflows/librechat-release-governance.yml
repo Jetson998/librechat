@@ -1,0 +1,37 @@
+name: LibreChat Release Governance
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/librechat-release-governance.yml'
+      - 'release-governance.json'
+      - 'skills/lightweight-release-governance/**'
+      - 'skills/librechat-release-governance/**'
+      - 'scripts/librechat-release-adapter.py'
+      - 'scripts/release-*.sh'
+      - 'tests/release-governance/**'
+      - 'docs/RELEASE_GOVERNANCE_INDEX.md'
+      - 'docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md'
+      - 'docs/RELEASE_EVIDENCE_CONTRACT.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Run release governance validation
+        run: scripts/validate-release-governance.sh

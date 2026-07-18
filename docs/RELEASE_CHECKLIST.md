@@ -6,6 +6,8 @@ Gate" section is complete and pushed.
 
 ## Change Summary
 
+- Release ID:
+- Governance mode: `light` / `release` / `protected` / `enhanced`
 - Date:
 - Operator:
 - Change name:
@@ -18,6 +20,8 @@ Gate" section is complete and pushed.
 
 ## Repository Gate
 
+- [ ] `deployment/release-records/<release-id>/RELEASE.json` exists for a new
+      governed release.
 - [ ] Intended patch/config/skill/static change is represented in this
       repository.
 - [ ] Change summary, affected files/services, feature/function list,
@@ -29,6 +33,9 @@ Gate" section is complete and pushed.
 - [ ] Change is pushed to `origin/main`.
 - [ ] `git status --short --branch` shows local branch aligned with
       `origin/main`.
+- [ ] `scripts/release-verify.sh <release-id>` passed.
+- [ ] Package manifest was created from the recorded source revision when the
+      selected mode requires one.
 
 If any item above cannot be completed, stop. Do not change production.
 
@@ -37,7 +44,8 @@ If any item above cannot be completed, stop. Do not change production.
 - [ ] Root URL returns `200`.
 - [ ] `/api/config` has been captured.
 - [ ] Login works in a browser.
-- [ ] Simple chat returns non-empty content.
+- [ ] Simple chat returns non-empty content only when this release explicitly
+      changes the model/tool path. Default acceptance sends no model request.
 - [ ] Relevant files/configs are backed up.
 - [ ] No production secrets will be committed to this project.
 - [ ] Rollback artifact exists and is referenced in this checklist or release
@@ -68,6 +76,11 @@ curl -k -L https://152.32.172.162.sslip.io/api/config
 - [ ] Actual production state matches the committed plan, or differences are
       captured in a follow-up commit.
 - [ ] Verification result is documented and pushed if it changed the record.
+- [ ] `scripts/release-acceptance.sh <release-id>` passed.
+- [ ] Final `RELEASE.json` records runtime, backup, acceptance, rollback, and
+      unresolved issues.
+- [ ] `scripts/release-finalize.sh <release-id>` passed after the final record
+      was committed and pushed.
 
 ## Forbidden Shortcuts
 

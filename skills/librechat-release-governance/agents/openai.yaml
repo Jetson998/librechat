@@ -1,0 +1,4 @@
+interface:
+  display_name: "LibreChat Release Governance"
+  short_description: "LibreChat 项目发布适配、生产预检、受控部署与结果记录入口"
+  default_prompt: "Use $librechat-release-governance to prepare, verify, or record a LibreChat release through the repository-owned governance adapter."

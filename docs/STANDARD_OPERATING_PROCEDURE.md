@@ -20,6 +20,20 @@ It intentionally separates verified production facts from assumptions. When a
 server path, service name, Docker Compose file, or credential is not present in
 this repository, verify it on the server before writing it into permanent docs.
 
+### Release governance entry point
+
+Use `release-governance.json` and `scripts/release-*.sh` for new governed
+releases. The file map is in `docs/RELEASE_GOVERNANCE_INDEX.md`, and the short
+Chinese operator guide is in `docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md`.
+
+- `light`: analysis, documentation, and local work; no production gate.
+- `release`: baseline, record, package, verification, and traceability.
+- `protected`: minimum protection for any production write.
+- `enhanced`: migrations, shared infrastructure, or concurrent high-risk work.
+
+The governance scripts complement this SOP. They do not replace the
+release-specific rollback and acceptance requirements.
+
 ## 2. Current Production Facts
 
 Externally verified on 2026-07-09:
@@ -73,7 +87,9 @@ Pass criteria:
 - Registration remains disabled unless intentionally opened.
 - Login page can be opened in a browser.
 - A known admin/test account can sign in.
-- A simple chat message returns non-empty assistant content.
+- A simple chat message returns non-empty assistant content when a release
+  explicitly affects the model or tool path. The default governance acceptance
+  does not send a model request or create a conversation.
 
 Optional deeper checks after releases:
 
@@ -134,6 +150,8 @@ Required before any production write:
 4. Push the commit to `origin/main`.
 5. Confirm `git status --short --branch` shows the local branch aligned with
    `origin/main`.
+6. For a new governed release, pass the applicable checkpoint sequence in
+   `.release-state/<release-id>/checkpoint.json` through `target_preflight`.
 
 If commit or push cannot complete, stop and report the block. Do not continue
 with a production write.
@@ -150,6 +168,18 @@ files to old conversations, editing saved assistant messages, or changing file
 metadata in MongoDB.
 
 ## 7. Release Workflow
+
+The command-level entry path for new releases is:
+
+```text
+release-prepare -> release-verify -> release-package -> release-attest
+                -> release-preflight -> release-deploy
+                -> release-acceptance -> release-finalize
+```
+
+`release-attest` may be `not_applicable` only when the selected mode allows it
+and the release record contains a reason. Do not use an environment variable to
+skip a required gate.
 
 1. Capture current state.
 

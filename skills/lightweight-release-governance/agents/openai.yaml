@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lightweight Release Governance"
+  short_description: "面向自托管应用的轻量发布、证据追溯、断点恢复与回滚优先治理工作流"
+  default_prompt: "Use $lightweight-release-governance to establish a lightweight, risk-aware release and rollback workflow for this project."

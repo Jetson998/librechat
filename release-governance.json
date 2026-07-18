@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "project": {
+    "id": "librechat-self-host",
+    "name": "LibreChat Self-host",
+    "kind": "self-hosted-web-application"
+  },
+  "adapter": {
+    "prepare": "scripts/release-prepare.sh",
+    "verify": "scripts/release-verify.sh",
+    "preflight": "scripts/release-preflight.sh",
+    "package": "scripts/release-package.sh",
+    "attest": "scripts/release-attest.sh",
+    "deploy": "scripts/release-deploy.sh",
+    "acceptance": "scripts/release-acceptance.sh",
+    "finalize": "scripts/release-finalize.sh",
+    "status": "scripts/release-status.sh",
+    "validate": "scripts/validate-release-governance.sh"
+  },
+  "evidence": {
+    "state_root": ".release-state",
+    "record_root": "deployment/release-records"
+  },
+  "risk_modes": {
+    "light": {
+      "required_gates": [
+        "prepare",
+        "release_record"
+      ],
+      "not_applicable_allowed": []
+    },
+    "release": {
+      "required_gates": [
+        "prepare",
+        "preflight_permissions",
+        "repository_gate",
+        "package_manifest",
+        "ci_attestation_gate",
+        "release_record"
+      ],
+      "not_applicable_allowed": [
+        "ci_attestation_gate"
+      ]
+    },
+    "protected": {
+      "required_gates": [
+        "prepare",
+        "preflight_permissions",
+        "repository_gate",
+        "package_manifest",
+        "ci_attestation_gate",
+        "target_preflight",
+        "apply_gate",
+        "acceptance_gate",
+        "release_record"
+      ],
+      "not_applicable_allowed": [
+        "ci_attestation_gate"
+      ]
+    },
+    "enhanced": {
+      "required_gates": [
+        "prepare",
+        "preflight_permissions",
+        "repository_gate",
+        "package_manifest",
+        "ci_attestation_gate",
+        "target_preflight",
+        "apply_gate",
+        "acceptance_gate",
+        "release_record"
+      ],
+      "not_applicable_allowed": []
+    }
+  },
+  "repository": {
+    "type": "git",
+    "remote": "origin",
+    "default_branch": "main",
+    "expected_remote": "git@github.com:Jetson998/librechat.git",
+    "allow_dirty_outside_scope": true,
+    "governance_paths": [
+      "release-governance.json",
+      "skills/lightweight-release-governance",
+      "skills/librechat-release-governance",
+      "scripts/release-prepare.sh",
+      "scripts/release-verify.sh",
+      "scripts/release-preflight.sh",
+      "scripts/release-package.sh",
+      "scripts/release-attest.sh",
+      "scripts/release-deploy.sh",
+      "scripts/release-acceptance.sh",
+      "scripts/release-finalize.sh",
+      "scripts/release-status.sh",
+      "scripts/validate-release-governance.sh",
+      "scripts/librechat-release-adapter.py",
+      "deployment/release-records"
+    ]
+  },
+  "capabilities": {
+    "required_commands": [
+      "bash",
+      "git",
+      "python3"
+    ],
+    "requires_remote_reference_read": true
+  },
+  "package": {
+    "always_include": [
+      "release-governance.json",
+      "skills/lightweight-release-governance",
+      "skills/librechat-release-governance",
+      "scripts/release-prepare.sh",
+      "scripts/release-verify.sh",
+      "scripts/release-preflight.sh",
+      "scripts/release-package.sh",
+      "scripts/release-attest.sh",
+      "scripts/release-deploy.sh",
+      "scripts/release-acceptance.sh",
+      "scripts/release-finalize.sh",
+      "scripts/release-status.sh",
+      "scripts/validate-release-governance.sh",
+      "scripts/librechat-release-adapter.py"
+    ]
+  },
+  "target": {
+    "public_checks": [
+      {
+        "id": "main-root",
+        "url": "https://152.32.172.162.sslip.io/",
+        "expected_status": 200,
+        "tls_verify": false
+      },
+      {
+        "id": "api-config",
+        "url": "https://152.32.172.162.sslip.io/api/config",
+        "expected_status": 200,
+        "tls_verify": false
+      },
+      {
+        "id": "office-auth-boundary",
+        "url": "https://152.32.172.162.sslip.io/office/",
+        "expected_status": 401,
+        "expected_header": {
+          "name": "WWW-Authenticate",
+          "contains": "Office Converter"
+        },
+        "tls_verify": false
+      },
+      {
+        "id": "admin-root",
+        "url": "https://admin.152.32.172.162.sslip.io/",
+        "expected_status": 200,
+        "tls_verify": false
+      }
+    ],
+    "acceptance_checks": [
+      "main-root",
+      "api-config",
+      "office-auth-boundary",
+      "admin-root"
+    ],
+    "protected_services": [
+      "LibreChat-API",
+      "LibreChat-NGINX",
+      "LibreChat-CodeAPI",
+      "LibreChat-RAG-API",
+      "LibreChat-Admin-Panel",
+      "chat-mongodb"
+    ]
+  },
+  "deployment": {
+    "allowed_runner_roots": [
+      "deployment/production-patches",
+      "deployment/production-operations"
+    ],
+    "scoped_marker": "release-governance:scoped-deployment",
+    "target_lock_marker": "release-governance:target-lock",
+    "target_lock_required_modes": [
+      "enhanced"
+    ]
+  }
+}

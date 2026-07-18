@@ -20,6 +20,13 @@ email/password login enabled.
   verification, security, rollback, and production deployment standards.
 - [Release checklist](docs/RELEASE_CHECKLIST.md): short pre-change and
   post-change checklist for small production updates.
+- [Release governance index](docs/RELEASE_GOVERNANCE_INDEX.md): complete map of
+  the generic Skill, LibreChat adapter, scripts, tests, and release evidence.
+- [Lightweight release governance guide](docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md):
+  concise Chinese instructions for preparing, verifying, deploying, and
+  recording a release.
+- [Release evidence contract](docs/RELEASE_EVIDENCE_CONTRACT.md): provider-neutral
+  source, artifact, runtime, backup, acceptance, and rollback evidence fields.
 - [Development and GitHub workflow](docs/DEVELOPMENT_AND_GITHUB_WORKFLOW.md):
   new-computer setup, SSH GitHub access, commit/push flow, and production gate.
 - [Production verification log](docs/PRODUCTION_VERIFICATION.md): current
@@ -76,3 +83,7 @@ conversation/file repair must follow the gate in
 
 Do not commit production secrets, API keys, database credentials, user exports,
 or private log payloads into this project.
+
+New governed releases use `release-governance.json` and the repository-owned
+`scripts/release-*.sh` entry points. Ordinary analysis, coding, documentation,
+and local testing remain outside the production-write gate.

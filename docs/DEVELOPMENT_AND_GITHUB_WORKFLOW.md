@@ -21,6 +21,9 @@ the production-change gate.
 For coding, patching, verification, security, rollback, and deployment
 standards, read `docs/DEVELOPMENT_STANDARDS.md` first.
 
+For new governed releases, also read `docs/RELEASE_GOVERNANCE_INDEX.md` and use
+the short command path in `docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md`.
+
 ## 1. Non-Negotiable Rules
 
 - Do not apply production hotfixes that are not represented in this repository.
@@ -253,6 +256,16 @@ Minimum required sequence:
 12. Commit and push the deployment record.
 
 No production write is allowed between steps 1 and 7.
+
+The repository-owned governance adapter implements the same boundary with:
+
+```text
+prepare -> verify -> package -> attest -> preflight -> deploy
+        -> acceptance -> finalize
+```
+
+The full logs and checkpoints remain under `.release-state/`; the durable plan
+and actual result belong under `deployment/release-records/`.
 
 ## 6. Standard Production Smoke Checks
 

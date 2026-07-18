@@ -23,6 +23,8 @@ build/
 .next/
 .vite/
 coverage/
+__pycache__/
+*.py[cod]
 
 # LibreChat / Docker local state
 data/
@@ -39,6 +41,7 @@ backups/
 tmp/
 temp/
 .cache/
+.release-state/
 .DS_Store
 
 # Editor metadata
