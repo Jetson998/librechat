@@ -10,7 +10,13 @@ const mongoose = require('mongoose');
 require('/app/api/db');
 
 const modulePath = process.argv[2] || '/tmp/lc-usage-dashboard-audit.js';
-const { buildPipeline, formatResult, parseQuery } = require(path.resolve(modulePath));
+const {
+  buildPipeline,
+  formatResult,
+  parsePricingCutoff,
+  parsePricingCutoffModels,
+  parseQuery,
+} = require(path.resolve(modulePath));
 
 (async () => {
   await mongoose.connect(process.env.MONGO_URI);
@@ -33,6 +39,8 @@ const { buildPipeline, formatResult, parseQuery } = require(path.resolve(moduleP
     currencyRate: 1,
     timezone: 'Asia/Singapore',
     now: new Date(),
+    pricingCutoff: parsePricingCutoff(process.env.USER_USAGE_PRICING_CUTOFF),
+    pricingCutoffModels: parsePricingCutoffModels(process.env.USER_USAGE_PRICING_CUTOFF_MODELS),
   });
   const [raw = {}] = await Message.aggregate(pipeline).allowDiskUse(false).exec();
   const result = formatResult(raw, options, 'USD');

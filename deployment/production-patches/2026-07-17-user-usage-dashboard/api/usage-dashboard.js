@@ -32,6 +32,92 @@ function getCutoff(range, now = new Date()) {
   return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 }
 
+function parsePricingCutoff(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parsePricingCutoffModels(value) {
+  return String(value || '')
+    .split(',')
+    .map((model) => model.trim())
+    .filter(Boolean);
+}
+
+function normalizePrice(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function buildPricingIndex(config = {}) {
+  const source = config?.endpoints ? config : config?.overrides || config?.config || {};
+  const byEndpointModel = new Map();
+  const byModel = new Map();
+  const ambiguousModels = new Set();
+  for (const endpoint of source.endpoints?.custom || []) {
+    for (const [model, rates] of Object.entries(endpoint.tokenConfig || {})) {
+      const pricing = {
+        prompt: normalizePrice(rates?.prompt),
+        completion: normalizePrice(rates?.completion),
+        cacheRead: normalizePrice(rates?.cacheRead),
+        cacheWrite: normalizePrice(rates?.cacheWrite),
+      };
+      byEndpointModel.set(`${endpoint.name}\u0000${model}`, pricing);
+      if (byModel.has(model)) ambiguousModels.add(model);
+      else byModel.set(model, pricing);
+    }
+  }
+  for (const model of ambiguousModels) byModel.delete(model);
+  return { byEndpointModel, byModel };
+}
+
+function resolvePricing(pricingIndex, row) {
+  if (!pricingIndex) return null;
+  return (
+    pricingIndex.byEndpointModel.get(`${row.endpoint}\u0000${row.model}`) ||
+    pricingIndex.byModel.get(row.model) ||
+    null
+  );
+}
+
+function decorateCostBreakdown(row, pricingIndex) {
+  const result = { ...row };
+  if (!row.tokenBreakdownAvailable) {
+    return { ...result, costBreakdownAvailable: false, costBreakdownMatches: false };
+  }
+  const pricing = resolvePricing(pricingIndex, row);
+  const components = [
+    ['input', row.inputTokens, pricing?.prompt],
+    ['cacheRead', row.cacheReadTokens, pricing?.cacheRead],
+    ['cacheWrite', row.cacheWriteTokens, pricing?.cacheWrite],
+    ['output', row.outputTokens, pricing?.completion],
+  ];
+  if (!pricing || components.some(([, tokens, rate]) => !Number.isFinite(Number(tokens)) || rate == null)) {
+    return { ...result, costBreakdownAvailable: false, costBreakdownMatches: false };
+  }
+  const costBreakdown = Object.fromEntries(
+    components.map(([name, tokens, rate]) => [
+      name,
+      {
+        tokens: Number(tokens),
+        rate,
+        cost: (Number(tokens) * rate) / 1000000,
+      },
+    ]),
+  );
+  const calculatedCost = Object.values(costBreakdown).reduce((total, item) => total + item.cost, 0);
+  const actualCost = row.cost == null ? null : Number(row.cost);
+  const tolerance = Math.max(0.0001, Math.abs(actualCost || 0) * 0.0005);
+  return {
+    ...result,
+    costBreakdownAvailable: true,
+    costBreakdown,
+    calculatedCost,
+    costBreakdownMatches: actualCost != null && Math.abs(calculatedCost - actualCost) <= tolerance,
+  };
+}
+
 function buildFilteredMatch(options) {
   const match = {};
   if (options.model) {
@@ -43,10 +129,28 @@ function buildFilteredMatch(options) {
   return Object.keys(match).length ? [{ $match: match }] : [];
 }
 
-function buildPipeline({ userId, transactionUserId, options, currencyRate, timezone, now }) {
+function buildPipeline({
+  userId,
+  transactionUserId,
+  options,
+  currencyRate,
+  timezone,
+  now,
+  pricingCutoff,
+  pricingCutoffModels = [],
+}) {
   const cutoff = getCutoff(options.range, now);
   const filteredMatch = buildFilteredMatch(options);
   const dateMatch = cutoff ? [{ $match: { createdAt: { $gte: cutoff } } }] : [];
+  const pricingVisibility =
+    pricingCutoff && pricingCutoffModels.length
+      ? {
+          $or: [
+            { model: { $nin: pricingCutoffModels } },
+            { createdAt: { $gte: pricingCutoff } },
+          ],
+        }
+      : null;
 
   const summaryBranch = [
     ...filteredMatch,
@@ -143,6 +247,7 @@ function buildPipeline({ userId, transactionUserId, options, currencyRate, timez
         isTemporary: { $ne: true },
         unfinished: { $ne: true },
         $and: [
+          ...(pricingVisibility ? [pricingVisibility] : []),
           {
             $or: [
               { error: { $exists: false } },
@@ -363,7 +468,7 @@ function round(value, decimals = 2) {
   return Math.round(value * factor) / factor;
 }
 
-function formatResult(raw, options, currency) {
+function formatResult(raw, options, currency, pricingIndex = null) {
   const emptySummary = {
     tokens: 0,
     cost: 0,
@@ -395,7 +500,12 @@ function formatResult(raw, options, currency) {
     })),
     modelOptions: raw.modelOptions || [],
     conversationOptions: raw.conversationOptions || [],
-    logs: (raw.logs || []).map((item) => ({ ...item, cost: item.cost == null ? null : round(item.cost, 4) })),
+    logs: (raw.logs || []).map((item) =>
+      decorateCostBreakdown(
+        { ...item, cost: item.cost == null ? null : round(item.cost, 4) },
+        pricingIndex,
+      ),
+    ),
     pagination: {
       page: options.page,
       limit: options.limit,
@@ -421,6 +531,8 @@ function createUsageDashboardHandler({ mongoose, logger, now = () => new Date() 
       const currency = String(process.env.USER_USAGE_CURRENCY || 'USD').toUpperCase();
       const currencyRate = Number(process.env.USER_USAGE_USD_RATE || 1);
       const timezone = process.env.USER_USAGE_TIMEZONE || 'Asia/Singapore';
+      const pricingCutoff = parsePricingCutoff(process.env.USER_USAGE_PRICING_CUTOFF);
+      const pricingCutoffModels = parsePricingCutoffModels(process.env.USER_USAGE_PRICING_CUTOFF_MODELS);
       if (!Number.isFinite(currencyRate) || currencyRate <= 0) {
         throw new Error('USER_USAGE_USD_RATE must be a positive number');
       }
@@ -432,9 +544,11 @@ function createUsageDashboardHandler({ mongoose, logger, now = () => new Date() 
         currencyRate,
         timezone,
         now: now(),
+        pricingCutoff,
+        pricingCutoffModels,
       });
       const [raw = {}] = await Message.aggregate(pipeline).allowDiskUse(false).exec();
-      return res.json(formatResult(raw, options, currency));
+      return res.json(formatResult(raw, options, currency, buildPricingIndex(req.config)));
     } catch (error) {
       logger?.error?.('[usage-dashboard] Failed to aggregate user usage', error);
       return res.status(500).json({ error: 'Unable to load usage statistics' });
@@ -444,8 +558,12 @@ function createUsageDashboardHandler({ mongoose, logger, now = () => new Date() 
 
 module.exports = {
   buildPipeline,
+  buildPricingIndex,
   createUsageDashboardHandler,
+  decorateCostBreakdown,
   formatResult,
   getCutoff,
+  parsePricingCutoff,
+  parsePricingCutoffModels,
   parseQuery,
 };

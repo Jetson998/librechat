@@ -6,6 +6,10 @@ const {
   buildPipeline,
   createUsageDashboardHandler,
   formatResult,
+  buildPricingIndex,
+  decorateCostBreakdown,
+  parsePricingCutoff,
+  parsePricingCutoffModels,
   getCutoff,
   parseQuery,
 } = require(path.join(__dirname, '..', 'api', 'usage-dashboard.js'));
@@ -16,14 +20,27 @@ const options = parseQuery({ range: '7', model: 'gpt-5.6-sol', conversation: 'co
 assert.deepEqual(options, { range: '7', model: 'gpt-5.6-sol', conversation: 'conversation-1', page: 2, limit: 100 });
 assert.equal(parseQuery({ range: 'bad', page: '-1', limit: '0' }).range, '30');
 assert.equal(getCutoff('all'), null);
+assert.equal(parsePricingCutoff('2026-07-18T12:23:34.480Z').toISOString(), '2026-07-18T12:23:34.480Z');
+assert.deepEqual(parsePricingCutoffModels('gpt-5.6-sol, claude-fable-5'), ['gpt-5.6-sol', 'claude-fable-5']);
 
-const pipeline = buildPipeline({ userId, transactionUserId, options, currencyRate: 1, timezone: 'Asia/Singapore', now: new Date('2026-07-18T00:00:00+08:00') });
+const pipeline = buildPipeline({
+  userId,
+  transactionUserId,
+  options,
+  currencyRate: 1,
+  timezone: 'Asia/Singapore',
+  now: new Date('2026-07-18T00:00:00+08:00'),
+  pricingCutoff: new Date('2026-07-17T00:00:00Z'),
+  pricingCutoffModels: ['gpt-5.6-sol', 'claude-fable-5'],
+});
 assert.equal(pipeline[0].$match.user, userId, 'message query must be user-scoped');
 assert.equal(pipeline[0].$match.isCreatedByUser, false, 'only assistant replies are billable rows');
 const transactionLookup = pipeline.find((stage) => stage.$lookup?.from === 'transactions').$lookup;
 const transactionExpression = JSON.stringify(transactionLookup.pipeline);
 assert.match(transactionExpression, /"\$context","message"/, 'title and summarization rows must be excluded');
 assert.match(transactionExpression, /objectId/, 'transaction query must be scoped to authenticated user');
+assert.match(JSON.stringify(pipeline[0].$match), /gpt-5\.6-sol/, 'pricing cutoff models should be applied');
+assert.match(JSON.stringify(pipeline[0].$match), /2026-07-17/, 'pricing cutoff timestamp should be applied');
 for (const field of ['inputTokens', 'readTokens', 'writeTokens', 'structuredPromptRows', 'outputTokens']) {
   assert.match(transactionExpression, new RegExp(field), `transaction breakdown must include ${field}`);
 }
@@ -57,6 +74,12 @@ assert.equal(
   formatted.logs[1].inputTokens + formatted.logs[1].cacheReadTokens + formatted.logs[1].cacheWriteTokens + formatted.logs[1].outputTokens,
   formatted.logs[1].tokens,
 );
+const pricingIndex = buildPricingIndex({ endpoints: { custom: [{ name: 'MuskAPI', tokenConfig: { 'gpt-5.6-sol': { prompt: 0.6, completion: 3.6, cacheRead: 0.06, cacheWrite: 0.75 } } }] } });
+const decorated = decorateCostBreakdown({ endpoint: 'MuskAPI', model: 'gpt-5.6-sol', cost: 0.01674, tokenBreakdownAvailable: true, inputTokens: 14492, cacheReadTokens: 61952, cacheWriteTokens: 0, outputTokens: 1202 }, pricingIndex);
+assert.equal(decorated.costBreakdown.input.rate, 0.6);
+assert.equal(decorated.costBreakdown.cacheRead.rate, 0.06);
+assert.equal(decorated.costBreakdown.output.rate, 3.6);
+assert.equal(decorated.costBreakdownMatches, true);
 assert.equal(formatted.pagination.total, 2);
 
 let capturedPipeline;

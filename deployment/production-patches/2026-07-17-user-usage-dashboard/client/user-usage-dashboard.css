@@ -513,6 +513,23 @@
   outline: none;
 }
 
+.lc-usage-cost-detail {
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px dotted var(--lc-usage-muted);
+  background: transparent;
+  color: inherit;
+  cursor: help;
+  font-variant-numeric: tabular-nums;
+}
+
+.lc-usage-cost-detail:hover,
+.lc-usage-cost-detail:focus-visible {
+  border-bottom-color: var(--lc-usage-brand);
+  color: var(--lc-usage-brand);
+  outline: none;
+}
+
 .lc-usage-model-list {
   display: grid;
   align-items: center;

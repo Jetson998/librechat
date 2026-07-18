@@ -359,6 +359,38 @@
     ].join('\n');
   }
 
+  function formatRate(value, currency) {
+    return `${new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    }).format(Number(value || 0))}/M`;
+  }
+
+  function formatExactTokens(value) {
+    return Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+
+  function formatCostBreakdown(row, currency) {
+    if (!row.costBreakdownAvailable) {
+      return `费用合计：${formatCost(row.cost, currency)}\n费用明细不可用`;
+    }
+    const labelsByKey = {
+      input: '普通输入',
+      cacheRead: '缓存读取',
+      cacheWrite: '缓存写入',
+      output: '输出',
+    };
+    const lines = Object.entries(labelsByKey).map(([key, label]) => {
+      const item = row.costBreakdown[key];
+      return `${label}：${formatExactTokens(item.tokens)} × ${formatRate(item.rate, currency)} = ${formatCost(item.cost, currency)}`;
+    });
+    lines.push(`费用合计：${formatCost(row.calculatedCost, currency)}`);
+    if (!row.costBreakdownMatches) lines.push(`实际费用：${formatCost(row.cost, currency)}`);
+    return lines.join('\n');
+  }
+
   function renderLogs(data) {
     const rows = data.logs || [];
     const body = rows.length
@@ -371,7 +403,7 @@
                 <td><button class="lc-usage-conversation-link" type="button" data-conversation-link="${escapeHtml(row.conversationId)}">${escapeHtml(row.conversationTitle)}</button></td>
                 <td>${Number(row.turn || 0)}</td>
                 <td><button class="lc-usage-token-detail" type="button" data-chart-tooltip="${escapeHtml(formatTokenBreakdown(row))}" aria-label="${escapeHtml(formatTokenBreakdown(row))}">${formatNumber(row.tokens, 1)}</button></td>
-                <td>${formatCost(row.cost, data.currency)}</td>
+                <td>${row.cost == null ? '不可用' : `<button class="lc-usage-cost-detail" type="button" data-chart-tooltip="${escapeHtml(formatCostBreakdown(row, data.currency))}" aria-label="${escapeHtml(formatCostBreakdown(row, data.currency))}">${formatCost(row.cost, data.currency)}</button>`}</td>
               </tr>`,
           )
           .join('')

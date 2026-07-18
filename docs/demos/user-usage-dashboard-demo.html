@@ -1088,6 +1088,23 @@
         outline: none;
       }
 
+      .cost-detail {
+        padding: 2px 0;
+        border: 0;
+        border-bottom: 1px dotted var(--muted);
+        background: transparent;
+        color: inherit;
+        cursor: help;
+        font: inherit;
+      }
+
+      .cost-detail:hover,
+      .cost-detail:focus-visible {
+        border-bottom-color: var(--brand);
+        color: var(--brand);
+        outline: none;
+      }
+
       .cell-sub {
         margin-top: 3px;
         color: var(--muted);
@@ -1866,11 +1883,9 @@
       const chartTooltip = document.getElementById('chartTooltip');
 
       const rows = [
-        { time: '2026-07-17 14:32', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '23.0K', cost: '$0.18', turn: 4, breakdown: '普通输入：8.6K  缓存读取：10.2K\n缓存写入：0  输出：4.2K\n合计：23.0K' },
-        { time: '2026-07-17 13:58', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '17.6K', cost: '$0.13', turn: 3, breakdown: '普通输入：6.1K  缓存读取：8.7K\n缓存写入：0  输出：2.8K\n合计：17.6K' },
-        { time: '2026-07-17 11:08', ageDays: 0, model: 'Claude Fable 5', vendor: 'anthropic', instance: '季度数据分析与总结', instanceId: 'c_5ad740', tokens: '49.7K', cost: '$0.54', turn: 7, breakdown: '普通输入：18.3K  缓存读取：20.4K\n缓存写入：4.8K  输出：6.2K\n合计：49.7K' },
-        { time: '2026-07-16 16:20', ageDays: 1, model: 'GPT-5.6-Sol', vendor: 'openai', instance: '产品需求文档优化', instanceId: 'c_ef82a6', tokens: '15.2K', cost: '$0.12', turn: 3, breakdown: '普通输入：5.4K  缓存读取：7.6K\n缓存写入：0  输出：2.2K\n合计：15.2K' },
-        { time: '2026-06-01 10:14', ageDays: 46, model: 'Claude Fable 5', vendor: 'anthropic', instance: '客户会议纪要整理', instanceId: 'c_19ce30', tokens: '8.4K', cost: '$0.09', turn: 2, breakdown: 'Token 合计：8.4K\n历史明细不可拆分' },
+        { time: '2026-07-18 20:41', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '23.0K', cost: '$0.0209', turn: 4, breakdown: '普通输入：8.6K  缓存读取：10.2K\n缓存写入：0  输出：4.2K\n合计：23.0K', costBreakdown: '普通输入：8,600 × US$0.60/M = US$0.0052\n缓存读取：10,200 × US$0.06/M = US$0.0006\n缓存写入：0 × US$0.75/M = US$0.0000\n输出：4,200 × US$3.60/M = US$0.0151\n费用合计：US$0.0209' },
+        { time: '2026-07-18 20:36', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '17.6K', cost: '$0.0143', turn: 3, breakdown: '普通输入：6.1K  缓存读取：8.7K\n缓存写入：0  输出：2.8K\n合计：17.6K', costBreakdown: '普通输入：6,100 × US$0.60/M = US$0.0037\n缓存读取：8,700 × US$0.06/M = US$0.0005\n缓存写入：0 × US$0.75/M = US$0.0000\n输出：2,800 × US$3.60/M = US$0.0101\n费用合计：US$0.0143' },
+        { time: '2026-07-18 20:31', ageDays: 0, model: 'Claude Fable 5', vendor: 'anthropic', instance: '季度数据分析与总结', instanceId: 'c_5ad740', tokens: '49.7K', cost: '$0.1376', turn: 7, breakdown: '普通输入：18.3K  缓存读取：20.4K\n缓存写入：4.8K  输出：6.2K\n合计：49.7K', costBreakdown: '普通输入：18,300 × US$2.40/M = US$0.0439\n缓存读取：20,400 × US$0.24/M = US$0.0049\n缓存写入：4,800 × US$3.00/M = US$0.0144\n输出：6,200 × US$12.00/M = US$0.0744\n费用合计：US$0.1376' },
       ];
 
       function showChartTooltip(target, clientX, clientY) {
@@ -1939,7 +1954,7 @@
             <td><button class="instance-link" type="button" data-instance-id="${row.instanceId}">${row.instance}</button></td>
             <td><div class="cell-main">第 ${row.turn} 轮</div></td>
             <td><button class="token-detail" type="button" data-chart-tooltip="${row.breakdown}" aria-label="${row.breakdown}">${row.tokens}</button></td>
-            <td><div class="cell-main">${row.cost}</div></td>
+            <td><button class="cost-detail" type="button" data-chart-tooltip="${row.costBreakdown}" aria-label="${row.costBreakdown}">${row.cost}</button></td>
           </tr>
         `).join('');
         requestRows.querySelectorAll('.instance-link').forEach((button) => {
