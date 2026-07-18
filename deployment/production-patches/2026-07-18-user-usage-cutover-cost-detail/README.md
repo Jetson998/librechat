@@ -2,7 +2,7 @@
 
 Date: 2026-07-18
 
-Status: design approved; implementation pending.
+Status: deployed and verified.
 
 ## Scope
 
@@ -48,6 +48,63 @@ single-value LibreChat field.
 - browser verification of hidden pre-cutover rows and the full cost tooltip;
 - no Mongo deletion or transaction update;
 - only `LibreChat-API` recreation if deployment is required.
+
+## Production Release Record
+
+Implementation commit: `57ed9f9`
+
+Design commit: `7484ebf`
+
+Deployment timestamp: `2026-07-18 21:25:27 Asia/Singapore`
+
+Release root:
+
+```text
+/opt/librechat/user-usage-cutover-cost-detail/57ed9f9-20260718212527
+```
+
+Backup:
+
+```text
+/opt/librechat/backups/user-usage-cutover-cost-detail-20260718212527
+```
+
+The deployment recreated only `LibreChat-API`. The protected NGINX, CodeAPI,
+RAG API, MongoDB, and Admin Panel containers were preserved. The resulting API
+container was:
+
+```text
+248e103b3c8cae55dac9b4af5340d92176e2c635ccb7ee32f1ed7a7bf5caa253
+```
+
+Production checks passed for API health, the unauthenticated dashboard route
+(`401`), asset versioning, aggregation tests, and protected-container
+stability. Browser acceptance confirmed that overview cards, trends, model
+distribution, logs, and pagination all apply the same cutoff.
+
+The signed-in acceptance account had no post-cutover requests, so its dashboard
+correctly showed zero rows. The live cost-detail tooltip is ready but requires
+the first new GPT or Fable request after the cutoff for production observation.
+
+## Data And Pricing Semantics
+
+Historical GPT/Fable transactions remain in MongoDB and historical balances are
+unchanged. They are excluded only by dashboard aggregation when their model and
+timestamp are before the cutoff.
+
+The token breakdown is aligned with the native pricing configuration:
+
+```text
+普通输入   -> prompt
+缓存读取   -> cacheRead
+缓存写入   -> cacheWrite
+输出       -> completion
+```
+
+Each component is calculated as `tokens × configured USD/M tokens / 1,000,000`.
+The persisted `transaction.tokenValue` remains the authoritative displayed
+total; component details are shown only when structured token fields and the
+matching native prices are available.
 
 ## Rollback
 
