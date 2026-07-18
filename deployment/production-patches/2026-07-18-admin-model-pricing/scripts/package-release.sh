@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+export COPYFILE_DISABLE=1
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 release_dir="$repo_root/deployment/production-patches/2026-07-18-admin-model-pricing"
@@ -13,5 +14,5 @@ cp -a "$admin_source" "$pack_dir/release/admin-panel-source"
 cp -a "$release_dir/README.md" "$pack_dir/release/README.md"
 cp -a "$release_dir/scripts/build-and-deploy.sh" "$pack_dir/release/scripts/build-and-deploy.sh"
 cp -a "$release_dir/scripts/test-release.py" "$pack_dir/release/scripts/test-release.py"
-tar -czf "$output" -C "$pack_dir/release" .
+tar --no-xattrs --exclude='._*' -czf "$output" -C "$pack_dir/release" .
 shasum -a 256 "$output"
