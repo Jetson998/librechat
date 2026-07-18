@@ -32,13 +32,17 @@ def main() -> None:
 
     for marker in (
         "admin-model-pricing",
-        "endpoints.custom",
+        "fieldPath: `endpoints.custom.${endpointIndex}`",
         "saveBaseConfigFn",
         "PRICE_FIELDS",
         "$/1M tokens",
         "com_pricing_save_preview",
     ):
         require(marker in page, f"pricing page marker missing: {marker}")
+    require(
+        "fieldPath: 'endpoints.custom'" not in page,
+        "pricing page must save an indexed custom endpoint, not the full array",
+    )
 
     for marker in (
         "prompt",
@@ -73,7 +77,7 @@ def main() -> None:
             require(data.get(key), f"{locale} locale missing: {key}")
 
     deploy = (ROOT / "scripts/build-and-deploy.sh").read_text(encoding="utf-8")
-    require("6ad105234ede74ded26ac29d5db9f2f68d2f55dbd972ceb3bc6ec1726741a702" in deploy,
+    require("606b6cf5d4ae46173fc9703413b4e7b04872d4d2a7f5889b31546823bd951d6c" in deploy,
             "production Compose baseline missing")
     require("force-recreate admin-panel" in deploy, "deployment does not scope recreation to Admin Panel")
     require("force-recreate api" not in deploy, "deployment unexpectedly recreates API")

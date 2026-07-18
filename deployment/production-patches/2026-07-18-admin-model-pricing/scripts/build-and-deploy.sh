@@ -11,8 +11,8 @@ admin_container="LibreChat-Admin-Panel"
 release_commit="${RELEASE_COMMIT:?RELEASE_COMMIT is required}"
 timestamp="$(date +%Y%m%d%H%M%S)"
 backup_dir="$root_dir/backups/admin-model-pricing-$timestamp"
-expected_override_sha="6ad105234ede74ded26ac29d5db9f2f68d2f55dbd972ceb3bc6ec1726741a702"
-expected_admin_image="librechat-admin-panel-user-ui:e6a103c4218b"
+expected_override_sha="606b6cf5d4ae46173fc9703413b4e7b04872d4d2a7f5889b31546823bd951d6c"
+expected_admin_image="librechat-admin-panel-model-pricing:79ed55d2829f"
 
 for path in "$compose_base" "$compose_override" "$env_file" "$admin_source/Dockerfile"; do
   test -e "$path"

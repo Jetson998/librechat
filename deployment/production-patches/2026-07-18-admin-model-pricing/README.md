@@ -35,11 +35,24 @@ docs/ADMIN_MODEL_PRICING_PLAN.md
 - model: `gpt-5.6-sol`;
 - YAML `tokenConfig`: absent;
 - Mongo base override `tokenConfig`: absent;
-- Admin image: `librechat-admin-panel-user-ui:e6a103c4218b`;
-- Admin container: `bd888ea33f65c88d571c15dd8cff7b9a09be749ffb7ef3566cde56040a5fa8aa`;
+- Admin image: `librechat-admin-panel-model-pricing:79ed55d2829f`;
+- Admin container: `eb96970990635bfdaaff16c29895cfb8ef037d15a1cd057f729fd3260f8e8c07`;
 - API container: `4d7253d5dacb01cfd1bf65fc181194a1a316d154f0ad8f529a95c62150f2bbd2`;
 - Compose override SHA-256:
-  `6ad105234ede74ded26ac29d5db9f2f68d2f55dbd972ceb3bc6ec1726741a702`.
+  `606b6cf5d4ae46173fc9703413b4e7b04872d4d2a7f5889b31546823bd951d6c`.
+
+## Save Contract
+
+Admin Config validates and merges custom endpoints as indexed array entries.
+The pricing page must therefore save the selected endpoint using:
+
+```text
+endpoints.custom.<endpointIndex>
+```
+
+Submitting the complete `endpoints.custom` array is invalid and produces
+`Validation failed — endpoints.custom: Required` before any Mongo override is
+written. The release test rejects that full-array field path.
 
 ## Intended Initial Prices
 

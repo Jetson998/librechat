@@ -91,7 +91,14 @@ export function ModelPricingPage() {
     mutationFn: async () => {
       const next = updateModelPricing(endpoints, endpointIndex, selectedModel, draft);
       return saveBaseConfigFn({
-        data: { entries: [{ fieldPath: 'endpoints.custom', value: next }] },
+        data: {
+          entries: [
+            {
+              fieldPath: `endpoints.custom.${endpointIndex}`,
+              value: next[endpointIndex],
+            },
+          ],
+        },
       });
     },
     onSuccess: async () => {
