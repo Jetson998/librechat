@@ -1182,8 +1182,7 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
     );
     if (
       (Object.keys(expected).length === 0 && hasPersistedModel) ||
-      (Object.keys(expected).length > 0 &&
-        (!persisted || !configValuesEqual(persisted, expected)))
+      (Object.keys(expected).length > 0 && (!persisted || !configValuesEqual(persisted, expected)))
     ) {
       throw new Error('Model pricing was not persisted; reload and retry');
     }
