@@ -1,0 +1,38 @@
+# Deployment Result
+
+Date: 2026-07-18
+
+Result: successful
+
+```text
+timestamp=20260718223055
+release_commit=de2beeace561e9da28c52c6d6fe5ce5e542bfa36
+release_root=/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055
+backup_dir=/opt/librechat/backups/user-usage-cost-detail-availability-20260718223055
+compose_sha=0414a99197a5594ef18b06393f615331327b5fc53f15897f2763a4ece52ca68c
+usage_route_sha=5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9
+user_route_sha=459cce4df99363a2031e2b4240c2bafd798506c2b008c695c6919245e4359208
+client_index_sha=b6834a3533fef6ca1a65d5061ebe63f274c15516bd9a92d14a6ec6b2a84aac87
+client_script_sha=c15452691c0cad96b8846a94242cd6f9884a2c2061ac2cc8784dca8a79279546
+client_style_sha=724094199fa29f77799331988748b8eef8d88c135b35abf5bea5f2c19a1a494b
+api_container_before=94244e9672c13030126cdcddaae98af6f004012b6ee777fcf1929e1dae87445d
+api_container_after=ad3b7993e48e1b4994d325cadf59576f066e95dbe000c3fbbb4349bd0a09370e
+protected_containers_unchanged=true
+unauthenticated_endpoint_status=401
+api_config_health=ok
+```
+
+Protected container IDs after deployment:
+
+```text
+LibreChat-Admin-Panel 1a9387d2e642
+LibreChat-RAG-API d16e85e1e103
+LibreChat-NGINX 1a5c01b19b73
+LibreChat-CodeAPI ddba629a7b63
+chat-mongodb 01d5bc03e9cb
+```
+
+Production aggregation passed before and after the API recreation. Final browser
+acceptance confirmed that the single structured GPT log expanded to ordinary
+input, cache-read, and output formulas, omitted the zero cache-write component,
+and displayed `$0.0052` as the total.

@@ -2,7 +2,7 @@
 
 Date: 2026-07-18
 
-Status: implementation complete; production deployment pending.
+Status: deployed and verified.
 
 ## Problem
 
@@ -48,3 +48,27 @@ the component calculation.
 
 Restore the prior versioned usage API and Client assets. No database rollback is
 required.
+
+## Production Result
+
+The endpoint-matching implementation `892a3c0` and guarded deployment
+`72075ad` were deployed first. Browser verification showed that the tooltip was
+still unavailable, which exposed the missing `configMiddleware` root cause.
+
+The root-cause fix was committed as `de2beea` and deployed successfully:
+
+```text
+release_root=/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055
+backup_dir=/opt/librechat/backups/user-usage-cost-detail-availability-20260718223055
+```
+
+Only `LibreChat-API` was recreated. Final browser acceptance showed:
+
+```text
+普通输入：6,173 × $0.60/M = $0.0037
+缓存读取：9,216 × $0.06/M = $0.0006
+输出：252 × $3.60/M = $0.0009
+费用合计：$0.0052
+```
+
+No `费用明细不可用` text remained for the verified structured GPT transaction.
