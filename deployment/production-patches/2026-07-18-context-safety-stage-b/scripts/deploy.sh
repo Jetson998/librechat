@@ -12,7 +12,8 @@ release_key="${release_commit:0:12}"
 context_script_asset="context-safety-ui-$release_key.js"
 context_style_asset="context-safety-ui-$release_key.css"
 timestamp="$(date +%Y%m%d%H%M%S)"
-source_client="$root_dir/context-safety-ui/c0276bae0ab1-20260718203853/client-dist"
+source_client="$root_dir/user-usage-breakdown/fe30975-20260718205221/client-dist"
+source_usage_route="$root_dir/user-usage-breakdown/fe30975-20260718205221/usage-dashboard.js"
 release_root="$root_dir/context-safety-ui/$release_key-$timestamp"
 release_client="$release_root/client-dist"
 backup_dir="$root_dir/backups/context-safety-stage-b-$timestamp"
@@ -23,12 +24,13 @@ work_dir="$(mktemp -d /tmp/librechat-context-safety-stage-b.XXXXXX)"
 candidate_client="$work_dir/client-dist"
 candidate_override="$work_dir/compose.override.yaml"
 
-expected_override_sha="eed955af8350578f5e04a55f141f4ea40caf3fddf5ebe151c6ee63641557c639"
-expected_index_sha="d91b77a94159788e44a4cc506d20f2103c39edd4c43feef7bf5dc10ed4a490bc"
+expected_override_sha="94a9bfdffeb527d7ec34b40bf36197d91b6745884692d8855e79f5c22c13a59d"
+expected_index_sha="92cc8174e9675ea3cce98a28917d391339f2bac0f8b7314ed46561d8f93105a5"
 expected_upload_sha="a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9"
 expected_login_sha="aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27"
-expected_usage_js_sha="6f76a7379c01d640460bf34864b88554771ca43c18e063239c5d1a294300433f"
-expected_usage_css_sha="2817b8722535d3d46c514c8b93c8713abe4852860cc0075e5c07df1b0f4a01ff"
+expected_usage_js_sha="2f0dabe376555f660e9e42fca7c4623ef7a74f8ef4bac1930d86f848350f2e9f"
+expected_usage_css_sha="e6ebd476540e353751e300b6b1b9c96f2448008253d682488ba3aa3753e81dbb"
+expected_usage_route_sha="1f040de3da50029439b7b50ee7e17e81a4237b9495c70b1b2846537f02ac1f93"
 expected_context_script_sha="b9d40771ae9d679c43bcf03e00a240124643b0187f496ca9771db859b891cb39"
 expected_context_style_sha="a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d"
 expected_pricing_bundle="$root_dir/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs"
@@ -46,7 +48,7 @@ sha_file() {
 
 for path in \
   "$compose_base" "$compose_override" "$env_file" "$config_file" \
-  "$expected_pricing_bundle" \
+  "$expected_pricing_bundle" "$source_usage_route" \
   "$source_client/index.html" "$source_client/business-upload-menu.js" \
   "$source_client/odysseia-login.js" "$source_client/user-usage-dashboard.js" \
   "$source_client/user-usage-dashboard.css" "$source_client/context-safety-ui.js" \
@@ -62,6 +64,7 @@ test "$(sha_file "$source_client/business-upload-menu.js")" = "$expected_upload_
 test "$(sha_file "$source_client/odysseia-login.js")" = "$expected_login_sha"
 test "$(sha_file "$source_client/user-usage-dashboard.js")" = "$expected_usage_js_sha"
 test "$(sha_file "$source_client/user-usage-dashboard.css")" = "$expected_usage_css_sha"
+test "$(sha_file "$source_usage_route")" = "$expected_usage_route_sha"
 test "$(sha_file "$source_client/context-safety-ui.js")" = "$expected_context_script_sha"
 test "$(sha_file "$source_client/context-safety-ui.css")" = "$expected_context_style_sha"
 test "$(sha_file "$expected_pricing_bundle")" = "$expected_pricing_bundle_sha"
@@ -69,9 +72,14 @@ test "$(docker inspect LibreChat-Admin-Panel --format '{{.Config.Image}}')" = "$
 grep -Fq \
   "$expected_pricing_bundle:/app/packages/api/dist/index.cjs:ro" \
   "$compose_override"
+grep -Fq \
+  "$source_usage_route:/app/api/server/routes/usage-dashboard.js:ro" \
+  "$compose_override"
 
 active_client_mount="$(docker inspect LibreChat-API --format '{{range .Mounts}}{{if eq .Destination "/app/client/dist"}}{{.Source}}{{end}}{{end}}')"
 test "$active_client_mount" = "$source_client"
+active_usage_mount="$(docker inspect LibreChat-API --format '{{range .Mounts}}{{if eq .Destination "/app/api/server/routes/usage-dashboard.js"}}{{.Source}}{{end}}{{end}}')"
+test "$active_usage_mount" = "$source_usage_route"
 
 python3 "$release_test"
 
@@ -128,6 +136,9 @@ grep -Fq 'USER_USAGE_USD_RATE=1' "$candidate_override"
 grep -Fq \
   "$expected_pricing_bundle:/app/packages/api/dist/index.cjs:ro" \
   "$candidate_override"
+grep -Fq \
+  "$source_usage_route:/app/api/server/routes/usage-dashboard.js:ro" \
+  "$candidate_override"
 
 if [[ "${PREFLIGHT_ONLY:-false}" = "true" ]]; then
   cat <<EOF
@@ -136,6 +147,8 @@ preflight_only=ok
 compose_override_sha=$expected_override_sha
 source_client=$source_client
 source_index_sha=$expected_index_sha
+source_usage_route=$source_usage_route
+source_usage_route_sha=$expected_usage_route_sha
 candidate_index_sha=$(sha_file "$candidate_client/index.html")
 context_script_asset=$context_script_asset
 context_style_asset=$context_style_asset
@@ -227,6 +240,8 @@ test "$(sha_file "$work_dir/live-usage.css")" = "$expected_usage_css_sha"
 
 active_client_after="$(docker inspect LibreChat-API --format '{{range .Mounts}}{{if eq .Destination "/app/client/dist"}}{{.Source}}{{end}}{{end}}')"
 test "$active_client_after" = "$release_client"
+active_usage_after="$(docker inspect LibreChat-API --format '{{range .Mounts}}{{if eq .Destination "/app/api/server/routes/usage-dashboard.js"}}{{.Source}}{{end}}{{end}}')"
+test "$active_usage_after" = "$source_usage_route"
 for container in "${!protected_ids[@]}"; do
   test "$(docker inspect "$container" --format '{{.Id}}')" = "${protected_ids[$container]}"
 done
@@ -245,6 +260,9 @@ compose_sha_after=$(sha_file "$compose_override")
 config_sha_unchanged=$config_sha_before
 client_mount_before=$source_client
 client_mount_after=$release_client
+usage_mount_before=$source_usage_route
+usage_mount_after=$active_usage_after
+usage_route_sha=$expected_usage_route_sha
 client_index_before=$expected_index_sha
 client_index_after=$(sha_file "$release_client/index.html")
 context_script_asset=$context_script_asset

@@ -52,10 +52,11 @@ inflating a user conversation.
 
 ## Production Boundary
 
-The follow-up guarded release copies the complete active Client from:
+The follow-up guarded release copies the complete active Client from the
+successfully deployed token-breakdown release:
 
 ```text
-/opt/librechat/context-safety-ui/c0276bae0ab1-20260718203853/client-dist
+/opt/librechat/user-usage-breakdown/fe30975-20260718205221/client-dist
 ```
 
 It installs only `context-safety-ui.js`, `context-safety-ui.css`, and the smoke
@@ -65,9 +66,9 @@ only the `/app/client/dist:ro` Compose mount, and recreates only
 
 The deployment aborts before a production write unless the audited Compose,
 Client index, upload menu, login page, usage-dashboard script,
-usage-dashboard stylesheet, model-pricing API bundle, and Admin Panel image
-all match. It also verifies that the candidate still references
-`assets/index.P3glMaNP.js`.
+usage-dashboard stylesheet, usage-dashboard backend route, model-pricing API
+bundle, and Admin Panel image all match. It also verifies that the candidate
+still references `assets/index.P3glMaNP.js`.
 
 The first Stage B preflight correctly stopped before a write because a
 concurrent model-pricing deployment changed the Compose hash and added this
@@ -95,10 +96,14 @@ its server gates at `20260718203853`, but browser acceptance proved the PWA
 Service Worker could reuse the old body for the same asset path even when the
 query string changed.
 
-The final follow-up starts from the `c0276ba` Client, installs a new JS and CSS
-filename derived from the release commit, updates both `index.html` and the
-smoke fixture to those unique paths, and uses Compose baseline
-`eed955af8350578f5e04a55f141f4ea40caf3fddf5ebe151c6ee63641557c639`.
+The final follow-up now starts from the `fe30975` token-breakdown Client,
+installs a new JS and CSS filename derived from the release commit, and updates
+both `index.html` and the smoke fixture to those unique paths. Its combined
+Compose baseline is
+`94a9bfdffeb527d7ec34b40bf36197d91b6745884692d8855e79f5c22c13a59d`.
+The existing token-breakdown route remains mounted from
+`/opt/librechat/user-usage-breakdown/fe30975-20260718205221/usage-dashboard.js`
+and is guarded by SHA-256 before and after the API recreation.
 
 No Nginx, MongoDB, Admin Panel, CodeAPI, RAG-API, Office Skill, model config,
 conversation, user, file, generated artifact, or WebAI/OpenWebUI resource is

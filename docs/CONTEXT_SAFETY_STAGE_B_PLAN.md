@@ -2,8 +2,9 @@
 
 Date: 2026-07-18
 
-Status: design gate prepared; implementation, commit, push, and production
-deployment have not started.
+Status: implementation and initial releases completed; the final
+filename-versioned follow-up is being rebased to the current combined
+production baseline before preflight and browser acceptance.
 
 ## Objective
 
@@ -94,6 +95,23 @@ odysseia-login.js=aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f
 user-usage-dashboard.js=6f76a7379c01d640460bf34864b88554771ca43c18e063239c5d1a294300433f
 user-usage-dashboard.css=2817b8722535d3d46c514c8b93c8713abe4852860cc0075e5c07df1b0f4a01ff
 ```
+
+At 20:52, the committed token-breakdown release became the active production
+baseline. The filename-versioned Stage B follow-up must copy that complete
+Client and preserve its backend route mount:
+
+```text
+compose_override_sha=94a9bfdffeb527d7ec34b40bf36197d91b6745884692d8855e79f5c22c13a59d
+client_mount=/opt/librechat/user-usage-breakdown/fe30975-20260718205221/client-dist
+client_index_sha=92cc8174e9675ea3cce98a28917d391339f2bac0f8b7314ed46561d8f93105a5
+user_usage_script_sha=2f0dabe376555f660e9e42fca7c4623ef7a74f8ef4bac1930d86f848350f2e9f
+user_usage_style_sha=e6ebd476540e353751e300b6b1b9c96f2448008253d682488ba3aa3753e81dbb
+usage_route=/opt/librechat/user-usage-breakdown/fe30975-20260718205221/usage-dashboard.js
+usage_route_sha=1f040de3da50029439b7b50ee7e17e81a4237b9495c70b1b2846537f02ac1f93
+```
+
+This rebase changes only the release source and guard hashes. Stage B behavior
+and the token-breakdown implementation remain unchanged.
 
 The affected production conversation is:
 
