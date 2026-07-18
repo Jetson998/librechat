@@ -29,7 +29,10 @@ test "$(sha256sum "$compose_override" | awk '{print $1}')" = "$expected_override
 test "$(docker exec "$api_container" sha256sum /app/packages/api/dist/index.cjs | awk '{print $1}')" = "$expected_api_sha"
 test "$(docker inspect "$admin_container" --format '{{.Config.Image}}')" = "$expected_admin_image"
 node --check "$api_bundle"
-ADMIN_PANEL_SOURCE="$admin_source" python3 "$stage_dir/scripts/test-release.py"
+API_BUNDLE="$api_bundle" \
+ADMIN_PANEL_SOURCE="$admin_source" \
+RELEASE_DEPLOY_SCRIPT="$stage_dir/scripts/deploy.sh" \
+python3 "$stage_dir/scripts/test-release.py"
 
 source_hash="$({
   cd "$admin_source"

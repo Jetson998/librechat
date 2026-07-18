@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 
+import os
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-REPO = ROOT.parents[1]
-API = REPO / "deployment/production-patches/2026-07-17-admin-user-creation/api-patch/api-index.cjs"
-ADMIN = REPO / "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source/src/server/config.ts"
+SCRIPT = Path(__file__).resolve()
+REPO = SCRIPT.parents[4] if len(SCRIPT.parents) > 4 else None
+API = Path(
+    os.environ.get("API_BUNDLE")
+    or (REPO / "deployment/production-patches/2026-07-17-admin-user-creation/api-patch/api-index.cjs")
+)
+ADMIN_SOURCE = Path(
+    os.environ.get("ADMIN_PANEL_SOURCE")
+    or (REPO / "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source")
+)
+ADMIN = ADMIN_SOURCE / "src/server/config.ts"
+DEPLOY = Path(os.environ.get("RELEASE_DEPLOY_SCRIPT") or (SCRIPT.parent / "deploy.sh"))
 
 api = API.read_text(encoding="utf-8")
 admin = ADMIN.read_text(encoding="utf-8")
-deploy = (Path(__file__).resolve().parent / "deploy.sh").read_text(encoding="utf-8")
+deploy = DEPLOY.read_text(encoding="utf-8")
 
 for marker in (
     "CUSTOM_ENDPOINT_TOKEN_CONFIG_PATH",
