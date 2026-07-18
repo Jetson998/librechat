@@ -178,6 +178,7 @@ def test_release_contract():
     deploy_contract = deploy + "\n" + MONGO_SCRIPT.read_text(encoding="utf-8")
     for value in (
         "--no-deps --force-recreate api",
+        "mongosh --quiet LibreChat --file /dev/stdin",
         "maxToolResultChars",
         "maxRecursionLimit",
         "codexConfigBackups",

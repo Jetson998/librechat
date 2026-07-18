@@ -68,7 +68,7 @@ run_mongo_mode() {
   docker exec -i \
     -e CONTEXT_SAFETY_MODE="$mode" \
     -e CONTEXT_SAFETY_BACKUP_ID="$backup_id" \
-    "$mongo_container" mongosh --quiet LibreChat <"$mongo_script"
+    "$mongo_container" mongosh --quiet LibreChat --file /dev/stdin <"$mongo_script"
 }
 
 mongo_preservation_sha() {
