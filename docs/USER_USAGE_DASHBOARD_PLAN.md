@@ -37,6 +37,26 @@ LibreChat, without changing the billing engine:
 The normal log table remains compact. Breakdown values appear only on hover or
 keyboard focus of the Token total.
 
+## Pricing Cutover And Cost Formula Gate (2026-07-18)
+
+Incorrectly priced historical GPT and Fable records are hidden, not deleted.
+The cutoff applies only to those two model names and is evaluated before turn
+numbering, aggregation facets, and pagination.
+
+Cost detail reads the resolved native `tokenConfig` from `req.config` and uses
+the same four fields as Admin Panel `模型价格`:
+
+```text
+inputTokens     × prompt
+cacheReadTokens × cacheRead
+cacheWriteTokens × cacheWrite
+outputTokens    × completion
+```
+
+Each product is divided by one million. The sum is compared with the
+authoritative transaction cost; when they do not match or a price is absent,
+the UI shows the actual cost and does not present a misleading formula.
+
 ## UI Refinement Gate (2026-07-18)
 
 The customer-facing surface follows the existing LibreChat `设置` and `我的文件`
