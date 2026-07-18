@@ -35,24 +35,28 @@ docs/ADMIN_MODEL_PRICING_PLAN.md
 - model: `gpt-5.6-sol`;
 - YAML `tokenConfig`: absent;
 - Mongo base override `tokenConfig`: absent;
-- Admin image: `librechat-admin-panel-model-pricing:79ed55d2829f`;
-- Admin container: `eb96970990635bfdaaff16c29895cfb8ef037d15a1cd057f729fd3260f8e8c07`;
-- API container: `4d7253d5dacb01cfd1bf65fc181194a1a316d154f0ad8f529a95c62150f2bbd2`;
+- Admin image: `librechat-admin-panel-model-pricing:606b888f9fca`;
+- Admin container: `1294763c6667334d479863d7341ed869e70eee1ddd288275c59c00dda3dcd503`;
+- API container at the latest preflight:
+  `a834cd68ea0fa5c0e89bab5a301ce07d80ed8da0f484e786ac473a3baac815c8`;
 - Compose override SHA-256:
-  `606b6cf5d4ae46173fc9703413b4e7b04872d4d2a7f5889b31546823bd951d6c`.
+  `5d2e58ff45c766916ad67edbcd5ec6da4cdcb5ab9911540f455e21a761f3acfb`.
 
 ## Save Contract
 
-Admin Config validates and merges custom endpoints as indexed array entries.
-The pricing page must therefore save the selected endpoint using:
+The generic Admin Config editor validates and merges custom endpoints as
+indexed array entries, but model pricing must not use the resulting full-array
+save. The dedicated pricing action PATCHes only:
 
 ```text
-endpoints.custom.<endpointIndex>
+endpoints.custom.<endpointIndex>.tokenConfig
 ```
 
-Submitting the complete `endpoints.custom` array is invalid and produces
-`Validation failed — endpoints.custom: Required` before any Mongo override is
-written. The release test rejects that full-array field path.
+Submitting the complete `endpoints.custom` array first produced
+`Validation failed — endpoints.custom: Required`; after changing only the
+array index, the API accepted the request but did not retain the dynamic model
+price record. The release test now requires the dedicated tokenConfig action
+and rejects the generic full-array save from the pricing page.
 
 ## Intended Initial Prices
 

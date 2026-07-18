@@ -13,7 +13,7 @@ import {
   type PriceField,
   type PricingDraft,
 } from './modelPricing';
-import { baseConfigOptions, saveBaseConfigFn } from '@/server';
+import { baseConfigOptions, saveCustomEndpointTokenConfigFn } from '@/server';
 import { EmptyState, LoadingState } from '@/components/shared';
 import { cn, notifyError, notifySuccess } from '@/utils';
 import { useCapabilities, useLocalize } from '@/hooks';
@@ -90,14 +90,14 @@ export function ModelPricingPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const next = updateModelPricing(endpoints, endpointIndex, selectedModel, draft);
-      return saveBaseConfigFn({
+      const tokenConfig = next[endpointIndex]?.tokenConfig;
+      return saveCustomEndpointTokenConfigFn({
         data: {
-          entries: [
-            {
-              fieldPath: `endpoints.custom.${endpointIndex}`,
-              value: next[endpointIndex],
-            },
-          ],
+          endpointIndex,
+          tokenConfig:
+            tokenConfig && typeof tokenConfig === 'object' && !Array.isArray(tokenConfig)
+              ? tokenConfig
+              : {},
         },
       });
     },

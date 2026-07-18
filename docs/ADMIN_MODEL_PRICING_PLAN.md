@@ -67,9 +67,12 @@ empty, the model key is removed from `tokenConfig`.
 
 ## Save Contract
 
-Reuse the Admin Panel's existing `saveBaseConfigFn` and save the complete
-`endpoints.custom` array through the supported base-config API. The page must
-not write MongoDB directly.
+Use a dedicated Admin server action that PATCHes only
+`endpoints.custom.<index>.tokenConfig` through the supported base-config API.
+The generic indexed-array helper must not be used here: it expands the change
+to the complete `endpoints.custom` array, and the nested dynamic model-price
+record is not preserved by that general editing path. The page must not write
+MongoDB directly.
 
 After save:
 

@@ -1045,6 +1045,35 @@ export const saveBaseConfigFn = createServerFn({ method: 'POST' })
     return { success: true };
   });
 
+export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' })
+  .inputValidator(
+    z.object({
+      endpointIndex: z.number().int().nonnegative(),
+      tokenConfig: z.record(z.string(), z.unknown()),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireAllSectionCapabilities(['endpoints']);
+    const fieldPath = `endpoints.custom.${data.endpointIndex}.tokenConfig`;
+    const response = await apiFetch(`/api/admin/config/role/${BASE_CONFIG_PRINCIPAL_ID}/fields`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        entries: [{ fieldPath, value: data.tokenConfig }],
+        priority: 0,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(
+        (err as { error?: string }).error ??
+          `Failed to save custom endpoint token config: ${response.status}`,
+      );
+    }
+
+    return { success: true };
+  });
+
 /** Full-replace save used by YAML import (intentionally sends the entire config). */
 export const importBaseConfigFn = createServerFn({ method: 'POST' })
   .inputValidator(z.object({ config: z.record(z.string(), z.unknown()) }))
