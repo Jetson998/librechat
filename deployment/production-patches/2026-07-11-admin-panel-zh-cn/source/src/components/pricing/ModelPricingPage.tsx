@@ -1,11 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
 import { Button, Icon } from '@clickhouse/click-ui';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { baseConfigOptions, saveBaseConfigFn } from '@/server';
-import { EmptyState, LoadingState } from '@/components/shared';
-import { useCapabilities, useLocalize } from '@/hooks';
-import { SystemCapabilities } from '@/constants';
-import { cn, notifyError, notifySuccess } from '@/utils';
 import {
   EMPTY_PRICING_DRAFT,
   PRICE_FIELDS,
@@ -18,6 +13,11 @@ import {
   type PriceField,
   type PricingDraft,
 } from './modelPricing';
+import { baseConfigOptions, saveBaseConfigFn } from '@/server';
+import { EmptyState, LoadingState } from '@/components/shared';
+import { cn, notifyError, notifySuccess } from '@/utils';
+import { useCapabilities, useLocalize } from '@/hooks';
+import { SystemCapabilities } from '@/constants';
 
 const FIELD_KEYS: Record<PriceField, { label: string; description: string; backend: string }> = {
   prompt: {
