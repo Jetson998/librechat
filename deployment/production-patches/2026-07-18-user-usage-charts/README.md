@@ -2,7 +2,9 @@
 
 Date: 2026-07-18
 
-Status: prepared for production release.
+Status: deployed and browser-verified.
+
+Final release commit: `bbae4f4`
 
 ## Scope
 
@@ -40,6 +42,9 @@ transport failure.
 
 No API route, MongoDB data, CodeAPI, Office Converter, RAG, Nginx, Admin Panel,
 model configuration, or pricing configuration is changed.
+
+The production result, hashes, container boundary, and browser-visible
+acceptance are recorded in `DEPLOY_RESULT.md`.
 
 ## Local Verification
 
