@@ -46,17 +46,17 @@ The release must not:
 ## Production Baseline
 
 ```text
-compose_override_sha=cb932ad87bfb18469d0c883d4825377aae76ab67bb5b024be7228cfcb83a0582
-client_mount=/opt/librechat/user-usage-cost-detail-availability/72075ad1a389-20260718221835/client-dist
-client_index_sha=68b0f7dcbe8822ec3a786569994bc573bc76f79187ef83efaa69c6cac8b3725f
-usage_route=/opt/librechat/user-usage-cost-detail-availability/72075ad1a389-20260718221835/usage-dashboard.js
+compose_override_sha=0414a99197a5594ef18b06393f615331327b5fc53f15897f2763a4ece52ca68c
+client_mount=/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/client-dist
+client_index_sha=b6834a3533fef6ca1a65d5061ebe63f274c15516bd9a92d14a6ec6b2a84aac87
+usage_route=/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/usage-dashboard.js
 usage_route_sha=5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9
 ```
 
 The first preflight correctly stopped before a production write when the
 parallel usage-cost-detail release changed the Client and Compose baseline.
-The release was then rebased to the audited `72075ad` production mount shown
-above.
+The release was then rebased to the audited `de2beea` production mount shown
+above after a second guarded stop caught the final pricing-data follow-up.
 
 The release will copy the complete current Client, inject one inline marker,
 replace only `/app/client/dist:ro`, and recreate only `LibreChat-API`.

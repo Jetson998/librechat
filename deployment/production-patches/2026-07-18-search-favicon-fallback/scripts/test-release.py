@@ -64,9 +64,9 @@ remote = (SCRIPTS / "run-remote-release.sh").read_text(encoding="utf-8")
 transport = (SCRIPTS / "deploy-remote.exp").read_text(encoding="utf-8")
 
 for marker in [
-    "cb932ad87bfb18469d0c883d4825377aae76ab67bb5b024be7228cfcb83a0582",
-    "68b0f7dcbe8822ec3a786569994bc573bc76f79187ef83efaa69c6cac8b3725f",
-    "user-usage-cost-detail-availability/72075ad1a389-20260718221835/client-dist",
+    "0414a99197a5594ef18b06393f615331327b5fc53f15897f2763a4ece52ca68c",
+    "b6834a3533fef6ca1a65d5061ebe63f274c15516bd9a92d14a6ec6b2a84aac87",
+    "user-usage-cost-detail-availability/de2beeace561-20260718223055/client-dist",
     "5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9",
     "6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade",
     "c15452691c0cad96b8846a94242cd6f9884a2c2061ac2cc8784dca8a79279546",

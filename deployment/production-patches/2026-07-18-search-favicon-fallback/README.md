@@ -31,7 +31,7 @@ scripts/deploy-remote.exp
 The guarded release starts from:
 
 ```text
-/opt/librechat/user-usage-cost-detail-availability/72075ad1a389-20260718221835/client-dist
+/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/client-dist
 ```
 
 It creates a new versioned Client, replaces only the Client Compose mount, and
