@@ -62,9 +62,41 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           remote_commit=$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')
           if [[ -n "$remote_commit" ]]; then
-            test "$remote_commit" = "$GITHUB_SHA"
-            echo "Verified tag already points to $GITHUB_SHA: $tag"
+            tagged_source_hash=$(git show "$remote_commit:$RELEASE_DIR/SOURCE_TREE_SHA256")
+            test "$tagged_source_hash" = "$source_hash"
+            echo "Verified tag already attests source tree $source_hash: $tag"
             exit 0
           fi
           git tag "$tag" "$GITHUB_SHA"
           git push origin "refs/tags/$tag"
+
+      - name: Build amd64 release image on CI runner
+        env:
+          DOCKER_BUILDKIT: '1'
+        run: |
+          source_hash=$(cat "$RELEASE_DIR/SOURCE_TREE_SHA256")
+          image_ref="librechat-admin-panel-zh-cn:${source_hash:0:12}"
+          docker buildx build \
+            --platform linux/amd64 \
+            --load \
+            --build-arg "MODIFIED_SOURCE_REVISION=$source_hash" \
+            --tag "$image_ref" \
+            "$SOURCE_DIR"
+          docker image inspect "$image_ref" \
+            --format '{{.Architecture}} {{index .Config.Labels "org.opencontainers.image.revision"}}' \
+            | grep -F "amd64 $source_hash"
+          mkdir -p /tmp/admin-panel-image
+          docker save "$image_ref" | gzip -1 > /tmp/admin-panel-image/admin-panel-image.tar.gz
+
+      - name: Publish image as CI release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source_hash=$(cat "$RELEASE_DIR/SOURCE_TREE_SHA256")
+          tag="admin-ci-${source_hash:0:12}"
+          asset=/tmp/admin-panel-image/admin-panel-image.tar.gz
+          gh release view "$tag" >/dev/null 2>&1 || \
+            gh release create "$tag" \
+              --title "Admin Panel CI ${source_hash:0:12}" \
+              --notes "CI-attested amd64 Admin Panel image for source tree ${source_hash}."
+          gh release upload "$tag" "$asset" --clobber
