@@ -34,21 +34,29 @@ claims.
 
 ## Configuration Contract
 
-Market metadata is kept beside the endpoint's custom model configuration under
-`endpoints.custom[].modelMarket`, separate from native `tokenConfig` billing:
+Market metadata uses a namespaced `market` object inside the existing literal
+model configuration. This reuses the Admin Panel's Mongo-safe model-key writer
+without adding another persistence path. LibreChat billing continues to read
+only the native price fields:
 
 ```json
 {
   "gpt-5.6-sol": {
-    "published": true,
-    "officialPrompt": 1.25
+    "prompt": 0.6,
+    "completion": 3.6,
+    "cacheRead": 0.06,
+    "cacheWrite": 0.75,
+    "market": {
+      "published": true,
+      "officialPrompt": 1.25
+    }
   }
 }
 ```
 
-The existing native `tokenConfig` remains the only source for actual billing
-prices. `modelMarket` only controls publication and the official input-price
-reference used for display.
+The existing native price keys remain the only source for actual billing.
+`market` only controls publication and the official input-price reference used
+for display; it is ignored by cost calculation.
 
 ## Phase One Scope
 
