@@ -18,6 +18,25 @@ The trend and model-distribution surfaces must display real chart semantics:
 This remains a lightweight native Client patch. Ant Design Charts is a visual
 reference only and is not added as a runtime dependency.
 
+## Token Breakdown Gate (2026-07-18)
+
+The conversation log may expose the transaction detail already persisted by
+LibreChat, without changing the billing engine:
+
+- ordinary input comes from `transactions.inputTokens`;
+- cache read comes from `transactions.readTokens`;
+- cache write comes from `transactions.writeTokens`;
+- output comes from completion transaction `rawAmount`;
+- the existing Token total remains the sum of transaction `rawAmount`;
+- the existing cost remains the sum of transaction `tokenValue / 1e6`;
+- a split is complete only when every prompt transaction for the reply has the
+  structured fields;
+- legacy rows without a complete split display `历史明细不可拆分` and must not
+  be reverse-engineered from a weighted rate.
+
+The normal log table remains compact. Breakdown values appear only on hover or
+keyboard focus of the Token total.
+
 ## UI Refinement Gate (2026-07-18)
 
 The customer-facing surface follows the existing LibreChat `设置` and `我的文件`
