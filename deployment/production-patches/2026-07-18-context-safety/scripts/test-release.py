@@ -186,6 +186,12 @@ def test_release_contract():
     ):
         assert value in deploy_contract, value
 
+    remote_runner = REMOTE_RUNNER.read_text(encoding="utf-8")
+    remote_transport = REMOTE_TRANSPORT.read_text(encoding="utf-8")
+    assert "CONTEXT_SAFETY_PREFLIGHT_ONLY" in remote_runner
+    assert "remote_preflight_only=ok" in remote_runner
+    assert "CONTEXT_SAFETY_PREFLIGHT_ONLY" in remote_transport
+
     release_text = "\n".join(
         path.read_text(encoding="utf-8", errors="replace")
         for path in ROOT.rglob("*")

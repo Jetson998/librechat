@@ -11,6 +11,13 @@ test -f "$release_dir/scripts/test-release.py"
 python3 "$release_dir/scripts/test-release.py"
 PREFLIGHT_ONLY=true RELEASE_COMMIT="$release_commit" \
   bash "$release_dir/scripts/deploy.sh" "$release_dir"
+
+if [[ "${CONTEXT_SAFETY_PREFLIGHT_ONLY:-false}" = "true" ]]; then
+  printf 'release_commit=%s\n' "$release_commit"
+  printf 'remote_preflight_only=ok\n'
+  exit 0
+fi
+
 RELEASE_COMMIT="$release_commit" bash "$release_dir/scripts/deploy.sh" "$release_dir"
 
 printf 'release_commit=%s\n' "$release_commit"

@@ -14,6 +14,10 @@ set release_dir [file normalize [file join $script_dir ..]]
 set repo_root [file normalize [file join $release_dir .. .. ..]]
 set runner [file join $release_dir scripts run-remote-release.sh]
 set remote_stage "/tmp/librechat-context-safety-$env(RELEASE_COMMIT)"
+set preflight_only [expr {
+  [info exists env(CONTEXT_SAFETY_PREFLIGHT_ONLY)] &&
+  $env(CONTEXT_SAFETY_PREFLIGHT_ONLY) eq "true" ? "true" : "false"
+}]
 
 if {![file exists $runner]} {
   puts stderr "remote runner not found: $runner"
@@ -66,6 +70,6 @@ if {$scp_rc != 0} {
 
 spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
   ${ssh_user}@${ssh_host} \
-  "bash $remote_stage/scripts/run-remote-release.sh $env(RELEASE_COMMIT)"
+  "CONTEXT_SAFETY_PREFLIGHT_ONLY=$preflight_only bash $remote_stage/scripts/run-remote-release.sh $env(RELEASE_COMMIT)"
 set ssh_rc [wait_with_password]
 exit $ssh_rc

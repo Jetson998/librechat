@@ -94,6 +94,10 @@ active base config, performs idempotent structural updates, recreates only the
 API service with `--no-deps`, verifies protected container identities, and
 rolls back both config layers on failure.
 
+Set `CONTEXT_SAFETY_PREFLIGHT_ONLY=true` on the local transport to stop after
+the remote read-only preflight. The formal deployment must be a separate
+transport run after that result is reviewed.
+
 ## Design Gate Evidence
 
 - The target conversation displayed `28万 of 36.1万 tokens used (77%)`.
