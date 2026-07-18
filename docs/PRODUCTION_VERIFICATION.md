@@ -1121,3 +1121,76 @@ Browser lifecycle verification:
 Acceptance: passed for standard `USER` and `ADMIN` accounts. Personal Skill
 visibility remains governed by tenant/resource ACLs; this release did not grant
 normal users platform-wide Skill administration.
+
+## Context Safety Stage A
+
+Final deployment date: 2026-07-18 HKT.
+
+Repository gates:
+
+- `679f3e93e6c7ead5125ab54bc6f4b84235f6102c` recorded the approved design and
+  release boundary;
+- `f920599d2891f6edc166b2c0b0320f1d71a577ff` implemented Stage A;
+- `f5b61b1619b3b17fd30652a265306729b7b5608e` separated the read-only
+  production preflight;
+- `48ebbb2b63342291691e767122c2d1cc1ce65d90` corrected Mongo preflight
+  execution before the production write.
+
+Production result:
+
+```text
+timestamp=20260718184949
+backup_dir=/opt/librechat/backups/context-safety-stage-a-20260718184949
+config_sha_before=f67ddcfdd45df03ad3f2cbab0c2cd5f3fcb24bfb08627a09f7483113e5cd1e10
+config_sha_after=4868cbaa70558cba2def51a3c8f8a5d4e8eb88248a697866a813f06feec05375
+api_container_before=71a718183888c2c99e1dd926270e79f2a53c33cd7ffe1557ee5c935c2da6d33f
+api_container_after=5e64f9129da345b2172afc230878ff95ba212a27ae1e7d683d182b077da5911c
+maxToolResultChars=32000
+recursionLimit=50
+maxRecursionLimit=50
+protected_containers_unchanged=true
+root=200
+api_config=200
+office=401
+```
+
+Scope verification:
+
+- only `LibreChat-API` changed container identity;
+- CodeAPI, RAG-API, Nginx, MongoDB, and Admin Panel retained their container
+  identities;
+- the Office Skill remained unchanged at SHA
+  `29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a`;
+- the Admin Panel displayed exact values `32000`, `50`, and `50`;
+- no conversation, uploaded file, generated artifact, user record, CodeAPI
+  session directory, Office route, or WebAI/OpenWebUI resource was modified.
+
+Authenticated browser acceptance conversation:
+
+```text
+https://152.32.172.162.sslip.io/c/6ff21a1b-1e5b-4e2c-b37b-64df9c9ba176
+```
+
+Acceptance evidence:
+
+- the initial user-facing message said the original records would not be
+  printed or added to conversation context;
+- one deterministic Python batch task generated and streamed 20,000 synthetic
+  JSON records;
+- the result was 20,000 processed, 20,000 successful, 0 failed, and no key
+  warnings;
+- normal stdout contained only counts, warnings, verification status, and
+  `/mnt/data/context-safety-smoke/` paths;
+- file cards rendered for `manifest.json`, `report.md`, `errors.json`,
+  `records.jsonl`, and `batch_job.py`;
+- the final reply completed normally with no visible `停止生成` or
+  `AI 仍在撰写中` state;
+- the context meter observed during acceptance was
+  `6794 / 36.1万 tokens（2%）`.
+
+Opening `records.jsonl` expanded its browser preview substantially, while the
+context meter remained at 2%. This is a browser-preview ergonomics observation,
+not evidence that the raw JSONL entered model context.
+
+Acceptance: passed. Stage A is complete; Stage B context-threshold notices and
+friendly recursion-stop UI remain a separate release.

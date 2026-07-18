@@ -2,8 +2,8 @@
 
 Date: 2026-07-18
 
-Status: design gate passed; Stage A implementation prepared and locally
-verified. Commit, push, and production deployment are pending.
+Status: Stage A committed, deployed, and browser-accepted on 2026-07-18. Stage
+B remains a separate pending release.
 
 ## Scope
 
@@ -124,6 +124,29 @@ task manifest and current-turn files, not the full historical tool output.
   `/mnt/data`.
 - Do not change recursion behavior beyond the default and hard cap.
 - Recreate only the API service after the committed release is pushed.
+
+Completion evidence:
+
+- Repository gates `679f3e9`, `f920599`, `f5b61b1`, and `48ebbb2` were pushed
+  before the production write.
+- Deployment timestamp `20260718184949` created backup
+  `/opt/librechat/backups/context-safety-stage-a-20260718184949`.
+- Production resolved `maxToolResultChars=32000`, `recursionLimit=50`, and
+  `maxRecursionLimit=50`; the Admin Panel displayed the same exact values.
+- Only the API container changed identity. CodeAPI, RAG-API, Nginx, MongoDB,
+  Admin Panel, and the Office Skill remained unchanged.
+- Root and `/api/config` returned `200`; `/office/` retained its protected
+  `401` boundary.
+- Authenticated browser conversation
+  `6ff21a1b-1e5b-4e2c-b37b-64df9c9ba176` processed 20,000 synthetic JSON
+  records in one deterministic batch task with 20,000 successes and no
+  failures.
+- The final reply contained only counts, warnings, and paths; all five output
+  files rendered as file cards. The run ended normally and used 2% of the
+  displayed context capacity during acceptance.
+- Expanding the large JSONL file produced a large browser preview without
+  increasing the displayed context percentage. Treat preview ergonomics as a
+  separate UI concern rather than changing the Stage A backend contract.
 
 ### Stage B: browser-facing context notices
 

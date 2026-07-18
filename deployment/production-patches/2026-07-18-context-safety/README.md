@@ -2,8 +2,8 @@
 
 Date: 2026-07-18
 
-Status: Stage A implementation locally verified; commit, push, and deployment
-pending. Stage B browser notices remain a separate release.
+Status: Stage A committed, deployed, and browser-accepted. Stage B browser
+notices remain a separate release.
 
 ## Reason
 
@@ -97,6 +97,55 @@ rolls back both config layers on failure.
 Set `CONTEXT_SAFETY_PREFLIGHT_ONLY=true` on the local transport to stop after
 the remote read-only preflight. The formal deployment must be a separate
 transport run after that result is reviewed.
+
+## Stage A Production Record
+
+Repository gates pushed before the production write:
+
+- `679f3e9` - design gate and approved context-safety contract;
+- `f920599` - Stage A implementation and release automation;
+- `f5b61b1` - separate read-only production preflight;
+- `48ebbb2` - corrected Mongo preflight execution.
+
+Production result:
+
+```text
+timestamp=20260718184949
+backup_dir=/opt/librechat/backups/context-safety-stage-a-20260718184949
+config_sha_before=f67ddcfdd45df03ad3f2cbab0c2cd5f3fcb24bfb08627a09f7483113e5cd1e10
+config_sha_after=4868cbaa70558cba2def51a3c8f8a5d4e8eb88248a697866a813f06feec05375
+api_container_before=71a718183888c2c99e1dd926270e79f2a53c33cd7ffe1557ee5c935c2da6d33f
+api_container_after=5e64f9129da345b2172afc230878ff95ba212a27ae1e7d683d182b077da5911c
+maxToolResultChars=32000
+recursionLimit=50
+maxRecursionLimit=50
+protected_containers_unchanged=true
+root=200
+api_config=200
+office=401
+```
+
+The Office Skill remained unchanged at SHA
+`29bfde2a0442b0c4013ecea4d58858e6d779b562e47057eb4237d2f22b93285a`.
+The Admin Panel displayed the exact values `32000`, `50`, and `50`.
+
+Authenticated browser acceptance used conversation:
+
+```text
+https://152.32.172.162.sslip.io/c/6ff21a1b-1e5b-4e2c-b37b-64df9c9ba176
+```
+
+One deterministic Python batch task generated and processed 20,000 synthetic
+JSON records. It returned `20,000` processed, `20,000` successful, `0` failed,
+no warning, and only bounded summary/path output. Download cards rendered for
+`manifest.json`, `report.md`, `errors.json`, `records.jsonl`, and
+`batch_job.py`. The run completed normally with no visible stop-generation or
+still-writing state, and the observed context meter was `6794 / 36.1万 tokens
+（2%）`.
+
+Opening `records.jsonl` expanded a large browser preview, but the context meter
+remained at 2%. This is recorded as a UI-preview follow-up, not a Stage A model
+context regression.
 
 ## Design Gate Evidence
 
