@@ -144,6 +144,7 @@ curl -ksSf -o "$stage_dir/live-index.html" https://152.32.172.162.sslip.io/
 curl -ksSf -o "$stage_dir/live-user-usage-dashboard.js" https://152.32.172.162.sslip.io/user-usage-dashboard.js
 grep -Fq "user-usage-dashboard.js?v=$release_key" "$stage_dir/live-index.html"
 grep -Fq 'lc-usage-token-detail' "$stage_dir/live-user-usage-dashboard.js"
+docker cp "$usage_stage/scripts/test-production-aggregation.js" LibreChat-API:/tmp/lc-usage-breakdown-production-test.js
 docker exec LibreChat-API node /tmp/lc-usage-breakdown-production-test.js /app/api/server/routes/usage-dashboard.js
 
 for container in "${!protected_ids[@]}"; do
