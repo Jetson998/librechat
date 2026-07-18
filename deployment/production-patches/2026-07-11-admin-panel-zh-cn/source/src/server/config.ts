@@ -43,12 +43,7 @@ export function configValuesEqual(left: unknown, right: unknown): boolean {
       left.every((value, index) => configValuesEqual(value, right[index]))
     );
   }
-  if (
-    left === null ||
-    right === null ||
-    typeof left !== 'object' ||
-    typeof right !== 'object'
-  ) {
+  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') {
     return false;
   }
   const leftRecord = left as Record<string, unknown>;
