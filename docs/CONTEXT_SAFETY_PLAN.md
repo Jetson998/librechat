@@ -3,7 +3,8 @@
 Date: 2026-07-18
 
 Status: Stage A committed, deployed, and browser-accepted on 2026-07-18. Stage
-B remains a separate pending release.
+B implementation is gated by `docs/CONTEXT_SAFETY_STAGE_B_PLAN.md` and remains
+undeployed.
 
 ## Scope
 
@@ -157,6 +158,12 @@ Completion evidence:
   while retaining a diagnostic detail path for operators.
 - Verify the served HTML, asset marker, responsive layout, and normal chat
   behavior before production acceptance.
+
+The detailed production baseline, DOM contracts, threshold behavior, action
+boundaries, deployment runner requirements, and rollback plan are defined in
+`docs/CONTEXT_SAFETY_STAGE_B_PLAN.md`. That gate requires an external
+repository-owned asset and explicitly prohibits editing the compressed main
+Client bundle or creating a second file-upload pipeline.
 
 ## Verification
 
