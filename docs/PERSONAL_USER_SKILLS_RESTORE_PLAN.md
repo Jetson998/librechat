@@ -2,8 +2,8 @@
 
 Date: 2026-07-18
 
-Status: design approved by request; implementation and production deployment
-pending repository gate.
+Status: design committed and pushed in `6831848`; implementation and
+production deployment pending a separate release commit.
 
 ## Requirement
 
