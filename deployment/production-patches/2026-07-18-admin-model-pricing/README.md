@@ -52,6 +52,10 @@ save. The dedicated pricing action PATCHes only:
 endpoints.custom.<endpointIndex>.tokenConfig
 ```
 
+The browser sends fixed scalar fields only. The Admin server reconstructs the
+dynamic model-keyed record after reading the current base config, avoiding the
+loss of nested model prices across the server-action serialization boundary.
+
 Submitting the complete `endpoints.custom` array first produced
 `Validation failed — endpoints.custom: Required`; after changing only the
 array index, the API accepted the request but did not retain the dynamic model

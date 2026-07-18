@@ -9,7 +9,6 @@ import {
   getPricingDraft,
   hasComplexPricing,
   parsePricingDraft,
-  updateModelPricing,
   type PriceField,
   type PricingDraft,
 } from './modelPricing';
@@ -89,15 +88,14 @@ export function ModelPricingPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const next = updateModelPricing(endpoints, endpointIndex, selectedModel, draft);
-      const tokenConfig = next[endpointIndex]?.tokenConfig;
       return saveCustomEndpointTokenConfigFn({
         data: {
           endpointIndex,
-          tokenConfig:
-            tokenConfig && typeof tokenConfig === 'object' && !Array.isArray(tokenConfig)
-              ? tokenConfig
-              : {},
+          model: selectedModel,
+          prompt: preview.prompt ?? null,
+          completion: preview.completion ?? null,
+          cacheRead: preview.cacheRead ?? null,
+          cacheWrite: preview.cacheWrite ?? null,
         },
       });
     },

@@ -1049,16 +1049,64 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
   .inputValidator(
     z.object({
       endpointIndex: z.number().int().nonnegative(),
-      tokenConfig: z.record(z.string(), z.unknown()),
+      model: z.string().trim().min(1).max(200),
+      prompt: z.number().nonnegative().nullable(),
+      completion: z.number().nonnegative().nullable(),
+      cacheRead: z.number().nonnegative().nullable(),
+      cacheWrite: z.number().nonnegative().nullable(),
     }),
   )
   .handler(async ({ data }) => {
     await requireAllSectionCapabilities(['endpoints']);
+    const baseResponse = await apiFetch('/api/admin/config/base');
+    if (!baseResponse.ok) {
+      throw new Error(`Failed to fetch base config: ${baseResponse.status}`);
+    }
+    const { config } = (await baseResponse.json()) as {
+      config: Record<string, unknown>;
+    };
+    const endpoints = config.endpoints;
+    const custom =
+      endpoints && typeof endpoints === 'object' && !Array.isArray(endpoints)
+        ? (endpoints as { custom?: unknown }).custom
+        : undefined;
+    if (!Array.isArray(custom) || !custom[data.endpointIndex]) {
+      throw new Error('Custom endpoint not found');
+    }
+    const endpoint = custom[data.endpointIndex];
+    if (!endpoint || typeof endpoint !== 'object' || Array.isArray(endpoint)) {
+      throw new Error('Invalid custom endpoint configuration');
+    }
+    const currentTokenConfig = (endpoint as { tokenConfig?: unknown }).tokenConfig;
+    const tokenConfig: Record<string, unknown> =
+      currentTokenConfig &&
+      typeof currentTokenConfig === 'object' &&
+      !Array.isArray(currentTokenConfig)
+        ? { ...(currentTokenConfig as Record<string, unknown>) }
+        : {};
+    const currentModelConfig = tokenConfig[data.model];
+    if (
+      currentModelConfig != null &&
+      (typeof currentModelConfig !== 'object' || Array.isArray(currentModelConfig))
+    ) {
+      throw new Error('Complex pricing must be edited in the general configuration page');
+    }
+    const modelConfig: Record<string, unknown> = currentModelConfig
+      ? { ...(currentModelConfig as Record<string, unknown>) }
+      : {};
+    for (const field of ['prompt', 'completion', 'cacheRead', 'cacheWrite'] as const) {
+      const value = data[field];
+      if (value == null) delete modelConfig[field];
+      else modelConfig[field] = value;
+    }
+    if (Object.keys(modelConfig).length > 0) tokenConfig[data.model] = modelConfig;
+    else delete tokenConfig[data.model];
+
     const fieldPath = `endpoints.custom.${data.endpointIndex}.tokenConfig`;
     const response = await apiFetch(`/api/admin/config/role/${BASE_CONFIG_PRINCIPAL_ID}/fields`, {
       method: 'PATCH',
       body: JSON.stringify({
-        entries: [{ fieldPath, value: data.tokenConfig }],
+        entries: [{ fieldPath, value: tokenConfig }],
         priority: 0,
       }),
     });

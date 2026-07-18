@@ -45,9 +45,11 @@ def main() -> None:
         "dedicated tokenConfig field save is missing",
     )
     require(
-        "entries: [{ fieldPath, value: data.tokenConfig }]" in server_config,
+        "entries: [{ fieldPath, value: tokenConfig }]" in server_config,
         "dedicated tokenConfig save payload is missing",
     )
+    require("tokenConfig[data.model] = modelConfig" in server_config,
+            "server-side model pricing reconstruction is missing")
 
     for marker in (
         "prompt",
