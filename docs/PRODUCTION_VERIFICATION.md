@@ -1227,3 +1227,43 @@ usage routing, Office, pricing, uploads, login, and Stage B assets remained
 unchanged.
 
 Acceptance: passed.
+
+## Context Safety Stage B
+
+Final deployment date: 2026-07-19 Singapore time.
+
+Release commit: `702fc0c9988ebf1cbab3b5e9316a1c0da0149ee2`.
+
+Production result:
+
+```text
+release_root=/opt/librechat/context-safety-ui/702fc0c9988e-20260719002157
+backup_dir=/opt/librechat/backups/context-safety-stage-b-20260719002157
+compose_sha_before=82690eb847fe78401258d7ccb5f469d370cd21d764af30478f9503716979b6ec
+compose_sha_after=b9ae70a23f396e4cc5f3cbe5792dc97a1c0ce18fb6d0d7e45676ef7a7ae76f17
+client_index_after=2e2a6763fc8784ef89c233e0aa49e78ac8c0642825447625858bdc145dc304a2
+protected_containers_unchanged=true
+protected_client_assets_unchanged=true
+root=200
+api_config=200
+office=401
+usage_dashboard_unauthenticated=401
+smoke_fixture=200
+```
+
+Scope verification:
+
+- only `LibreChat-API` was recreated;
+- the model-market usage route, search favicon, upload menu, login page,
+  pricing bundle, Admin Panel, CodeAPI, RAG API, Nginx, MongoDB, Office route,
+  and model-market assets remained protected;
+- the Stage B JS/CSS was installed as commit-derived standalone assets and
+  inlined into the no-store root HTML;
+- the existing 77% conversation showed the notice and friendly recursion
+  message without sending a request;
+- the bounded `/c/new` handoff draft removed generic file-control lines and
+  did not create a server conversation;
+- smoke acceptance passed 70%, 85%, and 95% thresholds, one-shot stop,
+  send/submit/Enter blocking, file-card retention, and mobile no-overflow.
+
+Acceptance: passed. Stage B is complete.

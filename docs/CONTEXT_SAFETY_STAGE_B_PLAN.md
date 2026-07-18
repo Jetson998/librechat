@@ -2,10 +2,9 @@
 
 Date: 2026-07-18
 
-Status: implementation and initial releases completed. The filename-versioned
-release passed server gates but failed final browser acceptance. The final
-inline follow-up is being rebased to the active user-model-market Client before
-another preflight and browser acceptance.
+Status: completed. The final inline release `702fc0c` passed repository tests,
+production preflight, guarded deployment, and browser acceptance on the active
+user-model-market baseline.
 
 ## Objective
 
@@ -173,6 +172,22 @@ user_usage_style_sha=121b1907784ff2214246e2c7ad67933faf01038d480e23ee581f5d2c85d
 The model-market Client retains the audited search-favicon, upload, login, and
 Stage B source assets. The Stage B candidate and live gates additionally
 require `data-view="market"` and `renderMarket` in the usage dashboard.
+
+The final deployment completed at `20260719002157`:
+
+```text
+release_root=/opt/librechat/context-safety-ui/702fc0c9988e-20260719002157
+backup_dir=/opt/librechat/backups/context-safety-stage-b-20260719002157
+compose_override_sha=b9ae70a23f396e4cc5f3cbe5792dc97a1c0ce18fb6d0d7e45676ef7a7ae76f17
+client_index_sha=2e2a6763fc8784ef89c233e0aa49e78ac8c0642825447625858bdc145dc304a2
+context_script_sha=7be394908eadb381fa40078d8f64a05c283ada8841998462ba92b4024a74be39
+context_style_sha=a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d
+```
+
+Only `LibreChat-API` was recreated. Browser acceptance confirmed the 77%
+notice, friendly recursion message, bounded handoff draft without a generic
+`- 下载` line, no automatic send, 70/85/95 smoke behavior, one-shot stop,
+blocked send/submit/Enter events, preserved file controls, and mobile layout.
 
 The affected production conversation is:
 

@@ -2,10 +2,9 @@
 
 Date: 2026-07-18
 
-Status: the filename-versioned `9fa04ab` release passed its server gates, but
-Chrome browser acceptance still executed the pre-filter script body. The final
-inline release is rebased to the active user-model-market Client and requires
-commit, push, preflight, deployment, and final browser acceptance.
+Status: completed. The final inline release `702fc0c` passed repository tests,
+production preflight, guarded deployment, and browser acceptance on the active
+user-model-market baseline.
 
 ## Scope
 
@@ -51,16 +50,16 @@ inflating a user conversation.
 
 ## Production Boundary
 
-The next guarded release copies the complete active Client from the successful
+The final guarded release copied the complete active Client from the successful
 user-model-market release:
 
 ```text
 /opt/librechat/user-model-market/6bfb5be23255-20260718235639/client-dist
 ```
 
-It installs only `context-safety-ui.js`, `context-safety-ui.css`, and the smoke
-fixture, injects the two asset markers into the copied `index.html`, replaces
-only the `/app/client/dist:ro` Compose mount, and recreates only
+It installed only `context-safety-ui.js`, `context-safety-ui.css`, and the smoke
+fixture, injected the two asset markers into the copied `index.html`, replaced
+only the `/app/client/dist:ro` Compose mount, and recreated only
 `LibreChat-API`.
 
 The deployment aborts before a production write unless the audited Compose,
