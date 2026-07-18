@@ -1,5 +1,4 @@
 src/components/Sidebar.tsx
-src/components/configuration/ConfigPage.tsx
 src/components/configuration/ConfigTableOfContents.tsx
 src/components/configuration/ConfirmSaveDialog.tsx
 src/components/configuration/FieldRenderer.test.tsx
