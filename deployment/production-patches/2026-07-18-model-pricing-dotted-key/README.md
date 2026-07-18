@@ -43,3 +43,7 @@ LibreChat-Admin-Panel
 Nginx, CodeAPI, RAG, MongoDB, and the user dashboard data route must remain
 unchanged. The deployment must preserve the current Client, usage-dashboard,
 user-route, and admin-user-route mounts.
+
+The deployment itself does not modify pricing data. After deployment, browser
+acceptance saves the approved prices and verifies the literal dotted model key
+in Mongo before a new request is used for transaction-rate acceptance.
