@@ -26,7 +26,7 @@ const usageDashboardHandler = createUsageDashboardHandler({ mongoose, logger });
 
 router.use('/settings', settings);
 router.get('/', requireJwtAuth, getUserController);
-router.get('/usage-dashboard', requireJwtAuth, usageDashboardHandler);
+router.get('/usage-dashboard', requireJwtAuth, configMiddleware, usageDashboardHandler);
 router.get('/terms', requireJwtAuth, getTermsStatusController);
 router.post('/terms/accept', requireJwtAuth, acceptTermsController);
 router.post('/plugins', requireJwtAuth, updateUserPluginsController);
