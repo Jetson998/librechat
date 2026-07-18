@@ -27,7 +27,7 @@ expected_override_sha="571e67111fb4bab0d21f6f275895fb9cf60f986d689d6692dad9e3bdc
 expected_index_sha="2e2a6763fc8784ef89c233e0aa49e78ac8c0642825447625858bdc145dc304a2"
 expected_old_js_sha="1f03cbd793319a80ea59229889c510fa5801d30cf2b8074ae5c58064812dc115"
 expected_old_css_sha="121b1907784ff2214246e2c7ad67933faf01038d480e23ee581f5d2c85d6c3a1"
-expected_new_js_sha="cca0ef2448edda6febd90ff0a1d7e70294121a6f33353a33115af2c9d7e1d135"
+expected_new_js_sha="4cb2523c5269f41c021dbda8d3a8b20b8b5a091267ff9643ab3711742aa725a8"
 expected_new_css_sha="94a1ca94a5d2d371c53788f33106137e429e64d198ca41ea8b2cc4d8ae6ce8fd"
 
 cleanup() { rm -rf "$work_dir"; }
@@ -202,4 +202,3 @@ usage_dashboard_unauthenticated=$usage_status
 EOF
 cp "$stage_dir/DEPLOY_RESULT.txt" "$backup_dir/DEPLOY_RESULT.txt"
 printf 'deployment=ok\nrelease_root=%s\nbackup_dir=%s\napi_container=%s\n' "$release_root" "$backup_dir" "$api_id_after"
-
