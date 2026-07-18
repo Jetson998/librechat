@@ -1123,8 +1123,7 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
     };
     if (!response.ok) {
       throw new Error(
-        result.error ??
-          `Failed to save custom endpoint token config: ${response.status}`,
+        result.error ?? `Failed to save custom endpoint token config: ${response.status}`,
       );
     }
 
