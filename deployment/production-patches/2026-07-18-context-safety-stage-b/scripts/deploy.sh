@@ -9,24 +9,27 @@ env_file="$root_dir/.env"
 config_file="$root_dir/librechat.yaml"
 release_commit="${RELEASE_COMMIT:?RELEASE_COMMIT is required}"
 release_key="${release_commit:0:12}"
+context_script_asset="context-safety-ui-$release_key.js"
+context_style_asset="context-safety-ui-$release_key.css"
 timestamp="$(date +%Y%m%d%H%M%S)"
-source_client="$root_dir/context-safety-ui/0b87f1bbab06-20260718200800/client-dist"
+source_client="$root_dir/context-safety-ui/c0276bae0ab1-20260718203853/client-dist"
 release_root="$root_dir/context-safety-ui/$release_key-$timestamp"
 release_client="$release_root/client-dist"
 backup_dir="$root_dir/backups/context-safety-stage-b-$timestamp"
 asset_dir="$stage_dir/client"
 release_test="$stage_dir/scripts/test-release.py"
+client_builder="$stage_dir/scripts/build-client.py"
 work_dir="$(mktemp -d /tmp/librechat-context-safety-stage-b.XXXXXX)"
 candidate_client="$work_dir/client-dist"
 candidate_override="$work_dir/compose.override.yaml"
 
-expected_override_sha="bf6f0774569d451e446ea6d2e0cd633c177ab585f17374f5f9edabe4ffff0197"
-expected_index_sha="0674e373954f61b4a155562c4ccbf6720d547d7d620438c5d293370443a7ee5f"
+expected_override_sha="eed955af8350578f5e04a55f141f4ea40caf3fddf5ebe151c6ee63641557c639"
+expected_index_sha="d91b77a94159788e44a4cc506d20f2103c39edd4c43feef7bf5dc10ed4a490bc"
 expected_upload_sha="a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9"
 expected_login_sha="aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27"
 expected_usage_js_sha="6f76a7379c01d640460bf34864b88554771ca43c18e063239c5d1a294300433f"
 expected_usage_css_sha="2817b8722535d3d46c514c8b93c8713abe4852860cc0075e5c07df1b0f4a01ff"
-expected_context_script_sha="9a10425cf36171ebe553961c1b725d879327c894e2cc130434789607dfb5fb83"
+expected_context_script_sha="b9d40771ae9d679c43bcf03e00a240124643b0187f496ca9771db859b891cb39"
 expected_context_style_sha="a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d"
 expected_pricing_bundle="$root_dir/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs"
 expected_pricing_bundle_sha="b9cac9721e5dcbde30b5d3b1052ba8306e15119255d4b8c53bb330ca8b089b27"
@@ -49,7 +52,7 @@ for path in \
   "$source_client/user-usage-dashboard.css" "$source_client/context-safety-ui.js" \
   "$source_client/context-safety-ui.css" "$asset_dir/context-safety-ui.js" \
   "$asset_dir/context-safety-ui.css" "$asset_dir/context-safety-stage-b-smoke.html" \
-  "$release_test"; do
+  "$release_test" "$client_builder"; do
   test -f "$path"
 done
 
@@ -75,59 +78,24 @@ python3 "$release_test"
 cp -a "$source_client" "$candidate_client"
 install -m 0444 "$asset_dir/context-safety-ui.js" "$candidate_client/context-safety-ui.js"
 install -m 0444 "$asset_dir/context-safety-ui.css" "$candidate_client/context-safety-ui.css"
+install -m 0444 "$asset_dir/context-safety-ui.js" "$candidate_client/$context_script_asset"
+install -m 0444 "$asset_dir/context-safety-ui.css" "$candidate_client/$context_style_asset"
 install -m 0444 \
   "$asset_dir/context-safety-stage-b-smoke.html" \
   "$candidate_client/context-safety-stage-b-smoke.html"
 
-python3 - "$candidate_client/index.html" "$release_key" <<'PY'
-from pathlib import Path
-import re
-import sys
-
-path = Path(sys.argv[1])
-version = sys.argv[2]
-text = path.read_text(encoding="utf-8")
-style_marker = 'id="context-safety-stage-b-style"'
-script_marker = 'id="context-safety-stage-b"'
-style = (
-    f'<link id="context-safety-stage-b-style" rel="stylesheet" '
-    f'href="/context-safety-ui.css?v={version}">'
-)
-script = (
-    f'<script id="context-safety-stage-b" defer '
-    f'src="/context-safety-ui.js?v={version}"></script>'
-)
-style_count = text.count(style_marker)
-script_count = text.count(script_marker)
-if style_count == 0 and script_count == 0:
-    if text.count("</head>") != 1 or text.count("</body>") != 1:
-        raise SystemExit("unexpected index.html structure")
-    text = text.replace("</head>", f"{style}</head>", 1)
-    text = text.replace("</body>", f"{script}</body>", 1)
-elif style_count == 1 and script_count == 1:
-    text, css_count = re.subn(
-        r'context-safety-ui\.css\?v=[^"\']+',
-        f'context-safety-ui.css?v={version}',
-        text,
-    )
-    text, js_count = re.subn(
-        r'context-safety-ui\.js\?v=[^"\']+',
-        f'context-safety-ui.js?v={version}',
-        text,
-    )
-    if css_count != 1 or js_count != 1:
-        raise SystemExit(f"unexpected Stage B references: css={css_count} js={js_count}")
-else:
-    raise SystemExit(
-        f"mismatched Stage B markers: style={style_count} script={script_count}"
-    )
-path.write_text(text, encoding="utf-8")
-PY
+python3 "$client_builder" \
+  "$candidate_client/index.html" \
+  "$candidate_client/context-safety-stage-b-smoke.html" \
+  "$context_style_asset" \
+  "$context_script_asset"
 
 test "$(grep -cF 'id="context-safety-stage-b-style"' "$candidate_client/index.html")" = "1"
 test "$(grep -cF 'id="context-safety-stage-b"' "$candidate_client/index.html")" = "1"
-grep -Fq "context-safety-ui.css?v=$release_key" "$candidate_client/index.html"
-grep -Fq "context-safety-ui.js?v=$release_key" "$candidate_client/index.html"
+grep -Fq "/$context_style_asset" "$candidate_client/index.html"
+grep -Fq "/$context_script_asset" "$candidate_client/index.html"
+grep -Fq "/$context_style_asset" "$candidate_client/context-safety-stage-b-smoke.html"
+grep -Fq "/$context_script_asset" "$candidate_client/context-safety-stage-b-smoke.html"
 grep -Fq 'business-upload-label-patch' "$candidate_client/index.html"
 grep -Fq 'odysseia-login-page-patch' "$candidate_client/index.html"
 grep -Fq 'user-usage-dashboard.js' "$candidate_client/index.html"
@@ -169,8 +137,10 @@ compose_override_sha=$expected_override_sha
 source_client=$source_client
 source_index_sha=$expected_index_sha
 candidate_index_sha=$(sha_file "$candidate_client/index.html")
-context_script_sha=$(sha_file "$candidate_client/context-safety-ui.js")
-context_style_sha=$(sha_file "$candidate_client/context-safety-ui.css")
+context_script_asset=$context_script_asset
+context_style_asset=$context_style_asset
+context_script_sha=$(sha_file "$candidate_client/$context_script_asset")
+context_style_sha=$(sha_file "$candidate_client/$context_style_asset")
 protected_client_assets=ok
 pricing_bundle_sha=$expected_pricing_bundle_sha
 admin_image=$expected_admin_image
@@ -228,8 +198,8 @@ api_status="$(curl -ksS -o "$work_dir/live-api-config.json" -w '%{http_code}' ht
 office_status="$(curl -ksS -o /dev/null -w '%{http_code}' https://152.32.172.162.sslip.io/office/)"
 usage_status="$(curl -ksS -o /dev/null -w '%{http_code}' https://152.32.172.162.sslip.io/api/user/usage-dashboard)"
 smoke_status="$(curl -ksS -o "$work_dir/live-smoke.html" -w '%{http_code}' "https://152.32.172.162.sslip.io/context-safety-stage-b-smoke.html?level=70")"
-curl -ksSf -o "$work_dir/live-context-safety-ui.js" https://152.32.172.162.sslip.io/context-safety-ui.js
-curl -ksSf -o "$work_dir/live-context-safety-ui.css" https://152.32.172.162.sslip.io/context-safety-ui.css
+curl -ksSf -o "$work_dir/live-context-safety-ui.js" "https://152.32.172.162.sslip.io/$context_script_asset"
+curl -ksSf -o "$work_dir/live-context-safety-ui.css" "https://152.32.172.162.sslip.io/$context_style_asset"
 curl -ksSf -o "$work_dir/live-upload.js" https://152.32.172.162.sslip.io/business-upload-menu.js
 curl -ksSf -o "$work_dir/live-login.js" https://152.32.172.162.sslip.io/odysseia-login.js
 curl -ksSf -o "$work_dir/live-usage.js" https://152.32.172.162.sslip.io/user-usage-dashboard.js
@@ -240,12 +210,14 @@ test "$api_status" = "200"
 test "$office_status" = "401"
 test "$usage_status" = "401"
 test "$smoke_status" = "200"
-grep -Fq "context-safety-ui.js?v=$release_key" "$work_dir/live-index.html"
-grep -Fq "context-safety-ui.css?v=$release_key" "$work_dir/live-index.html"
+grep -Fq "/$context_script_asset" "$work_dir/live-index.html"
+grep -Fq "/$context_style_asset" "$work_dir/live-index.html"
 grep -Fq 'business-upload-label-patch' "$work_dir/live-index.html"
 grep -Fq 'odysseia-login-page-patch' "$work_dir/live-index.html"
 grep -Fq 'user-usage-dashboard.js' "$work_dir/live-index.html"
 grep -Fq 'context-safety-stage-b' "$work_dir/live-smoke.html"
+grep -Fq "/$context_script_asset" "$work_dir/live-smoke.html"
+grep -Fq "/$context_style_asset" "$work_dir/live-smoke.html"
 grep -Fq '__contextSafetyUIContract' "$work_dir/live-context-safety-ui.js"
 grep -Fq '#context-safety-ui-banner' "$work_dir/live-context-safety-ui.css"
 test "$(sha_file "$work_dir/live-upload.js")" = "$expected_upload_sha"
@@ -275,8 +247,10 @@ client_mount_before=$source_client
 client_mount_after=$release_client
 client_index_before=$expected_index_sha
 client_index_after=$(sha_file "$release_client/index.html")
-context_script_sha=$(sha_file "$release_client/context-safety-ui.js")
-context_style_sha=$(sha_file "$release_client/context-safety-ui.css")
+context_script_asset=$context_script_asset
+context_style_asset=$context_style_asset
+context_script_sha=$(sha_file "$release_client/$context_script_asset")
+context_style_sha=$(sha_file "$release_client/$context_style_asset")
 api_container_before=$api_id_before
 api_container_after=$api_id_after
 protected_containers_unchanged=true

@@ -14,6 +14,7 @@ for marker in [
     'data-view="overview"', 'data-view="logs"',
     'data-chart-tooltip', 'lc-usage-axis-label', 'lc-usage-model-chart',
     'pointermove', 'focusin',
+    'lc-usage-token-detail', '普通输入', '缓存读取', '缓存写入', '历史明细不可拆分',
     "页面 ${state.page} / ${totalPages}", "上一页", "下一页",
     "data-filter-toggle", "event.key !== 'Escape'", "input.blur()",
 ]:

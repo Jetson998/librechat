@@ -69,6 +69,23 @@ tool output was transferred. The corrective release must filter generic
 open/download labels, reuse the current versioned Stage B Client as its source,
 and pass the same preflight and browser acceptance before Stage B is closed.
 
+The generic-label correction was deployed at `20260718203853`, but a clean
+browser acceptance still executed the prior body because the PWA Service
+Worker reused the static asset path despite a changed query string. Public
+HTTP retrieval showed the corrected file on disk, while in-app behavior showed
+the stale cached body. The final corrective release must therefore use unique
+commit-derived JS and CSS filenames, not only query parameters.
+
+Its audited source baseline is:
+
+```text
+compose_override_sha=eed955af8350578f5e04a55f141f4ea40caf3fddf5ebe151c6ee63641557c639
+client_mount=/opt/librechat/context-safety-ui/c0276bae0ab1-20260718203853/client-dist
+client_index_sha=d91b77a94159788e44a4cc506d20f2103c39edd4c43feef7bf5dc10ed4a490bc
+context_script_sha=b9d40771ae9d679c43bcf03e00a240124643b0187f496ca9771db859b891cb39
+context_style_sha=a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d
+```
+
 The active Client also contains these protected custom assets:
 
 ```text

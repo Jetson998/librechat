@@ -347,6 +347,18 @@
       </div>`;
   }
 
+  function formatTokenBreakdown(row) {
+    const total = formatNumber(row.tokens, 1);
+    if (!row.tokenBreakdownAvailable) {
+      return `Token 合计：${total}\n历史明细不可拆分`;
+    }
+    return [
+      `普通输入：${formatNumber(row.inputTokens, 1)}  缓存读取：${formatNumber(row.cacheReadTokens, 1)}`,
+      `缓存写入：${formatNumber(row.cacheWriteTokens, 1)}  输出：${formatNumber(row.outputTokens, 1)}`,
+      `合计：${total}`,
+    ].join('\n');
+  }
+
   function renderLogs(data) {
     const rows = data.logs || [];
     const body = rows.length
@@ -358,7 +370,7 @@
                 <td><div class="lc-usage-log-model">${providerLogo(row)}<span>${escapeHtml(row.model)}</span></div></td>
                 <td><button class="lc-usage-conversation-link" type="button" data-conversation-link="${escapeHtml(row.conversationId)}">${escapeHtml(row.conversationTitle)}</button></td>
                 <td>${Number(row.turn || 0)}</td>
-                <td>${formatNumber(row.tokens, 1)}</td>
+                <td><button class="lc-usage-token-detail" type="button" data-chart-tooltip="${escapeHtml(formatTokenBreakdown(row))}" aria-label="${escapeHtml(formatTokenBreakdown(row))}">${formatNumber(row.tokens, 1)}</button></td>
                 <td>${formatCost(row.cost, data.currency)}</td>
               </tr>`,
           )

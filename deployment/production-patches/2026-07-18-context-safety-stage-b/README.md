@@ -2,10 +2,11 @@
 
 Date: 2026-07-18
 
-Status: initial production deployment passed. Browser acceptance found one
-generic `下载` label in the bounded handoff file list; a repository follow-up is
-prepared and requires commit, push, preflight, versioned deployment, and final
-browser acceptance.
+Status: initial production deployment and generic-label follow-up both passed
+their server gates. Browser acceptance showed the PWA Service Worker could
+still serve the old script under a query-versioned URL. A filename-versioned
+follow-up is prepared and requires commit, push, preflight, deployment, and
+final browser acceptance.
 
 ## Scope
 
@@ -39,6 +40,7 @@ client/context-safety-ui.css
 client/context-safety-stage-b-smoke.html
 scripts/test-contract.js
 scripts/test-release.py
+scripts/build-client.py
 scripts/deploy.sh
 scripts/run-remote-release.sh
 scripts/deploy-remote.exp
@@ -53,7 +55,7 @@ inflating a user conversation.
 The follow-up guarded release copies the complete active Client from:
 
 ```text
-/opt/librechat/context-safety-ui/0b87f1bbab06-20260718200800/client-dist
+/opt/librechat/context-safety-ui/c0276bae0ab1-20260718203853/client-dist
 ```
 
 It installs only `context-safety-ui.js`, `context-safety-ui.css`, and the smoke
@@ -88,10 +90,15 @@ and Admin image `librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85`.
 The first formal Stage B deployment passed at `20260718200800`. Its browser
 acceptance verified all threshold and recursion behavior, then found that one
 generic download control contributed the literal file name `下载` to a handoff
-draft. The follow-up filters generic open/download labels, starts from the
-deployed Stage B Client, updates the existing asset query strings exactly once,
-and uses the latest Compose baseline
-`bf6f0774569d451e446ea6d2e0cd633c177ab585f17374f5f9edabe4ffff0197`.
+draft. The `c0276ba` follow-up filtered generic open/download labels and passed
+its server gates at `20260718203853`, but browser acceptance proved the PWA
+Service Worker could reuse the old body for the same asset path even when the
+query string changed.
+
+The final follow-up starts from the `c0276ba` Client, installs a new JS and CSS
+filename derived from the release commit, updates both `index.html` and the
+smoke fixture to those unique paths, and uses Compose baseline
+`eed955af8350578f5e04a55f141f4ea40caf3fddf5ebe151c6ee63641557c639`.
 
 No Nginx, MongoDB, Admin Panel, CodeAPI, RAG-API, Office Skill, model config,
 conversation, user, file, generated artifact, or WebAI/OpenWebUI resource is

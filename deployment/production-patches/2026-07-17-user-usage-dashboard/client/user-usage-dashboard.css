@@ -493,6 +493,24 @@
   font-size: 11px;
   line-height: 1.4;
   pointer-events: none;
+  white-space: pre-line;
+}
+
+.lc-usage-token-detail {
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px dotted var(--lc-usage-muted);
+  background: transparent;
+  color: inherit;
+  cursor: help;
+  font-variant-numeric: tabular-nums;
+}
+
+.lc-usage-token-detail:hover,
+.lc-usage-token-detail:focus-visible {
+  border-bottom-color: var(--lc-usage-brand);
+  color: var(--lc-usage-brand);
+  outline: none;
 }
 
 .lc-usage-model-list {

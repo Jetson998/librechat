@@ -128,6 +128,11 @@ function buildPipeline({ userId, transactionUserId, options, currencyRate, timez
     turn: '$turnNumber',
     tokens: '$usageTokens',
     cost: 1,
+    tokenBreakdownAvailable: 1,
+    inputTokens: 1,
+    cacheReadTokens: 1,
+    cacheWriteTokens: 1,
+    outputTokens: 1,
   };
 
   return [
@@ -187,6 +192,37 @@ function buildPipeline({ userId, transactionUserId, options, currencyRate, timez
               rows: { $sum: 1 },
               tokens: { $sum: { $abs: { $ifNull: ['$rawAmount', 0] } } },
               tokenValue: { $sum: { $abs: { $ifNull: ['$tokenValue', 0] } } },
+              promptRows: {
+                $sum: { $cond: [{ $eq: ['$tokenType', 'prompt'] }, 1, 0] },
+              },
+              structuredPromptRows: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ['$tokenType', 'prompt'] },
+                        { $ne: [{ $type: '$inputTokens' }, 'missing'] },
+                        { $ne: [{ $type: '$readTokens' }, 'missing'] },
+                        { $ne: [{ $type: '$writeTokens' }, 'missing'] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+              inputTokens: { $sum: { $abs: { $ifNull: ['$inputTokens', 0] } } },
+              cacheReadTokens: { $sum: { $abs: { $ifNull: ['$readTokens', 0] } } },
+              cacheWriteTokens: { $sum: { $abs: { $ifNull: ['$writeTokens', 0] } } },
+              outputTokens: {
+                $sum: {
+                  $cond: [
+                    { $eq: ['$tokenType', 'completion'] },
+                    { $abs: { $ifNull: ['$rawAmount', 0] } },
+                    0,
+                  ],
+                },
+              },
             },
           },
         ],
@@ -214,6 +250,14 @@ function buildPipeline({ userId, transactionUserId, options, currencyRate, timez
     {
       $addFields: {
         _transactionRows: { $ifNull: [{ $first: '$_transactionUsage.rows' }, 0] },
+        _promptRows: { $ifNull: [{ $first: '$_transactionUsage.promptRows' }, 0] },
+        _structuredPromptRows: {
+          $ifNull: [{ $first: '$_transactionUsage.structuredPromptRows' }, 0],
+        },
+        inputTokens: { $ifNull: [{ $first: '$_transactionUsage.inputTokens' }, 0] },
+        cacheReadTokens: { $ifNull: [{ $first: '$_transactionUsage.cacheReadTokens' }, 0] },
+        cacheWriteTokens: { $ifNull: [{ $first: '$_transactionUsage.cacheWriteTokens' }, 0] },
+        outputTokens: { $ifNull: [{ $first: '$_transactionUsage.outputTokens' }, 0] },
         _fallbackTokens: {
           $add: [
             { $ifNull: ['$metadata.usage.input', 0] },
@@ -243,6 +287,13 @@ function buildPipeline({ userId, transactionUserId, options, currencyRate, timez
               ],
             },
             null,
+          ],
+        },
+        tokenBreakdownAvailable: {
+          $and: [
+            { $gt: ['$_transactionRows', 0] },
+            { $gt: ['$_promptRows', 0] },
+            { $eq: ['$_promptRows', '$_structuredPromptRows'] },
           ],
         },
       },

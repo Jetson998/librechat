@@ -24,6 +24,9 @@ const transactionLookup = pipeline.find((stage) => stage.$lookup?.from === 'tran
 const transactionExpression = JSON.stringify(transactionLookup.pipeline);
 assert.match(transactionExpression, /"\$context","message"/, 'title and summarization rows must be excluded');
 assert.match(transactionExpression, /objectId/, 'transaction query must be scoped to authenticated user');
+for (const field of ['inputTokens', 'readTokens', 'writeTokens', 'structuredPromptRows', 'outputTokens']) {
+  assert.match(transactionExpression, new RegExp(field), `transaction breakdown must include ${field}`);
+}
 const facet = pipeline.find((stage) => stage.$facet).$facet;
 assert.equal(facet.logs.find((stage) => stage.$skip).$skip, 100);
 assert.equal(facet.logs.find((stage) => stage.$limit).$limit, 100);
@@ -32,12 +35,28 @@ const formatted = formatResult({
   summary: [{ tokens: 1200, cost: 1.234567, costIncomplete: true, conversationInstances: 2, conversationTurns: 3, averageContext: 600, averageTurns: 1.5 }],
   trends: [{ date: '2026-07-18', tokens: 1200, cost: 1.234567, averageContext: 600 }],
   models: [{ model: 'gpt-5.6-sol', tokens: 900 }, { model: 'claude-fable-5', tokens: 300 }],
-  logs: [{ cost: null }, { cost: 0.123456 }],
+  logs: [
+    { cost: null, tokenBreakdownAvailable: false },
+    {
+      cost: 0.123456,
+      tokenBreakdownAvailable: true,
+      inputTokens: 100,
+      cacheReadTokens: 20,
+      cacheWriteTokens: 10,
+      outputTokens: 30,
+      tokens: 160,
+    },
+  ],
   pagination: [{ total: 2 }],
 }, { page: 1, limit: 20 }, 'USD');
 assert.equal(formatted.summary.cost, 1.2346);
 assert.equal(formatted.models[0].percentage, 75);
 assert.equal(formatted.logs[0].cost, null, 'missing historical cost must remain null');
+assert.equal(formatted.logs[1].tokenBreakdownAvailable, true);
+assert.equal(
+  formatted.logs[1].inputTokens + formatted.logs[1].cacheReadTokens + formatted.logs[1].cacheWriteTokens + formatted.logs[1].outputTokens,
+  formatted.logs[1].tokens,
+);
 assert.equal(formatted.pagination.total, 2);
 
 let capturedPipeline;

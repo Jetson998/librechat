@@ -46,6 +46,13 @@ const { buildPipeline, formatResult, parseQuery } = require(path.resolve(moduleP
   if (result.summary.conversationTurns !== result.pagination.total) {
     throw new Error('Summary turns and successful log total diverged');
   }
+  for (const row of result.logs.filter((item) => item.tokenBreakdownAvailable)) {
+    const componentTotal =
+      row.inputTokens + row.cacheReadTokens + row.cacheWriteTokens + row.outputTokens;
+    if (componentTotal !== row.tokens) {
+      throw new Error(`Token breakdown does not equal the authoritative total for ${row.messageId || row.conversationId}`);
+    }
+  }
 
   console.log(JSON.stringify({
     aggregation: 'ok',
