@@ -84,7 +84,7 @@ def main() -> None:
             require(data.get(key), f"{locale} locale missing: {key}")
 
     deploy = (ROOT / "scripts/build-and-deploy.sh").read_text(encoding="utf-8")
-    require("a2ec0ad577861ede3543b9973ea246e5cd193ba02ec6fc69e5966d744def935d" in deploy,
+    require("75765781ad2a7fcb4f801e4ed8ae297de640159f244b1aab2fc1cd3e2b69f17f" in deploy,
             "production Compose baseline missing")
     require("force-recreate admin-panel" in deploy, "deployment does not scope recreation to Admin Panel")
     require("force-recreate api" not in deploy, "deployment unexpectedly recreates API")
