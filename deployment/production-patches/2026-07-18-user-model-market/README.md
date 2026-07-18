@@ -1,0 +1,76 @@
+# User Model Market Phase One
+
+Date: 2026-07-18
+
+Status: design approved; implementation pending.
+
+## Objective
+
+Add a `模型市场` view below `对话日志` in the user's existing usage dialog.
+Expose only models explicitly marked for publication by an administrator, with
+the current API prices already used by LibreChat billing.
+
+## Pricing Semantics
+
+The market table shows:
+
+- model name;
+- context capacity, sourced from the existing model configuration when present;
+- current input price;
+- current output price;
+- current cache-write price;
+- current cache-read price;
+- input discount versus the official reference price.
+
+Only input discount is calculated:
+
+```text
+输入优惠率 = (官方输入价 - 当前输入价) / 官方输入价
+```
+
+The percentage is omitted when the model has no official input reference or no
+current input price. Output and cache prices are displayed without discount
+claims.
+
+## Configuration Contract
+
+Market metadata is kept beside the endpoint's custom model configuration under
+`endpoints.custom[].modelMarket`, separate from native `tokenConfig` billing:
+
+```json
+{
+  "gpt-5.6-sol": {
+    "published": true,
+    "officialPrompt": 1.25
+  }
+}
+```
+
+The existing native `tokenConfig` remains the only source for actual billing
+prices. `modelMarket` only controls publication and the official input-price
+reference used for display.
+
+## Phase One Scope
+
+- Admin Panel model pricing page: publication toggle and official input price;
+- authenticated user model-market API;
+- `模型市场` tab below `对话日志`;
+- compact table matching the existing usage-dialog style;
+- no customer contact form, phone/email/WeChat collection, or admin inbox.
+
+## Phase Two Boundary
+
+Add a restrained business-contact callout, selectable contact medium, contact
+value, submission endpoint, anti-abuse controls, and an Admin Panel inbox only
+as a separate design and release. Do not add these fields to phase one.
+
+## Privacy And Safety
+
+Only published models and their public prices are returned. Internal endpoint
+names, credentials, unpublished models, and full configuration are never sent
+to the user client.
+
+## Rollback
+
+Remove the user market asset and route mounts, and restore the prior Admin Panel
+image. Native billing and historical transactions remain untouched.
