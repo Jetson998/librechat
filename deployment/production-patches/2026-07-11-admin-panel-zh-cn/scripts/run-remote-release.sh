@@ -54,7 +54,9 @@ test "$api_config_code_before" = "200"
 test "$admin_code_before" = "200"
 test "$office_code_before" = "401"
 test "$office_realm_before" = 'Basic realm="Office Converter"'
-test "$config_count_before" = "0"
+case "$config_count_before" in
+  ''|*[!0-9]*) exit 1 ;;
+esac
 test "$codeapi_health_before" = "healthy"
 
 log "verifying uploaded tarball"

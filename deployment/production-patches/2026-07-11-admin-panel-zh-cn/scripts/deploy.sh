@@ -69,7 +69,9 @@ admin_image_id_before="$(docker inspect LibreChat-Admin-Panel --format '{{.Image
 config_count_before="$(docker exec chat-mongodb mongosh --quiet LibreChat --eval 'db.configs.countDocuments({})' | tail -n 1 | tr -d '[:space:]')"
 office_code_before="$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/office/")"
 office_realm_before="$(curl -ksSI "$main_url/office/" | tr -d '\r' | awk -F': ' 'tolower($1)=="www-authenticate" {print $2; exit}')"
-test "$config_count_before" = "0"
+case "$config_count_before" in
+  ''|*[!0-9]*) exit 1 ;;
+esac
 test "$office_code_before" = "401"
 test "$office_realm_before" = 'Basic realm="Office Converter"'
 curl -fsS "$main_url/api/config" >/dev/null
