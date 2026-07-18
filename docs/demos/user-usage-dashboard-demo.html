@@ -212,7 +212,7 @@
       .menu-item {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        gap: 8px;
         width: 100%;
         height: 38px;
         padding: 0 10px;
@@ -231,8 +231,15 @@
       }
 
       .menu-note {
+        margin-left: auto;
         color: var(--muted);
         font-size: 11px;
+      }
+
+      .menu-item svg {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
       }
 
       .workspace {
@@ -1451,7 +1458,12 @@
           <div class="profile-menu" id="profileMenu">
             <button class="menu-item" type="button">我的账户</button>
             <button class="menu-item active" id="usageMenuItem" type="button">
-              <span>价格用量统计</span><span class="menu-note">新</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" x2="12" y1="20" y2="10"></line>
+                <line x1="18" x2="18" y1="20" y2="4"></line>
+                <line x1="6" x2="6" y1="20" y2="16"></line>
+              </svg>
+              <span>用量统计</span><span class="menu-note">新</span>
             </button>
             <button class="menu-item" type="button">设置</button>
             <button class="menu-item" type="button">退出登录</button>
@@ -1489,7 +1501,7 @@
           <section class="usage-panel" aria-labelledby="usageTitle">
             <header class="panel-header">
               <div>
-                <h1 class="panel-title" id="usageTitle">价格用量统计</h1>
+                <h1 class="panel-title" id="usageTitle">用量统计</h1>
                 <p class="panel-subtitle">查看当前账户的对话消耗与使用记录</p>
               </div>
               <div class="panel-tools">
@@ -1524,7 +1536,7 @@
 
             <div class="panel-body">
               <div class="settings-layout">
-                <aside class="section-nav" aria-label="价格用量统计导航">
+                <aside class="section-nav" aria-label="用量统计导航">
                   <div class="view-tabs" role="tablist" aria-label="用量统计视图">
                     <button class="view-tab active" id="overviewTab" type="button" role="tab" aria-selected="true" aria-controls="overviewPane" data-view="overview">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

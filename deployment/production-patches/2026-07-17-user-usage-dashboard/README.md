@@ -1,4 +1,4 @@
-# User Price And Usage Dashboard Release
+# User Usage Dashboard Release
 
 Date: 2026-07-17
 
@@ -13,7 +13,9 @@ LibreChat `My` menu.
 
 ## Feature List
 
-- add `我的 -> 价格用量统计`;
+- add `我的 -> 用量统计`;
+- use a native-size Lucide chart icon and the same hover/focus background as the
+  surrounding account-menu entries;
 - show 7-day, 30-day, and all-time cards and trends;
 - show Token usage, cost, conversation instances, reply turns, average context,
   and average turns;

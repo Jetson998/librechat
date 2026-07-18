@@ -15,17 +15,21 @@
 .lc-user-usage-menu-item {
   width: 100%;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.lc-user-usage-menu-item:hover,
+.lc-user-usage-menu-item:focus-visible,
+.lc-user-usage-menu-item[data-active-item] {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .lc-user-usage-menu-icon {
-  display: grid;
   width: 20px;
   height: 20px;
-  place-items: center;
+  flex: 0 0 20px;
   color: currentColor;
-  font-size: 14px;
-  font-weight: 700;
 }
 
 .lc-usage-overlay {

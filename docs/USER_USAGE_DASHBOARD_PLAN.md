@@ -24,7 +24,7 @@ Add a lightweight customer-facing dashboard under:
 
 ```text
 My -> Price and usage statistics
-我的 -> 价格用量统计
+我的 -> 用量统计
 ```
 
 The page must show only the authenticated user's data. It must not expose

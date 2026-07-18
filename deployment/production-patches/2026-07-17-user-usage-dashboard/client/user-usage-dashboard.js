@@ -84,7 +84,7 @@
       <section class="lc-usage-panel" role="dialog" aria-modal="true" aria-labelledby="lcUsageTitle">
         <header class="lc-usage-header">
           <div>
-            <h1 id="lcUsageTitle">价格用量统计</h1>
+            <h1 id="lcUsageTitle">用量统计</h1>
             <p>查看当前账户的对话消耗与使用记录</p>
           </div>
           <div class="lc-usage-header-actions">
@@ -107,7 +107,7 @@
         </header>
         <div class="lc-usage-content">
           <div class="lc-usage-settings-layout">
-            <aside class="lc-usage-section-nav" aria-label="价格用量统计导航">
+            <aside class="lc-usage-section-nav" aria-label="用量统计导航">
               <div class="lc-usage-view-tabs" role="tablist" aria-label="用量统计视图">
                 <button type="button" role="tab" data-view="overview" aria-controls="lcUsageDashboard">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="m7 16 4-5 4 3 5-7"></path></svg>
@@ -499,7 +499,18 @@
       button.dataset.userUsageMenu = 'true';
       button.className = `${reference.className || ''} lc-user-usage-menu-item`;
       button.setAttribute('role', reference.getAttribute('role') || 'menuitem');
-      button.innerHTML = '<span class="lc-user-usage-menu-icon" aria-hidden="true">¥</span><span>价格用量统计</span>';
+      button.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-no-axes-column-increasing icon-md lc-user-usage-menu-icon" aria-hidden="true">
+          <line x1="12" x2="12" y1="20" y2="10"></line>
+          <line x1="18" x2="18" y1="20" y2="4"></line>
+          <line x1="6" x2="6" y1="20" y2="16"></line>
+        </svg>
+        <span>用量统计</span>
+      `;
+      button.addEventListener('pointerenter', () => button.setAttribute('data-active-item', ''));
+      button.addEventListener('pointerleave', () => button.removeAttribute('data-active-item'));
+      button.addEventListener('focus', () => button.setAttribute('data-active-item', ''));
+      button.addEventListener('blur', () => button.removeAttribute('data-active-item'));
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
