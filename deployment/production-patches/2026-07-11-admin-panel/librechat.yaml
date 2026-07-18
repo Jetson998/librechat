@@ -17,6 +17,7 @@ endpoints:
     allowedProviders:
       - anthropic
       - MuskAPI
+      - MuskAPI-Anthropic
     capabilities:
       - deferred_tools
       - execute_code
@@ -47,6 +48,17 @@ endpoints:
       customParams:
         defaultParamsEndpoint: "openAI"
         reasoningFormat: "reasoning_effort"
+    - name: "MuskAPI-Anthropic"
+      provider: "anthropic"
+      apiKey: "${ANTHROPIC_API_KEY}"
+      baseURL: "https://api.muskapis.com"
+      models:
+        default:
+          - "claude-fable-5"
+        fetch: false
+      titleConvo: true
+      titleModel: "claude-fable-5"
+      modelDisplayLabel: "Fable 5"
 modelSpecs:
   enforce: false
   prioritize: true
@@ -73,7 +85,7 @@ modelSpecs:
       skills: true
       executeCode: true
       preset:
-        endpoint: "anthropic"
+        endpoint: "MuskAPI-Anthropic"
         model: "claude-fable-5"
         thinking: true
         effort: "max"
