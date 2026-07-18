@@ -22,10 +22,27 @@ deploy = (PATCHES / "2026-07-18-user-model-market/scripts/deploy.sh").read_text(
 for marker in ("buildModelMarket", "officialPrompt", "inputDiscount", "market.published"):
     assert marker in api, f"missing market API marker: {marker}"
 
-for marker in ('data-view="market"', "renderMarket", "模型市场", "输入优惠率", "官方"):
+for marker in (
+    'data-view="market"',
+    "renderMarket",
+    "模型市场",
+    "模型优惠率",
+    "官方",
+    "lc-usage-market-col-model",
+    "lc-usage-market-col-rate",
+    "lc-usage-market-price-meta",
+):
     assert marker in client, f"missing market Client marker: {marker}"
 
-for marker in ("lc-usage-market-table", "lc-usage-market-discount", "lc-usage-toolbar[hidden]"):
+for marker in (
+    "lc-usage-market-table",
+    "lc-usage-market-discount",
+    "lc-usage-toolbar[hidden]",
+    "table-layout: fixed",
+    ".lc-usage-market-col-model",
+    ".lc-usage-market-col-rate",
+    ".lc-usage-market-price-meta",
+):
     assert marker in style, f"missing market style marker: {marker}"
 
 for marker in ("published: true", "officialPrompt: 1.25", "inputDiscount: 52"):
@@ -58,7 +75,10 @@ for locale in ("en", "zh-Hans"):
         assert translations.get(key), f"{locale} locale missing: {key}"
 
 assert 'data-view="market"' in demo
-assert "优惠 52%" in demo
+assert "官方 $5.00/M" in demo
+assert "优惠 88%" in demo
+assert "market-price-meta" in demo
+assert "模型优惠率以当前输入单价相对官方输入价计算" in demo
 assert "如需大额采购" not in client, "phase-two contact CTA must not enter phase one"
 for marker in (
     "docker compose up -d --no-deps --force-recreate api",

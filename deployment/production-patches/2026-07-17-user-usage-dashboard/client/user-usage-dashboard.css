@@ -226,6 +226,23 @@
 
 .lc-usage-market-table {
   min-width: 760px;
+  table-layout: fixed;
+}
+
+.lc-usage-market-col-model {
+  width: 26%;
+}
+
+.lc-usage-market-col-context {
+  width: 10%;
+}
+
+.lc-usage-market-col-input {
+  width: 19%;
+}
+
+.lc-usage-market-col-rate {
+  width: 15%;
 }
 
 .lc-usage-market-table th,
@@ -243,12 +260,19 @@
 .lc-usage-market-price {
   align-items: flex-start;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .lc-usage-market-price strong {
   color: var(--lc-usage-text);
   font-weight: 650;
+}
+
+.lc-usage-market-price-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .lc-usage-market-official,
@@ -260,8 +284,8 @@
 .lc-usage-market-discount {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 1px 6px;
+  min-height: 18px;
+  padding: 0 6px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--lc-usage-accent) 12%, transparent);
   color: var(--lc-usage-accent);

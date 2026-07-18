@@ -471,11 +471,15 @@
               item.officialPrompt == null
                 ? ''
                 : `<span class="lc-usage-market-official">官方 ${formatMarketPrice(item.officialPrompt, data.currency)}</span>`;
+            const priceMeta =
+              official || discountLabel
+                ? `<span class="lc-usage-market-price-meta">${official}${discountLabel}</span>`
+                : '';
             return `
               <tr>
                 <td><div class="lc-usage-market-model">${providerLogo(item)}<strong>${escapeHtml(item.model)}</strong></div></td>
                 <td>${formatMarketContext(item.context)}</td>
-                <td><div class="lc-usage-market-price"><strong>${formatMarketPrice(item.prompt, data.currency)}</strong>${official}${discountLabel}</div></td>
+                <td><div class="lc-usage-market-price"><strong>${formatMarketPrice(item.prompt, data.currency)}</strong>${priceMeta}</div></td>
                 <td>${formatMarketPrice(item.completion, data.currency)}</td>
                 <td>${formatMarketPrice(item.cacheWrite, data.currency)}</td>
                 <td>${formatMarketPrice(item.cacheRead, data.currency)}</td>
@@ -491,11 +495,19 @@
         </div>
         <div class="lc-usage-table-wrap lc-usage-market-table-wrap">
           <table class="lc-usage-table lc-usage-market-table">
+            <colgroup>
+              <col class="lc-usage-market-col-model" />
+              <col class="lc-usage-market-col-context" />
+              <col class="lc-usage-market-col-input" />
+              <col class="lc-usage-market-col-rate" />
+              <col class="lc-usage-market-col-rate" />
+              <col class="lc-usage-market-col-rate" />
+            </colgroup>
             <thead><tr><th>模型名称</th><th>上下文</th><th>输入单价</th><th>输出单价</th><th>缓存写入</th><th>缓存命中</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
-        <p class="lc-usage-market-note">输入优惠率按当前输入单价相对官方输入价计算，实际计费以请求记录为准。</p>
+        <p class="lc-usage-market-note">模型优惠率以当前输入单价相对官方输入价计算，实际计费以请求记录为准。</p>
       </div>`;
   }
 

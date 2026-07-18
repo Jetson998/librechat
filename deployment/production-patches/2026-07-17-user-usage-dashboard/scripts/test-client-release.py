@@ -16,7 +16,8 @@ for marker in [
     'pointermove', 'focusin',
     'lc-usage-token-detail', 'lc-usage-cost-detail', '普通输入', '缓存读取', '缓存写入', '历史明细不可拆分',
     'formatCostBreakdown', '费用合计', '实际费用', '×',
-    'data-view="market"', '模型市场', 'renderMarket', '输入优惠率', 'officialPrompt',
+    'data-view="market"', '模型市场', 'renderMarket', '模型优惠率', 'officialPrompt',
+    'lc-usage-market-col-model', 'lc-usage-market-col-rate', 'lc-usage-market-price-meta',
     "页面 ${state.page} / ${totalPages}", "上一页", "下一页",
     "data-filter-toggle", "event.key !== 'Escape'", "input.blur()",
 ]:
@@ -33,6 +34,10 @@ assert "价格用量统计" not in script
 assert ".lc-user-usage-menu-item:hover" in style
 assert "var(--surface-hover)" in style
 assert "position: sticky" in style
+assert "table-layout: fixed" in style
+assert ".lc-usage-market-col-model" in style
+assert ".lc-usage-market-col-rate" in style
+assert ".lc-usage-market-price-meta" in style
 assert "managed_targets" in (ROOT / "scripts" / "deploy.sh").read_text(encoding="utf-8")
 assert "@media (max-width: 680px)" in style
 assert "data-conversation-link" in script

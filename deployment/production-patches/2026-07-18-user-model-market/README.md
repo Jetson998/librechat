@@ -20,12 +20,13 @@ The market table shows:
 - current output price;
 - current cache-write price;
 - current cache-read price;
-- input discount versus the official reference price.
+- model discount versus the official reference price, using input price as the
+  comparison basis.
 
-Only input discount is calculated:
+The model discount uses input price as its comparison basis:
 
 ```text
-输入优惠率 = (官方输入价 - 当前输入价) / 官方输入价
+模型优惠率 = (官方输入价 - 当前输入价) / 官方输入价
 ```
 
 The percentage is omitted when the model has no official input reference or no

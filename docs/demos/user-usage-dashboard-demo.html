@@ -532,6 +532,13 @@
         font-size: 14px;
       }
 
+      .market-price-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
       .market-official {
         color: var(--muted);
         font-size: 11px;
@@ -1912,27 +1919,27 @@
                       <div class="table-wrap">
                         <table>
                           <colgroup>
-                            <col style="width: 20%" /><col style="width: 12%" /><col style="width: 22%" />
-                            <col style="width: 15%" /><col style="width: 15%" /><col style="width: 16%" />
+                            <col style="width: 26%" /><col style="width: 10%" /><col style="width: 19%" />
+                            <col style="width: 15%" /><col style="width: 15%" /><col style="width: 15%" />
                           </colgroup>
                           <thead><tr><th>模型名称</th><th>上下文</th><th>输入单价</th><th>输出单价</th><th>缓存写入</th><th>缓存命中</th></tr></thead>
                           <tbody>
                             <tr>
                               <td><div class="model-cell"><span id="marketOpenAILogo"></span><span class="model-cell-name">gpt-5.6-sol</span></div></td>
                               <td>800K</td>
-                              <td><div class="market-price"><strong>$0.60/M</strong><span class="market-official">官方 $1.25/M</span><span class="market-discount">优惠 52%</span></div></td>
+                              <td><div class="market-price"><strong>$0.60/M</strong><span class="market-price-meta"><span class="market-official">官方 $5.00/M</span><span class="market-discount">优惠 88%</span></span></div></td>
                               <td>$3.60/M</td><td>$0.75/M</td><td>$0.06/M</td>
                             </tr>
                             <tr>
                               <td><div class="model-cell"><span id="marketFableLogo"></span><span class="model-cell-name">claude-fable-5</span></div></td>
                               <td>200K</td>
-                              <td><div class="market-price"><strong>$2.40/M</strong><span class="market-official">官方 $3.00/M</span><span class="market-discount">优惠 20%</span></div></td>
+                              <td><div class="market-price"><strong>$2.40/M</strong></div></td>
                               <td>$12.00/M</td><td>$3.00/M</td><td>$0.24/M</td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
-                      <div class="panel-footer"><span>输入优惠率按当前输入单价相对官方输入价计算</span></div>
+                      <div class="panel-footer"><span>模型优惠率以当前输入单价相对官方输入价计算</span></div>
                     </section>
                   </div>
                 </div>
