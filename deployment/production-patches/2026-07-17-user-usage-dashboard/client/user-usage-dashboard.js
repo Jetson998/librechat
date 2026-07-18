@@ -43,6 +43,7 @@
     return new Intl.NumberFormat('zh-CN', {
       style: 'currency',
       currency,
+      currencyDisplay: 'narrowSymbol',
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
     }).format(Number(value || 0));
@@ -363,6 +364,7 @@
     return `${new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,
+      currencyDisplay: 'narrowSymbol',
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
     }).format(Number(value || 0))}/M`;
