@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Context Safety Stage B Smoke</title>
+    <link rel="stylesheet" href="/context-safety-ui.css?v=smoke" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        background: #f4f7fb;
+        color: #172033;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .fixture-shell {
+        display: grid;
+        min-height: 100vh;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .fixture-header {
+        display: flex;
+        min-height: 3.5rem;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #dce3ed;
+        padding: 0.75rem 1rem;
+        background: #ffffff;
+      }
+
+      .fixture-header strong {
+        font-size: 0.9375rem;
+      }
+
+      .fixture-header span {
+        color: #64748b;
+        font-size: 0.75rem;
+      }
+
+      .fixture-levels {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+      }
+
+      .fixture-levels button {
+        min-width: 2.75rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 5px;
+        padding: 0.25rem 0.375rem;
+        color: #334155;
+        background: #ffffff;
+        font: inherit;
+        font-size: 0.6875rem;
+        cursor: pointer;
+      }
+
+      .fixture-main {
+        width: min(100%, 55rem);
+        margin: 0 auto;
+        padding: 1.25rem 1rem 2rem;
+      }
+
+      .fixture-turn {
+        margin-bottom: 1rem;
+      }
+
+      .fixture-label {
+        margin-bottom: 0.375rem;
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .text-message {
+        line-height: 1.6;
+      }
+
+      [role='alert'] {
+        margin-top: 0.75rem;
+        border: 1px solid rgb(185 28 28 / 24%);
+        border-radius: 6px;
+        padding: 0.75rem;
+        background: rgb(254 242 242 / 96%);
+      }
+
+      .file-attachment-container {
+        margin-top: 0.75rem;
+        border: 1px solid #d8e0ea;
+        border-radius: 6px;
+        padding: 0.75rem;
+        background: #ffffff;
+      }
+
+      .fixture-composer-wrap {
+        width: 100%;
+        padding: 0 0 1rem;
+      }
+
+      .fixture-composer {
+        display: flex;
+        width: calc(100% - 1rem);
+        max-width: 55rem;
+        margin: 0 auto;
+        align-items: flex-end;
+        gap: 0.5rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0.5rem;
+        background: #ffffff;
+      }
+
+      .fixture-composer textarea {
+        min-height: 2.75rem;
+        flex: 1;
+        resize: vertical;
+        border: 0;
+        padding: 0.625rem;
+        font: inherit;
+        outline: none;
+      }
+
+      .fixture-composer button {
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+        border: 1px solid #94a3b8;
+        border-radius: 6px;
+        background: #ffffff;
+      }
+
+      [data-testid='token-usage'] {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+      }
+
+      [role='meter'] {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 3px solid #2563eb;
+        border-radius: 50%;
+      }
+
+      @media (max-width: 767px) {
+        .fixture-main {
+          padding: 1rem 0.75rem 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="fixture-shell">
+      <header class="fixture-header">
+        <strong>Context Safety Stage B</strong>
+        <div class="fixture-levels" aria-label="Fixture context level">
+          <span id="fixture-level-label">fixture</span>
+          <button type="button" data-fixture-level="69">69%</button>
+          <button type="button" data-fixture-level="70">70%</button>
+          <button type="button" data-fixture-level="85">85%</button>
+          <button type="button" data-fixture-level="95">95%</button>
+        </div>
+      </header>
+      <main class="fixture-main">
+        <div class="fixture-turn user-turn">
+          <div class="fixture-label">用户</div>
+          <div class="text-message">请继续处理当前文件，并保留已经生成的结果。</div>
+        </div>
+        <div class="fixture-turn agent-turn">
+          <div class="fixture-label">AI</div>
+          <div class="text-message">
+            <div role="alert">
+              Something went wrong. Here's the specific error message we encountered: An error
+              occurred while processing the request: Recursion limit of 50 reached without hitting
+              a stop condition. You can increase the limit by setting the "recursionLimit" config
+              key. Troubleshooting URL:
+              https://docs.langchain.com/oss/javascript/langgraph/GRAPH_RECURSION_LIMIT/
+            </div>
+          </div>
+          <div class="file-attachment-container">
+            <button type="button" aria-label="结果报告.xlsx">结果报告.xlsx</button>
+            <button type="button" aria-label="下载 处理清单.json">下载</button>
+          </div>
+        </div>
+      </main>
+      <div class="fixture-composer-wrap">
+        <form class="fixture-composer">
+          <button type="button" data-testid="token-usage" aria-label="Context usage">
+            <span role="meter" aria-label="Context usage" aria-valuenow="70" aria-valuemax="100"></span>
+            <span>上下文</span>
+          </button>
+          <textarea
+            id="prompt-textarea"
+            data-testid="text-input"
+            aria-label="消息输入"
+            placeholder="发送消息"
+          ></textarea>
+          <button type="button" data-testid="stop-generation-button">停止</button>
+          <button type="submit" data-testid="send-button">发送</button>
+        </form>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const params = new URLSearchParams(location.search);
+        const level = Number(params.get('level') || 70);
+        const meter = document.querySelector('[role="meter"]');
+        const setLevel = (value) => {
+          meter.setAttribute('aria-valuenow', String(value));
+          document.getElementById('fixture-level-label').textContent = `${value}%`;
+        };
+        setLevel(level);
+        for (const button of document.querySelectorAll('[data-fixture-level]')) {
+          button.addEventListener('click', () => setLevel(button.dataset.fixtureLevel));
+        }
+
+        const fixture = { stopCount: 0, submitCount: 0, sendClickCount: 0 };
+        const sync = () => {
+          document.body.dataset.stopCount = String(fixture.stopCount);
+          document.body.dataset.submitCount = String(fixture.submitCount);
+          document.body.dataset.sendClickCount = String(fixture.sendClickCount);
+        };
+        document
+          .querySelector('[data-testid="stop-generation-button"]')
+          .addEventListener('click', () => {
+            fixture.stopCount += 1;
+            sync();
+          });
+        document.querySelector('[data-testid="send-button"]').addEventListener('click', () => {
+          fixture.sendClickCount += 1;
+          sync();
+        });
+        document.querySelector('form').addEventListener('submit', (event) => {
+          event.preventDefault();
+          fixture.submitCount += 1;
+          sync();
+        });
+        window.__contextSafetyFixture = fixture;
+        sync();
+      })();
+    </script>
+    <script id="context-safety-stage-b" src="/context-safety-ui.js?v=smoke"></script>
+  </body>
+</html>

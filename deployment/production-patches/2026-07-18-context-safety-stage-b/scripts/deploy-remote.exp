@@ -1,0 +1,69 @@
+set timeout 1200
+
+foreach required {SSH_PASS RELEASE_COMMIT} {
+  if {![info exists env($required)] || $env($required) eq ""} {
+    puts stderr "$required is required"
+    exit 2
+  }
+}
+
+set ssh_host [expr {[info exists env(SSH_HOST)] ? $env(SSH_HOST) : "152.32.172.162"}]
+set ssh_user [expr {[info exists env(SSH_USER)] ? $env(SSH_USER) : "root"}]
+set script_dir [file dirname [file normalize [info script]]]
+set release_dir [file normalize [file join $script_dir ..]]
+set repo_root [file normalize [file join $release_dir .. .. ..]]
+set remote_stage "/tmp/librechat-context-safety-stage-b-$env(RELEASE_COMMIT)"
+set preflight_only [expr {
+  [info exists env(CONTEXT_SAFETY_STAGE_B_PREFLIGHT_ONLY)] &&
+  $env(CONTEXT_SAFETY_STAGE_B_PREFLIGHT_ONLY) eq "true" ? "true" : "false"
+}]
+
+set local_head [string trim [exec git -C $repo_root rev-parse HEAD 2>@stderr]]
+if {$local_head ne $env(RELEASE_COMMIT)} {
+  puts stderr "local HEAD does not match RELEASE_COMMIT"
+  exit 2
+}
+
+set release_files [glob -nocomplain -directory $release_dir *]
+if {[llength $release_files] == 0} {
+  puts stderr "release directory is empty"
+  exit 2
+}
+
+proc wait_with_password {} {
+  expect {
+    -re "(?i)are you sure you want to continue connecting" {
+      send -- "yes\r"
+      exp_continue
+    }
+    -re "(?i)password:" {
+      send -- "$::env(SSH_PASS)\r"
+      exp_continue
+    }
+    eof
+  }
+  catch wait result
+  return [lindex $result 3]
+}
+
+spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+  ${ssh_user}@${ssh_host} "mkdir -p $remote_stage"
+set mkdir_rc [wait_with_password]
+if {$mkdir_rc != 0} {
+  puts stderr "remote stage creation failed with exit code $mkdir_rc"
+  exit $mkdir_rc
+}
+
+spawn scp -r -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+  {*}$release_files ${ssh_user}@${ssh_host}:$remote_stage/
+set scp_rc [wait_with_password]
+if {$scp_rc != 0} {
+  puts stderr "scp failed with exit code $scp_rc"
+  exit $scp_rc
+}
+
+spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+  ${ssh_user}@${ssh_host} \
+  "CONTEXT_SAFETY_STAGE_B_PREFLIGHT_ONLY=$preflight_only bash $remote_stage/scripts/run-remote-release.sh $env(RELEASE_COMMIT)"
+set ssh_rc [wait_with_password]
+exit $ssh_rc
