@@ -2,7 +2,7 @@
 
 Date: 2026-07-18
 
-Status: implementation complete; production deployment pending.
+Status: deployed and verified.
 
 ## Problem
 
@@ -28,3 +28,24 @@ or backend aggregation.
 
 Restore the prior versioned Client asset mount. No database or API rollback is
 required.
+
+## Production Result
+
+Implementation commit: `18f26d7`
+
+Guarded deployment commit: `0b57393`
+
+Release root:
+
+```text
+/opt/librechat/user-usage-usd-symbol/0b57393fab4b-20260718214145
+```
+
+Backup:
+
+```text
+/opt/librechat/backups/user-usage-usd-symbol-20260718214145
+```
+
+Only `LibreChat-API` was recreated. Browser acceptance after a full page reload
+confirmed that the live usage card displays `$0.0052` instead of `US$0.0052`.
