@@ -4,6 +4,14 @@ Date: 2026-07-18
 
 Status: prepared for release.
 
+Production preflight is rebased to the deployed `42c8ff2` pricing release:
+
+```text
+compose.override.yaml: fbf89bd93b9721e1005209135ae550a5b224ab56057d25f85fe84ecf153db763
+API bundle: d79ea31769617dccd5eacf8ffec61840c5d03e446108c789d15d4e823b1c4e03
+Admin image: librechat-admin-panel-model-pricing-keyfix:29cf28804ff8
+```
+
 ## Problem
 
 The Admin Panel accepted and reported successful saves for `gpt-5.6-sol`, but

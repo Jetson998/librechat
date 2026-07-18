@@ -48,8 +48,9 @@ assert "entries: [{ fieldPath, value: tokenConfig }]" not in admin, (
     "Admin must not send dotted model names as JSON object keys"
 )
 for marker in (
-    "90a03305d3f1706f1363e33b7a7368fe9dc69a11cb31858c1535a571669aa1ec",
-    "2cc88bec7011b3d063f5528171d98835ab295e4fefc679bd2e4963fa5e66ee20",
+    "fbf89bd93b9721e1005209135ae550a5b224ab56057d25f85fe84ecf153db763",
+    "d79ea31769617dccd5eacf8ffec61840c5d03e446108c789d15d4e823b1c4e03",
+    "librechat-admin-panel-model-pricing-keyfix:29cf28804ff8",
     "force-recreate api admin-panel",
     "config_version_unchanged_during_deploy=true",
     'MIN_BUILD_HEADROOM_MB:-3584',

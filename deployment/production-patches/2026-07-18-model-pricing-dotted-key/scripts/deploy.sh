@@ -17,9 +17,9 @@ backup_dir="$root_dir/backups/model-pricing-dotted-key-$timestamp"
 api_container="LibreChat-API"
 admin_container="LibreChat-Admin-Panel"
 
-expected_override_sha="90a03305d3f1706f1363e33b7a7368fe9dc69a11cb31858c1535a571669aa1ec"
-expected_api_sha="2cc88bec7011b3d063f5528171d98835ab295e4fefc679bd2e4963fa5e66ee20"
-expected_admin_image="librechat-admin-panel-model-pricing:5da05ef0635e"
+expected_override_sha="fbf89bd93b9721e1005209135ae550a5b224ab56057d25f85fe84ecf153db763"
+expected_api_sha="d79ea31769617dccd5eacf8ffec61840c5d03e446108c789d15d4e823b1c4e03"
+expected_admin_image="librechat-admin-panel-model-pricing-keyfix:29cf28804ff8"
 
 for path in "$compose_base" "$compose_override" "$env_file" "$admin_source/Dockerfile" "$api_bundle"; do
   test -e "$path"
