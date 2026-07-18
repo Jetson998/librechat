@@ -20,12 +20,15 @@ work_dir="$(mktemp -d /tmp/librechat-context-safety-stage-b.XXXXXX)"
 candidate_client="$work_dir/client-dist"
 candidate_override="$work_dir/compose.override.yaml"
 
-expected_override_sha="90a03305d3f1706f1363e33b7a7368fe9dc69a11cb31858c1535a571669aa1ec"
+expected_override_sha="a35aaf354dfd7e40a475d0a16b648bef07c3e16d1d2c292117e13a294596a38f"
 expected_index_sha="29306df25134b09716727523eaeea0bfca1d75029a8ffc89ec02b47a4bf105e0"
 expected_upload_sha="a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9"
 expected_login_sha="aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27"
 expected_usage_js_sha="6f76a7379c01d640460bf34864b88554771ca43c18e063239c5d1a294300433f"
 expected_usage_css_sha="2817b8722535d3d46c514c8b93c8713abe4852860cc0075e5c07df1b0f4a01ff"
+expected_pricing_bundle="$root_dir/model-pricing-dotted-key/42c8ff2-20260718195311/api-index.cjs"
+expected_pricing_bundle_sha="d79ea31769617dccd5eacf8ffec61840c5d03e446108c789d15d4e823b1c4e03"
+expected_admin_image="librechat-admin-panel-model-pricing-keyfix:29cf28804ff8"
 
 cleanup() {
   rm -rf "$work_dir"
@@ -38,6 +41,7 @@ sha_file() {
 
 for path in \
   "$compose_base" "$compose_override" "$env_file" "$config_file" \
+  "$expected_pricing_bundle" \
   "$source_client/index.html" "$source_client/business-upload-menu.js" \
   "$source_client/odysseia-login.js" "$source_client/user-usage-dashboard.js" \
   "$source_client/user-usage-dashboard.css" "$asset_dir/context-safety-ui.js" \
@@ -52,6 +56,11 @@ test "$(sha_file "$source_client/business-upload-menu.js")" = "$expected_upload_
 test "$(sha_file "$source_client/odysseia-login.js")" = "$expected_login_sha"
 test "$(sha_file "$source_client/user-usage-dashboard.js")" = "$expected_usage_js_sha"
 test "$(sha_file "$source_client/user-usage-dashboard.css")" = "$expected_usage_css_sha"
+test "$(sha_file "$expected_pricing_bundle")" = "$expected_pricing_bundle_sha"
+test "$(docker inspect LibreChat-Admin-Panel --format '{{.Config.Image}}')" = "$expected_admin_image"
+grep -Fq \
+  "$expected_pricing_bundle:/app/packages/api/dist/index.cjs:ro" \
+  "$compose_override"
 
 active_client_mount="$(docker inspect LibreChat-API --format '{{range .Mounts}}{{if eq .Destination "/app/client/dist"}}{{.Source}}{{end}}{{end}}')"
 test "$active_client_mount" = "$source_client"
@@ -124,6 +133,9 @@ docker compose --env-file "$env_file" -f "$compose_base" -f "$candidate_override
 test "$(grep -cF ':/app/client/dist:ro' "$candidate_override")" = "1"
 grep -Fq 'USER_USAGE_CURRENCY=USD' "$candidate_override"
 grep -Fq 'USER_USAGE_USD_RATE=1' "$candidate_override"
+grep -Fq \
+  "$expected_pricing_bundle:/app/packages/api/dist/index.cjs:ro" \
+  "$candidate_override"
 
 if [[ "${PREFLIGHT_ONLY:-false}" = "true" ]]; then
   cat <<EOF
@@ -136,6 +148,8 @@ candidate_index_sha=$(sha_file "$candidate_client/index.html")
 context_script_sha=$(sha_file "$candidate_client/context-safety-ui.js")
 context_style_sha=$(sha_file "$candidate_client/context-safety-ui.css")
 protected_client_assets=ok
+pricing_bundle_sha=$expected_pricing_bundle_sha
+admin_image=$expected_admin_image
 EOF
   exit 0
 fi

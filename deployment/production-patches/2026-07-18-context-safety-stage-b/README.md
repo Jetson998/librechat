@@ -2,8 +2,9 @@
 
 Date: 2026-07-18
 
-Status: implementation prepared for local verification. Commit, push, remote
-preflight, production deployment, and browser acceptance are pending.
+Status: implementation locally verified and production baseline rebased after
+the concurrent model-pricing release. Updated commit, push, remote preflight,
+production deployment, and browser acceptance are pending.
 
 ## Scope
 
@@ -60,9 +61,23 @@ only the `/app/client/dist:ro` Compose mount, and recreates only
 `LibreChat-API`.
 
 The deployment aborts before a production write unless the audited Compose,
-Client index, upload menu, login page, usage-dashboard script, and
-usage-dashboard stylesheet hashes all match. It also verifies that the
-candidate still references `assets/index.P3glMaNP.js`.
+Client index, upload menu, login page, usage-dashboard script,
+usage-dashboard stylesheet, model-pricing API bundle, and Admin Panel image
+all match. It also verifies that the candidate still references
+`assets/index.P3glMaNP.js`.
+
+The first Stage B preflight correctly stopped before a write because a
+concurrent model-pricing deployment changed the Compose hash and added this
+protected mount while leaving the Client unchanged:
+
+```text
+/opt/librechat/model-pricing-dotted-key/42c8ff2-20260718195311/api-index.cjs
+-> /app/packages/api/dist/index.cjs
+```
+
+Stage B was rebased to the newly audited Compose hash
+`a35aaf354dfd7e40a475d0a16b648bef07c3e16d1d2c292117e13a294596a38f`
+and now explicitly preserves that bundle and Admin image.
 
 No Nginx, MongoDB, Admin Panel, CodeAPI, RAG-API, Office Skill, model config,
 conversation, user, file, generated artifact, or WebAI/OpenWebUI resource is

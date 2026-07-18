@@ -17,7 +17,7 @@ workflow guard.
 
 ## Observed Production Baseline
 
-Read-only production discovery on 2026-07-18 found:
+The initial read-only production discovery on 2026-07-18 found:
 
 ```text
 api_container=5e64f9129da345b2172afc230878ff95ba212a27ae1e7d683d182b077da5911c
@@ -26,6 +26,27 @@ client_mount=/opt/librechat/user-usage-dashboard/bbae4f4-charts-20260718175030/c
 client_index_sha=29306df25134b09716727523eaeea0bfca1d75029a8ffc89ec02b47a4bf105e0
 main_asset=assets/index.P3glMaNP.js
 ```
+
+Before the first Stage B preflight, a separate committed model-pricing release
+legitimately changed the Compose override, API container, and Admin Panel while
+leaving the active Client and all protected Client asset hashes unchanged. The
+old Stage B hash gate stopped before any production write.
+
+The revalidated production baseline is:
+
+```text
+compose_override_sha=a35aaf354dfd7e40a475d0a16b648bef07c3e16d1d2c292117e13a294596a38f
+api_container=92096125406ec9a5cc952be22eef0ed67edccabf5934b94ce08a9519acd556df
+admin_container=3d50c9d087eb36087f2bcb3f07f3df5bc8874e37da6017d0d7a57397467bfbf4
+admin_image=librechat-admin-panel-model-pricing-keyfix:29cf28804ff8
+pricing_bundle=/opt/librechat/model-pricing-dotted-key/42c8ff2-20260718195311/api-index.cjs
+pricing_bundle_sha=d79ea31769617dccd5eacf8ffec61840c5d03e446108c789d15d4e823b1c4e03
+client_mount=/opt/librechat/user-usage-dashboard/bbae4f4-charts-20260718175030/client-dist
+client_index_sha=29306df25134b09716727523eaeea0bfca1d75029a8ffc89ec02b47a4bf105e0
+```
+
+The Stage B runner must preserve the model-pricing bundle mount and Admin image
+in addition to the previously listed Client assets.
 
 The active Client also contains these protected custom assets:
 
