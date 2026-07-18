@@ -47,3 +47,8 @@ user-route, and admin-user-route mounts.
 The deployment itself does not modify pricing data. After deployment, browser
 acceptance saves the approved prices and verifies the literal dotted model key
 in Mongo before a new request is used for transaction-rate acceptance.
+
+The default build gate requires 3.5 GB of available memory plus free swap. A
+release operator may lower it no further than 2.5 GB with
+`MIN_BUILD_HEADROOM_MB` after a failed preflight has populated the dependency
+cache; this does not change the runtime deployment boundary.

@@ -42,6 +42,8 @@ for marker in (
     "2cc88bec7011b3d063f5528171d98835ab295e4fefc679bd2e4963fa5e66ee20",
     "force-recreate api admin-panel",
     "config_version_unchanged_during_deploy=true",
+    'MIN_BUILD_HEADROOM_MB:-3584',
+    'test "$min_build_headroom_mb" -ge 2500',
 ):
     assert marker in deploy, f"missing deployment marker: {marker}"
 print("model pricing dotted-key release checks: ok")

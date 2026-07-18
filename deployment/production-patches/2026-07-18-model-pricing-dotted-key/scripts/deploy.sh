@@ -49,7 +49,9 @@ if [[ "${REUSE_PREFLIGHT_IMAGE:-false}" == "true" ]]; then
 else
   mem_available_mb="$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)"
   swap_free_mb="$(awk '/^SwapFree:/ {print int($2 / 1024)}' /proc/meminfo)"
-  test "$((mem_available_mb + swap_free_mb))" -ge 3584
+  min_build_headroom_mb="${MIN_BUILD_HEADROOM_MB:-3584}"
+  test "$min_build_headroom_mb" -ge 2500
+  test "$((mem_available_mb + swap_free_mb))" -ge "$min_build_headroom_mb"
   docker build --build-arg "MODIFIED_SOURCE_REVISION=$release_commit" -t "$image_ref" "$admin_source"
 fi
 test "$(docker image inspect "$image_ref" --format '{{.Architecture}}')" = "amd64"
