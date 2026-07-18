@@ -50,7 +50,7 @@ for marker in [
     "2817b8722535d3d46c514c8b93c8713abe4852860cc0075e5c07df1b0f4a01ff",
     "9a10425cf36171ebe553961c1b725d879327c894e2cc130434789607dfb5fb83",
     "a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d",
-    "model-pricing-dotted-key/406693a-20260718101634/api-index.cjs",
+    "model-pricing-dotted-key/406693a-20260718201634/api-index.cjs",
     "b9cac9721e5dcbde30b5d3b1052ba8306e15119255d4b8c53bb330ca8b089b27",
     "librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85",
     "PREFLIGHT_ONLY",

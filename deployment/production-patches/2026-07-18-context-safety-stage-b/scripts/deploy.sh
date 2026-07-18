@@ -28,7 +28,7 @@ expected_usage_js_sha="6f76a7379c01d640460bf34864b88554771ca43c18e063239c5d1a294
 expected_usage_css_sha="2817b8722535d3d46c514c8b93c8713abe4852860cc0075e5c07df1b0f4a01ff"
 expected_context_script_sha="9a10425cf36171ebe553961c1b725d879327c894e2cc130434789607dfb5fb83"
 expected_context_style_sha="a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d"
-expected_pricing_bundle="$root_dir/model-pricing-dotted-key/406693a-20260718101634/api-index.cjs"
+expected_pricing_bundle="$root_dir/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs"
 expected_pricing_bundle_sha="b9cac9721e5dcbde30b5d3b1052ba8306e15119255d4b8c53bb330ca8b089b27"
 expected_admin_image="librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85"
 

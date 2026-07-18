@@ -82,7 +82,7 @@ and now explicitly preserves that bundle and Admin image. A second pricing
 release completed at 20:16 and changed the audited baseline again; the current
 follow-up baseline is `bf6f0774569d451e446ea6d2e0cd633c177ab585f17374f5f9edabe4ffff0197`
 with API bundle
-`/opt/librechat/model-pricing-dotted-key/406693a-20260718101634/api-index.cjs`
+`/opt/librechat/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs`
 and Admin image `librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85`.
 
 The first formal Stage B deployment passed at `20260718200800`. Its browser

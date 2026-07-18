@@ -54,7 +54,7 @@ baseline to:
 
 ```text
 compose_override_sha=bf6f0774569d451e446ea6d2e0cd633c177ab585f17374f5f9edabe4ffff0197
-pricing_bundle=/opt/librechat/model-pricing-dotted-key/406693a-20260718101634/api-index.cjs
+pricing_bundle=/opt/librechat/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs
 pricing_bundle_sha=b9cac9721e5dcbde30b5d3b1052ba8306e15119255d4b8c53bb330ca8b089b27
 admin_image=librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85
 ```
