@@ -2,17 +2,16 @@
 
 Date: 2026-07-18
 
-Status: initial production deployment and generic-label follow-up both passed
-their server gates. Browser acceptance showed the PWA Service Worker could
-still serve the old script under a query-versioned URL. A filename-versioned
-follow-up is prepared and requires commit, push, preflight, deployment, and
-final browser acceptance.
+Status: the filename-versioned `9fa04ab` release passed its server gates, but
+Chrome browser acceptance still executed the pre-filter script body. The final
+inline release is rebased to the active search-favicon Client and requires
+commit, push, preflight, deployment, and final browser acceptance.
 
 ## Scope
 
 This release adds browser-facing context warnings and a friendly recursion-stop
-state through a repository-owned external asset. It does not edit LibreChat's
-compressed application bundle.
+state through a repository-owned inline asset generated from readable source
+files. It does not edit LibreChat's compressed application bundle.
 
 The UI behavior is:
 
@@ -52,11 +51,11 @@ inflating a user conversation.
 
 ## Production Boundary
 
-The follow-up guarded release copies the complete active Client from the
-successfully deployed token-breakdown release:
+The next guarded release copies the complete active Client from the successful
+search-favicon release:
 
 ```text
-/opt/librechat/user-usage-breakdown/fe30975-20260718205221/client-dist
+/opt/librechat/search-favicon-fallback/14b9fc7972f5-20260718230646/client-dist
 ```
 
 It installs only `context-safety-ui.js`, `context-safety-ui.css`, and the smoke
@@ -66,9 +65,10 @@ only the `/app/client/dist:ro` Compose mount, and recreates only
 
 The deployment aborts before a production write unless the audited Compose,
 Client index, upload menu, login page, usage-dashboard script,
-usage-dashboard stylesheet, usage-dashboard backend route, model-pricing API
-bundle, and Admin Panel image all match. It also verifies that the candidate
-still references `assets/index.P3glMaNP.js`.
+usage-dashboard stylesheet, usage-dashboard backend route, search-favicon
+asset, model-pricing API bundle, and Admin Panel image all match. It also
+verifies that the candidate still references `assets/index.P3glMaNP.js` and
+retains the inline search-favicon runtime.
 
 The first Stage B preflight correctly stopped before a write because a
 concurrent model-pricing deployment changed the Compose hash and added this
@@ -96,14 +96,33 @@ its server gates at `20260718203853`, but browser acceptance proved the PWA
 Service Worker could reuse the old body for the same asset path even when the
 query string changed.
 
-The final follow-up now starts from the `fe30975` token-breakdown Client,
-installs a new JS and CSS filename derived from the release commit, and updates
-both `index.html` and the smoke fixture to those unique paths. Its combined
-Compose baseline is
-`94a9bfdffeb527d7ec34b40bf36197d91b6745884692d8855e79f5c22c13a59d`.
-The existing token-breakdown route remains mounted from
-`/opt/librechat/user-usage-breakdown/fe30975-20260718205221/usage-dashboard.js`
-and is guarded by SHA-256 before and after the API recreation.
+The `9fa04ab` release started from the `fe30975` token-breakdown Client,
+installed JS and CSS filenames derived from the release commit, and preserved
+the usage route. Its server deployment passed at `20260718210529`. Browser
+acceptance then proved that Chrome could still execute the old script body
+even though the new public file SHA was correct.
+
+The final release embeds the audited JS and CSS directly into `index.html`.
+The root HTML is served with `Cache-Control: no-cache, no-store,
+must-revalidate`, so runtime code and the release index cannot drift.
+Commit-derived external copies remain available for SHA verification, while
+the smoke fixture is also inlined and copied to a commit-derived filename.
+
+After the later usage-detail and search-favicon releases, the final Stage B
+baseline is:
+
+```text
+compose_override_sha=4f93345987c1913c8379792d54db2dea7a417106cbb978a1bae5269e07f6aa8f
+client_mount=/opt/librechat/search-favicon-fallback/14b9fc7972f5-20260718230646/client-dist
+client_index_sha=27dd78be6e3862a4297e6a20b12a758513c11ebfcd515d05b550fa32a2903921
+usage_route=/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/usage-dashboard.js
+usage_route_sha=5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9
+search_asset=search-favicon-fallback-14b9fc7972f5.js
+search_asset_sha=6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade
+```
+
+The deployment guards the usage route and search-favicon asset before and
+after the API recreation.
 
 No Nginx, MongoDB, Admin Panel, CodeAPI, RAG-API, Office Skill, model config,
 conversation, user, file, generated artifact, or WebAI/OpenWebUI resource is

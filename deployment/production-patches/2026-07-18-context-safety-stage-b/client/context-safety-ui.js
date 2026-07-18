@@ -2,8 +2,8 @@
   'use strict';
 
   const root = typeof window === 'undefined' ? null : window;
-  const VERSION = '2026-07-18-stage-b-v1';
-  const STORAGE_KEY = 'librechat-context-safety-handoff-v1';
+  const VERSION = '2026-07-18-stage-b-v2';
+  const STORAGE_KEY = 'librechat-context-safety-handoff-v2';
   const LEVELS = Object.freeze({
     none: 'none',
     notice: 'notice',
@@ -22,7 +22,11 @@
   const SUMMARY_REQUEST =
     '请为当前任务生成一份简洁的交接摘要，供新对话继续使用。不要调用任何工具，不要重新读取完整文件或历史工具输出。只写：任务目标、已完成事项、未完成事项、关键结论、当前相关文件名和下一步建议。控制在 1200 字以内。';
 
-  const normalizeSpace = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const normalizeSpace = (value) =>
+    String(value || '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   const truncate = (value, limit) => {
     const text = String(value || '').trim();
     if (text.length <= limit) {
@@ -82,6 +86,18 @@
     }
     return unique;
   };
+  const removeGenericFileLines = (value) =>
+    String(value || '')
+      .split('\n')
+      .filter(
+        (line) =>
+          !/^\s*-\s*(?:下载|Download|打开|Open|点击以打开|点击打开)\s*$/i.test(
+            normalizeSpace(line),
+          ),
+      )
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   const buildHandoffDraft = ({ previousUrl, latestUserRequest, fileNames } = {}) => {
     const files = normalizeFileNames(fileNames);
     const lines = [
@@ -99,7 +115,7 @@
       '',
       '请不要加载上一对话的完整工具输出。需要文件内容时，请让我重新附加必要文件或按明确范围读取。',
     );
-    return truncate(lines.join('\n'), 6000);
+    return truncate(removeGenericFileLines(lines.join('\n')), 6000);
   };
 
   const contract = Object.freeze({
@@ -113,6 +129,7 @@
     parseMeterValues,
     isRecursionError,
     normalizeFileNames,
+    removeGenericFileLines,
     buildHandoffDraft,
   });
 

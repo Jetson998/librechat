@@ -2,9 +2,10 @@
 
 Date: 2026-07-18
 
-Status: implementation and initial releases completed; the final
-filename-versioned follow-up is being rebased to the current combined
-production baseline before preflight and browser acceptance.
+Status: implementation and initial releases completed. The filename-versioned
+release passed server gates but failed final browser acceptance. The final
+inline follow-up is rebased to the active search-favicon Client before another
+preflight and browser acceptance.
 
 ## Objective
 
@@ -113,6 +114,48 @@ usage_route_sha=1f040de3da50029439b7b50ee7e17e81a4237b9495c70b1b2846537f02ac1f93
 This rebase changes only the release source and guard hashes. Stage B behavior
 and the token-breakdown implementation remain unchanged.
 
+The filename-versioned release completed at `20260718210529`:
+
+```text
+release_root=/opt/librechat/context-safety-ui/9fa04abc07e9-20260718210529
+backup_dir=/opt/librechat/backups/context-safety-stage-b-20260718210529
+compose_override_sha=bd122f277f134fe329eeeb555a9f970603676a2c8037b1ea7e524afaadc4307b
+client_index_sha=b238c4db3ebb81059c309d0d0d52e8568719b39e892a001d42a750ba47817a4f
+```
+
+Its public commit-derived JS had the expected SHA, but a fresh Chrome tab and
+a full reload both produced the pre-filter handoff draft ending in `- 下载`.
+The service worker only precaches upstream build assets and does not register a
+route for the custom script, so the final design removes the remaining
+subresource-cache dependency instead of adding another retry.
+
+The final builder will inline the repository-owned JS and CSS into
+`index.html`, which production serves with `Cache-Control: no-cache, no-store,
+must-revalidate`. It will retain commit-derived standalone copies for release
+hash verification and build a commit-derived, inlined smoke fixture. The new
+runtime version and session-storage key are both `v2`, and the handoff builder
+also removes generic file-control lines as a final invariant.
+
+Later usage-detail and search-favicon releases changed the active Client and
+Compose guard without changing the Stage B source contract. The final inline
+release must use this current production baseline:
+
+```text
+compose_override_sha=4f93345987c1913c8379792d54db2dea7a417106cbb978a1bae5269e07f6aa8f
+client_mount=/opt/librechat/search-favicon-fallback/14b9fc7972f5-20260718230646/client-dist
+client_index_sha=27dd78be6e3862a4297e6a20b12a758513c11ebfcd515d05b550fa32a2903921
+user_usage_script_sha=c15452691c0cad96b8846a94242cd6f9884a2c2061ac2cc8784dca8a79279546
+user_usage_style_sha=724094199fa29f77799331988748b8eef8d88c135b35abf5bea5f2c19a1a494b
+usage_route=/opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/usage-dashboard.js
+usage_route_sha=5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9
+search_asset=search-favicon-fallback-14b9fc7972f5.js
+search_asset_sha=6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade
+```
+
+The Stage B builder may replace only its own style and script markers. The
+candidate and live gates must prove the search-favicon inline runtime and its
+standalone verification asset remain unchanged.
+
 The affected production conversation is:
 
 ```text
@@ -132,7 +175,7 @@ Its rendered DOM exposes stable upstream contracts:
 
 ## Implementation Shape
 
-Create a repository-owned external asset pair:
+Maintain a repository-owned readable asset pair:
 
 ```text
 context-safety-ui.js
@@ -140,8 +183,9 @@ context-safety-ui.css
 ```
 
 The release copies the complete current mounted Client into a new versioned
-directory, installs the two assets, and injects one stylesheet marker and one
-deferred script marker into `index.html`. It must not edit
+directory, installs commit-derived standalone copies for verification, and
+inlines the same audited CSS and JS bodies into `index.html`. The inline tags
+retain `data-asset` references to the release files. It must not edit
 `assets/index.P3glMaNP.js` or replace any existing custom asset.
 
 The script exposes a frozen `window.__contextSafetyUIContract` containing its

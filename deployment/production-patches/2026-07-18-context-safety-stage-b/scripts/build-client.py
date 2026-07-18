@@ -10,18 +10,57 @@ STYLE_MARKER = 'id="context-safety-stage-b-style"'
 SCRIPT_MARKER = 'id="context-safety-stage-b"'
 
 
-def update_index(path: pathlib.Path, style_asset: str, script_asset: str) -> None:
+def read_asset(path: pathlib.Path, kind: str) -> str:
+    body = path.read_text(encoding="utf-8")
+    if re.search(rf"</{kind}", body, flags=re.IGNORECASE):
+        raise SystemExit(f"unsafe inline {kind} asset: {path}")
+    return body
+
+
+def inline_style(asset_name: str, body: str) -> str:
+    return (
+        f'<style id="context-safety-stage-b-style" data-asset="/{asset_name}">\n'
+        f'{body}\n'
+        '</style>'
+    )
+
+
+def inline_script(asset_name: str, body: str) -> str:
+    return (
+        f'<script id="context-safety-stage-b" data-asset="/{asset_name}">\n'
+        f'{body}\n'
+        '</script>'
+    )
+
+
+def replace_one(text: str, pattern: re.Pattern[str], replacement: str, label: str) -> str:
+    text, count = pattern.subn(lambda _: replacement, text, count=1)
+    if count != 1:
+        raise SystemExit(f"unexpected {label} marker count: {count}")
+    return text
+
+
+def update_index(
+    path: pathlib.Path,
+    style_asset: str,
+    script_asset: str,
+    style_body: str,
+    script_body: str,
+) -> None:
     text = path.read_text(encoding="utf-8")
-    style = (
-        f'<link id="context-safety-stage-b-style" rel="stylesheet" '
-        f'href="/{style_asset}">'
+    style = inline_style(style_asset, style_body)
+    script = inline_script(script_asset, script_body)
+    style_pattern = re.compile(
+        r'<link\s+id="context-safety-stage-b-style"[^>]*>'
+        r'|<style\s+id="context-safety-stage-b-style"[^>]*>.*?</style>',
+        flags=re.IGNORECASE | re.DOTALL,
     )
-    script = (
-        f'<script id="context-safety-stage-b" defer '
-        f'src="/{script_asset}"></script>'
+    script_pattern = re.compile(
+        r'<script\s+id="context-safety-stage-b"[^>]*>.*?</script>',
+        flags=re.IGNORECASE | re.DOTALL,
     )
-    style_count = text.count(STYLE_MARKER)
-    script_count = text.count(SCRIPT_MARKER)
+    style_count = len(style_pattern.findall(text))
+    script_count = len(script_pattern.findall(text))
 
     if style_count == 0 and script_count == 0:
         if text.count("</head>") != 1 or text.count("</body>") != 1:
@@ -29,20 +68,8 @@ def update_index(path: pathlib.Path, style_asset: str, script_asset: str) -> Non
         text = text.replace("</head>", f"{style}</head>", 1)
         text = text.replace("</body>", f"{script}</body>", 1)
     elif style_count == 1 and script_count == 1:
-        text, css_count = re.subn(
-            r'(<link id="context-safety-stage-b-style"[^>]*href=")[^"]+("[^>]*>)',
-            rf'\1/{style_asset}\2',
-            text,
-        )
-        text, js_count = re.subn(
-            r'(<script id="context-safety-stage-b"[^>]*src=")[^"]+("[^>]*>)',
-            rf'\1/{script_asset}\2',
-            text,
-        )
-        if css_count != 1 or js_count != 1:
-            raise SystemExit(
-                f"unexpected Stage B references: css={css_count} js={js_count}"
-            )
+        text = replace_one(text, style_pattern, style, "style")
+        text = replace_one(text, script_pattern, script, "script")
     else:
         raise SystemExit(
             f"mismatched Stage B markers: style={style_count} script={script_count}"
@@ -51,22 +78,27 @@ def update_index(path: pathlib.Path, style_asset: str, script_asset: str) -> Non
     path.write_text(text, encoding="utf-8")
 
 
-def update_fixture(path: pathlib.Path, style_asset: str, script_asset: str) -> None:
+def update_fixture(
+    path: pathlib.Path,
+    style_asset: str,
+    script_asset: str,
+    style_body: str,
+    script_body: str,
+) -> None:
     text = path.read_text(encoding="utf-8")
-    text, css_count = re.subn(
-        r'/context-safety-ui(?:-[A-Za-z0-9]+)?\.css(?:\?v=[^"\']+)?',
-        f'/{style_asset}',
-        text,
+    style = inline_style(style_asset, style_body)
+    script = inline_script(script_asset, script_body)
+    style_pattern = re.compile(
+        r'<link\b[^>]*href="/context-safety-ui(?:-[A-Za-z0-9]+)?\.css(?:\?[^" ]*)?"[^>]*>'
+        r'|<style\s+id="context-safety-stage-b-style"[^>]*>.*?</style>',
+        flags=re.IGNORECASE | re.DOTALL,
     )
-    text, js_count = re.subn(
-        r'/context-safety-ui(?:-[A-Za-z0-9]+)?\.js(?:\?v=[^"\']+)?',
-        f'/{script_asset}',
-        text,
+    script_pattern = re.compile(
+        r'<script\b[^>]*(?:id="context-safety-stage-b"|src="/context-safety-ui(?:-[A-Za-z0-9]+)?\.js(?:\?[^" ]*)?")[^>]*>.*?</script>',
+        flags=re.IGNORECASE | re.DOTALL,
     )
-    if css_count != 1 or js_count != 1:
-        raise SystemExit(
-            f"unexpected smoke references: css={css_count} js={js_count}"
-        )
+    text = replace_one(text, style_pattern, style, "fixture style")
+    text = replace_one(text, script_pattern, script, "fixture script")
     path.write_text(text, encoding="utf-8")
 
 
@@ -79,8 +111,10 @@ def main() -> None:
     fixture_path = pathlib.Path(sys.argv[2])
     style_asset = sys.argv[3]
     script_asset = sys.argv[4]
-    update_index(index_path, style_asset, script_asset)
-    update_fixture(fixture_path, style_asset, script_asset)
+    style_body = read_asset(index_path.parent / style_asset, "style")
+    script_body = read_asset(index_path.parent / script_asset, "script")
+    update_index(index_path, style_asset, script_asset, style_body, script_body)
+    update_fixture(fixture_path, style_asset, script_asset, style_body, script_body)
 
 
 if __name__ == "__main__":

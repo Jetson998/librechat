@@ -11,7 +11,7 @@ const stylePath = path.join(clientDir, 'context-safety-ui.css');
 const fixturePath = path.join(clientDir, 'context-safety-stage-b-smoke.html');
 const contract = require(scriptPath);
 
-assert.equal(contract.version, '2026-07-18-stage-b-v1');
+assert.equal(contract.version, '2026-07-18-stage-b-v2');
 assert.deepEqual(contract.thresholds, { notice: 70, warning: 85, critical: 95 });
 
 const boundaryCases = [
@@ -57,6 +57,7 @@ assert.ok(draft.includes('result-19.json'));
 assert.equal(draft.includes('result-20.json'), false);
 assert.equal(contract.normalizeFileNames(manyFiles).length, 20);
 assert.equal(contract.normalizeFileNames(['下载', 'Download', '打开']).length, 0);
+assert.equal(contract.removeGenericFileLines('a\n- 下载\nb\n- Open\nc'), 'a\nb\nc');
 assert.ok(contract.summaryRequest.length < 1000);
 assert.ok(contract.summaryRequest.includes('不要调用任何工具'));
 

@@ -11,9 +11,10 @@ release_commit="${RELEASE_COMMIT:?RELEASE_COMMIT is required}"
 release_key="${release_commit:0:12}"
 context_script_asset="context-safety-ui-$release_key.js"
 context_style_asset="context-safety-ui-$release_key.css"
+context_fixture_asset="context-safety-stage-b-smoke-$release_key.html"
 timestamp="$(date +%Y%m%d%H%M%S)"
-source_client="$root_dir/user-usage-breakdown/fe30975-20260718205221/client-dist"
-source_usage_route="$root_dir/user-usage-breakdown/fe30975-20260718205221/usage-dashboard.js"
+source_client="$root_dir/search-favicon-fallback/14b9fc7972f5-20260718230646/client-dist"
+source_usage_route="$root_dir/user-usage-cost-detail-availability/de2beeace561-20260718223055/usage-dashboard.js"
 release_root="$root_dir/context-safety-ui/$release_key-$timestamp"
 release_client="$release_root/client-dist"
 backup_dir="$root_dir/backups/context-safety-stage-b-$timestamp"
@@ -24,15 +25,19 @@ work_dir="$(mktemp -d /tmp/librechat-context-safety-stage-b.XXXXXX)"
 candidate_client="$work_dir/client-dist"
 candidate_override="$work_dir/compose.override.yaml"
 
-expected_override_sha="94a9bfdffeb527d7ec34b40bf36197d91b6745884692d8855e79f5c22c13a59d"
-expected_index_sha="92cc8174e9675ea3cce98a28917d391339f2bac0f8b7314ed46561d8f93105a5"
+expected_override_sha="4f93345987c1913c8379792d54db2dea7a417106cbb978a1bae5269e07f6aa8f"
+expected_index_sha="27dd78be6e3862a4297e6a20b12a758513c11ebfcd515d05b550fa32a2903921"
 expected_upload_sha="a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9"
 expected_login_sha="aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27"
-expected_usage_js_sha="2f0dabe376555f660e9e42fca7c4623ef7a74f8ef4bac1930d86f848350f2e9f"
-expected_usage_css_sha="e6ebd476540e353751e300b6b1b9c96f2448008253d682488ba3aa3753e81dbb"
-expected_usage_route_sha="1f040de3da50029439b7b50ee7e17e81a4237b9495c70b1b2846537f02ac1f93"
-expected_context_script_sha="b9d40771ae9d679c43bcf03e00a240124643b0187f496ca9771db859b891cb39"
-expected_context_style_sha="a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d"
+expected_usage_js_sha="c15452691c0cad96b8846a94242cd6f9884a2c2061ac2cc8784dca8a79279546"
+expected_usage_css_sha="724094199fa29f77799331988748b8eef8d88c135b35abf5bea5f2c19a1a494b"
+expected_usage_route_sha="5bd0bd087aab75799fb429b7da8cbb68b6947856b6fe388aeb86985a94821ba9"
+expected_source_context_script_sha="b9d40771ae9d679c43bcf03e00a240124643b0187f496ca9771db859b891cb39"
+expected_source_context_style_sha="a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d"
+expected_release_context_script_sha="7be394908eadb381fa40078d8f64a05c283ada8841998462ba92b4024a74be39"
+expected_release_context_style_sha="a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d"
+search_asset="search-favicon-fallback-14b9fc7972f5.js"
+expected_search_asset_sha="6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade"
 expected_pricing_bundle="$root_dir/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs"
 expected_pricing_bundle_sha="b9cac9721e5dcbde30b5d3b1052ba8306e15119255d4b8c53bb330ca8b089b27"
 expected_admin_image="librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85"
@@ -54,6 +59,7 @@ for path in \
   "$source_client/user-usage-dashboard.css" "$source_client/context-safety-ui.js" \
   "$source_client/context-safety-ui.css" "$asset_dir/context-safety-ui.js" \
   "$asset_dir/context-safety-ui.css" "$asset_dir/context-safety-stage-b-smoke.html" \
+  "$source_client/$search_asset" \
   "$release_test" "$client_builder"; do
   test -f "$path"
 done
@@ -65,8 +71,9 @@ test "$(sha_file "$source_client/odysseia-login.js")" = "$expected_login_sha"
 test "$(sha_file "$source_client/user-usage-dashboard.js")" = "$expected_usage_js_sha"
 test "$(sha_file "$source_client/user-usage-dashboard.css")" = "$expected_usage_css_sha"
 test "$(sha_file "$source_usage_route")" = "$expected_usage_route_sha"
-test "$(sha_file "$source_client/context-safety-ui.js")" = "$expected_context_script_sha"
-test "$(sha_file "$source_client/context-safety-ui.css")" = "$expected_context_style_sha"
+test "$(sha_file "$source_client/context-safety-ui.js")" = "$expected_source_context_script_sha"
+test "$(sha_file "$source_client/context-safety-ui.css")" = "$expected_source_context_style_sha"
+test "$(sha_file "$source_client/$search_asset")" = "$expected_search_asset_sha"
 test "$(sha_file "$expected_pricing_bundle")" = "$expected_pricing_bundle_sha"
 test "$(docker inspect LibreChat-Admin-Panel --format '{{.Config.Image}}')" = "$expected_admin_image"
 grep -Fq \
@@ -97,21 +104,36 @@ python3 "$client_builder" \
   "$candidate_client/context-safety-stage-b-smoke.html" \
   "$context_style_asset" \
   "$context_script_asset"
+cp -a \
+  "$candidate_client/context-safety-stage-b-smoke.html" \
+  "$candidate_client/$context_fixture_asset"
 
 test "$(grep -cF 'id="context-safety-stage-b-style"' "$candidate_client/index.html")" = "1"
 test "$(grep -cF 'id="context-safety-stage-b"' "$candidate_client/index.html")" = "1"
-grep -Fq "/$context_style_asset" "$candidate_client/index.html"
-grep -Fq "/$context_script_asset" "$candidate_client/index.html"
-grep -Fq "/$context_style_asset" "$candidate_client/context-safety-stage-b-smoke.html"
-grep -Fq "/$context_script_asset" "$candidate_client/context-safety-stage-b-smoke.html"
+grep -Fq "data-asset=\"/$context_style_asset\"" "$candidate_client/index.html"
+grep -Fq "data-asset=\"/$context_script_asset\"" "$candidate_client/index.html"
+grep -Fq "data-asset=\"/$context_style_asset\"" "$candidate_client/$context_fixture_asset"
+grep -Fq "data-asset=\"/$context_script_asset\"" "$candidate_client/$context_fixture_asset"
+grep -Fq '2026-07-18-stage-b-v2' "$candidate_client/index.html"
+grep -Fq 'removeGenericFileLines' "$candidate_client/index.html"
+! grep -Eq 'id="context-safety-stage-b-style"[^>]+href=' "$candidate_client/index.html"
+! grep -Eq 'id="context-safety-stage-b"[^>]+src=' "$candidate_client/index.html"
 grep -Fq 'business-upload-label-patch' "$candidate_client/index.html"
 grep -Fq 'odysseia-login-page-patch' "$candidate_client/index.html"
 grep -Fq 'user-usage-dashboard.js' "$candidate_client/index.html"
+grep -Fq 'user-usage-dashboard.js?v=de2beeace561' "$candidate_client/index.html"
 grep -Fq './assets/index.P3glMaNP.js' "$candidate_client/index.html"
+grep -Fq "data-asset=\"/$search_asset\"" "$candidate_client/index.html"
+grep -Fq '2026-07-18-search-favicon-v1' "$candidate_client/index.html"
+grep -Fq 'createFallbackDataUri' "$candidate_client/index.html"
+! grep -Eq 'id="search-favicon-fallback"[^>]+src=' "$candidate_client/index.html"
+test "$(sha_file "$candidate_client/$search_asset")" = "$expected_search_asset_sha"
 test "$(sha_file "$candidate_client/business-upload-menu.js")" = "$expected_upload_sha"
 test "$(sha_file "$candidate_client/odysseia-login.js")" = "$expected_login_sha"
 test "$(sha_file "$candidate_client/user-usage-dashboard.js")" = "$expected_usage_js_sha"
 test "$(sha_file "$candidate_client/user-usage-dashboard.css")" = "$expected_usage_css_sha"
+test "$(sha_file "$candidate_client/$context_script_asset")" = "$expected_release_context_script_sha"
+test "$(sha_file "$candidate_client/$context_style_asset")" = "$expected_release_context_style_sha"
 
 python3 - "$compose_override" "$candidate_override" "$release_client" <<'PY'
 import sys
@@ -149,9 +171,12 @@ source_client=$source_client
 source_index_sha=$expected_index_sha
 source_usage_route=$source_usage_route
 source_usage_route_sha=$expected_usage_route_sha
+search_asset=$search_asset
+search_asset_sha=$(sha_file "$candidate_client/$search_asset")
 candidate_index_sha=$(sha_file "$candidate_client/index.html")
 context_script_asset=$context_script_asset
 context_style_asset=$context_style_asset
+context_fixture_asset=$context_fixture_asset
 context_script_sha=$(sha_file "$candidate_client/$context_script_asset")
 context_style_sha=$(sha_file "$candidate_client/$context_style_asset")
 protected_client_assets=ok
@@ -210,7 +235,7 @@ root_status="$(curl -ksS -o "$work_dir/live-index.html" -w '%{http_code}' https:
 api_status="$(curl -ksS -o "$work_dir/live-api-config.json" -w '%{http_code}' https://152.32.172.162.sslip.io/api/config)"
 office_status="$(curl -ksS -o /dev/null -w '%{http_code}' https://152.32.172.162.sslip.io/office/)"
 usage_status="$(curl -ksS -o /dev/null -w '%{http_code}' https://152.32.172.162.sslip.io/api/user/usage-dashboard)"
-smoke_status="$(curl -ksS -o "$work_dir/live-smoke.html" -w '%{http_code}' "https://152.32.172.162.sslip.io/context-safety-stage-b-smoke.html?level=70")"
+smoke_status="$(curl -ksS -o "$work_dir/live-smoke.html" -w '%{http_code}' "https://152.32.172.162.sslip.io/$context_fixture_asset?level=70")"
 curl -ksSf -o "$work_dir/live-context-safety-ui.js" "https://152.32.172.162.sslip.io/$context_script_asset"
 curl -ksSf -o "$work_dir/live-context-safety-ui.css" "https://152.32.172.162.sslip.io/$context_style_asset"
 curl -ksSf -o "$work_dir/live-upload.js" https://152.32.172.162.sslip.io/business-upload-menu.js
@@ -223,20 +248,33 @@ test "$api_status" = "200"
 test "$office_status" = "401"
 test "$usage_status" = "401"
 test "$smoke_status" = "200"
-grep -Fq "/$context_script_asset" "$work_dir/live-index.html"
-grep -Fq "/$context_style_asset" "$work_dir/live-index.html"
+grep -Fq "data-asset=\"/$context_script_asset\"" "$work_dir/live-index.html"
+grep -Fq "data-asset=\"/$context_style_asset\"" "$work_dir/live-index.html"
+grep -Fq '2026-07-18-stage-b-v2' "$work_dir/live-index.html"
+grep -Fq 'removeGenericFileLines' "$work_dir/live-index.html"
+! grep -Eq 'id="context-safety-stage-b-style"[^>]+href=' "$work_dir/live-index.html"
+! grep -Eq 'id="context-safety-stage-b"[^>]+src=' "$work_dir/live-index.html"
 grep -Fq 'business-upload-label-patch' "$work_dir/live-index.html"
 grep -Fq 'odysseia-login-page-patch' "$work_dir/live-index.html"
 grep -Fq 'user-usage-dashboard.js' "$work_dir/live-index.html"
+grep -Fq 'user-usage-dashboard.js?v=de2beeace561' "$work_dir/live-index.html"
+grep -Fq "data-asset=\"/$search_asset\"" "$work_dir/live-index.html"
+grep -Fq '2026-07-18-search-favicon-v1' "$work_dir/live-index.html"
+grep -Fq 'createFallbackDataUri' "$work_dir/live-index.html"
+! grep -Eq 'id="search-favicon-fallback"[^>]+src=' "$work_dir/live-index.html"
 grep -Fq 'context-safety-stage-b' "$work_dir/live-smoke.html"
-grep -Fq "/$context_script_asset" "$work_dir/live-smoke.html"
-grep -Fq "/$context_style_asset" "$work_dir/live-smoke.html"
+grep -Fq "data-asset=\"/$context_script_asset\"" "$work_dir/live-smoke.html"
+grep -Fq "data-asset=\"/$context_style_asset\"" "$work_dir/live-smoke.html"
 grep -Fq '__contextSafetyUIContract' "$work_dir/live-context-safety-ui.js"
 grep -Fq '#context-safety-ui-banner' "$work_dir/live-context-safety-ui.css"
+test "$(sha_file "$work_dir/live-context-safety-ui.js")" = "$expected_release_context_script_sha"
+test "$(sha_file "$work_dir/live-context-safety-ui.css")" = "$expected_release_context_style_sha"
 test "$(sha_file "$work_dir/live-upload.js")" = "$expected_upload_sha"
 test "$(sha_file "$work_dir/live-login.js")" = "$expected_login_sha"
 test "$(sha_file "$work_dir/live-usage.js")" = "$expected_usage_js_sha"
 test "$(sha_file "$work_dir/live-usage.css")" = "$expected_usage_css_sha"
+curl -ksSf -o "$work_dir/live-search-favicon.js" "https://152.32.172.162.sslip.io/$search_asset"
+test "$(sha_file "$work_dir/live-search-favicon.js")" = "$expected_search_asset_sha"
 
 active_client_after="$(docker inspect LibreChat-API --format '{{range .Mounts}}{{if eq .Destination "/app/client/dist"}}{{.Source}}{{end}}{{end}}')"
 test "$active_client_after" = "$release_client"
@@ -267,8 +305,11 @@ client_index_before=$expected_index_sha
 client_index_after=$(sha_file "$release_client/index.html")
 context_script_asset=$context_script_asset
 context_style_asset=$context_style_asset
+context_fixture_asset=$context_fixture_asset
 context_script_sha=$(sha_file "$release_client/$context_script_asset")
 context_style_sha=$(sha_file "$release_client/$context_style_asset")
+search_asset=$search_asset
+search_asset_sha=$(sha_file "$release_client/$search_asset")
 api_container_before=$api_id_before
 api_container_after=$api_id_after
 protected_containers_unchanged=true
