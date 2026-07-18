@@ -2,7 +2,12 @@
 
 Date: 2026-07-18
 
-Status: design approved; implementation pending.
+Status: deployed and browser-verified.
+
+Final release commit: `fe30975`
+
+Production hashes, container boundaries, browser acceptance, and NewAPI
+reconciliation results are recorded in `DEPLOY_RESULT.md`.
 
 ## Objective
 
