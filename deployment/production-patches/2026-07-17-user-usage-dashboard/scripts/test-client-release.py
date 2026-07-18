@@ -12,6 +12,8 @@ for marker in [
     "时间</th><th>模型</th><th>对话实例</th><th>轮次</th><th>Token 消耗</th><th>费用消耗",
     "近 7 天", "近 30 天", "全部",
     'data-view="overview"', 'data-view="logs"',
+    'data-chart-tooltip', 'lc-usage-axis-label', 'lc-usage-model-chart',
+    'pointermove', 'focusin',
     "页面 ${state.page} / ${totalPages}", "上一页", "下一页",
     "data-filter-toggle", "event.key !== 'Escape'", "input.blur()",
 ]:

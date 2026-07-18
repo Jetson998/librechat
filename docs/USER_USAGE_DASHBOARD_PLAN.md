@@ -4,6 +4,20 @@ Date: 2026-07-17
 
 Status: implemented; native-style UI refinement prepared for release.
 
+## Chart Interaction Gate (2026-07-18)
+
+The trend and model-distribution surfaces must display real chart semantics:
+
+- five labeled Y-axis ticks and sampled date labels;
+- a formatted date, metric, and value tooltip for every trend point;
+- keyboard focus support for chart data points;
+- a Token-distribution donut with a persistent model/value/percentage legend;
+- a model, Token, and percentage tooltip for donut segments and legend rows;
+- dark-mode and narrow-screen behavior without clipped labels.
+
+This remains a lightweight native Client patch. Ant Design Charts is a visual
+reference only and is not added as a runtime dependency.
+
 ## UI Refinement Gate (2026-07-18)
 
 The customer-facing surface follows the existing LibreChat `设置` and `我的文件`

@@ -48,6 +48,20 @@
     }).format(Number(value || 0));
   };
 
+  const formatChartValue = (value, key, currency) => {
+    if (key === 'cost') return formatCost(value, currency);
+    if (key === 'conversationInstances') return formatNumber(value, 0);
+    return formatNumber(value, 1);
+  };
+
+  const niceMaximum = (value) => {
+    if (!Number.isFinite(value) || value <= 0) return 1;
+    const magnitude = 10 ** Math.floor(Math.log10(value));
+    const normalized = value / magnitude;
+    const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    return step * magnitude;
+  };
+
   const formatTimestamp = (value) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '-';
@@ -132,7 +146,8 @@
             </div>
           </div>
         </div>
-      </section>`;
+      </section>
+      <div class="lc-usage-chart-tooltip" data-role="chart-tooltip" role="tooltip" hidden></div>`;
 
     overlay.addEventListener('click', (event) => {
       const action = event.target.closest('[data-action]')?.dataset.action;
@@ -167,6 +182,41 @@
           options.hidden = true;
         });
       }
+    });
+
+    const tooltip = overlay.querySelector('[data-role="chart-tooltip"]');
+    const showChartTooltip = (target, clientX, clientY) => {
+      const content = target?.dataset?.chartTooltip;
+      if (!content) return;
+      tooltip.textContent = content;
+      tooltip.hidden = false;
+      const width = tooltip.offsetWidth;
+      const height = tooltip.offsetHeight;
+      tooltip.style.left = `${Math.min(window.innerWidth - width - 12, Math.max(12, clientX + 12))}px`;
+      tooltip.style.top = `${Math.min(window.innerHeight - height - 12, Math.max(12, clientY - height - 12))}px`;
+    };
+    const hideChartTooltip = () => {
+      tooltip.hidden = true;
+    };
+    overlay.addEventListener('pointerover', (event) => {
+      const target = event.target.closest('[data-chart-tooltip]');
+      if (target) showChartTooltip(target, event.clientX, event.clientY);
+    });
+    overlay.addEventListener('pointermove', (event) => {
+      const target = event.target.closest('[data-chart-tooltip]');
+      if (target) showChartTooltip(target, event.clientX, event.clientY);
+    });
+    overlay.addEventListener('pointerout', (event) => {
+      if (event.target.closest('[data-chart-tooltip]')) hideChartTooltip();
+    });
+    overlay.addEventListener('focusin', (event) => {
+      const target = event.target.closest('[data-chart-tooltip]');
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      showChartTooltip(target, rect.left + rect.width / 2, rect.top);
+    });
+    overlay.addEventListener('focusout', (event) => {
+      if (event.target.closest('[data-chart-tooltip]')) hideChartTooltip();
     });
 
     document.body.appendChild(overlay);
@@ -206,44 +256,95 @@
     if (!values.length || Math.max(...values) <= 0) {
       return '<div class="lc-usage-empty lc-usage-chart-empty">当前周期暂无趋势数据</div>';
     }
-    const width = 720;
-    const height = 210;
-    const padding = 24;
-    const max = Math.max(...values);
-    const step = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0;
+    const width = 760;
+    const height = 240;
+    const padding = { left: 62, right: 18, top: 18, bottom: 38 };
+    const max = niceMaximum(Math.max(...values));
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+    const step = values.length > 1 ? plotWidth / (values.length - 1) : 0;
     const points = values.map((value, index) => {
-      const x = values.length > 1 ? padding + index * step : width / 2;
-      const y = height - padding - (value / max) * (height - padding * 2);
+      const x = values.length > 1 ? padding.left + index * step : padding.left + plotWidth / 2;
+      const y = padding.top + plotHeight - (value / max) * plotHeight;
       return [x, y];
     });
     const polyline = points.map(([x, y]) => `${x},${y}`).join(' ');
-    const area = `${padding},${height - padding} ${polyline} ${points.at(-1)[0]},${height - padding}`;
+    const baseline = padding.top + plotHeight;
+    const area = `${points[0][0]},${baseline} ${polyline} ${points.at(-1)[0]},${baseline}`;
     const latest = values.at(-1);
-    const latestText = key === 'cost' ? formatCost(latest, currency) : formatNumber(latest);
+    const latestText = formatChartValue(latest, key, currency);
+    const yTicks = Array.from({ length: 5 }, (_, index) => {
+      const value = max - (max / 4) * index;
+      const y = padding.top + (plotHeight / 4) * index;
+      return { value, y };
+    });
+    const labelStep = Math.max(1, Math.ceil(trends.length / 6));
     return `
       <div class="lc-usage-chart-summary"><span>${labels[key]}</span><strong>${latestText}</strong></div>
-      <svg class="lc-usage-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${labels[key]}趋势">
-        <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" />
-        <polygon points="${area}" />
-        <polyline points="${polyline}" />
-        ${points.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3" />`).join('')}
-      </svg>
-      <div class="lc-usage-chart-dates"><span>${escapeHtml(trends[0].date)}</span><span>${escapeHtml(trends.at(-1).date)}</span></div>`;
+      <div class="lc-usage-chart-plot">
+        <svg class="lc-usage-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${labels[key]}趋势">
+          ${yTicks
+            .map(
+              ({ value, y }) => `
+                <line class="lc-usage-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" />
+                <text class="lc-usage-axis-label lc-usage-axis-y" x="${padding.left - 9}" y="${y + 3}">${escapeHtml(formatChartValue(value, key, currency))}</text>`,
+            )
+            .join('')}
+          <polygon class="lc-usage-chart-area" points="${area}" />
+          <polyline class="lc-usage-chart-line" points="${polyline}" />
+          ${points
+            .map(([x, y], index) => {
+              const tooltipText = `${trends[index].date} · ${labels[key]}：${formatChartValue(values[index], key, currency)}`;
+              return `<circle class="lc-usage-chart-hit" cx="${x}" cy="${y}" r="10" tabindex="0" data-chart-tooltip="${escapeHtml(tooltipText)}" aria-label="${escapeHtml(tooltipText)}" /><circle class="lc-usage-chart-point" cx="${x}" cy="${y}" r="3.5" />`;
+            })
+            .join('')}
+          ${trends
+            .map((item, index) => {
+              if (index % labelStep !== 0 && index !== trends.length - 1) return '';
+              const x = points[index][0];
+              return `<text class="lc-usage-axis-label lc-usage-axis-x" x="${x}" y="${height - 10}">${escapeHtml(item.date.slice(5))}</text>`;
+            })
+            .join('')}
+        </svg>
+      </div>`;
   }
 
   function renderModelDistribution(models) {
     if (!models.length) return '<div class="lc-usage-empty">当前周期暂无模型数据</div>';
-    return models
-      .slice(0, 5)
-      .map(
-        (item) => `
-          <div class="lc-usage-model-row">
-            <div class="lc-usage-model-name">${providerLogo(item)}<span>${escapeHtml(item.model)}</span></div>
-            <strong>${item.percentage}%</strong>
-            <div class="lc-usage-bar"><i style="width:${Math.max(1, item.percentage)}%"></i></div>
-          </div>`,
-      )
+    const colors = ['#1677ff', '#13a8a8', '#fa8c16', '#722ed1', '#52c41a'];
+    const visible = models.slice(0, 5);
+    const circumference = 2 * Math.PI * 54;
+    let offset = 0;
+    const segments = visible
+      .map((item, index) => {
+        const length = (Math.max(0, item.percentage) / 100) * circumference;
+        const tooltipText = `${item.model} · ${formatNumber(item.tokens)} Token · ${item.percentage}%`;
+        const segment = `<circle class="lc-usage-model-segment" cx="78" cy="78" r="54" fill="none" stroke="${colors[index]}" stroke-width="20" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" transform="rotate(-90 78 78)" tabindex="0" data-chart-tooltip="${escapeHtml(tooltipText)}" aria-label="${escapeHtml(tooltipText)}" />`;
+        offset += length;
+        return segment;
+      })
       .join('');
+    const totalTokens = visible.reduce((total, item) => total + Number(item.tokens || 0), 0);
+    return `
+      <div class="lc-usage-model-chart-layout">
+        <svg class="lc-usage-model-chart" viewBox="0 0 156 156" role="img" aria-label="模型 Token 分布">
+          <circle class="lc-usage-model-track" cx="78" cy="78" r="54" fill="none" stroke-width="20" />
+          ${segments}
+          <text class="lc-usage-model-total" x="78" y="74">${escapeHtml(formatNumber(totalTokens))}</text>
+          <text class="lc-usage-model-total-label" x="78" y="92">Token</text>
+        </svg>
+        <div class="lc-usage-model-legend">
+          ${visible
+            .map(
+              (item, index) => `
+                <div class="lc-usage-model-row" tabindex="0" data-chart-tooltip="${escapeHtml(`${item.model} · ${formatNumber(item.tokens)} Token · ${item.percentage}%`)}">
+                  <div class="lc-usage-model-name"><i style="background:${colors[index]}"></i>${providerLogo(item)}<span>${escapeHtml(item.model)}</span></div>
+                  <strong>${formatNumber(item.tokens)} · ${item.percentage}%</strong>
+                </div>`,
+            )
+            .join('')}
+        </div>
+      </div>`;
   }
 
   function renderLogs(data) {

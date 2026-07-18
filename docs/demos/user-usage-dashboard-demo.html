@@ -728,66 +728,165 @@
       }
 
       .chart-wrap {
+        position: relative;
         flex: 1;
         min-height: 0;
         padding: 14px;
       }
 
-      #usageChart {
+      .trend-chart {
         display: block;
         width: 100%;
         height: 100%;
+        min-height: 180px;
+        overflow: visible;
+      }
+
+      .chart-grid {
+        stroke: #e8eaed;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .chart-axis-label {
+        fill: var(--muted);
+        font-family: inherit;
+        font-size: 9px;
+      }
+
+      .chart-axis-y { text-anchor: end; }
+      .chart-axis-x { text-anchor: middle; }
+      .chart-area { fill: rgb(15 118 110 / 9%); }
+
+      .chart-line {
+        fill: none;
+        stroke: var(--brand);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2.4;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .chart-point {
+        pointer-events: none;
+        fill: #fff;
+        stroke: var(--brand);
+        stroke-width: 2;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .chart-hit {
+        cursor: crosshair;
+        fill: transparent;
+        stroke: transparent;
+      }
+
+      .chart-hit:hover + .chart-point,
+      .chart-hit:focus + .chart-point {
+        fill: var(--brand);
+        stroke: #fff;
+        stroke-width: 3;
+        r: 5px;
+      }
+
+      .chart-tooltip {
+        position: fixed;
+        z-index: 30;
+        max-width: min(280px, calc(100vw - 24px));
+        padding: 7px 9px;
+        border-radius: 5px;
+        background: #1f2329;
+        box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+        color: #fff;
+        font-size: 11px;
+        line-height: 1.4;
+        pointer-events: none;
       }
 
       .model-list {
-        display: flex;
+        display: grid;
         flex: 1;
         min-height: 0;
-        flex-direction: column;
-        justify-content: center;
-        gap: 18px;
+        grid-template-columns: minmax(120px, .85fr) minmax(150px, 1.15fr);
+        align-items: center;
+        gap: 10px;
         padding: 16px;
+      }
+
+      .model-chart {
+        display: block;
+        width: 100%;
+        max-width: 170px;
+        margin: auto;
+        overflow: visible;
+      }
+
+      .model-track { stroke: #edf0f2; }
+
+      .model-segment {
+        cursor: pointer;
+        transition: opacity 120ms ease, stroke-width 120ms ease;
+      }
+
+      .model-segment:hover,
+      .model-segment:focus {
+        opacity: .82;
+        stroke-width: 24;
+      }
+
+      .model-total,
+      .model-total-label {
+        text-anchor: middle;
+        fill: var(--text);
+        font-family: inherit;
+      }
+
+      .model-total { font-size: 17px; font-weight: 700; }
+      .model-total-label { fill: var(--muted); font-size: 9px; }
+
+      .model-legend {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 9px;
       }
 
       .model-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 8px 12px;
-        font-size: 13px;
+        align-items: center;
+        gap: 8px;
+        padding: 4px;
+        border-radius: 4px;
+        font-size: 11px;
+      }
+
+      .model-row:hover,
+      .model-row:focus {
+        background: #f4f5f6;
+        outline: none;
       }
 
       .model-name-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         font-weight: 620;
       }
 
+      .model-name-row i {
+        width: 7px;
+        height: 7px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+      }
+
       .model-value {
         color: var(--muted);
         font-variant-numeric: tabular-nums;
-      }
-
-      .bar-track {
-        grid-column: 1 / -1;
-        height: 6px;
-        overflow: hidden;
-        border-radius: 3px;
-        background: #edf0f2;
-      }
-
-      .bar-fill {
-        height: 100%;
-        border-radius: 3px;
-        background: var(--brand);
-      }
-
-      .model-row:nth-child(2) .bar-fill {
-        background: var(--blue);
-      }
-
-      .model-row:nth-child(3) .bar-fill {
-        background: var(--amber);
       }
 
       .requests {
@@ -1400,6 +1499,14 @@
           width: 100%;
         }
 
+        .model-list {
+          grid-template-columns: 1fr;
+        }
+
+        .model-chart {
+          max-width: 150px;
+        }
+
         .metric {
           padding: 12px;
         }
@@ -1575,7 +1682,7 @@
                     </article>
                     <article class="metric" data-tone="cost">
                       <div class="metric-label"><span>费用消耗</span><span class="metric-dot"></span></div>
-                      <div class="metric-value" data-metric="cost">¥128.64</div>
+                      <div class="metric-value" data-metric="cost">$18.12</div>
                       <div class="metric-meta">对话请求 Token 的费用</div>
                     </article>
                   </div>
@@ -1625,7 +1732,7 @@
                       <button class="trend-tab" type="button" data-trend="cost">费用消耗</button>
                     </div>
                   </div>
-                  <div class="chart-wrap"><canvas id="usageChart"></canvas></div>
+                  <div class="chart-wrap" id="usageChart"></div>
                 </section>
 
                 <section class="surface" aria-labelledby="modelTitle">
@@ -1634,17 +1741,18 @@
                     <span class="menu-note">按 Token 消耗</span>
                   </div>
                   <div class="model-list">
-                    <div class="model-row">
-                      <span class="model-name-row">GPT-5.6-Sol</span><span class="model-value">61%</span>
-                      <div class="bar-track"><div class="bar-fill" style="width: 61%"></div></div>
-                    </div>
-                    <div class="model-row">
-                      <span class="model-name-row">Claude Fable 5</span><span class="model-value">27%</span>
-                      <div class="bar-track"><div class="bar-fill" style="width: 27%"></div></div>
-                    </div>
-                    <div class="model-row">
-                      <span class="model-name-row">其他模型</span><span class="model-value">12%</span>
-                      <div class="bar-track"><div class="bar-fill" style="width: 12%"></div></div>
+                    <svg class="model-chart" viewBox="0 0 156 156" role="img" aria-label="模型 Token 分布">
+                      <circle class="model-track" cx="78" cy="78" r="54" fill="none" stroke-width="20"></circle>
+                      <circle class="model-segment" cx="78" cy="78" r="54" fill="none" stroke="#1677ff" stroke-width="20" stroke-dasharray="206.97 132.32" stroke-dashoffset="0" transform="rotate(-90 78 78)" tabindex="0" data-chart-tooltip="GPT-5.6-Sol · 1.51M Token · 61%"></circle>
+                      <circle class="model-segment" cx="78" cy="78" r="54" fill="none" stroke="#13a8a8" stroke-width="20" stroke-dasharray="91.61 247.68" stroke-dashoffset="-206.97" transform="rotate(-90 78 78)" tabindex="0" data-chart-tooltip="Claude Fable 5 · 670K Token · 27%"></circle>
+                      <circle class="model-segment" cx="78" cy="78" r="54" fill="none" stroke="#fa8c16" stroke-width="20" stroke-dasharray="40.72 298.57" stroke-dashoffset="-298.58" transform="rotate(-90 78 78)" tabindex="0" data-chart-tooltip="其他模型 · 298K Token · 12%"></circle>
+                      <text class="model-total" x="78" y="74">2.48M</text>
+                      <text class="model-total-label" x="78" y="92">Token</text>
+                    </svg>
+                    <div class="model-legend">
+                      <div class="model-row" tabindex="0" data-chart-tooltip="GPT-5.6-Sol · 1.51M Token · 61%"><span class="model-name-row"><i style="background:#1677ff"></i>GPT-5.6-Sol</span><span class="model-value">1.51M · 61%</span></div>
+                      <div class="model-row" tabindex="0" data-chart-tooltip="Claude Fable 5 · 670K Token · 27%"><span class="model-name-row"><i style="background:#13a8a8"></i>Claude Fable 5</span><span class="model-value">670K · 27%</span></div>
+                      <div class="model-row" tabindex="0" data-chart-tooltip="其他模型 · 298K Token · 12%"><span class="model-name-row"><i style="background:#fa8c16"></i>其他模型</span><span class="model-value">298K · 12%</span></div>
                     </div>
                   </div>
                 </section>
@@ -1719,6 +1827,8 @@
       </main>
     </div>
 
+    <div class="chart-tooltip" id="chartTooltip" role="tooltip" hidden></div>
+
     <script>
       const profileButton = document.getElementById('profileButton');
       const profileMenu = document.getElementById('profileMenu');
@@ -1735,14 +1845,51 @@
       const resultCount = document.getElementById('resultCount');
       const viewTabs = document.querySelectorAll('.view-tab');
       const viewPanes = document.querySelectorAll('[data-view-pane]');
+      const chartTooltip = document.getElementById('chartTooltip');
 
       const rows = [
-        { time: '2026-07-17 14:32', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '23.0K', cost: '¥1.26', turn: 4 },
-        { time: '2026-07-17 13:58', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '17.6K', cost: '¥0.94', turn: 3 },
-        { time: '2026-07-17 11:08', ageDays: 0, model: 'Claude Fable 5', vendor: 'anthropic', instance: '季度数据分析与总结', instanceId: 'c_5ad740', tokens: '49.7K', cost: '¥3.84', turn: 7 },
-        { time: '2026-07-16 16:20', ageDays: 1, model: 'GPT-5.6-Sol', vendor: 'openai', instance: '产品需求文档优化', instanceId: 'c_ef82a6', tokens: '15.2K', cost: '¥0.86', turn: 3 },
-        { time: '2026-06-01 10:14', ageDays: 46, model: 'Claude Fable 5', vendor: 'anthropic', instance: '客户会议纪要整理', instanceId: 'c_19ce30', tokens: '8.4K', cost: '¥0.62', turn: 2 },
+        { time: '2026-07-17 14:32', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '23.0K', cost: '$0.18', turn: 4 },
+        { time: '2026-07-17 13:58', ageDays: 0, model: 'GPT-5.6-Sol', vendor: 'openai', instance: 'API 渠道模型来源说明', instanceId: 'c_8f29b1', tokens: '17.6K', cost: '$0.13', turn: 3 },
+        { time: '2026-07-17 11:08', ageDays: 0, model: 'Claude Fable 5', vendor: 'anthropic', instance: '季度数据分析与总结', instanceId: 'c_5ad740', tokens: '49.7K', cost: '$0.54', turn: 7 },
+        { time: '2026-07-16 16:20', ageDays: 1, model: 'GPT-5.6-Sol', vendor: 'openai', instance: '产品需求文档优化', instanceId: 'c_ef82a6', tokens: '15.2K', cost: '$0.12', turn: 3 },
+        { time: '2026-06-01 10:14', ageDays: 46, model: 'Claude Fable 5', vendor: 'anthropic', instance: '客户会议纪要整理', instanceId: 'c_19ce30', tokens: '8.4K', cost: '$0.09', turn: 2 },
       ];
+
+      function showChartTooltip(target, clientX, clientY) {
+        const content = target?.dataset?.chartTooltip;
+        if (!content) return;
+        chartTooltip.textContent = content;
+        chartTooltip.hidden = false;
+        const width = chartTooltip.offsetWidth;
+        const height = chartTooltip.offsetHeight;
+        chartTooltip.style.left = `${Math.min(window.innerWidth - width - 12, Math.max(12, clientX + 12))}px`;
+        chartTooltip.style.top = `${Math.min(window.innerHeight - height - 12, Math.max(12, clientY - height - 12))}px`;
+      }
+
+      function hideChartTooltip() {
+        chartTooltip.hidden = true;
+      }
+
+      document.addEventListener('pointerover', (event) => {
+        const target = event.target.closest('[data-chart-tooltip]');
+        if (target) showChartTooltip(target, event.clientX, event.clientY);
+      });
+      document.addEventListener('pointermove', (event) => {
+        const target = event.target.closest('[data-chart-tooltip]');
+        if (target) showChartTooltip(target, event.clientX, event.clientY);
+      });
+      document.addEventListener('pointerout', (event) => {
+        if (event.target.closest('[data-chart-tooltip]')) hideChartTooltip();
+      });
+      document.addEventListener('focusin', (event) => {
+        const target = event.target.closest('[data-chart-tooltip]');
+        if (!target) return;
+        const rect = target.getBoundingClientRect();
+        showChartTooltip(target, rect.left + rect.width / 2, rect.top);
+      });
+      document.addEventListener('focusout', (event) => {
+        if (event.target.closest('[data-chart-tooltip]')) hideChartTooltip();
+      });
 
       const normalize = (value) => value.trim().toLocaleLowerCase('zh-CN');
 
@@ -1916,95 +2063,53 @@
       };
 
       const metricSets = {
-        7: ['684K', '¥35.72', '14', '31', '12.8K', '2.2'],
-        30: ['2.48M', '¥128.64', '42', '118', '18.6K', '2.8'],
-        all: ['7.91M', '¥416.08', '97', '362', '21.4K', '3.7'],
+        7: ['684K', '$5.03', '14', '31', '12.8K', '2.2'],
+        30: ['2.48M', '$18.12', '42', '118', '18.6K', '2.8'],
+        all: ['7.91M', '$58.60', '97', '362', '21.4K', '3.7'],
       };
 
       let currentRange = '30';
       let currentTrend = 'tokens';
 
       function drawChart(range) {
-        const canvas = document.getElementById('usageChart');
-        const rect = canvas.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-        canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-        const ctx = canvas.getContext('2d');
-        ctx.scale(dpr, dpr);
-
-        const width = rect.width;
-        const height = rect.height;
-        const pad = { left: 38, right: 8, top: 8, bottom: 26 };
+        const root = document.getElementById('usageChart');
+        const width = 760;
+        const height = 240;
+        const pad = { left: 62, right: 18, top: 18, bottom: 38 };
         const plotW = width - pad.left - pad.right;
         const plotH = height - pad.top - pad.bottom;
         const data = chartSets[range];
         const values = data[currentTrend];
-        const stepSize = currentTrend === 'tokens' ? 100 : 10;
-        const max = Math.ceil((Math.max(...values) * 1.15) / stepSize) * stepSize;
-
-        ctx.clearRect(0, 0, width, height);
-        ctx.font = '10px system-ui';
-        ctx.textBaseline = 'middle';
-
-        for (let i = 0; i <= 3; i += 1) {
-          const y = pad.top + (plotH / 3) * i;
-          ctx.strokeStyle = '#e9ecef';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(pad.left, y);
-          ctx.lineTo(width - pad.right, y);
-          ctx.stroke();
-          ctx.fillStyle = '#8a9098';
-          ctx.textAlign = 'right';
-          const tick = max - (max / 3) * i;
-          const tickLabel = currentTrend === 'tokens' || currentTrend === 'context'
-            ? `${Math.round(tick)}K`
-            : currentTrend === 'cost'
-              ? `¥${tick.toFixed(0)}`
-              : `${Math.round(tick)}`;
-          ctx.fillText(tickLabel, pad.left - 7, y);
-        }
+        const magnitude = 10 ** Math.floor(Math.log10(Math.max(...values)));
+        const normalized = Math.max(...values) / magnitude;
+        const max = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
 
         const xFor = (index) => pad.left + (plotW * index) / (data.labels.length - 1);
         const yFor = (value) => pad.top + plotH - (value / max) * plotH;
-
-        function drawSeries(values, color) {
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          values.forEach((value, index) => {
-            const x = xFor(index);
-            const y = yFor(value);
-            if (index === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          });
-          ctx.stroke();
-
-          values.forEach((value, index) => {
-            ctx.fillStyle = '#ffffff';
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(xFor(index), yFor(value), 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-          });
-        }
-
-        const trendColors = { tokens: '#0f766e', instances: '#2563eb', context: '#0891b2', cost: '#c2410c' };
-        drawSeries(values, trendColors[currentTrend]);
-
-        ctx.fillStyle = '#8a9098';
-        ctx.textAlign = 'center';
-        const step = data.labels.length > 9 ? 2 : 1;
-        data.labels.forEach((label, index) => {
-          if (index % step === 0 || index === data.labels.length - 1) {
-            ctx.fillText(label, xFor(index), height - 8);
-          }
-        });
+        const formatValue = (value) => currentTrend === 'cost'
+          ? `$${value.toFixed(1)}`
+          : currentTrend === 'instances'
+            ? `${Math.round(value)}`
+            : `${Number(value.toFixed(1))}K`;
+        const points = values.map((value, index) => [xFor(index), yFor(value)]);
+        const polyline = points.map(([x, y]) => `${x},${y}`).join(' ');
+        const baseline = pad.top + plotH;
+        const area = `${points[0][0]},${baseline} ${polyline} ${points.at(-1)[0]},${baseline}`;
+        const ticks = Array.from({ length: 5 }, (_, index) => ({
+          value: max - (max / 4) * index,
+          y: pad.top + (plotH / 4) * index,
+        }));
+        const labelStep = Math.max(1, Math.ceil(data.labels.length / 6));
+        root.innerHTML = `<svg class="trend-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="用量趋势">
+          ${ticks.map(({ value, y }) => `<line class="chart-grid" x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}"></line><text class="chart-axis-label chart-axis-y" x="${pad.left - 9}" y="${y + 3}">${formatValue(value)}</text>`).join('')}
+          <polygon class="chart-area" points="${area}"></polygon>
+          <polyline class="chart-line" points="${polyline}"></polyline>
+          ${points.map(([x, y], index) => {
+            const tooltip = `${data.labels[index]} · ${document.querySelector(`[data-trend="${currentTrend}"]`).textContent}：${formatValue(values[index])}`;
+            return `<circle class="chart-hit" cx="${x}" cy="${y}" r="11" tabindex="0" data-chart-tooltip="${tooltip}"></circle><circle class="chart-point" cx="${x}" cy="${y}" r="3.5"></circle>`;
+          }).join('')}
+          ${data.labels.map((label, index) => index % labelStep === 0 || index === data.labels.length - 1 ? `<text class="chart-axis-label chart-axis-x" x="${points[index][0]}" y="${height - 10}">${label}</text>` : '').join('')}
+        </svg>`;
       }
 
       document.querySelectorAll('.segment').forEach((button) => {

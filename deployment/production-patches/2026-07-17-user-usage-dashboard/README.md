@@ -26,6 +26,8 @@ LibreChat `My` menu.
 - keep overview within the available desktop height without a vertical scrollbar;
 - close searchable filters by toggle, outside click, or Escape;
 - show provider logos without provider text;
+- show labeled trend axes with hover/focus values;
+- show a Token-distribution donut with a persistent model legend and hover/focus values;
 - protect all data by authenticated user identity.
 
 ## API And Data Rules
