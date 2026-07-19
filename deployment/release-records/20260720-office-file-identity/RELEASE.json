@@ -1,7 +1,15 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "evidence": ".release-state/20260720-office-file-identity/acceptance-result.json",
+      "conversation_id": "4b93e69e-366d-488f-8eef-a037950e72ec",
+      "conversation_url": "https://152.32.172.162.sslip.io/c/4b93e69e-366d-488f-8eef-a037950e72ec",
+      "account": "vip998@example.local",
+      "office_fixture": "acceptance-real.xlsx",
+      "office_roundtrip_value": "OFFICE-PREPARSE-20260720",
+      "resolved_config_incident": "Admin override reasoning_effort contained a leading space (' high'); corrected to 'high' at config version 55 without service restart."
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +21,12 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "compose_override_backup": "/opt/librechat/compose.override.yaml.bak-20260720011702",
+      "release_dir": "/opt/librechat/office-file-identity/48193e0aa729-20260720011702",
+      "restore_scope": "Restore compose.override.yaml and recreate only LibreChat-API; CodeAPI, RAG, and Mongo remain untouched."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -100,14 +112,42 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "captured_at": "2026-07-19T17:45:41Z",
+      "artifact_sha256": "555d4c109f486e291c9a078847eeab99917f01fff23a2bf8e8dd39cfaec2f98e",
+      "compose_override_sha256": "7572981b87cbe98ac2a6656955508143209a0ea2770946f2902498bf85c3eab7",
+      "container_ids": {
+        "LibreChat-API": "2b6cecf0f881",
+        "LibreChat-CodeAPI": "ddba629a7b63",
+        "LibreChat-RAG-API": "d16e85e1e103",
+        "chat-mongodb": "01d5bc03e9cb"
+      },
+      "unchanged_services": [
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "chat-mongodb"
+      ],
+      "in_container_hashes": {
+        "/app/packages/api/dist/index.cjs": "b9379a4ee7f5f6d7bca4d99d88a8aa70b9e0dcbe4aae35dbe1393b55f6ea86de",
+        "/app/api/server/services/Files/Code/process.js": "fffe6a547d9267072bf8bff84cb8265b10590b9b72540fa631d805179563d964",
+        "/app/api/server/controllers/agents/request.js": "1e6eee07b16eb2e4d4045d5f13f07acb6cbc0c1e3c6cfad45cd8e953c7c340a9",
+        "/app/api/server/services/Files/OfficePreparse.js": "7839e34b1f24acbebf2ac5931aeed3fdcc1cd99dbcd0bca45d7f44e45e06d75c"
+      },
+      "public_checks": {
+        "main_root": 200,
+        "api_config": 200,
+        "office_auth_boundary": "401 Basic realm=Office Converter"
+      },
+      "codeapi_health": "healthy",
+      "api_error_log_check": "no uncaught, unhandled, fatal, syntax, type, or reference errors in the post-deploy window"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "48193e0aa7295677cfaa88ba04d5b334ba95e516",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-19T17:04:13Z",
+  "updated_at": "2026-07-19T17:45:41Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-20-office-file-identity/scripts/test-office-file-identity.js",
