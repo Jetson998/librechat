@@ -21,14 +21,20 @@
   "build_attestation": {
     "details": {
       "artifact_attestation": "pending_package_manifest",
-      "validation_run": {
-        "commit": "589c5819a28d5705505409a2563fd762a78c6614",
-        "job": "validate",
-        "job_id": "88149510839",
-        "run_id": "29670892918",
-        "status": "passed",
-        "url": "https://github.com/Jetson998/librechat/actions/runs/29670892918"
-      }
+      "validation_runs": [
+        {
+          "commit": "589c5819a28d5705505409a2563fd762a78c6614",
+          "job": "validate",
+          "job_id": "88149510839",
+          "run_id": "29670892918",
+          "status": "passed",
+          "url": "https://github.com/Jetson998/librechat/actions/runs/29670892918"
+        },
+        {
+          "commit": "38ded17beab0c72f8326dfcebefee84d68236ca4",
+          "status": "pending_remote_observation"
+        }
+      ]
     },
     "status": "pending"
   },
@@ -45,6 +51,7 @@
     "reason": "Make the generic lightweight release-governance method reusable by projects other than the current adapter implementation.",
     "risk": "Repository documentation, Skill resources, and tests only; no production preflight, deployment, service restart, or runtime write.",
     "scope": [
+      ".github/workflows/librechat-release-governance.yml",
       "README.md",
       "docs/RELEASE_GOVERNANCE_INDEX.md",
       "docs/RELEASE_GOVERNANCE_NEW_PROJECT_ZH_CN.md",
@@ -73,7 +80,7 @@
   "release_id": "2026-07-19-generic-governance-onboarding",
   "rollback_reference": {
     "details": {
-      "command": "git revert b67a3e822db89bfef41fc07bdac1e7707fae113e",
+      "command": "git revert 38ded17beab0c72f8326dfcebefee84d68236ca4 b67a3e822db89bfef41fc07bdac1e7707fae113e",
       "restore_revision": "c0c5b1c2feabc45125439798d5d19f692a94d34b"
     },
     "status": "passed"
@@ -83,7 +90,7 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "b67a3e822db89bfef41fc07bdac1e7707fae113e",
+  "source_revision": "38ded17beab0c72f8326dfcebefee84d68236ca4",
   "status": "planned",
   "unresolved_issues": [
     {
@@ -105,7 +112,7 @@
   "validation_plan": [
     {
       "command": "scripts/validate-release-governance.sh",
-      "expected": "Configuration, shell syntax, both Skills, and all 18 governance tests pass.",
+      "expected": "Configuration, shell syntax, both Skills, and all 19 governance tests pass.",
       "type": "local"
     },
     {
