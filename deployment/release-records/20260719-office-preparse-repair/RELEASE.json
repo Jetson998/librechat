@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260719-office-preparse-repair/artifacts/20260719-office-preparse-repair-825d87dc1e2f.tar.gz",
+      "manifest": ".release-state/20260719-office-preparse-repair/artifacts/manifest.json",
+      "value": "ecaaff469229d98fed5288ae6c49fa8fd0290e270dce08a4070de18b7947b3c1"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -19,8 +24,36 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "ecaaff469229d98fed5288ae6c49fa8fd0290e270dce08a4070de18b7947b3c1",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "deployable-artifact",
+      "model-tool-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "model-tool-tests",
+      "patch-contract-tests",
+      "performance-test",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260719-office-preparse-repair/artifacts/20260719-office-preparse-repair-825d87dc1e2f.tar.gz",
+      "checks": [
+        "node --check BaseClient.js",
+        "node --check api-index.cjs",
+        "test-office-preparse-repair.js",
+        "test-empty-response-regeneration.js",
+        "bash -n deploy.sh",
+        "bash -n remote-apply.sh",
+        "git diff --check"
+      ],
+      "independent_stage": "local-workspace"
+    },
+    "production_host": false,
+    "release_plan_sha256": "306dccb3704522804afbea16691fd9453e55461c84917666e7b0d052c1fab07a",
+    "source_revision": "825d87dc1e2f8c7c556e5c0bf7626b81f59f5288",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Current-turn Office attachments remain resolvable after CodeAPI rotates stale session/file references, pre-parse is bounded and abort-aware, and no-content stops do not persist a successful blank assistant message.",
@@ -71,7 +104,7 @@
   "source_revision": "825d87dc1e2f8c7c556e5c0bf7626b81f59f5288",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-19T15:39:35Z",
+  "updated_at": "2026-07-19T15:44:43Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-19-office-preparse-repair/scripts/test-office-preparse-repair.js",
