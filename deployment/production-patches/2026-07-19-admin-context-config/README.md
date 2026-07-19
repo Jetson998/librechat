@@ -2,7 +2,7 @@
 
 Date: 2026-07-19
 
-Status: implementation and CI image ready; production deployment pending.
+Status: deployed and production-verified.
 
 ## Objective
 
@@ -51,3 +51,9 @@ invalidates the existing Admin browser session. That operation backs up the
 complete active base override, modifies only the two `context` fields, verifies
 all other model configuration values are byte-equivalent under EJSON, and does
 not restart a service.
+
+## Production Result
+
+See `DEPLOY_RESULT.md`. The Admin image deployment recreated only
+`LibreChat-Admin-Panel`. The initial context-value operation restarted no
+service and preserved every protected container identity.

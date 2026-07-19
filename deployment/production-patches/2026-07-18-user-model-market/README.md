@@ -103,3 +103,7 @@ As of 2026-07-19, the Admin publication controls are deployed, two models are
 published, and the user market is browser-verified with live prices. The later
 table-layout release is recorded in
 `../2026-07-19-model-market-layout/DEPLOY_RESULT.md`.
+
+Both published models now also carry a configured context limit of `1,000,000`
+Token. The Admin control, guarded initial values, and rollback evidence are
+recorded in `../2026-07-19-admin-context-config/DEPLOY_RESULT.md`.
