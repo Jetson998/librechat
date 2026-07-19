@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260719-office-preparse-gate/artifacts/20260719-office-preparse-gate-2cc9a4ce58b7.tar.gz",
+      "manifest": ".release-state/20260719-office-preparse-gate/artifacts/manifest.json",
+      "value": "984d52ec984f7955d15a80a3a9c6e91b30d249d909ba7042b1f5ed0d82e86bc9"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -19,8 +24,37 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "984d52ec984f7955d15a80a3a9c6e91b30d249d909ba7042b1f5ed0d82e86bc9",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "deployable-artifact",
+      "model-tool-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "model-tool-tests",
+      "patch-contract-tests",
+      "performance-test",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260719-office-preparse-gate/artifacts/20260719-office-preparse-gate-2cc9a4ce58b7.tar.gz",
+      "checks": [
+        "node --check api-index.cjs",
+        "node --check BaseClient.js",
+        "test-office-preparse-gate.js",
+        "test-empty-response-regeneration.js",
+        "test-file-pipeline-simplification.js",
+        "bash -n deploy.sh",
+        "bash -n remote-apply.sh"
+      ],
+      "elapsed_ms": 506,
+      "independent_stage": "/tmp/librechat-office-attest.Lpukap"
+    },
+    "production_host": false,
+    "release_plan_sha256": "0b02830920ee3b4fbb2c39f47f709425e38cbae2ba7e24a3f513df798bc928e7",
+    "source_revision": "2cc9a4ce58b7276beaacece8edc51b35e86ce950",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Current-turn Office attachments are parsed through the existing CodeAPI sandbox before model execution; parse failures stop before model billing, and reasoning-only replies are not saved as successful assistant output.",
@@ -79,7 +113,7 @@
   "source_revision": "2cc9a4ce58b7276beaacece8edc51b35e86ce950",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-19T13:36:48Z",
+  "updated_at": "2026-07-19T13:51:36Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",
