@@ -42,7 +42,7 @@
     ]
   },
   "created_at": "2026-07-19T15:39:35Z",
-  "mode": "protected",
+  "mode": "enhanced",
   "project_adapter": {
     "deploy_runner": "deployment/production-patches/2026-07-19-office-preparse-repair/scripts/deploy.sh",
     "package_required_paths": [],
