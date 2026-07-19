@@ -1,7 +1,23 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "assistant_message_created_at": "2026-07-19T14:26:22.222Z",
+      "assistant_result": {
+        "content_types": [],
+        "error": false,
+        "text_length": 0,
+        "unfinished": false
+      },
+      "conversation_id": "efbaeb3b-87af-407a-a273-53589f14aa55",
+      "decision": "rollback",
+      "evidence": "deployment/release-records/20260719-office-preparse-gate/ROLLBACK.json",
+      "file": "acceptance.xlsx",
+      "model": "gpt-5.6-sol",
+      "prompt": "内容阅读",
+      "user_message_created_at": "2026-07-19T14:22:48.361Z"
+    },
+    "status": "failed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +29,12 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "BaseClient.js": "/opt/librechat/office-context-patch/BaseClient.js.bak-20260719220459",
+      "api-index.cjs": "/opt/librechat/office-context-patch/api-index.cjs.bak-20260719220459",
+      "created_at": "2026-07-19T14:04:59Z"
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -101,19 +121,39 @@
   "rollback_reference": {
     "details": {
       "command": "Restore timestamp-matched /opt/librechat/office-context-patch/BaseClient.js.bak-* and api-index.cjs.bak-* created by deployment/production-patches/2026-07-19-office-preparse-gate/scripts/deploy.sh, then restart only LibreChat-API and verify main root, /api/config, /office/, CodeAPI health, normal chat, and Office download cards.",
-      "restore_revision": "17453690d4da1bad8b3870402ebe4f064ab202a4"
+      "evidence": "deployment/release-records/20260719-office-preparse-gate/ROLLBACK.json",
+      "executed_at": "2026-07-19T14:47:27Z",
+      "restore_revision": "17453690d4da1bad8b3870402ebe4f064ab202a4",
+      "restored_sha256": {
+        "BaseClient.js": "f432035ec723a92a000ecd7e2738f437bdfa1cfef91e8f73832a03230b96528b",
+        "api-index.cjs": "bd72c9707b3c075aa9d710a30fb7c7dedf405f4dd509c653ded52ddb7a8d267c"
+      },
+      "restarted_services": [
+        "LibreChat-API"
+      ]
     },
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "api_config_status": 200,
+      "codeapi_container_unchanged": true,
+      "codeapi_health": "healthy",
+      "main_root_status": 200,
+      "office_realm": "Office Converter",
+      "office_status": 401,
+      "verified_at": "2026-07-19T14:47:41Z"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "2cc9a4ce58b7276beaacece8edc51b35e86ce950",
-  "status": "planned",
-  "unresolved_issues": [],
-  "updated_at": "2026-07-19T13:51:36Z",
+  "status": "rolled_back",
+  "unresolved_issues": [
+    "Direct Office pre-parse through createBashExecutionTool().invoke() can stall before CodeAPI /exec and is not bounded by a timeout or request AbortSignal.",
+    "The pre-model stop path can persist an empty assistant row with unfinished=false and error=false; the existing post-completion semantic guard does not cover this path."
+  ],
+  "updated_at": "2026-07-19T14:47:41Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",

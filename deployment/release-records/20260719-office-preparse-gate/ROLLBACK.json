@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "release_id": "20260719-office-preparse-gate",
+  "status": "rolled_back",
+  "diagnosed_at": "2026-07-19T14:45:26Z",
+  "rolled_back_at": "2026-07-19T14:47:27Z",
+  "acceptance": {
+    "account": "vip998",
+    "conversation_id": "efbaeb3b-87af-407a-a273-53589f14aa55",
+    "model": "gpt-5.6-sol",
+    "endpoint": "MuskAPI",
+    "file": "acceptance.xlsx",
+    "prompt": "内容阅读",
+    "user_message_created_at": "2026-07-19T14:22:48.361Z",
+    "assistant_message_created_at": "2026-07-19T14:26:22.222Z",
+    "assistant_message": {
+      "text_length": 0,
+      "content_types": [],
+      "unfinished": false,
+      "error": false
+    },
+    "result": "failed"
+  },
+  "diagnosis": {
+    "summary": "The deterministic Office pre-parse was invoked directly through createBashExecutionTool().invoke() during agent initialization. The acceptance request did not reach a corresponding CodeAPI /exec before the empty assistant row was persisted, so the request stalled in the tool scheduling or initialization layer rather than in Excel parsing.",
+    "evidence": [
+      "The current-turn file upload reached CodeAPI at 2026-07-19T14:22:47Z.",
+      "No attributable CodeAPI /exec followed for the vip998 request before the assistant row was saved.",
+      "Mongo persisted an empty assistant row 213.861 seconds after the user message with unfinished=false and error=false.",
+      "The direct pre-parse invoke had no bounded timeout and was not wired to the request AbortSignal.",
+      "The existing semantic-empty guard runs after model completion and therefore cannot protect a request stalled before completion."
+    ]
+  },
+  "backup": {
+    "BaseClient.js": "/opt/librechat/office-context-patch/BaseClient.js.bak-20260719220459",
+    "api-index.cjs": "/opt/librechat/office-context-patch/api-index.cjs.bak-20260719220459"
+  },
+  "restored_sha256": {
+    "BaseClient.js": "f432035ec723a92a000ecd7e2738f437bdfa1cfef91e8f73832a03230b96528b",
+    "api-index.cjs": "bd72c9707b3c075aa9d710a30fb7c7dedf405f4dd509c653ded52ddb7a8d267c"
+  },
+  "service_verification": {
+    "restarted": [
+      "LibreChat-API"
+    ],
+    "codeapi_container_id_before": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+    "codeapi_container_id_after": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+    "codeapi_health": "healthy",
+    "main_root_status": 200,
+    "api_config_status": 200,
+    "office_status": 401,
+    "office_realm": "Office Converter"
+  },
+  "decision": "Do not redeploy this artifact. A replacement design must use a bounded, abort-aware pre-parse operation and cover pre-model early-abort persistence with an integration test."
+}
