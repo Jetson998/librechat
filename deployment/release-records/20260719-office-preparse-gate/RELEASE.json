@@ -8,7 +8,7 @@
       "algorithm": "sha256",
       "artifact": ".release-state/20260719-office-preparse-gate/artifacts/20260719-office-preparse-gate-d4becd04fdbc.tar.gz",
       "manifest": ".release-state/20260719-office-preparse-gate/artifacts/manifest.json",
-      "value": "a4c5a9088a6b3a5381abd2bb47de9e4b2f86f82e4ca9015f29cbb622cb2591e8"
+      "value": "7185d3ee5bfb037d4277e9152704a6b8bb204d2b14f39aed99a1102b5f115a45"
     },
     "status": "passed"
   },
@@ -24,8 +24,36 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "7185d3ee5bfb037d4277e9152704a6b8bb204d2b14f39aed99a1102b5f115a45",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "deployable-artifact",
+      "model-tool-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "model-tool-tests",
+      "patch-contract-tests",
+      "performance-test",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260719-office-preparse-gate/artifacts/20260719-office-preparse-gate-d4becd04fdbc.tar.gz",
+      "checks": [
+        "node --check api-index.cjs",
+        "node --check BaseClient.js",
+        "test-office-preparse-gate.js",
+        "test-empty-response-regeneration.js",
+        "test-file-pipeline-simplification.js",
+        "bash -n deploy.sh"
+      ],
+      "elapsed_ms": 356,
+      "independent_stage": "/tmp/librechat-office-attest.CauIzi"
+    },
+    "production_host": false,
+    "release_plan_sha256": "ea621a50220b758210595d71daea2db00df193d0a66b1ca6ea9c6dfe8b269212",
+    "source_revision": "d4becd04fdbc0e7b52f0a019133e50e9f9b64a3b",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Current-turn Office attachments are parsed through the existing CodeAPI sandbox before model execution; parse failures stop before model billing, and reasoning-only replies are not saved as successful assistant output.",
@@ -84,7 +112,7 @@
   "source_revision": "d4becd04fdbc0e7b52f0a019133e50e9f9b64a3b",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-19T13:33:17Z",
+  "updated_at": "2026-07-19T13:36:48Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",
