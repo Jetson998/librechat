@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260719-office-preparse-gate/artifacts/20260719-office-preparse-gate-d4becd04fdbc.tar.gz",
+      "manifest": ".release-state/20260719-office-preparse-gate/artifacts/manifest.json",
+      "value": "79c36b0c092ab08842f1497fe5d4a6519fc6aef416432d60e71beb3eb342acad"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -41,6 +46,7 @@
       "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/BaseClient.js",
       "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/api-index.cjs",
       "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/test-empty-response-regeneration.js",
+      "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/test-file-pipeline-simplification.js",
       "deployment/production-patches/2026-07-19-office-preparse-gate"
     ]
   },
@@ -74,7 +80,7 @@
   "source_revision": "d4becd04fdbc0e7b52f0a019133e50e9f9b64a3b",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-19T12:56:24Z",
+  "updated_at": "2026-07-19T13:26:25Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",
