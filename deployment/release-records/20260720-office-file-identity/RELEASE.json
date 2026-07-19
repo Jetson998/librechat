@@ -1,0 +1,93 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "LibreChat main after the final Office repair design and before the implementation batch",
+      "revision": "76ddfa697e956c845bd7b3e7cf51d136b7ef312b"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Fresh Office uploads and regenerated user turns resolve their files through stable LibreChat file IDs, execute one bounded CodeAPI pre-parse before the model call, and return visible content or a visible error without blank assistant persistence.",
+    "functions": [
+      "Emit source_file_id from Code file priming for active and re-uploaded references",
+      "Restore only the regenerated parent user message's uploaded files as current-turn files",
+      "Run deterministic Office pre-parse with a 45 second timeout",
+      "Propagate the GenerationJob abort signal through client initialization",
+      "Deploy through the actual compose bind mounts and verify hashes inside the running container"
+    ],
+    "limitations": [
+      "The injected Office preview is bounded; complete analysis and modification continue through the original file under /mnt/data",
+      "Fresh-upload acceptance requires a user-controlled file chooser when browser automation is denied"
+    ],
+    "reason": "CodeAPI rotates mutable storage references after stale-session re-upload, regeneration does not resend req.body.files, and the previous Office deploy runners wrote an inactive host path instead of the bundle actually mounted by compose.",
+    "risk": "Enhanced API runtime change across file priming, agent initialization, and compose bind mounts. Deployment creates an immutable release directory, backs up compose.override.yaml, recreates only API, and automatically restores the previous override on failure.",
+    "scope": [
+      "docs/OFFICE_PREPARSE_FINAL_REPAIR_PLAN.md",
+      "deployment/production-patches/2026-07-20-office-file-identity"
+    ]
+  },
+  "created_at": "2026-07-19T17:01:01Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "deploy_runner": "deployment/production-patches/2026-07-20-office-file-identity/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260720-office-file-identity",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Restore the timestamp-matched /opt/librechat/compose.override.yaml.bak-* created by remote-apply.sh, recreate only the api service through the same compose project, then verify the original in-container hashes, /, /api/config, /office/, and CodeAPI health.",
+      "restore_revision": "76ddfa697e956c845bd7b3e7cf51d136b7ef312b"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "48193e0aa7295677cfaa88ba04d5b334ba95e516",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-19T17:01:01Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-07-20-office-file-identity/scripts/test-office-file-identity.js",
+      "expected": "Stable priming identity, duplicate-name isolation, regeneration selection, Office fixtures, timeout, abort, pricing preservation, and deployment mount contracts pass.",
+      "type": "local"
+    },
+    {
+      "command": "node --check on all four candidate JavaScript files and bash -n on both deployment scripts",
+      "expected": "All syntax checks exit 0.",
+      "type": "local"
+    },
+    {
+      "command": "Authenticated vip998 fresh Office upload and reading request",
+      "expected": "CodeAPI logs one /exec after priming, the assistant returns visible file-derived content, and Mongo persists no blank assistant sibling.",
+      "type": "business"
+    }
+  ]
+}
