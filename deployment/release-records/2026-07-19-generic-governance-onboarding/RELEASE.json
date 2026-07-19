@@ -24,27 +24,19 @@
     "status": "passed"
   },
   "build_attestation": {
+    "artifact_sha256": "e9b6b83f064366a0bf8a271edcfd5ea213e1b9c5f362429c6c94799558545362",
     "details": {
-      "artifact_attestation": "pending_package_manifest",
-      "validation_runs": [
-        {
-          "commit": "589c5819a28d5705505409a2563fd762a78c6614",
-          "job": "validate",
-          "job_id": "88149510839",
-          "run_id": "29670892918",
-          "status": "passed",
-          "url": "https://github.com/Jetson998/librechat/actions/runs/29670892918"
-        },
-        {
-          "commit": "38ded17beab0c72f8326dfcebefee84d68236ca4",
-          "duration_seconds": 10,
-          "run_id": "29671231398",
-          "status": "passed",
-          "url": "https://github.com/Jetson998/librechat/actions/runs/29671231398"
-        }
-      ]
+      "conclusion": "success",
+      "job": "validate",
+      "manifest": ".release-state/2026-07-19-generic-governance-onboarding/artifacts/manifest.json",
+      "run_commit": "38ded17beab0c72f8326dfcebefee84d68236ca4",
+      "run_id": "29671231398",
+      "run_url": "https://github.com/Jetson998/librechat/actions/runs/29671231398",
+      "workflow": "LibreChat Release Governance"
     },
-    "status": "pending"
+    "provider": "repository-workflow",
+    "source_revision": "38ded17beab0c72f8326dfcebefee84d68236ca4",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "A new project can copy a provider-neutral fail-closed adapter template, follow a concise onboarding guide, and validate the contract before implementing external writes.",
@@ -99,17 +91,9 @@
   },
   "schema_version": 1,
   "source_revision": "38ded17beab0c72f8326dfcebefee84d68236ca4",
-  "status": "planned",
-  "unresolved_issues": [
-    {
-      "category": "execution_not_started",
-      "detail": "The escalated read-only remote reference check was rejected before process start on repeated attempts because the automatic approval service returned 503 Service Unavailable.",
-      "gate": "preflight_permissions",
-      "resume_command": "scripts/release-verify.sh 2026-07-19-generic-governance-onboarding",
-      "status": "blocked_external"
-    }
-  ],
-  "updated_at": "2026-07-19T03:26:51Z",
+  "status": "ready",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-19T03:29:10Z",
   "validation_plan": [
     {
       "command": "scripts/validate-release-governance.sh",
