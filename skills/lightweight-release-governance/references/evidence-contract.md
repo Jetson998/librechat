@@ -23,3 +23,17 @@ build number can be recorded without becoming a generic protocol requirement.
 The record is incomplete when a required object is absent. A value such as
 `not_applicable` must include a reason and be allowed by the selected project
 mode.
+
+Business acceptance evidence is conceptual rather than tied to a fixed field
+layout. It should make the following facts recoverable:
+
+- whether light or heavy acceptance was selected and why;
+- which business path, role, interface, data boundary, or service was covered;
+- which evidence was reused and which checks were newly executed;
+- the result, important warnings, and detailed evidence location;
+- whether the release may continue, must stop, or should roll back.
+
+Reused evidence is valid only when it matches the relevant source revision,
+artifact, configuration, and environment assumptions. Detailed logs may remain
+outside the release record when the record points to them and keeps a compact
+decision summary.

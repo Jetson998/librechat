@@ -18,10 +18,11 @@ Select the least restrictive mode that matches the task:
   change record, validation, rollback plan, and traceable source/artifact data.
 - `protected`: any external runtime write, service restart, configuration/data
   mutation, or deployment. Add read-only target preflight, bounded scope,
-  backup evidence, acceptance, and a release result.
+  rollback evidence, risk-adaptive business acceptance, and a release result.
 - `enhanced`: high-risk changes such as shared infrastructure, migrations, or
-  concurrent releases. Add immutable artifact attestation, deployment locking,
-  strict input fingerprints, and automatic rollback evidence.
+  concurrent releases. Add heavy business acceptance, immutable artifact
+  attestation, deployment locking, strict input fingerprints, and automatic
+  rollback evidence.
 
 Never use an ad-hoc environment variable to skip a gate. A gate may be
 `not_applicable` only when the project adapter declares that outcome for the
@@ -52,10 +53,59 @@ order of all applicable gates. A failed or blocked gate stops the write path.
 7. Verify the build or artifact proof using the provider-neutral evidence
    contract supplied by the project adapter.
 8. Apply only the bounded, versioned change after the protected gates pass.
-9. Run the adapter's `acceptance_gate` without creating billable or destructive
-   test data unless the release explicitly requires it.
+9. Run the adapter's `acceptance_gate`. Business acceptance remains part of
+   release governance whenever user-visible or business behavior can change;
+   select a light or heavy level from the affected path and risk instead of
+   applying a fixed test list. Do not create billable or destructive test data
+   unless the release explicitly requires it.
 10. Write an immutable release result and keep detailed evidence in files rather
    than injecting full logs into model context.
+
+## Business acceptance
+
+Business acceptance is a decision gate, not a requirement to rerun every test,
+open every page, or exercise every role. The project adapter identifies its
+critical business paths; this Skill supplies the selection rules.
+
+Use **light acceptance** by default for ordinary releases:
+
+- cover only the changed business path and its nearest guardrail;
+- reuse valid CI, candidate-environment, or prior evidence when the source
+  revision, artifact, configuration, and assumptions are unchanged;
+- run a small, bounded smoke check after an external write;
+- do not use a browser for a non-UI change or send a model request when the
+  model/tool path is unaffected.
+
+Use **heavy acceptance** when the change affects data structure or migration,
+authentication or permissions, billing or quotas, model routing, a core file
+pipeline, multiple services, a difficult-to-reverse behavior, or a major
+version upgrade. The adapter may also select heavy acceptance when the impact
+is uncertain and the rollback is weak.
+
+The absence of a dedicated test environment is not a reason to abandon
+acceptance. Use the least risky available evidence source: CI, a temporary
+environment, a maintenance-window check, or a targeted production smoke. An
+irreversible change must not be first tested in production.
+
+Acceptance evidence should state the selected level, reason, affected scope,
+result, warnings, evidence location, and whether release may continue. It may
+reference existing test or operational evidence; it does not need to copy full
+logs into the model context.
+
+If acceptance fails before a write, stop the write. If it fails after a write,
+stop further rollout, preserve evidence, and roll back when the affected path
+is unsafe or critical. Never retry a mutating test blindly. Server cleanup,
+full security scans, load tests, formatting, and unrelated service audits are
+not business acceptance; record or reference their independent results only
+when the release needs them.
+
+## Resource and context limits
+
+Keep the model's role bounded. Deterministic adapter code should batch checks,
+apply timeouts, cap retries, and write detailed results to evidence files. The
+model should receive a compact summary, warnings, decision, and paths. Do not
+build a complete test environment on the target host, poll a workflow in a
+loop, or call tools repeatedly for checks that one structured result can cover.
 
 ## Failure handling
 
@@ -101,6 +151,8 @@ before running a release:
   adapter commands;
 - scripts implement repository checks, target preflight, scoped application,
   and acceptance;
+- the adapter identifies critical business paths, risk triggers, reusable
+  evidence, automated checks, and cases that need human confirmation;
 - the release record uses provider-neutral fields such as `source_revision`,
   `build_attestation`, `artifact_digest`, `runtime_snapshot`,
   `backup_reference`, and `acceptance_result`.

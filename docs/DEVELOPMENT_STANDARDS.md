@@ -300,9 +300,10 @@ Required sequence:
 4. Commit.
 5. Push to `origin/main`.
 6. Confirm branch alignment.
-7. Back up production files.
+7. Confirm a usable rollback target; create a new backup when the change is not
+   safely reversible from an existing artifact or revision.
 8. Apply the committed change.
-9. Verify production.
+9. Perform risk-adaptive business acceptance for the affected path.
 10. Record deployment result.
 11. Commit and push the record.
 
@@ -312,6 +313,12 @@ For the governed adapter, the equivalent gates are `prepare`,
 `target_preflight`, `apply_gate`, `acceptance_gate`, and `release_record`.
 Checkpoint states are `pending`, `passed`, `failed`, `blocked`,
 `not_applicable`, and `invalidated`.
+
+These gates describe required decisions and evidence, not a requirement for a
+separate command, model turn, commit, or CI run per gate. Project-owned scripts
+may combine deterministic checks. `acceptance_gate` remains part of production
+governance, but ordinary changes use light, scope-specific acceptance and reuse
+valid evidence. Heavy acceptance is reserved for high-risk business paths.
 
 If any step fails, stop and document the blocker. Do not continue with manual
 untracked fixes.

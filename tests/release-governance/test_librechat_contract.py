@@ -89,6 +89,20 @@ class LibreChatContractTests(unittest.TestCase):
         )
         self.assertIn("docs/RELEASE_GOVERNANCE_NEW_PROJECT_ZH_CN.md", workflow)
 
+    def test_librechat_contract_keeps_scope_specific_business_acceptance(self):
+        contract = (
+            ROOT / "skills/librechat-release-governance/references/project-contract.md"
+        ).read_text(encoding="utf-8")
+        guide = (ROOT / "docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md").read_text(
+            encoding="utf-8"
+        )
+        checklist = (ROOT / "docs/RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
+        for phrase in ("业务验收", "轻度验收", "重度验收", "模型路由", "Office"):
+            self.assertIn(phrase, contract)
+            self.assertIn(phrase, guide)
+        self.assertIn("Business acceptance level", checklist)
+        self.assertIn("Not Default Business Acceptance", checklist)
+
     def test_repository_gate_allows_out_of_scope_remote_change_and_blocks_scope_change(self):
         adapter = load_adapter_module()
         original_root = adapter.ROOT

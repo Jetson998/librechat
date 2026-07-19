@@ -306,6 +306,20 @@ class ReleaseGateTests(unittest.TestCase):
         self.assertTrue(reference.is_file())
         self.assertIn("references/new-project-onboarding.md", skill)
 
+    def test_generic_skill_keeps_risk_adaptive_business_acceptance(self):
+        skill = (ROOT / "skills/lightweight-release-governance/SKILL.md").read_text(
+            encoding="utf-8"
+        ).lower()
+        for phrase in (
+            "business acceptance",
+            "light acceptance",
+            "heavy acceptance",
+            "reuse valid",
+            "stop further rollout",
+            "not business acceptance",
+        ):
+            self.assertIn(phrase, skill)
+
     def test_generic_skill_has_no_project_specific_provider_names(self):
         generic = "\n".join(
             path.read_text(encoding="utf-8")

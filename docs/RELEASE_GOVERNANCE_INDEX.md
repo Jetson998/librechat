@@ -98,3 +98,14 @@ scripts/validate-release-governance.sh
   写操作；必须提供发布记录中的版本化 runner 和精确确认值。
 - 新项目优先复制通用模板，再实现自己的适配脚本；不要复制 LibreChat 的
   生产服务、路由或目标检查。
+
+## 六、业务验收边界
+
+- 通用选择原则位于 `skills/lightweight-release-governance/SKILL.md` 和
+  `references/adapter-contract.md`。
+- LibreChat 关键业务路径与轻度、重度验收示例位于
+  `skills/librechat-release-governance/references/project-contract.md`。
+- 操作者的条件式检查位于 `docs/RELEASE_CHECKLIST.md`。
+- 业务验收始终属于生产发布治理，但检查范围由本次修改和风险决定；基础
+  HTTP smoke、CI、浏览器、模型请求或人工确认只是可选证据来源，不应机械
+  全部执行。

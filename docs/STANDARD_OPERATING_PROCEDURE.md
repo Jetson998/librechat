@@ -98,6 +98,28 @@ Optional deeper checks after releases:
 - If Office/document conversion is used, test one small XLSX workbook and one
   representative DOCX/PPTX file when relevant.
 
+### Business Acceptance Selection
+
+Business acceptance remains part of every production release decision. Use
+light acceptance for ordinary changes and heavy acceptance for authentication,
+permissions, billing, quotas, model routing, core file handling, data changes,
+multi-service behavior, weak rollback, or major upgrades.
+
+Light acceptance covers the changed business path and its nearest guardrail,
+reuses evidence for the same source revision and artifact, and runs a bounded
+post-deploy smoke. It does not open unrelated pages, test every role, or send a
+model request when the model/tool path is unchanged.
+
+Without a separate UAT environment, use CI or a temporary environment for the
+candidate and a targeted production smoke after deployment. Irreversible
+changes must not be first tested in production. Acceptance failure stops
+further rollout and triggers rollback when a critical path or data safety is at
+risk.
+
+Server cleanup, full health audits, security scans, load tests, and formatting
+are separate activities. Acceptance may reference their existing results but
+does not rerun them by default.
+
 ## 5. Change Intake
 
 Before changing production, write down:

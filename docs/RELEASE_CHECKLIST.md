@@ -17,6 +17,9 @@ Gate" section is complete and pushed.
 - Affected production files/services:
 - Feature/function list:
 - Verification plan:
+- Business acceptance level: `light` / `heavy`
+- Acceptance reason and affected business path:
+- Existing evidence that can be reused:
 
 ## Repository Gate
 
@@ -43,10 +46,16 @@ If any item above cannot be completed, stop. Do not change production.
 
 - [ ] Root URL returns `200`.
 - [ ] `/api/config` has been captured.
-- [ ] Login works in a browser.
+- [ ] Light or heavy business acceptance was selected from actual scope and
+      risk.
+- [ ] The affected business path and nearest critical guardrail are identified.
+- [ ] Reused evidence matches the source revision, artifact, configuration, and
+      relevant environment assumptions.
+- [ ] Login works in a browser only when login, permissions, Admin, or UI changed.
 - [ ] Simple chat returns non-empty content only when this release explicitly
       changes the model/tool path. Default acceptance sends no model request.
-- [ ] Relevant files/configs are backed up.
+- [ ] Relevant files/configs are backed up when rollback cannot rely on the
+      previous immutable artifact or revision.
 - [ ] No production secrets will be committed to this project.
 - [ ] Rollback artifact exists and is referenced in this checklist or release
       note.
@@ -62,9 +71,9 @@ curl -k -L https://152.32.172.162.sslip.io/api/config
 
 - [ ] Root URL returns `200`.
 - [ ] Main frontend asset returns `200`.
-- [ ] `/api/config` matches intended auth/interface settings.
-- [ ] Browser login works.
-- [ ] Simple chat returns non-empty content.
+- [ ] `/api/config` matches intended auth/interface settings when those settings changed.
+- [ ] Browser login works when login, permissions, Admin, or UI changed.
+- [ ] Simple chat returns non-empty content when the model/tool path changed.
 - [ ] File upload still works if upload UI or backend changed.
 - [ ] Code execution works if code environment changed.
 - [ ] `/office/` reads a small XLSX workbook if Office/Excel backend changed.
@@ -73,6 +82,8 @@ curl -k -L https://152.32.172.162.sslip.io/api/config
 - [ ] Any release replacing `compose.override.yaml` retains
       `/opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro`.
 - [ ] Rollback path remains available.
+- [ ] Business acceptance records its level, actual scope, reused evidence,
+      result, key warnings, evidence location, and continue-or-rollback decision.
 - [ ] Actual production state matches the committed plan, or differences are
       captured in a follow-up commit.
 - [ ] Verification result is documented and pushed if it changed the record.
@@ -88,6 +99,13 @@ curl -k -L https://152.32.172.162.sslip.io/api/config
 - [ ] No manual MongoDB/upload/conversation repair was done before the
       repository gate.
 - [ ] No "temporary" production patch is left outside the repository.
+
+## Not Default Business Acceptance
+
+Do not add server cleanup, full-service health audits, vulnerability scans,
+performance tests, full-repository formatting, or unrelated role/page checks
+to an ordinary release. Reference existing results when relevant and use the
+separate owning workflow when new evidence is required.
 
 ## Notes
 

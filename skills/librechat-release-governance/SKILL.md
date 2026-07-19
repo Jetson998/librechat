@@ -22,6 +22,8 @@ Read these files before a release task:
 - `scripts/release-status.sh`: show checkpoint state before resuming.
 - `docs/RELEASE_GOVERNANCE_INDEX.md`: file map and ownership.
 - `docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md`: short operator guide.
+- `references/project-contract.md`: LibreChat critical business paths and
+  acceptance-selection guidance.
 
 ## Rules
 
@@ -33,6 +35,12 @@ Read these files before a release task:
 6. Keep full logs and raw production data in evidence files, not model context.
 7. Do not claim deployment success until the release record and acceptance
    evidence are complete.
+8. Keep business acceptance in every production release decision, but select
+   light or heavy coverage from the actual changed path. Public HTTP checks are
+   technical smoke evidence and do not automatically prove the business path.
+9. Reuse valid evidence for the same source revision and artifact. Do not open
+   every page, test every role, or send a model request unless the affected
+   LibreChat path requires it.
 
 The generic protocol and failure taxonomy live in
 `skills/lightweight-release-governance/`. This Skill only supplies the
