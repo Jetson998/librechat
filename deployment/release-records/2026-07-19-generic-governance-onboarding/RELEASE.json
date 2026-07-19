@@ -1,0 +1,92 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Main before the generic onboarding addition",
+      "revision": "c0c5b1c2feabc45125439798d5d19f692a94d34b"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "A new project can copy a provider-neutral fail-closed adapter template, follow a concise onboarding guide, and validate the contract before implementing external writes.",
+    "functions": [
+      "Document new-project adoption",
+      "Provide a fail-closed adapter template",
+      "Validate template structure and default failure behavior"
+    ],
+    "limitations": [
+      "The template intentionally does not implement project-specific deployment or acceptance behavior."
+    ],
+    "reason": "Make the generic lightweight release-governance method reusable by projects other than the current adapter implementation.",
+    "risk": "Repository documentation, Skill resources, and tests only; no production preflight, deployment, service restart, or runtime write.",
+    "scope": [
+      "README.md",
+      "docs/RELEASE_GOVERNANCE_INDEX.md",
+      "docs/RELEASE_GOVERNANCE_NEW_PROJECT_ZH_CN.md",
+      "skills/lightweight-release-governance",
+      "tests/release-governance/test_release_gate.py"
+    ]
+  },
+  "created_at": "2026-07-19T02:43:47Z",
+  "mode": "release",
+  "project_adapter": {
+    "deploy_runner": "",
+    "package_required_paths": [
+      "docs/RELEASE_GOVERNANCE_NEW_PROJECT_ZH_CN.md",
+      "tests/release-governance/test_release_gate.py"
+    ],
+    "protected_services": [
+      "LibreChat-API",
+      "LibreChat-NGINX",
+      "LibreChat-CodeAPI",
+      "LibreChat-RAG-API",
+      "LibreChat-Admin-Panel",
+      "chat-mongodb"
+    ]
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "2026-07-19-generic-governance-onboarding",
+  "rollback_reference": {
+    "details": {
+      "command": "git revert b67a3e822db89bfef41fc07bdac1e7707fae113e",
+      "restore_revision": "c0c5b1c2feabc45125439798d5d19f692a94d34b"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "b67a3e822db89bfef41fc07bdac1e7707fae113e",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-19T02:43:47Z",
+  "validation_plan": [
+    {
+      "command": "scripts/validate-release-governance.sh",
+      "expected": "Configuration, shell syntax, both Skills, and all 18 governance tests pass.",
+      "type": "local"
+    },
+    {
+      "command": "scripts/release-package.sh 2026-07-19-generic-governance-onboarding",
+      "expected": "A source-revision package and manifest include the onboarding guide, template, tests, and generic governance files.",
+      "type": "package"
+    }
+  ]
+}
