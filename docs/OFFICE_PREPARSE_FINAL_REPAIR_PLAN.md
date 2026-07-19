@@ -71,12 +71,20 @@ Keep the deterministic Office parser on the existing CodeAPI bash transport:
 - no model request after pre-parse failure;
 - no successful blank assistant row.
 
+The resumable controller already owns the authoritative GenerationJob abort
+signal, but `initializeAgent()` currently cannot see it. During
+`initializeClient()` only, expose that existing signal on the request as a
+request-scoped field, consume it in Office pre-parse, and remove it in a
+`finally` block. This is signal propagation, not a new timeout or provider
+watchdog.
+
 ## Files
 
 The implementation release will carry exact production-baseline copies of:
 
 - `/app/api/server/services/Files/Code/process.js`;
 - `/app/packages/api/dist/index.cjs`;
+- `/app/api/server/controllers/agents/request.js`;
 - focused tests and governed deployment scripts.
 
 `BaseClient.js`, the upload menu, CodeAPI source, Mongo data, Nginx, Admin
