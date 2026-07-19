@@ -34230,6 +34230,65 @@ function resolveProviderToolConflicts({ provider, tools, toolDefinitions }) {
 	return resolvedTools;
 }
 const DEFAULT_MAX_CONTEXT_TOKENS = 32e3;
+const OFFICE_PREPARSE_EXTENSIONS = /* @__PURE__ */ new Set([".docx", ".xlsx", ".xlsm", ".ppt", ".pptx", ".csv", ".tsv", ".ods", ".odp"]);
+const OFFICE_PREPARSE_MARKER = "__LIBRECHAT_OFFICE_MANIFEST__";
+const OFFICE_PREPARSE_MAX_CONTEXT_CHARS = 8e4;
+function getOfficePreparseExtension(filename) {
+	if (typeof filename !== "string") return "";
+	const basename = filename.split(/[\\/]/).pop() ?? "";
+	const index = basename.lastIndexOf(".");
+	return index >= 0 ? basename.slice(index).toLowerCase() : "";
+}
+function selectCurrentTurnOfficeFiles(requestFiles, primedCodeFiles) {
+	const selected = [];
+	for (const file of requestFiles ?? []) {
+		const filename = file?.filename;
+		if (!OFFICE_PREPARSE_EXTENSIONS.has(getOfficePreparseExtension(filename))) continue;
+		const codeEnvRef = file?.metadata?.codeEnvRef;
+		const primed = (primedCodeFiles ?? []).find((candidate) => {
+			const candidateId = candidate?.id ?? candidate?.file_id;
+			return candidateId === codeEnvRef?.file_id && candidate?.storage_session_id === codeEnvRef?.storage_session_id;
+		});
+		if (!primed) throw new Error(`Office pre-parse could not resolve the current-turn CodeAPI reference for "${filename ?? "unknown file"}".`);
+		selected.push({ filename, file_id: file.file_id, primed });
+	}
+	return selected;
+}
+function buildOfficePreparsePython(filenames) {
+	return `import csv, json, os, re, subprocess, tempfile, zipfile\nimport xml.etree.ElementTree as ET\nFILES = ${JSON.stringify(filenames)}\nMAX_FILE_CHARS = 20000\nMAX_ROWS = 200\nMAX_COLS = 40\nMARKER = ${JSON.stringify(OFFICE_PREPARSE_MARKER)}\n\ndef clean(value):\n    return re.sub(r"\\s+", " ", str(value or "")).strip()\n\ndef read_xml(archive, name):\n    return ET.fromstring(archive.read(name))\n\ndef parse_docx(path):\n    with zipfile.ZipFile(path) as archive:\n        root = read_xml(archive, "word/document.xml")\n        lines = []\n        for node in root.iter():\n            if node.tag.endswith("}p"):\n                text = clean("".join(child.text or "" for child in node.iter() if child.tag.endswith("}t")))\n                if text:\n                    lines.append(text)\n        return {"kind": "document", "paragraphs": len(lines), "preview": "\\n".join(lines)}\n\ndef shared_strings(archive):\n    if "xl/sharedStrings.xml" not in archive.namelist():\n        return []\n    root = read_xml(archive, "xl/sharedStrings.xml")\n    return [clean("".join(node.text or "" for node in item.iter() if node.tag.endswith("}t"))) for item in root]\n\ndef workbook_names(archive):\n    if "xl/workbook.xml" not in archive.namelist():\n        return []\n    root = read_xml(archive, "xl/workbook.xml")\n    return [clean(node.attrib.get("name")) for node in root.iter() if node.tag.endswith("}sheet")]\n\ndef parse_xlsx(path):\n    with zipfile.ZipFile(path) as archive:\n        strings = shared_strings(archive)\n        paths = sorted(name for name in archive.namelist() if re.fullmatch(r"xl/worksheets/sheet\\d+\\.xml", name))\n        names = workbook_names(archive)\n        sheets, preview = [], []\n        for sheet_index, sheet_path in enumerate(paths):\n            root = read_xml(archive, sheet_path)\n            rows = []\n            for row in (node for node in root.iter() if node.tag.endswith("}row")):\n                values = []\n                for cell in (node for node in row if node.tag.endswith("}c")):\n                    cell_type = cell.attrib.get("t")\n                    value_node = next((node for node in cell.iter() if node.tag.endswith("}v")), None)\n                    inline = next((node for node in cell.iter() if node.tag.endswith("}is")), None)\n                    value = ""\n                    if inline is not None:\n                        value = "".join(node.text or "" for node in inline.iter() if node.tag.endswith("}t"))\n                    elif value_node is not None:\n                        value = value_node.text or ""\n                        if cell_type == "s" and value.isdigit() and int(value) < len(strings):\n                            value = strings[int(value)]\n                    values.append(clean(value))\n                    if len(values) >= MAX_COLS:\n                        break\n                if any(values):\n                    rows.append(values)\n                if len(rows) >= MAX_ROWS:\n                    break\n            name = names[sheet_index] if sheet_index < len(names) and names[sheet_index] else f"Sheet {sheet_index + 1}"\n            sheets.append({"name": name, "preview_rows": len(rows)})\n            preview.append(f"## {name}")\n            preview.extend(" | ".join(row) for row in rows)\n        return {"kind": "spreadsheet", "sheets": sheets, "preview": "\\n".join(preview)}\n\ndef parse_pptx(path):\n    with zipfile.ZipFile(path) as archive:\n        paths = sorted(name for name in archive.namelist() if re.fullmatch(r"ppt/slides/slide\\d+\\.xml", name))\n        preview = []\n        for index, slide_path in enumerate(paths, 1):\n            root = read_xml(archive, slide_path)\n            text = clean(" ".join(node.text or "" for node in root.iter() if node.tag.endswith("}t")))\n            preview.append(f"## Slide {index}\\n{text}")\n        return {"kind": "presentation", "slides": len(paths), "preview": "\\n".join(preview)}\n\ndef parse_open_document(path, kind):\n    with zipfile.ZipFile(path) as archive:\n        root = read_xml(archive, "content.xml")\n        text = "\\n".join(value for value in (clean(node.text) for node in root.iter()) if value)\n        return {"kind": kind, "preview": text}\n\ndef parse_delimited(path, delimiter):\n    rows = []\n    with open(path, "r", encoding="utf-8-sig", errors="replace", newline="") as handle:\n        for row in csv.reader(handle, delimiter=delimiter):\n            rows.append([clean(value) for value in row[:MAX_COLS]])\n            if len(rows) >= MAX_ROWS:\n                break\n    return {"kind": "spreadsheet", "preview_rows": len(rows), "preview": "\\n".join(" | ".join(row) for row in rows)}\n\ndef parse_file(path):\n    ext = os.path.splitext(path)[1].lower()\n    if ext == ".docx": return parse_docx(path)\n    if ext in (".xlsx", ".xlsm"): return parse_xlsx(path)\n    if ext == ".pptx": return parse_pptx(path)\n    if ext == ".csv": return parse_delimited(path, ",")\n    if ext == ".tsv": return parse_delimited(path, "\\t")\n    if ext == ".ods": return parse_open_document(path, "spreadsheet")\n    if ext == ".odp": return parse_open_document(path, "presentation")\n    if ext == ".ppt":\n        with tempfile.TemporaryDirectory() as output_dir:\n            completed = subprocess.run(["libreoffice", "--headless", "--convert-to", "pptx", "--outdir", output_dir, path], capture_output=True, text=True, timeout=60)\n            converted = os.path.join(output_dir, os.path.splitext(os.path.basename(path))[0] + ".pptx")\n            if completed.returncode != 0 or not os.path.isfile(converted):\n                raise RuntimeError(clean(completed.stderr or completed.stdout or "LibreOffice conversion failed"))\n            return parse_pptx(converted)\n    raise ValueError(f"unsupported extension: {ext}")\n\nmanifest = []\nfor filename in FILES:\n    path = os.path.join("/mnt/data", filename)\n    item = {"filename": filename}\n    try:\n        if not os.path.isfile(path): raise FileNotFoundError(path)\n        item.update(parse_file(path))\n        preview = item.get("preview", "")\n        item["truncated"] = len(preview) > MAX_FILE_CHARS\n        item["preview"] = preview[:MAX_FILE_CHARS]\n        item["bytes"] = os.path.getsize(path)\n        item["ok"] = True\n    except Exception as error:\n        item.update({"ok": False, "error": clean(error)[:1000]})\n    manifest.append(item)\nprint(MARKER + json.dumps({"files": manifest}, ensure_ascii=False))\n`;
+}
+function getOfficePreparseToolContent(result) {
+	if (typeof result === "string") return result;
+	if (typeof result?.content === "string") return result.content;
+	if (Array.isArray(result?.content)) return result.content.map((part) => typeof part === "string" ? part : part?.text ?? "").join("\n");
+	return "";
+}
+async function prepareCurrentTurnOfficeContext({ req, requestFiles, primedCodeFiles }) {
+	const selected = selectCurrentTurnOfficeFiles(requestFiles, primedCodeFiles);
+	if (selected.length === 0) return;
+	const python = buildOfficePreparsePython(selected.map((item) => item.filename));
+	const encoded = Buffer.from(python, "utf8").toString("base64");
+	const bashTool = _librechat_agents.createBashExecutionTool({ authHeaders: () => getCodeApiAuthHeaders(req) });
+	const files = selected.map((item) => item.primed);
+	const result = await bashTool.invoke({ command: `python3 -c "import base64;exec(base64.b64decode('${encoded}'))"` }, {
+		toolCall: { id: `office-preparse-${Date.now()}`, session_id: files[0].storage_session_id, _injected_files: files },
+		configurable: { req }
+	});
+	const content = getOfficePreparseToolContent(result);
+	const markerIndex = content.lastIndexOf(OFFICE_PREPARSE_MARKER);
+	if (markerIndex < 0) throw new Error("Office pre-parse returned no manifest.");
+	let manifest;
+	try {
+		manifest = JSON.parse(content.slice(markerIndex + OFFICE_PREPARSE_MARKER.length).trim());
+	} catch (error) {
+		throw new Error(`Office pre-parse returned an invalid manifest: ${error instanceof Error ? error.message : String(error)}`);
+	}
+	if (!Array.isArray(manifest?.files) || manifest.files.length !== selected.length) throw new Error("Office pre-parse manifest did not cover every current-turn file.");
+	const failed = manifest.files.find((item) => item?.ok !== true);
+	if (failed) throw new Error(`Office pre-parse failed for "${failed.filename ?? "unknown file"}": ${failed.error ?? "unknown parser error"}`);
+	const serialized = JSON.stringify(manifest);
+	return `Current-turn Office files were parsed deterministically before model execution. Treat this manifest as verified source content. The original files remain in /mnt/data for complete analysis or modification. Do not claim that the files are unavailable.\n<office_preparse_manifest>\n${serialized.slice(0, OFFICE_PREPARSE_MAX_CONTEXT_CHARS)}\n</office_preparse_manifest>`;
+}
 /**
 * Initializes an agent for use in requests.
 * Handles file processing, tool loading, provider configuration, and context token calculations.
@@ -34252,6 +34311,7 @@ async function initializeAgent(params, db) {
 	if (!db) throw new Error("initializeAgent requires db methods to be passed");
 	if ((0, librechat_data_provider.isAgentsEndpoint)(endpointOption?.endpoint) && allowedProviders.size > 0 && !allowedProviders.has(agent.provider)) throw new Error(`{ "type": "${librechat_data_provider.ErrorTypes.INVALID_AGENT_PROVIDER}", "info": "${agent.provider}" }`);
 	let currentFiles;
+	let currentRequestFiles = [];
 	const { resendFiles, maxContextTokens, modelOptions } = extractLibreChatParams(structuredClone(Object.assign({ model: agent.model }, agent.model_parameters ?? { model: agent.model }, isInitialAgent === true ? endpointOption?.model_parameters : {})));
 	const provider = agent.provider;
 	agent.endpoint = provider;
@@ -34302,23 +34362,26 @@ async function initializeAgent(params, db) {
 		}
 		const allToolFiles = toolFiles.concat(codeGeneratedFiles, userCodeFiles);
 		if (requestFiles.length || allToolFiles.length) {
-			const requestUsageFiles = requestFiles.length && requestFileOwnerId ? await db.updateFilesUsage(requestFiles, void 0, {
+			currentRequestFiles = requestFiles.length && requestFileOwnerId ? await db.updateFilesUsage(requestFiles, void 0, {
 				user: requestFileOwnerId,
 				tenantId: req.user?.tenantId
 			}) : [];
-			const requestUsageFileIds = new Set(requestUsageFiles.map((file) => file.file_id));
+			const requestUsageFileIds = new Set(currentRequestFiles.map((file) => file.file_id));
 			const trustedToolFiles = allToolFiles.filter((file) => !requestUsageFileIds.has(file.file_id));
 			let toolUsageFiles = [];
 			if (trustedToolFiles.length > 0 && requestFileOwnerId) toolUsageFiles = await db.updateFilesUsage(trustedToolFiles, void 0, {
 				user: requestFileOwnerId,
 				tenantId: req.user?.tenantId
 			});
-			currentFiles = requestUsageFiles.concat(toolUsageFiles);
+			currentFiles = currentRequestFiles.concat(toolUsageFiles);
 		}
-	} else if (requestFiles.length) currentFiles = requestFileOwnerId ? await db.updateFilesUsage(requestFiles, void 0, {
-		user: requestFileOwnerId,
-		tenantId: req.user?.tenantId
-	}) : [];
+	} else if (requestFiles.length) {
+		currentRequestFiles = requestFileOwnerId ? await db.updateFilesUsage(requestFiles, void 0, {
+			user: requestFileOwnerId,
+			tenantId: req.user?.tenantId
+		}) : [];
+		currentFiles = currentRequestFiles;
+	}
 	if (currentFiles && currentFiles.length) {
 		let endpointType;
 		if (!librechat_data_provider.paramEndpoints.has(agent.endpoint ?? "")) endpointType = librechat_data_provider.EModelEndpoint.custom;
@@ -34484,6 +34547,12 @@ async function initializeAgent(params, db) {
 		actionsEnabled: void 0,
 		primedCodeFiles: void 0
 	};
+	const officePreparseContext = await prepareCurrentTurnOfficeContext({
+		req,
+		requestFiles: currentRequestFiles,
+		primedCodeFiles
+	});
+	if (officePreparseContext) appendAdditionalInstructions(agent, officePreparseContext);
 	let toolDefinitions = loadedToolDefinitions;
 	/**
 	* Tolerant filter: anything `loadTools` couldn't resolve (capability

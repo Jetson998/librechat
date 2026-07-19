@@ -66,7 +66,6 @@ const testSemanticContent = () => {
         },
       ],
     },
-    { content: [{ type: 'think', think: 'reasoning' }] },
     {
       content: [
         {
@@ -113,8 +112,9 @@ const testEmptyCompletionGuard = () => {
       error?.name === 'EmptyModelResponseError' &&
       error?.message.includes(`\"type\":\"${EMPTY_MODEL_RESPONSE_CODE}\"`),
   );
-  assert.doesNotThrow(() =>
-    ensureAssistantSemanticContent({ content: [{ type: 'think', think: 'ok' }] }),
+  assert.throws(
+    () => ensureAssistantSemanticContent({ content: [{ type: 'think', think: 'ok' }] }),
+    (error) => error?.code === EMPTY_MODEL_RESPONSE_CODE,
   );
 };
 

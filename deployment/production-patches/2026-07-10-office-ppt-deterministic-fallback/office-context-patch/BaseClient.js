@@ -237,13 +237,7 @@ const hasSemanticContentPart = (part) => {
     );
   }
   if (part.type === ContentTypes.THINK) {
-    if (isNonBlankText(getContentPartText(part, ContentTypes.THINK))) {
-      return true;
-    }
-    return Object.entries(part).some(
-      ([key, value]) =>
-        key !== 'type' && key !== ContentTypes.THINK && hasSemanticValue(value),
-    );
+    return false;
   }
   return Object.entries(part).some(
     ([key, value]) => key !== 'type' && hasSemanticValue(value),
