@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "release_id": "20260719-office-preparse-repair",
+  "status": "rolled_back",
+  "rolled_back_at": "2026-07-19T15:58:00Z",
+  "acceptance": {
+    "account": "vip998",
+    "conversation_id": "efbaeb3b-87af-407a-a273-53589f14aa55",
+    "model": "gpt-5.6-sol",
+    "endpoint": "MuskAPI",
+    "file": "acceptance.xlsx",
+    "action": "regenerate existing user message",
+    "billable_model_requests": 1,
+    "result": "failed"
+  },
+  "observations": [
+    "Chrome control rejected the fresh file chooser before upload; no model request was sent for that attempt.",
+    "The single billable acceptance regenerated an existing user message that already referenced acceptance.xlsx.",
+    "CodeAPI logged the expected stale-reference GET 405 followed by POST /upload 200, but no /exec request.",
+    "The browser remained in generating state beyond the 45 second pre-parse bound.",
+    "Mongo showed no new assistant row for the stopped acceptance request, so the existing early-abort guard prevented another blank persisted sibling."
+  ],
+  "diagnosis": {
+    "summary": "The replacement fixed the stale-reference resolver in isolation but did not cover regeneration semantics. On regenerate, req.body.files is empty even though the original user message still owns the attachment; initializeAgent classifies that file as historical tool usage, currentRequestFiles remains empty, and the pre-parse gate bypasses before /exec. The resumable controller still leaves this initialization/provider path visibly generating instead of returning a bounded visible error.",
+    "required_follow_up": [
+      "Resolve the regenerated parent user message and treat its attached file IDs as current-turn files for pre-parse selection.",
+      "Add controller-level coverage for original upload and regeneration request normalization.",
+      "Make every initializeClient/initializeAgent failure complete the GenerationJob with a visible error and no assistant placeholder.",
+      "Use a supported fresh-upload automation path or a server-side authenticated acceptance fixture; do not substitute regeneration for fresh-upload acceptance without explicitly testing its different file normalization contract."
+    ]
+  },
+  "backup": {
+    "BaseClient.js": "/opt/librechat/office-context-patch/BaseClient.js.bak-20260719235410",
+    "api-index.cjs": "/opt/librechat/office-context-patch/api-index.cjs.bak-20260719235410"
+  },
+  "restored_sha256": {
+    "BaseClient.js": "f432035ec723a92a000ecd7e2738f437bdfa1cfef91e8f73832a03230b96528b",
+    "api-index.cjs": "bd72c9707b3c075aa9d710a30fb7c7dedf405f4dd509c653ded52ddb7a8d267c"
+  },
+  "service_verification": {
+    "restarted": ["LibreChat-API"],
+    "codeapi_health": "healthy",
+    "main_root_status": 200,
+    "api_config_status": 200,
+    "office_status": 401,
+    "office_realm": "Office Converter"
+  },
+  "decision": "Do not redeploy this artifact. Implement regeneration-aware current-turn file resolution and controller-level initialization failure completion before another production write."
+}

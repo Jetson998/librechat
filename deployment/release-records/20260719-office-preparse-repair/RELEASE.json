@@ -1,7 +1,13 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "billable_model_requests": 1,
+      "conversation_id": "efbaeb3b-87af-407a-a273-53589f14aa55",
+      "evidence": "deployment/release-records/20260719-office-preparse-repair/ROLLBACK.json",
+      "result": "failed"
+    },
+    "status": "failed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +19,11 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "BaseClient.js": "/opt/librechat/office-context-patch/BaseClient.js.bak-20260719235410",
+      "api-index.cjs": "/opt/librechat/office-context-patch/api-index.cjs.bak-20260719235410"
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -97,13 +106,21 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "evidence": "deployment/release-records/20260719-office-preparse-repair/ROLLBACK.json",
+      "restored_api_config_status": 200,
+      "restored_main_root_status": 200,
+      "restored_office_status": 401
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "825d87dc1e2f8c7c556e5c0bf7626b81f59f5288",
-  "status": "planned",
-  "unresolved_issues": [],
+  "status": "rolled_back",
+  "unresolved_issues": [
+    "Regeneration requests do not repopulate req.body.files, so the original user-message attachments are not selected as current-turn files by the pre-parse gate.",
+    "The resumable controller can remain visibly generating when initialization or the provider path fails before persistable assistant content exists."
+  ],
   "updated_at": "2026-07-19T15:44:43Z",
   "validation_plan": [
     {
