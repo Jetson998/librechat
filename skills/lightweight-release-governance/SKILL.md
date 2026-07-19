@@ -108,6 +108,11 @@ before running a release:
 Do not put provider-specific assumptions in this Skill. Load the project's
 adapter references only when the task enters `release` or `protected` mode.
 
+When onboarding a new project, read
+`references/new-project-onboarding.md` and start from the fail-closed files in
+`assets/project-adapter-template/`. Replace the adapter behavior with
+project-owned checks before allowing any external write.
+
 ## Daily command surface
 
 Keep the operator-facing path small. A project should normally expose:

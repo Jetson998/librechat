@@ -25,6 +25,9 @@ email/password login enabled.
 - [Lightweight release governance guide](docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md):
   concise Chinese instructions for preparing, verifying, deploying, and
   recording a release.
+- [New project governance guide](docs/RELEASE_GOVERNANCE_NEW_PROJECT_ZH_CN.md):
+  how another self-hosted project can reuse the generic protocol with a thin
+  project adapter.
 - [Release evidence contract](docs/RELEASE_EVIDENCE_CONTRACT.md): provider-neutral
   source, artifact, runtime, backup, acceptance, and rollback evidence fields.
 - [Development and GitHub workflow](docs/DEVELOPMENT_AND_GITHUB_WORKFLOW.md):

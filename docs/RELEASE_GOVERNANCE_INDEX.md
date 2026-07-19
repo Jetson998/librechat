@@ -34,6 +34,8 @@ LibreChat 项目适配层
 | `skills/lightweight-release-governance/SKILL.md` | 通用 | 轻量模式、发布模式和写保护模式的通用协议 |
 | `skills/lightweight-release-governance/scripts/release_gate.py` | 通用 | 配置、失败分类、checkpoint、manifest 和记录校验 |
 | `skills/lightweight-release-governance/references/` | 通用 | 失败分类、适配契约和中性证据说明 |
+| `skills/lightweight-release-governance/references/new-project-onboarding.md` | 通用 | 新项目接入步骤、项目类型替换点和首次 dry-run |
+| `skills/lightweight-release-governance/assets/project-adapter-template/` | 通用 | 可复制的最小适配配置和 fail-closed 脚本模板 |
 | `skills/librechat-release-governance/SKILL.md` | LibreChat | 薄入口，只声明项目边界和仓库入口 |
 | `release-governance.json` | LibreChat | 仓库、风险模式、目标检查和部署范围契约 |
 | `scripts/librechat-release-adapter.py` | LibreChat | Git、制品、公开预检、受控 runner 和验收实现 |
@@ -51,6 +53,7 @@ LibreChat 项目适配层
 | `.release-state/` | 单次运行 | 本地临时 checkpoint、日志、包和快照，不提交仓库 |
 | `docs/RELEASE_EVIDENCE_CONTRACT.md` | 文档 | 发布记录字段和证据生命周期 |
 | `docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md` | 文档 | 面向操作者的简明中文说明 |
+| `docs/RELEASE_GOVERNANCE_NEW_PROJECT_ZH_CN.md` | 文档 | 其他新项目的接入和复用说明 |
 | `tests/release-governance/` | 测试 | 通用协议和 LibreChat 适配层静态测试 |
 | `.github/workflows/librechat-release-governance.yml` | CI | 防止关键门禁和 Skill 结构被删掉 |
 
@@ -93,3 +96,5 @@ scripts/validate-release-governance.sh
   但不得把这些实现细节回写到通用 Skill。
 - `release-deploy.sh` 不会自动猜测 runner，也不会通过隐含环境变量进入
   写操作；必须提供发布记录中的版本化 runner 和精确确认值。
+- 新项目优先复制通用模板，再实现自己的适配脚本；不要复制 LibreChat 的
+  生产服务、路由或目标检查。

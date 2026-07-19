@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -274,6 +275,36 @@ class ReleaseGateTests(unittest.TestCase):
                 "--terminal-record",
             )
             self.assertEqual(closed.returncode, 0, closed.stderr)
+
+    def test_new_project_template_validates_and_fails_closed(self):
+        template = ROOT / "skills/lightweight-release-governance/assets/project-adapter-template"
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            shutil.copytree(template, project, dirs_exist_ok=True)
+            config_path = project / "release-governance.json"
+            result = run_gate("validate-config", "--config", str(config_path), cwd=project)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            for name in ("prepare", "preflight", "package", "deploy", "acceptance"):
+                command = project / config["adapter"][name]
+                completed = subprocess.run(
+                    ["sh", str(command)],
+                    cwd=str(project),
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertIn("adapter_not_implemented", completed.stderr)
+
+    def test_new_project_onboarding_is_linked_from_generic_skill(self):
+        skill = (ROOT / "skills/lightweight-release-governance/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        reference = ROOT / "skills/lightweight-release-governance/references/new-project-onboarding.md"
+        self.assertTrue(reference.is_file())
+        self.assertIn("references/new-project-onboarding.md", skill)
 
     def test_generic_skill_has_no_project_specific_provider_names(self):
         generic = "\n".join(

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "project": {
+    "id": "replace-project-id",
+    "name": "Replace Project Name"
+  },
+  "adapter": {
+    "prepare": "scripts/release-prepare.sh",
+    "verify": "scripts/release-verify.sh",
+    "preflight": "scripts/release-preflight.sh",
+    "package": "scripts/release-package.sh",
+    "attest": "scripts/release-attest.sh",
+    "deploy": "scripts/release-deploy.sh",
+    "acceptance": "scripts/release-acceptance.sh",
+    "finalize": "scripts/release-finalize.sh",
+    "status": "scripts/release-status.sh",
+    "validate": "scripts/validate-release-governance.sh"
+  },
+  "evidence": {
+    "state_root": ".release-state",
+    "record_root": "deployment/release-records"
+  },
+  "risk_modes": {
+    "light": {
+      "required_gates": ["prepare", "release_record"],
+      "not_applicable_allowed": []
+    },
+    "release": {
+      "required_gates": [
+        "prepare",
+        "preflight_permissions",
+        "repository_gate",
+        "package_manifest",
+        "ci_attestation_gate",
+        "release_record"
+      ],
+      "not_applicable_allowed": ["ci_attestation_gate"]
+    },
+    "protected": {
+      "required_gates": [
+        "prepare",
+        "preflight_permissions",
+        "repository_gate",
+        "package_manifest",
+        "ci_attestation_gate",
+        "target_preflight",
+        "apply_gate",
+        "acceptance_gate",
+        "release_record"
+      ],
+      "not_applicable_allowed": ["ci_attestation_gate"]
+    },
+    "enhanced": {
+      "required_gates": [
+        "prepare",
+        "preflight_permissions",
+        "repository_gate",
+        "package_manifest",
+        "ci_attestation_gate",
+        "target_preflight",
+        "apply_gate",
+        "acceptance_gate",
+        "release_record"
+      ],
+      "not_applicable_allowed": []
+    }
+  },
+  "repository": {
+    "type": "git",
+    "remote": "origin",
+    "default_branch": "main",
+    "expected_remote": "REPLACE_REMOTE"
+  },
+  "package": {
+    "always_include": ["release-governance.json"]
+  },
+  "deployment": {
+    "allowed_runner_roots": ["deployment"],
+    "scoped_marker": "release-governance:scoped-deployment"
+  }
+}
