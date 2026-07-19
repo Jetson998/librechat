@@ -8,7 +8,7 @@
       "algorithm": "sha256",
       "artifact": ".release-state/20260719-office-preparse-gate/artifacts/20260719-office-preparse-gate-d4becd04fdbc.tar.gz",
       "manifest": ".release-state/20260719-office-preparse-gate/artifacts/manifest.json",
-      "value": "79c36b0c092ab08842f1497fe5d4a6519fc6aef416432d60e71beb3eb342acad"
+      "value": "a4c5a9088a6b3a5381abd2bb47de9e4b2f86f82e4ca9015f29cbb622cb2591e8"
     },
     "status": "passed"
   },
@@ -54,7 +54,11 @@
   "mode": "enhanced",
   "project_adapter": {
     "deploy_runner": "",
-    "package_required_paths": [],
+    "package_required_paths": [
+      "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/ToolService.js",
+      "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/process.js",
+      "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/skill/office-document-parser/SKILL.md"
+    ],
     "protected_services": [],
     "release_kind": "batch",
     "release_plan": "computed-from-change-summary.scope-at-verify"
@@ -80,7 +84,7 @@
   "source_revision": "d4becd04fdbc0e7b52f0a019133e50e9f9b64a3b",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-19T13:26:25Z",
+  "updated_at": "2026-07-19T13:33:17Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",
