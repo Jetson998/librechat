@@ -83,6 +83,12 @@ class LibreChatContractTests(unittest.TestCase):
             self.assertIn(name, index)
             self.assertIn(name, guide)
 
+    def test_governance_workflow_covers_new_project_guide(self):
+        workflow = (ROOT / ".github/workflows/librechat-release-governance.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("docs/RELEASE_GOVERNANCE_NEW_PROJECT_ZH_CN.md", workflow)
+
     def test_repository_gate_allows_out_of_scope_remote_change_and_blocks_scope_change(self):
         adapter = load_adapter_module()
         original_root = adapter.ROOT
