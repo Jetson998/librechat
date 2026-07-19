@@ -45,3 +45,16 @@ field layout.
 
 The adapter must not turn business acceptance into a full server audit, a
 security scan, a load test, a cleanup job, or a repeated model conversation.
+
+## Batch and path selection
+
+The adapter should evaluate changed paths when a release batch is prepared, not
+on every development commit. Its deterministic plan may select build and test
+requirements, deployment targets, dependency checks, backup conditions, and
+acceptance evidence. High-risk paths may raise the minimum mode to `enhanced`;
+this is a release-time decision and must not slow ordinary coding work.
+
+Production build evidence must state that compilation, dependency installation,
+or image creation happened in CI or another independent build environment. The
+target host may perform read-only preflight, bounded deployment, and selected
+smoke checks, but must not become the build environment.

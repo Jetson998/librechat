@@ -28,6 +28,18 @@ Never use an ad-hoc environment variable to skip a gate. A gate may be
 `not_applicable` only when the project adapter declares that outcome for the
 selected mode and records a reason.
 
+## Batch boundary
+
+Do not start a governed release for every coding task or commit. Daily AI-assisted
+development stays in `light`: make the change, run focused local checks, and
+commit normally. Start `release`, `protected`, or `enhanced` only when a related
+batch is ready to package or deploy. Resolve the accumulated paths once and run
+the selected build, tests, target checks, and acceptance once for that batch.
+
+Use `enhanced` at low frequency for a batch containing data, routing, identity,
+core file, or other high-risk changes. Batching reduces repeated work; it never
+permits a high-risk production change to use a lower mode.
+
 ## Required sequence
 
 The generic protocol is:
@@ -49,7 +61,8 @@ order of all applicable gates. A failed or blocked gate stops the write path.
    rollback action.
 5. Run read-only repository and target checks before any external write.
 6. Build artifacts from an exact source revision, never from an uncommitted
-   working tree.
+   working tree or on the production host. A project may build in CI or another
+   independent build environment once per release batch.
 7. Verify the build or artifact proof using the provider-neutral evidence
    contract supplied by the project adapter.
 8. Apply only the bounded, versioned change after the protected gates pass.
@@ -152,7 +165,9 @@ before running a release:
 - scripts implement repository checks, target preflight, scoped application,
   and acceptance;
 - the adapter identifies critical business paths, risk triggers, reusable
-  evidence, automated checks, and cases that need human confirmation;
+  evidence, automated checks, and cases that need human confirmation; it should
+  resolve these from accumulated changed paths instead of asking the model to
+  improvise a new test list for each release;
 - the release record uses provider-neutral fields such as `source_revision`,
   `build_attestation`, `artifact_digest`, `runtime_snapshot`,
   `backup_reference`, and `acceptance_result`.

@@ -12,7 +12,42 @@ LibreChat 自托管部署：
 
 实际的部署 runner 必须由单次 `RELEASE.json` 指定，且只能来自配置允许的
 生产补丁或生产操作目录。适配层不会根据用户文字猜测容器、Compose 文件
-或生产路径。
+或生产路径。runner 必须声明 `release-governance:targets=`，其服务集合必须与
+路径计划一致；可以读取依赖服务，但不能顺手重建它们。
+
+## 批量发布边界
+
+日常 AI 开发不创建发布记录，也不执行远端预检、镜像构建或完整业务验收。
+相关功能先正常开发、定向测试并提交；准备统一上线时，再把累计修改范围写入
+一个 `RELEASE.json`。`release-verify` 只在这时展开目录并依据
+`release-governance.json` 计算一次发布计划。
+
+普通 UI、单接口或单服务补丁通常保持 `protected`。数据库、Office/模型工具
+链、Nginx/Compose 路由等累计高风险批次要求 `enhanced`。重度门禁按发布批次
+执行，不按每个开发任务执行。
+
+普通批次使用 `project_adapter.release_kind: batch`。MVP 转正式版或重大版本
+分别使用 `mvp-promotion`、`major-release`；这两类生产发布要求 `enhanced`，
+发布治理只校验完整业务验收的证据引用，不在发布任务中重跑整套 UAT。
+
+## 路径规则
+
+本仓库是生产补丁与运维档案仓库，不是完整上游源码树。路径规则因此匹配
+`deployment/production-patches/**` 和 `deployment/production-operations/**`：
+
+- `client/`、`public/` 和 UI 资源：客户端制品、客户端测试、API 定向部署及
+  浏览器验收；
+- `api/` 和 API bundle：API 制品、API 测试和 API smoke；
+- Office、`BaseClient`、`ToolService`、模型配置：`enhanced`、文件往返和最多
+  一条限额模型请求；
+- `package.json`、锁文件、Dockerfile：依赖安装构建和漏洞扫描证明；
+- Nginx、Compose：`enhanced`、路由验证和多服务健康引用；
+- Mongo、backfill、migration 和生产数据操作：`enhanced`、备份和数据完整性
+  验收。
+
+路径规则只生成要求，不在生产服务器编译、安装依赖、构建镜像、执行压测或
+清理缓存。CI 或独立构建环境每个发布批次提供一次 attestation；生产预检只
+读取受影响服务、依赖接口、可用内存、磁盘和回滚目标。
 
 ## 业务验收选择
 

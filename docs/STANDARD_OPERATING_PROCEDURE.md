@@ -31,6 +31,10 @@ Chinese operator guide is in `docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md`.
 - `protected`: minimum protection for any production write.
 - `enhanced`: migrations, shared infrastructure, or concurrent high-risk work.
 
+Daily AI development remains ordinary Git work with focused tests. Group related
+changes and enter `release` or a production mode once per batch; do not repeat
+remote preflight, build, or business acceptance for every small task.
+
 The governance scripts complement this SOP. They do not replace the
 release-specific rollback and acceptance requirements.
 
@@ -120,6 +124,12 @@ Server cleanup, full health audits, security scans, load tests, and formatting
 are separate activities. Acceptance may reference their existing results but
 does not rerun them by default.
 
+The project adapter resolves the accumulated patch paths once at release time.
+Client paths select client tests and browser checks; API and Office paths select
+their targeted smoke; dependency, routing, and persistent-data paths add only
+the corresponding conditional evidence. The model should not invent a broader
+test list during each development turn.
+
 ## 5. Change Intake
 
 Before changing production, write down:
@@ -199,9 +209,10 @@ release-prepare -> release-verify -> release-package -> release-attest
                 -> release-acceptance -> release-finalize
 ```
 
-`release-attest` may be `not_applicable` only when the selected mode allows it
-and the release record contains a reason. Do not use an environment variable to
-skip a required gate.
+Production `release-attest` cannot be `not_applicable`: the selected batch must
+be built and tested in CI or an independent build environment, never on the
+production host. Only a non-production `release` record may use the configured
+exception with a reason. Do not use an environment variable to skip a gate.
 
 1. Capture current state.
 

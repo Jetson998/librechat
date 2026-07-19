@@ -6,6 +6,10 @@
 它不是新的开发平台。普通分析、写代码、写文档和本地测试不需要经过生产
 门禁。只有准备发布或要修改外部运行环境时，才进入对应保护模式。
 
+不要为每个 AI 开发任务创建一次发布。相关模块可以连续开发、定向测试并正常
+提交；准备统一上线时，再用一个发布记录覆盖这批累计修改。路径解析、构建
+证明、生产预检和业务验收都按这个发布批次执行一次。
+
 LibreChat 的项目规则集中在仓库根目录的 `release-governance.json`，日常
 操作通过 `scripts/release-*.sh` 完成。
 
@@ -24,7 +28,8 @@ scripts/validate-release-governance.sh
 | `protected` | 普通生产文件、服务、配置或数据变更 | 需要只读预检、范围限制、风险自适应业务验收和结果记录 |
 
 `enhanced` 用于数据库迁移、认证权限、核心路由、共享基础设施或并行发布等
-更高风险场景，并使用重度业务验收。
+更高风险场景，并使用重度业务验收。它是低频批量门禁，不是每次开发的默认
+流程。
 
 ## 二、业务验收怎么选
 
@@ -67,7 +72,9 @@ deployment/release-records/2026-07-19-example/RELEASE.json
 ```
 
 至少填写：原因、功能清单、修改范围、预期结果、风险、基线、验证计划、
-回滚方式、source_revision 和项目适配信息。不要在记录里写密码、令牌、
+回滚方式、source_revision 和项目适配信息。普通批次保持
+`project_adapter.release_kind: batch`；只有 MVP 转正式版或重大版本才改为
+`mvp-promotion` 或 `major-release`。不要在记录里写密码、令牌、
 Cookie 或原始用户数据。
 
 ### 2. 提交并推送计划
@@ -88,6 +95,12 @@ scripts/release-verify.sh 2026-07-19-example
 在这些比较之前，它先确认所需本地命令和远端只读引用确实可用。命令根本
 没有启动时，应记录为执行环境阻塞，不能误判为仓库或凭据失败。
 远端主线发生变化且影响发布范围时，流程会停止，不会自动覆盖并行修改。
+同时会展开累计修改目录，按 LibreChat 的项目路径规则生成：构建要求、测试
+要求、目标服务、生产只读检查、备份条件和业务验收强度。计划保存在：
+
+```text
+.release-state/<release-id>/release-plan.json
+```
 
 ### 4. 从指定 revision 打包
 
@@ -110,7 +123,11 @@ scripts/release-package.sh 2026-07-19-example
   "status": "passed",
   "source_revision": "完整版本号",
   "artifact_sha256": "manifest 中的制品摘要",
+  "release_plan_sha256": "release-plan.json 中的摘要",
   "provider": "构建系统名称",
+  "build_environment": "ci|independent-build",
+  "production_host": false,
+  "completed_requirements": ["计划要求的构建和测试 ID"],
   "details": {}
 }
 ```
@@ -121,22 +138,46 @@ scripts/release-package.sh 2026-07-19-example
 scripts/release-attest.sh 2026-07-19-example /path/to/attestation.json
 ```
 
-只有项目配置明确允许时，才可以使用 `not_applicable`，并写出原因。
+生产发布不能把构建证明设为 `not_applicable`。构建、依赖安装、镜像或静态
+制品生成必须在 CI 或独立构建环境完成，禁止在生产服务器完成。配置补丁只需
+生成并验证对应配置制品，不机械构建无关镜像。
 
 ### 6. 生产只读预检
 
 ```sh
-scripts/release-preflight.sh 2026-07-19-example
+scripts/release-preflight.sh 2026-07-19-example \
+  --evidence /path/to/runtime-preflight.json
 ```
 
-这个步骤只读取仓库和公开运行状态，提供主页、`/api/config`、`/office/`
-认证边界和 Admin 页面的基础技术 smoke，不发送模型请求，不创建新对话。
-它不能替代按本次修改范围选择的业务验收。
+`runtime-preflight.json` 由仓库内版本化的只读项目检查生成，至少证明计划选中
+的服务、依赖接口、可用内存、磁盘和回滚目标。只有路径相关的主页、
+`/api/config`、`/office/` 或 Admin 检查会执行。磁盘不足时流程停止，由独立
+维护任务清理后恢复；发布脚本不会顺手清理缓存或旧镜像。
+
+```json
+{
+  "status": "passed",
+  "source_revision": "完整版本号",
+  "release_plan_sha256": "计划摘要",
+  "artifact_sha256": "发布包摘要",
+  "checked_services": ["计划中的服务"],
+  "checks": [{"id": "计划中的检查 ID", "status": "passed"}],
+  "host_resources": {"memory_available_mb": 2048, "disk_free_mb": 8192},
+  "rollback_available": true
+}
+```
 
 ### 7. 受控部署
 
 部署记录必须指定一个版本化 runner，并且 runner 必须位于允许目录、包含
-范围部署标记。执行时必须显式确认 release id：
+范围部署标记和与发布计划完全一致的目标标记，例如：
+
+```sh
+# release-governance:scoped-deployment
+# release-governance:targets=LibreChat-API
+```
+
+执行时必须显式确认 release id：
 
 ```sh
 scripts/release-deploy.sh 2026-07-19-example \
@@ -149,12 +190,25 @@ scripts/release-deploy.sh 2026-07-19-example \
 ### 8. 验收和收尾
 
 ```sh
-scripts/release-acceptance.sh 2026-07-19-example
+scripts/release-acceptance.sh 2026-07-19-example \
+  --evidence /path/to/business-acceptance.json
 ```
 
 根据第二节选择轻度或重度验收。已有证据可以复用，但必须确认 revision、
 artifact、配置和环境假设仍然一致。只有本次修改影响模型或工具路径时才发送
-模型请求，只有影响 UI 时才要求浏览器验证。
+模型请求，且最多一条；只有影响 UI 时才要求浏览器验证。若计划只包含自动
+HTTP smoke，不要求额外业务证据文件，可省略 `--evidence`。
+
+```json
+{
+  "status": "passed",
+  "source_revision": "完整版本号",
+  "release_plan_sha256": "计划摘要",
+  "artifact_sha256": "发布包摘要",
+  "checks": [{"id": "计划中的业务检查 ID", "status": "passed"}],
+  "billable_model_requests": 0
+}
+```
 
 填写实际备份路径、部署结果、验收结果和已知问题，提交并推送
 `RELEASE.json`，最后执行：

@@ -6,6 +6,7 @@ version-control, build, deployment, or hosting provider:
 ```json
 {
   "source_revision": "",
+  "release_plan": {},
   "build_attestation": {},
   "artifact_digest": {},
   "runtime_snapshot": {},
@@ -23,6 +24,11 @@ build number can be recorded without becoming a generic protocol requirement.
 The record is incomplete when a required object is absent. A value such as
 `not_applicable` must include a reason and be allowed by the selected project
 mode.
+
+For a production batch, `release_plan` should identify the deterministic plan
+derived from accumulated paths. Build attestation should cover the plan's build
+and test requirements and state that the production target was not used as the
+build environment.
 
 Business acceptance evidence is conceptual rather than tied to a fixed field
 layout. It should make the following facts recoverable:

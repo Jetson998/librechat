@@ -24,6 +24,7 @@
   },
   "baseline_reference": {"status": "passed", "details": {}},
   "validation_plan": [],
+  "release_plan": {"sha256": "", "details": {}},
   "artifact_digest": {"status": "passed", "details": {}},
   "build_attestation": {"status": "passed", "details": {}},
   "runtime_snapshot": {"status": "passed", "details": {}},
@@ -35,12 +36,13 @@
 ```
 
 对象可以是 `not_applicable`，但必须有 `reason`，且必须被所选项目模式
-预先允许。发布记录不能只写“已完成”，应保留实际路径、摘要、状态和未解决
-问题。
+预先允许。生产模式的构建证明不能使用该状态。`release_plan` 的摘要必须
+对应本次累计变更路径和项目配置；发布记录不能只写“已完成”，应保留实际
+路径、摘要、状态和未解决问题。
 
 ## 证据生命周期
 
-1. `prepare` 创建计划和基线引用。
+1. `prepare` 创建计划和基线引用；`verify` 根据累计路径生成 release plan。
 2. `preflight_permissions` 证明所需能力和只读外部依赖可用。
 3. `repository_gate` 证明计划和源版本来自正确项目。
 4. `package_manifest` 证明制品内容和摘要。

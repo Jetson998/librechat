@@ -54,9 +54,7 @@
         "acceptance_gate",
         "release_record"
       ],
-      "not_applicable_allowed": [
-        "ci_attestation_gate"
-      ]
+      "not_applicable_allowed": []
     },
     "enhanced": {
       "required_gates": [
@@ -123,6 +121,403 @@
       "scripts/librechat-release-adapter.py"
     ]
   },
+  "release_planning": {
+    "active_modes": [
+      "release",
+      "protected",
+      "enhanced"
+    ],
+    "production_modes": [
+      "protected",
+      "enhanced"
+    ],
+    "production_roots": [
+      "deployment/production-patches",
+      "deployment/production-operations"
+    ],
+    "production_defaults": {
+      "build_requirements": [
+        "deployable-artifact"
+      ],
+      "test_requirements": [
+        "release-scope-tests"
+      ],
+      "preflight_checks": [
+        "service-state",
+        "dependency-interface",
+        "host-memory",
+        "host-disk",
+        "rollback-available"
+      ],
+      "public_preflight_checks": [
+        "main-root"
+      ],
+      "public_acceptance_checks": [
+        "main-root"
+      ],
+      "acceptance_checks": [],
+      "acceptance_level": "light"
+    },
+    "resource_thresholds": {
+      "memory_available_mb": 512,
+      "disk_free_mb": 2048
+    },
+    "rules": [
+      {
+        "id": "governance",
+        "patterns": [
+          ".github/workflows/librechat-release-governance.yml",
+          "release-governance.json",
+          "skills/lightweight-release-governance/**",
+          "skills/librechat-release-governance/**",
+          "scripts/release-*.sh",
+          "scripts/librechat-release-adapter.py",
+          "tests/release-governance/**",
+          "docs/*RELEASE*GOVERNANCE*",
+          "docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md"
+        ],
+        "test_requirements": [
+          "release-governance-validation"
+        ]
+      },
+      {
+        "id": "production-patch",
+        "patterns": [
+          "deployment/production-patches/**"
+        ],
+        "minimum_mode": "protected",
+        "build_requirements": [
+          "versioned-patch-artifact"
+        ],
+        "test_requirements": [
+          "patch-contract-tests"
+        ],
+        "acceptance_checks": [
+          "changed-path-smoke"
+        ]
+      },
+      {
+        "id": "production-operation",
+        "patterns": [
+          "deployment/production-operations/**"
+        ],
+        "minimum_mode": "protected",
+        "build_requirements": [
+          "versioned-operation-artifact"
+        ],
+        "test_requirements": [
+          "operation-contract-tests"
+        ],
+        "deployment_targets": [
+          "chat-mongodb"
+        ],
+        "dependency_services": [
+          "LibreChat-API"
+        ],
+        "acceptance_checks": [
+          "operation-result"
+        ]
+      },
+      {
+        "id": "client-ui",
+        "patterns": [
+          "deployment/production-patches/*/client/**",
+          "deployment/production-patches/*/public/**",
+          "deployment/production-patches/**/*ui*.js",
+          "deployment/production-patches/**/*ui*.css",
+          "deployment/production-patches/**/*login*.js",
+          "deployment/production-patches/**/*dashboard*.js",
+          "deployment/production-patches/*layout*/**",
+          "deployment/production-patches/*dashboard*/**",
+          "deployment/production-patches/*upload-menu*/**",
+          "deployment/production-patches/*search-favicon*/**",
+          "deployment/production-patches/*login-page*/**",
+          "deployment/production-patches/*model-market*/**"
+        ],
+        "build_requirements": [
+          "client-bundle"
+        ],
+        "test_requirements": [
+          "client-tests"
+        ],
+        "deployment_targets": [
+          "LibreChat-API"
+        ],
+        "dependency_services": [
+          "LibreChat-NGINX"
+        ],
+        "public_preflight_checks": [
+          "api-config"
+        ],
+        "public_acceptance_checks": [
+          "api-config"
+        ],
+        "acceptance_checks": [
+          "browser-ui"
+        ],
+        "conditional_checks": [
+          "browser-acceptance"
+        ]
+      },
+      {
+        "id": "api-runtime",
+        "patterns": [
+          "deployment/production-patches/*/api/**",
+          "deployment/production-patches/**/api-index.cjs"
+        ],
+        "build_requirements": [
+          "api-artifact"
+        ],
+        "test_requirements": [
+          "api-tests"
+        ],
+        "deployment_targets": [
+          "LibreChat-API"
+        ],
+        "dependency_services": [
+          "chat-mongodb"
+        ],
+        "public_preflight_checks": [
+          "api-config"
+        ],
+        "public_acceptance_checks": [
+          "api-config"
+        ],
+        "acceptance_checks": [
+          "api-smoke"
+        ]
+      },
+      {
+        "id": "admin-panel",
+        "patterns": [
+          "deployment/production-patches/*admin*/**"
+        ],
+        "build_requirements": [
+          "admin-artifact"
+        ],
+        "test_requirements": [
+          "admin-tests"
+        ],
+        "deployment_targets": [
+          "LibreChat-Admin-Panel"
+        ],
+        "dependency_services": [
+          "LibreChat-NGINX",
+          "LibreChat-API"
+        ],
+        "public_preflight_checks": [
+          "admin-root"
+        ],
+        "public_acceptance_checks": [
+          "admin-root"
+        ],
+        "acceptance_checks": [
+          "browser-admin"
+        ],
+        "conditional_checks": [
+          "browser-acceptance"
+        ]
+      },
+      {
+        "id": "office-file-chain",
+        "patterns": [
+          "deployment/production-patches/*office*/**",
+          "deployment/production-patches/**/office-context-patch/**"
+        ],
+        "minimum_mode": "enhanced",
+        "acceptance_level": "heavy",
+        "build_requirements": [
+          "model-tool-artifact"
+        ],
+        "test_requirements": [
+          "model-tool-tests"
+        ],
+        "deployment_targets": [
+          "LibreChat-API",
+          "LibreChat-CodeAPI"
+        ],
+        "dependency_services": [
+          "LibreChat-RAG-API",
+          "chat-mongodb"
+        ],
+        "public_preflight_checks": [
+          "api-config",
+          "office-auth-boundary"
+        ],
+        "public_acceptance_checks": [
+          "api-config",
+          "office-auth-boundary"
+        ],
+        "acceptance_checks": [
+          "office-file-roundtrip",
+          "limited-model-request"
+        ],
+        "conditional_checks": [
+          "billable-model-request"
+        ]
+      },
+      {
+        "id": "model-tool-routing",
+        "patterns": [
+          "deployment/production-patches/**/BaseClient.js",
+          "deployment/production-patches/**/ToolService.js",
+          "deployment/production-patches/**/process.js",
+          "deployment/production-patches/*title*/**",
+          "deployment/production-patches/*web-search*/**",
+          "deployment/production-patches/*endpoint*/**"
+        ],
+        "minimum_mode": "enhanced",
+        "acceptance_level": "heavy",
+        "build_requirements": [
+          "model-tool-artifact"
+        ],
+        "test_requirements": [
+          "model-tool-tests"
+        ],
+        "deployment_targets": [
+          "LibreChat-API"
+        ],
+        "dependency_services": [
+          "LibreChat-CodeAPI",
+          "chat-mongodb"
+        ],
+        "public_preflight_checks": [
+          "api-config"
+        ],
+        "public_acceptance_checks": [
+          "api-config"
+        ],
+        "acceptance_checks": [
+          "limited-model-request"
+        ],
+        "conditional_checks": [
+          "billable-model-request"
+        ]
+      },
+      {
+        "id": "dependencies",
+        "patterns": [
+          "deployment/production-patches/**/package.json",
+          "deployment/production-patches/**/package-lock.json",
+          "deployment/production-patches/**/bun.lock",
+          "deployment/production-patches/**/Dockerfile"
+        ],
+        "build_requirements": [
+          "dependency-install-and-build"
+        ],
+        "test_requirements": [
+          "dependency-tests",
+          "vulnerability-scan"
+        ],
+        "conditional_checks": [
+          "vulnerability-scan"
+        ]
+      },
+      {
+        "id": "performance-sensitive",
+        "patterns": [
+          "deployment/production-patches/*/api/*aggregation*",
+          "deployment/production-patches/*/api/*cache*",
+          "deployment/production-patches/*/api/*file*",
+          "deployment/production-patches/*/api/*upload*",
+          "deployment/production-patches/*/api/*usage*",
+          "deployment/production-patches/**/office-context-patch/**"
+        ],
+        "test_requirements": [
+          "performance-test"
+        ],
+        "conditional_checks": [
+          "performance-test"
+        ]
+      },
+      {
+        "id": "routing-infrastructure",
+        "patterns": [
+          "deployment/production-patches/**/*nginx*.conf",
+          "deployment/production-patches/**/compose*.yaml",
+          "deployment/production-patches/**/docker-compose*.yml"
+        ],
+        "exclude_patterns": [
+          "deployment/production-patches/**/baseline/**",
+          "deployment/production-patches/**/source/**",
+          "deployment/production-patches/**/results/**",
+          "deployment/production-patches/**/compose.before.yaml"
+        ],
+        "minimum_mode": "enhanced",
+        "acceptance_level": "heavy",
+        "build_requirements": [
+          "validated-runtime-config"
+        ],
+        "test_requirements": [
+          "routing-config-tests",
+          "full-service-health-audit"
+        ],
+        "deployment_targets": [
+          "LibreChat-NGINX",
+          "LibreChat-API"
+        ],
+        "dependency_services": [
+          "LibreChat-CodeAPI",
+          "LibreChat-RAG-API",
+          "LibreChat-Admin-Panel",
+          "chat-mongodb"
+        ],
+        "public_preflight_checks": [
+          "api-config",
+          "office-auth-boundary",
+          "admin-root"
+        ],
+        "public_acceptance_checks": [
+          "api-config",
+          "office-auth-boundary",
+          "admin-root"
+        ],
+        "acceptance_checks": [
+          "route-smoke",
+          "full-service-health-audit"
+        ],
+        "conditional_checks": [
+          "full-service-health-audit"
+        ]
+      },
+      {
+        "id": "persistent-data",
+        "patterns": [
+          "deployment/production-patches/**/*mongo*.js",
+          "deployment/production-patches/**/*backfill*.js",
+          "deployment/production-patches/**/*migration*",
+          "deployment/production-patches/**/set-context-values.js",
+          "deployment/production-operations/**"
+        ],
+        "exclude_patterns": [
+          "deployment/production-patches/**/baseline/**",
+          "deployment/production-patches/**/source/**",
+          "deployment/production-patches/**/results/**"
+        ],
+        "minimum_mode": "enhanced",
+        "acceptance_level": "heavy",
+        "test_requirements": [
+          "data-change-tests"
+        ],
+        "deployment_targets": [
+          "chat-mongodb"
+        ],
+        "dependency_services": [
+          "LibreChat-API"
+        ],
+        "preflight_checks": [
+          "data-backup"
+        ],
+        "acceptance_checks": [
+          "data-integrity"
+        ],
+        "conditional_checks": [
+          "data-backup"
+        ],
+        "data_backup_required": true
+      }
+    ]
+  },
   "target": {
     "public_checks": [
       {
@@ -175,6 +570,7 @@
       "deployment/production-operations"
     ],
     "scoped_marker": "release-governance:scoped-deployment",
+    "targets_marker": "release-governance:targets=",
     "target_lock_marker": "release-governance:target-lock",
     "target_lock_required_modes": [
       "enhanced"

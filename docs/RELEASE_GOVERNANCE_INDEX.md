@@ -37,15 +37,15 @@ LibreChat 项目适配层
 | `skills/lightweight-release-governance/references/new-project-onboarding.md` | 通用 | 新项目接入步骤、项目类型替换点和首次 dry-run |
 | `skills/lightweight-release-governance/assets/project-adapter-template/` | 通用 | 可复制的最小适配配置和 fail-closed 脚本模板 |
 | `skills/librechat-release-governance/SKILL.md` | LibreChat | 薄入口，只声明项目边界和仓库入口 |
-| `release-governance.json` | LibreChat | 仓库、风险模式、目标检查和部署范围契约 |
-| `scripts/librechat-release-adapter.py` | LibreChat | Git、制品、公开预检、受控 runner 和验收实现 |
+| `release-governance.json` | LibreChat | 仓库、风险模式、路径规则、目标检查和部署范围契约 |
+| `scripts/librechat-release-adapter.py` | LibreChat | Git、发布计划、制品、目标预检、受控 runner 和验收实现 |
 | `scripts/release-prepare.sh` | LibreChat | 创建单次发布记录模板 |
 | `scripts/release-verify.sh` | LibreChat | 先做能力预检，再验证记录、分支、远端、revision 和发布范围 |
 | `scripts/release-package.sh` | LibreChat | 从记录的 source revision 打包并生成 manifest |
 | `scripts/release-attest.sh` | LibreChat | 记录构建或制品证明 |
-| `scripts/release-preflight.sh` | LibreChat | 生产只读预检，不执行写操作 |
+| `scripts/release-preflight.sh` | LibreChat | 校验项目只读快照并执行计划选中的公开预检 |
 | `scripts/release-deploy.sh` | LibreChat | 需要明确确认的范围部署包装器 |
-| `scripts/release-acceptance.sh` | LibreChat | 只读 HTTP/API 验收，不创建对话 |
+| `scripts/release-acceptance.sh` | LibreChat | 计划选中的技术和业务验收，模型请求最多一条 |
 | `scripts/release-finalize.sh` | LibreChat | 验证最终记录并关闭 release_record 门禁 |
 | `scripts/release-status.sh` | LibreChat | 查看 checkpoint，定位恢复起点 |
 | `scripts/validate-release-governance.sh` | LibreChat | 一条命令运行配置、语法、Skill 和回归测试 |
@@ -59,15 +59,16 @@ LibreChat 项目适配层
 
 ## 三、命令顺序
 
-普通变更不需要执行整套流程。进入发布或生产写操作时，使用：
+普通变更不需要执行整套流程。相关修改批量准备发布或进入生产写操作时，使用：
 
 ```text
 prepare -> verify(capabilities + repository) -> package -> attest -> preflight -> deploy
          -> acceptance -> finalize
 ```
 
-`attest` 只有在项目或发布模式要求构建证明时执行。不能通过环境变量
-跳过必需门禁；只可以依据配置声明 `not_applicable`，并写明理由。
+`release-verify` 会把累计路径展开为 `.release-state/<release-id>/release-plan.json`。
+生产模式必须提供 CI 或独立构建证明；不能通过环境变量跳过门禁。只有非生产
+`release` 模式可以依据配置声明 `not_applicable`，并写明理由。
 
 中断后先执行：
 

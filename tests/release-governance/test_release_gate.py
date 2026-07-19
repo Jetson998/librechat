@@ -121,6 +121,7 @@ class ReleaseGateTests(unittest.TestCase):
             payload = json.loads(record.read_text(encoding="utf-8"))
             for key in (
                 "source_revision",
+                "release_plan",
                 "build_attestation",
                 "artifact_digest",
                 "runtime_snapshot",

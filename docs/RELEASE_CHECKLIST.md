@@ -4,6 +4,9 @@ Use this for small LibreChat production changes. This checklist is a gate, not
 an after-the-fact note. No production write is allowed until the "Repository
 Gate" section is complete and pushed.
 
+Do not open one release per coding task. Group related, already-tested commits
+and apply this checklist once when the batch is ready to package or deploy.
+
 ## Change Summary
 
 - Release ID:
@@ -18,6 +21,7 @@ Gate" section is complete and pushed.
 - Feature/function list:
 - Verification plan:
 - Business acceptance level: `light` / `heavy`
+- Release kind: `batch` / `mvp-promotion` / `major-release`
 - Acceptance reason and affected business path:
 - Existing evidence that can be reused:
 
@@ -37,8 +41,13 @@ Gate" section is complete and pushed.
 - [ ] `git status --short --branch` shows local branch aligned with
       `origin/main`.
 - [ ] `scripts/release-verify.sh <release-id>` passed.
+- [ ] `.release-state/<release-id>/release-plan.json` resolves the accumulated
+      paths to the intended mode, build requirements, tests, services, backup
+      condition, and acceptance level.
 - [ ] Package manifest was created from the recorded source revision when the
       selected mode requires one.
+- [ ] Production build attestation covers every requirement selected by the
+      release plan and explicitly proves the build did not run on production.
 
 If any item above cannot be completed, stop. Do not change production.
 
@@ -46,6 +55,9 @@ If any item above cannot be completed, stop. Do not change production.
 
 - [ ] Root URL returns `200`.
 - [ ] `/api/config` has been captured.
+- [ ] The project-produced runtime evidence covers only the plan's affected
+      services and dependency interfaces, plus available memory, disk, and a
+      usable rollback target.
 - [ ] Light or heavy business acceptance was selected from actual scope and
       risk.
 - [ ] The affected business path and nearest critical guardrail are identified.
@@ -56,6 +68,8 @@ If any item above cannot be completed, stop. Do not change production.
       changes the model/tool path. Default acceptance sends no model request.
 - [ ] Relevant files/configs are backed up when rollback cannot rely on the
       previous immutable artifact or revision.
+- [ ] Persistent-data changes have a real backup reference; releases without
+      persistent-data changes may record backup as `not_applicable` with a reason.
 - [ ] No production secrets will be committed to this project.
 - [ ] Rollback artifact exists and is referenced in this checklist or release
       note.
@@ -84,6 +98,8 @@ curl -k -L https://152.32.172.162.sslip.io/api/config
 - [ ] Rollback path remains available.
 - [ ] Business acceptance records its level, actual scope, reused evidence,
       result, key warnings, evidence location, and continue-or-rollback decision.
+- [ ] MVP promotion or major release records a valid full-business-acceptance
+      reference instead of rerunning the whole UAT inside the release task.
 - [ ] Actual production state matches the committed plan, or differences are
       captured in a follow-up commit.
 - [ ] Verification result is documented and pushed if it changed the record.

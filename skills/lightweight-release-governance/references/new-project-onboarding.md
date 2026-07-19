@@ -13,8 +13,8 @@ defines how that repository proves it.
 3. Replace the project id and name in `release-governance.json`.
 4. Implement the repository-owned scripts. Keep read-only checks separate from
    apply or deploy commands, and make every unfinished command fail closed.
-5. Add the project's required package paths, acceptance checks, rollback
-   behavior, and evidence locations.
+5. Add the project's required package paths, accumulated-path selection rules,
+   acceptance checks, rollback behavior, and evidence locations.
 6. Add contract tests that prove required files exist, scope is bounded,
    unfinished commands fail, and protected mode cannot skip a gate.
 7. Run a local `release` dry-run through record creation, repository checks,
@@ -49,6 +49,8 @@ Commit the configuration, scripts, tests, and final release records. Ignore
 The adapter should answer these questions deterministically:
 
 - Which project, revision, target, and scope are being released?
+- Which accumulated paths select builds, tests, targets, backup conditions, and
+  light or heavy acceptance for this batch?
 - Is the repository state compatible with the recorded source revision?
 - Are all files needed for remote verification present in the package?
 - What read-only target snapshot proves the write is safe to begin?
@@ -89,4 +91,4 @@ The first implementation is ready for use only when:
   rollback evidence are valid.
 
 After that milestone, ordinary development remains lightweight. Run the full
-protected path only for an external runtime write.
+protected path only once a related batch is ready for an external runtime write.

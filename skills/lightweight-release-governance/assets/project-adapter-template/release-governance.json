@@ -48,7 +48,7 @@
         "acceptance_gate",
         "release_record"
       ],
-      "not_applicable_allowed": ["ci_attestation_gate"]
+      "not_applicable_allowed": []
     },
     "enhanced": {
       "required_gates": [

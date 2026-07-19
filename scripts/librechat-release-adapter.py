@@ -15,6 +15,7 @@ import tempfile
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 
@@ -26,6 +27,18 @@ GATE_SCRIPT = (
     / "lightweight-release-governance"
     / "scripts"
     / "release_gate.py"
+)
+MODE_ORDER = {"light": 0, "release": 1, "protected": 2, "enhanced": 3}
+PLAN_LIST_FIELDS = (
+    "build_requirements",
+    "test_requirements",
+    "deployment_targets",
+    "dependency_services",
+    "preflight_checks",
+    "public_preflight_checks",
+    "public_acceptance_checks",
+    "acceptance_checks",
+    "conditional_checks",
 )
 
 
@@ -74,6 +87,56 @@ def canonical_digest(data):
 
 def config():
     return load_json(CONFIG_PATH)
+
+
+def validate_release_planning_config(settings):
+    planning = settings.get("release_planning")
+    if not isinstance(planning, dict):
+        raise AdapterError("release_planning object is required")
+    known_modes = set(settings["risk_modes"])
+    for key in ("active_modes", "production_modes", "production_roots", "rules"):
+        if not isinstance(planning.get(key), list):
+            raise AdapterError(f"release_planning.{key} must be a list")
+    unknown_modes = (
+        set(planning["active_modes"] + planning["production_modes"]) - known_modes
+    )
+    if unknown_modes:
+        raise AdapterError(
+            "unknown release planning modes: " + ", ".join(sorted(unknown_modes))
+        )
+    thresholds = planning.get("resource_thresholds", {})
+    for key in ("memory_available_mb", "disk_free_mb"):
+        if not isinstance(thresholds.get(key), int) or thresholds[key] <= 0:
+            raise AdapterError(
+                f"release_planning.resource_thresholds.{key} must be positive"
+            )
+    defaults = planning.get("production_defaults")
+    if not isinstance(defaults, dict):
+        raise AdapterError("release_planning.production_defaults must be an object")
+    for field in PLAN_LIST_FIELDS:
+        if field in defaults and not isinstance(defaults[field], list):
+            raise AdapterError(f"release_planning.production_defaults.{field} must be a list")
+    rule_ids = []
+    for rule in planning["rules"]:
+        if not isinstance(rule, dict) or not rule.get("id"):
+            raise AdapterError("release planning rule id is required")
+        if not isinstance(rule.get("patterns"), list) or not rule["patterns"]:
+            raise AdapterError(f"release planning rule patterns are required: {rule['id']}")
+        rule_ids.append(rule["id"])
+        if rule.get("minimum_mode") not in known_modes | {None}:
+            raise AdapterError(f"unknown minimum mode in release rule: {rule['id']}")
+        for field in PLAN_LIST_FIELDS:
+            if field in rule and not isinstance(rule[field], list):
+                raise AdapterError(
+                    f"release planning rule {field} must be a list: {rule['id']}"
+                )
+        if "exclude_patterns" in rule and not isinstance(rule["exclude_patterns"], list):
+            raise AdapterError(
+                f"release planning exclude_patterns must be a list: {rule['id']}"
+            )
+    if len(rule_ids) != len(set(rule_ids)):
+        raise AdapterError("release planning rule ids must be unique")
+    return planning
 
 
 def record_path(release_id):
@@ -258,6 +321,253 @@ def path_in_roots(path, roots):
     return False
 
 
+def extend_unique(target, values):
+    for value in values or []:
+        if value not in target:
+            target.append(value)
+
+
+def scope_files_at_revision(revision, scope):
+    completed = run(
+        ["git", "ls-tree", "-r", "--name-only", revision, "--"] + list(scope),
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise AdapterError(completed.stderr.strip() or "unable to resolve release scope")
+    paths = sorted({line.strip() for line in completed.stdout.splitlines() if line.strip()})
+    if not paths:
+        raise AdapterError("artifact_invalid: release scope contains no tracked files")
+    return paths
+
+
+def path_matches(path, patterns):
+    return any(fnmatchcase(path, pattern) for pattern in patterns)
+
+
+def release_plan(record, release_id, persist=True):
+    settings = config()
+    planning = validate_release_planning_config(settings)
+    mode = record["mode"]
+    if mode not in planning.get("active_modes", []):
+        return None
+
+    revision = git(["rev-parse", f"{record['source_revision']}^{{commit}}"]).stdout.strip()
+    resolved_paths = scope_files_at_revision(revision, record["change_summary"]["scope"])
+    production = mode in planning.get("production_modes", [])
+    minimum_mode = "protected" if production else "release"
+    release_kind = record.get("project_adapter", {}).get("release_kind", "batch")
+    if release_kind not in {"batch", "mvp-promotion", "major-release"}:
+        raise AdapterError(f"unknown project_adapter.release_kind: {release_kind}")
+    plan = {
+        "schema_version": 1,
+        "release_id": release_id,
+        "source_revision": revision,
+        "mode": mode,
+        "production_release": production,
+        "batch_release": True,
+        "release_kind": release_kind,
+        "config_sha256": file_digest(CONFIG_PATH),
+        "resolved_paths": resolved_paths,
+        "matched_rules": [],
+        "minimum_mode": minimum_mode,
+        "acceptance_level": "light",
+        "data_backup_required": False,
+    }
+    for field in PLAN_LIST_FIELDS:
+        plan[field] = []
+
+    if production:
+        defaults = planning.get("production_defaults", {})
+        for field in PLAN_LIST_FIELDS:
+            extend_unique(plan[field], defaults.get(field, []))
+        plan["acceptance_level"] = defaults.get("acceptance_level", "light")
+        if release_kind in {"mvp-promotion", "major-release"}:
+            plan["minimum_mode"] = "enhanced"
+            plan["acceptance_level"] = "heavy"
+            extend_unique(
+                plan["acceptance_checks"], ["full-business-acceptance-reference"]
+            )
+
+    matched_paths = set()
+    for rule in planning.get("rules", []):
+        rule_paths = [
+            path
+            for path in resolved_paths
+            if path_matches(path, rule.get("patterns", []))
+            and not path_matches(path, rule.get("exclude_patterns", []))
+        ]
+        if not rule_paths:
+            continue
+        matched_paths.update(rule_paths)
+        plan["matched_rules"].append(
+            {
+                "id": rule["id"],
+                "matched_path_count": len(rule_paths),
+                "sample_paths": rule_paths[:5],
+            }
+        )
+        required_mode = rule.get("minimum_mode")
+        if required_mode and MODE_ORDER[required_mode] > MODE_ORDER[plan["minimum_mode"]]:
+            plan["minimum_mode"] = required_mode
+        if rule.get("acceptance_level") == "heavy":
+            plan["acceptance_level"] = "heavy"
+        if rule.get("data_backup_required", False):
+            plan["data_backup_required"] = True
+        for field in PLAN_LIST_FIELDS:
+            extend_unique(plan[field], rule.get(field, []))
+
+    explicit_targets = record.get("project_adapter", {}).get("protected_services", [])
+    if not production:
+        explicit_targets = []
+    if explicit_targets and plan["deployment_targets"]:
+        if set(explicit_targets) != set(plan["deployment_targets"]):
+            raise AdapterError(
+                "state_conflict: explicit protected_services do not match path rules"
+            )
+    elif explicit_targets:
+        extend_unique(plan["deployment_targets"], explicit_targets)
+
+    production_paths = [
+        path
+        for path in resolved_paths
+        if path_in_roots(path, planning.get("production_roots", []))
+    ]
+    if production and not production_paths:
+        raise AdapterError(
+            "state_conflict: protected release has no path under a production root"
+        )
+    if MODE_ORDER[mode] < MODE_ORDER[plan["minimum_mode"]]:
+        raise AdapterError(
+            f"state_conflict: release scope requires {plan['minimum_mode']} mode, got {mode}"
+        )
+    if production and not plan["deployment_targets"]:
+        raise AdapterError(
+            "state_conflict: production scope did not resolve any deployment target"
+        )
+
+    known_services = set(settings["target"]["protected_services"])
+    selected_services = set(plan["deployment_targets"] + plan["dependency_services"])
+    unknown_services = sorted(selected_services - known_services)
+    if unknown_services:
+        raise AdapterError("unknown protected services: " + ", ".join(unknown_services))
+
+    public_ids = {item["id"] for item in settings["target"]["public_checks"]}
+    selected_public = set(
+        plan["public_preflight_checks"] + plan["public_acceptance_checks"]
+    )
+    unknown_public = sorted(selected_public - public_ids)
+    if unknown_public:
+        raise AdapterError("unknown public checks: " + ", ".join(unknown_public))
+
+    plan["affected_services"] = sorted(selected_services)
+    plan["unmatched_path_count"] = len(set(resolved_paths) - matched_paths)
+    for field in PLAN_LIST_FIELDS:
+        plan[field] = sorted(plan[field])
+    plan["matched_rules"] = sorted(plan["matched_rules"], key=lambda item: item["id"])
+    plan["release_plan_sha256"] = canonical_digest(plan)
+
+    if persist:
+        path = state_dir(release_id) / "release-plan.json"
+        write_json(path, plan)
+    return plan
+
+
+def add_plan_input(inputs, plan):
+    if plan:
+        inputs["release_plan_sha256"] = plan["release_plan_sha256"]
+    return inputs
+
+
+def passed_check_ids(payload):
+    passed = set()
+    for item in payload.get("checks", []):
+        if isinstance(item, str):
+            passed.add(item)
+        elif isinstance(item, dict) and item.get("status") == "passed" and item.get("id"):
+            passed.add(item["id"])
+    return passed
+
+
+def require_plan_identity(payload, record, plan, label):
+    if payload.get("status") != "passed":
+        raise AdapterError(f"{label} status must be passed")
+    if payload.get("source_revision") != record["source_revision"]:
+        raise AdapterError(f"{label} source_revision mismatch")
+    if payload.get("release_plan_sha256") != plan["release_plan_sha256"]:
+        raise AdapterError(f"{label} release plan mismatch")
+    artifact = record.get("artifact_digest", {}).get("details", {}).get("value")
+    if artifact and payload.get("artifact_sha256") != artifact:
+        raise AdapterError(f"{label} artifact digest mismatch")
+
+
+def validate_runtime_evidence(payload, record, plan):
+    require_plan_identity(payload, record, plan, "runtime evidence")
+    required_checks = set(plan["preflight_checks"])
+    missing_checks = sorted(required_checks - passed_check_ids(payload))
+    if missing_checks:
+        raise AdapterError(
+            "target_drift: runtime evidence missing checks: " + ", ".join(missing_checks)
+        )
+    checked_services = set(payload.get("checked_services", []))
+    missing_services = sorted(set(plan["affected_services"]) - checked_services)
+    if missing_services:
+        raise AdapterError(
+            "target_drift: runtime evidence missing services: " + ", ".join(missing_services)
+        )
+    resources = payload.get("host_resources", {})
+    thresholds = config()["release_planning"]["resource_thresholds"]
+    if resources.get("memory_available_mb", -1) < thresholds["memory_available_mb"]:
+        raise AdapterError("target_drift: production host memory is below threshold")
+    if resources.get("disk_free_mb", -1) < thresholds["disk_free_mb"]:
+        raise AdapterError("target_drift: production host disk is below threshold")
+    if payload.get("rollback_available") is not True:
+        raise AdapterError("target_drift: rollback target is not confirmed available")
+    if plan["data_backup_required"] and not payload.get("backup_reference"):
+        raise AdapterError("target_drift: data backup reference is required")
+
+
+def validate_acceptance_evidence(payload, record, plan):
+    require_plan_identity(payload, record, plan, "acceptance evidence")
+    required_checks = set(plan["acceptance_checks"])
+    missing_checks = sorted(required_checks - passed_check_ids(payload))
+    if missing_checks:
+        raise AdapterError(
+            "acceptance_failed: missing checks: " + ", ".join(missing_checks)
+        )
+    billable_requests = payload.get("billable_model_requests", 0)
+    if not isinstance(billable_requests, int) or billable_requests < 0 or billable_requests > 1:
+        raise AdapterError("acceptance_failed: billable model requests must be between 0 and 1")
+    if "billable-model-request" not in plan["conditional_checks"] and billable_requests:
+        raise AdapterError("acceptance_failed: model request was not selected by the release plan")
+
+
+def validate_build_attestation(attestation, record, plan):
+    expected_artifact = record["artifact_digest"]["details"]["value"]
+    if attestation.get("source_revision") != record["source_revision"]:
+        raise AdapterError("attestation_failed: source_revision mismatch")
+    if attestation.get("artifact_sha256") != expected_artifact:
+        raise AdapterError("attestation_failed: artifact digest mismatch")
+    if attestation.get("release_plan_sha256") != plan["release_plan_sha256"]:
+        raise AdapterError("attestation_failed: release plan mismatch")
+    required = set(plan["build_requirements"] + plan["test_requirements"])
+    completed = set(attestation.get("completed_requirements", []))
+    missing = sorted(required - completed)
+    if missing:
+        raise AdapterError(
+            "attestation_failed: missing requirements: " + ", ".join(missing)
+        )
+    if plan["production_release"]:
+        if attestation.get("production_host") is not False:
+            raise AdapterError(
+                "attestation_failed: production build must be explicitly false"
+            )
+        if attestation.get("build_environment") not in {"ci", "independent-build"}:
+            raise AdapterError(
+                "attestation_failed: build_environment must be ci or independent-build"
+            )
+    return expected_artifact
+
+
 def ensure_local_object(revision):
     completed = git(["cat-file", "-e", f"{revision}^{{commit}}"], check=False)
     return completed.returncode == 0
@@ -416,7 +726,9 @@ def command_prepare(args):
     record["project_adapter"] = {
         "deploy_runner": "",
         "package_required_paths": [],
-        "protected_services": settings["target"]["protected_services"],
+        "protected_services": [],
+        "release_kind": "batch",
+        "release_plan": "computed-from-change-summary.scope-at-verify",
     }
     write_json(path, record)
     print(completed.stdout.strip())
@@ -425,12 +737,13 @@ def command_prepare(args):
 
 def command_verify(args):
     record, mode, _, validation_evidence = validate_record(args.release_id)
+    plan = release_plan(record, args.release_id) if mode != "light" else None
     checkpoint_set(
         args.release_id,
         mode,
         "prepare",
         "passed",
-        prepare_inputs(record),
+        add_plan_input(prepare_inputs(record), plan),
         validation_evidence,
     )
     if mode == "light":
@@ -450,6 +763,14 @@ def command_verify(args):
     evidence, inputs = repository_evidence(
         record, args.release_id, live_remote_head=live_remote_head
     )
+    add_plan_input(inputs, plan)
+    evidence["release_plan"] = {
+        "path": str((state_dir(args.release_id) / "release-plan.json").relative_to(ROOT)),
+        "sha256": plan["release_plan_sha256"],
+        "minimum_mode": plan["minimum_mode"],
+        "acceptance_level": plan["acceptance_level"],
+        "matched_rules": [item["id"] for item in plan["matched_rules"]],
+    }
     evidence_path = state_dir(args.release_id) / "repository-gate.json"
     write_json(evidence_path, evidence)
     checkpoint_set(
@@ -465,6 +786,7 @@ def command_verify(args):
 
 def command_package(args):
     record, mode, path, _ = validate_record(args.release_id)
+    plan = release_plan(record, args.release_id)
     checkpoint_verify(args.release_id, mode, "repository_gate")
     settings = config()
     source_revision = git(["rev-parse", f"{record['source_revision']}^{{commit}}"]).stdout.strip()
@@ -516,6 +838,7 @@ def command_package(args):
         "paths": release_paths,
         "artifact_sha256": manifest_data["artifact"]["sha256"],
     }
+    add_plan_input(inputs, plan)
     checkpoint_set(
         args.release_id,
         mode,
@@ -536,26 +859,24 @@ def command_package(args):
     record["updated_at"] = utc_now()
     write_json(path, record)
     print(json.dumps(manifest_data, ensure_ascii=False, indent=2, sort_keys=True))
-    print(f"next=review_commit_and_push {path.relative_to(ROOT)}")
+    print(f"next=attest_then_commit_once {path.relative_to(ROOT)}")
 
 
 def command_attest(args):
     record, mode, path, _ = validate_record(args.release_id)
+    plan = release_plan(record, args.release_id)
     checkpoint_verify(args.release_id, mode, "package_manifest")
     attestation = load_json(args.attestation)
     status = attestation.get("status")
     if status not in {"passed", "not_applicable"}:
         raise AdapterError("attestation status must be passed or not_applicable")
     if status == "passed":
-        if attestation.get("source_revision") != record["source_revision"]:
-            raise AdapterError("attestation_failed: source_revision mismatch")
-        expected_artifact = record["artifact_digest"]["details"]["value"]
-        if attestation.get("artifact_sha256") != expected_artifact:
-            raise AdapterError("attestation_failed: artifact digest mismatch")
+        expected_artifact = validate_build_attestation(attestation, record, plan)
         inputs = {
             "source_revision": record["source_revision"],
             "artifact_sha256": expected_artifact,
             "attestation_sha256": file_digest(args.attestation),
+            "release_plan_sha256": plan["release_plan_sha256"],
         }
         checkpoint_set(
             args.release_id,
@@ -574,7 +895,11 @@ def command_attest(args):
             mode,
             "ci_attestation_gate",
             "not_applicable",
-            {"reason": reason, "source_revision": record["source_revision"]},
+            {
+                "reason": reason,
+                "source_revision": record["source_revision"],
+                "release_plan_sha256": plan["release_plan_sha256"],
+            },
             args.attestation,
             reason,
         )
@@ -582,7 +907,7 @@ def command_attest(args):
     record["updated_at"] = utc_now()
     write_json(path, record)
     print(f"attestation={status}")
-    print(f"next=review_commit_and_push {path.relative_to(ROOT)}")
+    print(f"next=commit_and_push_release_evidence_once {path.relative_to(ROOT)}")
 
 
 def probe(check):
@@ -649,7 +974,9 @@ def command_preflight(args):
     record, mode, _, _ = validate_record(args.release_id)
     if mode not in {"protected", "enhanced"}:
         raise AdapterError("target preflight is only used in protected or enhanced mode")
+    plan = release_plan(record, args.release_id)
     evidence, inputs = repository_evidence(record, args.release_id)
+    add_plan_input(inputs, plan)
     repository_path = state_dir(args.release_id) / "repository-gate.json"
     write_json(repository_path, evidence)
     checkpoint_set(
@@ -661,14 +988,19 @@ def command_preflight(args):
         repository_path,
     )
     checkpoint_verify(args.release_id, mode, "ci_attestation_gate")
-    results = run_public_checks()
+    runtime_evidence = load_json(args.evidence)
+    validate_runtime_evidence(runtime_evidence, record, plan)
+    public_ids = plan["public_preflight_checks"]
+    results = run_public_checks(public_ids)
     snapshot = {
         "schema_version": 1,
         "release_id": args.release_id,
         "status": "passed",
         "captured_at": utc_now(),
+        "release_plan_sha256": plan["release_plan_sha256"],
+        "runtime_evidence": runtime_evidence,
         "checks": results,
-        "protected_services": config()["target"]["protected_services"],
+        "protected_services": plan["affected_services"],
         "write_operations": [],
     }
     snapshot_path = state_dir(args.release_id) / "target-preflight.json"
@@ -677,6 +1009,8 @@ def command_preflight(args):
         "repository_scope_digest": inputs["scope_digest"],
         "checks_digest": canonical_digest(results),
         "protected_services": snapshot["protected_services"],
+        "release_plan_sha256": plan["release_plan_sha256"],
+        "runtime_evidence_sha256": file_digest(args.evidence),
     }
     checkpoint_set(
         args.release_id,
@@ -705,7 +1039,7 @@ def safe_extract(archive, destination):
         handle.extractall(destination)
 
 
-def validate_runner(settings, record, staged_root):
+def validate_runner(settings, record, staged_root, plan):
     runner = record["project_adapter"].get("deploy_runner")
     if not runner:
         raise AdapterError("project_adapter.deploy_runner is required for deployment")
@@ -722,6 +1056,23 @@ def validate_runner(settings, record, staged_root):
     scoped_marker = settings["deployment"]["scoped_marker"]
     if scoped_marker not in content:
         raise AdapterError(f"deploy runner is missing marker: {scoped_marker}")
+    targets_marker = settings["deployment"].get("targets_marker")
+    declared_targets = None
+    if targets_marker:
+        for line in content.splitlines():
+            if targets_marker in line:
+                declared_targets = [
+                    item.strip()
+                    for item in line.split(targets_marker, 1)[1].split(",")
+                    if item.strip()
+                ]
+                break
+        if declared_targets is None:
+            raise AdapterError(f"deploy runner is missing marker: {targets_marker}")
+        if set(declared_targets) != set(plan["deployment_targets"]):
+            raise AdapterError(
+                "state_conflict: deploy runner targets do not match release plan"
+            )
     if record["mode"] in settings["deployment"]["target_lock_required_modes"]:
         lock_marker = settings["deployment"]["target_lock_marker"]
         if lock_marker not in content:
@@ -735,7 +1086,9 @@ def command_deploy(args):
     record, mode, _, _ = validate_record(args.release_id)
     if mode not in {"protected", "enhanced"}:
         raise AdapterError("deployment is only allowed in protected or enhanced mode")
+    plan = release_plan(record, args.release_id)
     repository, repository_inputs = repository_evidence(record, args.release_id)
+    add_plan_input(repository_inputs, plan)
     repository_path = state_dir(args.release_id) / "repository-gate.json"
     write_json(repository_path, repository)
     checkpoint_set(
@@ -765,7 +1118,7 @@ def command_deploy(args):
     with tempfile.TemporaryDirectory(prefix="librechat-release-stage-") as temporary:
         staged_root = Path(temporary)
         safe_extract(artifact, staged_root)
-        runner, runner_path = validate_runner(config(), record, staged_root)
+        runner, runner_path = validate_runner(config(), record, staged_root, plan)
         with lock_path.open("w") as lock_handle:
             try:
                 fcntl.flock(lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -804,6 +1157,8 @@ def command_deploy(args):
         "runner": runner,
         "artifact_sha256": manifest["artifact"]["sha256"],
         "target_preflight": load_json(state_dir(args.release_id) / "target-preflight.json"),
+        "release_plan_sha256": plan["release_plan_sha256"],
+        "deployment_targets": plan["deployment_targets"],
     }
     if completed.returncode != 0:
         checkpoint_set(
@@ -831,17 +1186,37 @@ def command_acceptance(args):
     record, mode, _, _ = validate_record(args.release_id)
     if mode not in {"protected", "enhanced"}:
         raise AdapterError("acceptance is only used after protected or enhanced deployment")
+    plan = release_plan(record, args.release_id)
     checkpoint_verify(args.release_id, mode, "apply_gate")
-    check_ids = config()["target"]["acceptance_checks"]
+    external_evidence = {
+        "status": "passed",
+        "source_revision": record["source_revision"],
+        "release_plan_sha256": plan["release_plan_sha256"],
+        "checks": [],
+        "billable_model_requests": 0,
+    }
+    if plan["acceptance_checks"]:
+        if not args.evidence:
+            raise AdapterError(
+                "acceptance_failed: this release plan requires --evidence for business checks"
+            )
+        external_evidence = load_json(args.evidence)
+        validate_acceptance_evidence(external_evidence, record, plan)
+    check_ids = plan["public_acceptance_checks"]
     results = run_public_checks(check_ids)
     evidence = {
         "schema_version": 1,
         "release_id": args.release_id,
         "status": "passed",
         "captured_at": utc_now(),
+        "release_plan_sha256": plan["release_plan_sha256"],
+        "acceptance_level": plan["acceptance_level"],
+        "external_evidence": external_evidence,
         "checks": results,
-        "conversation_created": False,
-        "billable_model_request_sent": False,
+        "conversation_created": bool(external_evidence.get("conversation_created", False)),
+        "billable_model_request_sent": bool(
+            external_evidence.get("billable_model_requests", 0)
+        ),
     }
     path = state_dir(args.release_id) / "acceptance-result.json"
     write_json(path, evidence)
@@ -850,7 +1225,13 @@ def command_acceptance(args):
         mode,
         "acceptance_gate",
         "passed",
-        {"checks_digest": canonical_digest(results)},
+        {
+            "checks_digest": canonical_digest(results),
+            "release_plan_sha256": plan["release_plan_sha256"],
+            "external_evidence_sha256": (
+                file_digest(args.evidence) if args.evidence else None
+            ),
+        },
         path,
     )
     print(json.dumps(evidence, ensure_ascii=False, indent=2, sort_keys=True))
@@ -858,6 +1239,7 @@ def command_acceptance(args):
 
 def command_finalize(args):
     record, mode, path, evidence = validate_record(args.release_id)
+    plan = release_plan(record, args.release_id) if mode != "light" else None
     required = config()["risk_modes"][mode]["required_gates"]
     previous = required[-2] if required[-1] == "release_record" else required[-1]
     terminal = record["status"] in {"rolled_back", "blocked", "failed"}
@@ -865,6 +1247,7 @@ def command_finalize(args):
         checkpoint_verify(args.release_id, mode, previous)
     if "repository_gate" in required:
         repository, repository_inputs = repository_evidence(record, args.release_id)
+        add_plan_input(repository_inputs, plan)
         repository_path = state_dir(args.release_id) / "repository-gate.json"
         write_json(repository_path, repository)
         checkpoint_set(
@@ -878,7 +1261,15 @@ def command_finalize(args):
     if record["status"] not in {"ready", "deployed", "rolled_back", "blocked", "failed"}:
         raise AdapterError("final release record status is not complete")
     if mode in {"protected", "enhanced"} and record["status"] == "deployed":
-        for key in ("runtime_snapshot", "backup_reference", "acceptance_result"):
+        required_evidence = ["runtime_snapshot", "acceptance_result"]
+        if plan["data_backup_required"]:
+            required_evidence.append("backup_reference")
+        elif record.get("backup_reference", {}).get("status") == "not_applicable":
+            if not record["backup_reference"].get("reason"):
+                raise AdapterError("backup_reference not_applicable requires a reason")
+        else:
+            required_evidence.append("backup_reference")
+        for key in required_evidence:
             if record.get(key, {}).get("status") != "passed":
                 raise AdapterError(f"final protected release requires {key}.status=passed")
     if terminal and not record.get("unresolved_issues"):
@@ -888,6 +1279,7 @@ def command_finalize(args):
         "record_status": record["status"],
         "source_revision": record["source_revision"],
     }
+    add_plan_input(inputs, plan)
     checkpoint_set(
         args.release_id,
         mode,
@@ -924,6 +1316,11 @@ def build_parser():
 
     preflight = subparsers.add_parser("preflight")
     preflight.add_argument("release_id")
+    preflight.add_argument(
+        "--evidence",
+        required=True,
+        help="JSON produced by the project's read-only target preflight",
+    )
     preflight.set_defaults(func=command_preflight)
 
     deploy = subparsers.add_parser("deploy")
@@ -934,6 +1331,10 @@ def build_parser():
 
     acceptance = subparsers.add_parser("acceptance")
     acceptance.add_argument("release_id")
+    acceptance.add_argument(
+        "--evidence",
+        help="JSON containing selected business acceptance results",
+    )
     acceptance.set_defaults(func=command_acceptance)
 
     finalize = subparsers.add_parser("finalize")

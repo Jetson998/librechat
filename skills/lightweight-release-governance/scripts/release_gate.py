@@ -538,6 +538,7 @@ def command_new_record(args):
         },
         "baseline_reference": empty_evidence(),
         "validation_plan": [],
+        "release_plan": {"sha256": "", "details": {}},
         "artifact_digest": empty_evidence(),
         "build_attestation": empty_evidence(),
         "runtime_snapshot": empty_evidence(),

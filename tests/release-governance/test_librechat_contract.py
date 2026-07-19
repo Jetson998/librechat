@@ -39,6 +39,11 @@ class LibreChatContractTests(unittest.TestCase):
             path = ROOT / relative
             self.assertTrue(path.is_file(), relative)
 
+    def test_release_planning_config_is_valid(self):
+        adapter = load_adapter_module()
+        planning = adapter.validate_release_planning_config(self.config)
+        self.assertTrue(planning["rules"])
+
     def test_protected_mode_contains_the_full_write_path(self):
         required = self.config["risk_modes"]["protected"]["required_gates"]
         self.assertEqual(
@@ -55,6 +60,17 @@ class LibreChatContractTests(unittest.TestCase):
                 "release_record",
             ],
         )
+
+    def test_protected_mode_requires_build_attestation(self):
+        allowed = self.config["risk_modes"]["protected"]["not_applicable_allowed"]
+        self.assertNotIn("ci_attestation_gate", allowed)
+
+    def test_business_patch_push_does_not_start_heavy_release_workflow(self):
+        workflow = (ROOT / ".github/workflows/librechat-release-governance.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("deployment/production-patches/**", workflow)
+        self.assertIn("workflow_dispatch", workflow)
 
     def test_new_wrappers_do_not_use_environment_bypass(self):
         for path in (ROOT / "scripts").glob("release-*.sh"):
@@ -102,6 +118,172 @@ class LibreChatContractTests(unittest.TestCase):
             self.assertIn(phrase, guide)
         self.assertIn("Business acceptance level", checklist)
         self.assertIn("Not Default Business Acceptance", checklist)
+
+    def test_ui_patch_resolves_to_light_batch_release_plan(self):
+        adapter = load_adapter_module()
+        revision = git(ROOT, "rev-parse", "HEAD")
+        record = {
+            "mode": "protected",
+            "source_revision": revision,
+            "change_summary": {
+                "scope": [
+                    "deployment/production-patches/2026-07-18-search-favicon-fallback"
+                ]
+            },
+        }
+        plan = adapter.release_plan(record, "fixture-ui", persist=False)
+        self.assertEqual(plan["minimum_mode"], "protected")
+        self.assertEqual(plan["acceptance_level"], "light")
+        self.assertIn("client-bundle", plan["build_requirements"])
+        self.assertIn("browser-ui", plan["acceptance_checks"])
+        self.assertEqual(plan["deployment_targets"], ["LibreChat-API"])
+        self.assertEqual(plan["public_acceptance_checks"], ["api-config", "main-root"])
+        self.assertNotIn("admin-root", plan["public_acceptance_checks"])
+        self.assertNotIn("office-auth-boundary", plan["public_acceptance_checks"])
+
+    def test_usage_api_path_adds_performance_evidence_without_upgrading_mode(self):
+        adapter = load_adapter_module()
+        revision = git(ROOT, "rev-parse", "HEAD")
+        record = {
+            "mode": "protected",
+            "source_revision": revision,
+            "change_summary": {
+                "scope": [
+                    "deployment/production-patches/2026-07-17-user-usage-dashboard/api/usage-dashboard.js"
+                ]
+            },
+        }
+        plan = adapter.release_plan(record, "fixture-usage", persist=False)
+        self.assertEqual(plan["minimum_mode"], "protected")
+        self.assertIn("performance-test", plan["test_requirements"])
+
+    def test_data_patch_requires_enhanced_mode_and_backup(self):
+        adapter = load_adapter_module()
+        revision = git(ROOT, "rev-parse", "HEAD")
+        scope = [
+            "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/backfill-generated-attachment-files.js"
+        ]
+        protected = {
+            "mode": "protected",
+            "source_revision": revision,
+            "change_summary": {"scope": scope},
+        }
+        with self.assertRaises(adapter.AdapterError):
+            adapter.release_plan(protected, "fixture-data-protected", persist=False)
+
+        enhanced = dict(protected)
+        enhanced["mode"] = "enhanced"
+        plan = adapter.release_plan(enhanced, "fixture-data-enhanced", persist=False)
+        self.assertEqual(plan["minimum_mode"], "enhanced")
+        self.assertEqual(plan["acceptance_level"], "heavy")
+        self.assertTrue(plan["data_backup_required"])
+        self.assertIn("chat-mongodb", plan["deployment_targets"])
+
+    def test_major_batch_requires_enhanced_acceptance_reference(self):
+        adapter = load_adapter_module()
+        revision = git(ROOT, "rev-parse", "HEAD")
+        record = {
+            "mode": "enhanced",
+            "source_revision": revision,
+            "change_summary": {
+                "scope": [
+                    "deployment/production-patches/2026-07-18-search-favicon-fallback"
+                ]
+            },
+            "project_adapter": {"release_kind": "major-release"},
+        }
+        plan = adapter.release_plan(record, "fixture-major", persist=False)
+        self.assertEqual(plan["minimum_mode"], "enhanced")
+        self.assertEqual(plan["acceptance_level"], "heavy")
+        self.assertIn(
+            "full-business-acceptance-reference", plan["acceptance_checks"]
+        )
+
+    def test_runtime_evidence_enforces_resource_thresholds(self):
+        adapter = load_adapter_module()
+        revision = git(ROOT, "rev-parse", "HEAD")
+        record = {
+            "mode": "protected",
+            "source_revision": revision,
+            "change_summary": {
+                "scope": [
+                    "deployment/production-patches/2026-07-18-search-favicon-fallback"
+                ]
+            },
+        }
+        plan = adapter.release_plan(record, "fixture-runtime", persist=False)
+        evidence = {
+            "status": "passed",
+            "source_revision": revision,
+            "release_plan_sha256": plan["release_plan_sha256"],
+            "checks": [
+                {"id": check, "status": "passed"}
+                for check in plan["preflight_checks"]
+            ],
+            "checked_services": plan["affected_services"],
+            "host_resources": {
+                "memory_available_mb": 2048,
+                "disk_free_mb": 8192,
+            },
+            "rollback_available": True,
+        }
+        adapter.validate_runtime_evidence(evidence, record, plan)
+        evidence["host_resources"]["disk_free_mb"] = 128
+        with self.assertRaises(adapter.AdapterError):
+            adapter.validate_runtime_evidence(evidence, record, plan)
+
+    def test_production_attestation_proves_build_ran_off_target(self):
+        adapter = load_adapter_module()
+        record = {
+            "source_revision": "revision-one",
+            "artifact_digest": {"details": {"value": "artifact-one"}},
+        }
+        plan = {
+            "release_plan_sha256": "plan-one",
+            "production_release": True,
+            "build_requirements": ["deployable-artifact"],
+            "test_requirements": ["release-scope-tests"],
+        }
+        attestation = {
+            "status": "passed",
+            "source_revision": "revision-one",
+            "artifact_sha256": "artifact-one",
+            "release_plan_sha256": "plan-one",
+            "completed_requirements": [
+                "deployable-artifact",
+                "release-scope-tests",
+            ],
+            "build_environment": "ci",
+            "production_host": False,
+        }
+        adapter.validate_build_attestation(attestation, record, plan)
+        attestation["production_host"] = True
+        with self.assertRaises(adapter.AdapterError):
+            adapter.validate_build_attestation(attestation, record, plan)
+
+    def test_deploy_runner_targets_must_match_release_plan(self):
+        adapter = load_adapter_module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = root / "deployment/production-patches/fixture/scripts/deploy.sh"
+            runner.parent.mkdir(parents=True)
+            runner.write_text(
+                "#!/bin/sh\n"
+                "# release-governance:scoped-deployment\n"
+                "# release-governance:targets=LibreChat-API\n",
+                encoding="utf-8",
+            )
+            record = {
+                "mode": "protected",
+                "project_adapter": {
+                    "deploy_runner": "deployment/production-patches/fixture/scripts/deploy.sh"
+                },
+            }
+            plan = {"deployment_targets": ["LibreChat-API"]}
+            adapter.validate_runner(self.config, record, root, plan)
+            plan["deployment_targets"] = ["LibreChat-Admin-Panel"]
+            with self.assertRaises(adapter.AdapterError):
+                adapter.validate_runner(self.config, record, root, plan)
 
     def test_repository_gate_allows_out_of_scope_remote_change_and_blocks_scope_change(self):
         adapter = load_adapter_module()

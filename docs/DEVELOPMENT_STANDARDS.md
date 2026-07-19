@@ -300,12 +300,17 @@ Required sequence:
 4. Commit.
 5. Push to `origin/main`.
 6. Confirm branch alignment.
-7. Confirm a usable rollback target; create a new backup when the change is not
+7. When a related batch is ready for release, resolve its paths once and select
+   the required build, tests, target checks, and acceptance. Do not run this
+   production sequence for every AI coding task.
+8. Build dependencies, bundles, and images in CI or an independent environment,
+   never on the production server.
+9. Confirm a usable rollback target; create a new backup when the change is not
    safely reversible from an existing artifact or revision.
-8. Apply the committed change.
-9. Perform risk-adaptive business acceptance for the affected path.
-10. Record deployment result.
-11. Commit and push the record.
+10. Apply the committed change only to the selected target services.
+11. Perform risk-adaptive business acceptance for the affected path.
+12. Record deployment result.
+13. Commit and push the record.
 
 For the governed adapter, the equivalent gates are `prepare`,
 `preflight_permissions`, `repository_gate`, `package_manifest`,
@@ -318,7 +323,8 @@ These gates describe required decisions and evidence, not a requirement for a
 separate command, model turn, commit, or CI run per gate. Project-owned scripts
 may combine deterministic checks. `acceptance_gate` remains part of production
 governance, but ordinary changes use light, scope-specific acceptance and reuse
-valid evidence. Heavy acceptance is reserved for high-risk business paths.
+valid evidence. Heavy acceptance is reserved for high-risk business paths and
+can be run once after several related development changes are batched.
 
 If any step fails, stop and document the blocker. Do not continue with manual
 untracked fixes.
