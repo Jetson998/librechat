@@ -91,6 +91,7 @@ The implementation release will carry exact production-baseline copies of:
 - `/app/api/server/services/Files/Code/process.js`;
 - `/app/packages/api/dist/index.cjs`;
 - `/app/api/server/controllers/agents/request.js`;
+- `/app/api/server/services/Files/OfficePreparse.js` (new request-scoped helper);
 - focused tests and governed deployment scripts.
 
 `BaseClient.js`, the upload menu, CodeAPI source, Mongo data, Nginx, Admin
@@ -105,13 +106,15 @@ features already present there.
 The deploy runner must:
 
 1. Create one immutable release directory under `/opt/librechat` containing
-   the three candidate files.
+   the four candidate files.
 2. Back up `/opt/librechat/compose.override.yaml`.
 3. Update only the API service volume entries so they mount the candidate:
    - `api-index.cjs` to `/app/packages/api/dist/index.cjs`;
    - `code-process.js` to
      `/app/api/server/services/Files/Code/process.js`;
    - `request.js` to `/app/api/server/controllers/agents/request.js`.
+   - `OfficePreparse.js` to
+     `/app/api/server/services/Files/OfficePreparse.js`.
 4. Recreate only the API service through the existing compose project.
 5. Verify the hashes inside the running container, not only the host staging
    files.
