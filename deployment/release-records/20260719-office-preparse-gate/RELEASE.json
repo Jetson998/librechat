@@ -1,0 +1,100 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "LibreChat main before the Office pre-parse design and implementation batch",
+      "revision": "17453690d4da1bad8b3870402ebe4f064ab202a4"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Current-turn Office attachments are parsed through the existing CodeAPI sandbox before model execution; parse failures stop before model billing, and reasoning-only replies are not saved as successful assistant output.",
+    "functions": [
+      "Select only current-turn Office attachments",
+      "Run one deterministic bounded Office pre-parse in the existing CodeAPI session",
+      "Inject the validated manifest into the current agent context",
+      "Reject reasoning-only assistant completions"
+    ],
+    "limitations": [
+      "The injected preview is bounded to 20000 characters per file and 80000 characters per request; original files remain available in /mnt/data for complete tool-based analysis.",
+      "Legacy PPT parsing depends on the LibreOffice binary already present in CodeAPI."
+    ],
+    "reason": "Conversation 003971ae-274f-40a1-96a3-e05ab46b8f35 proved that valid Office uploads could reach CodeAPI without either provider choosing to invoke the code tool, producing empty or reasoning-only assistant siblings.",
+    "risk": "Protected LibreChat-API change in agent initialization and assistant completion validation. A parser or CodeAPI transport failure intentionally blocks the model request for the affected Office turn. Normal no-file chat, upload persistence, artifact generation, download cards, CodeAPI source, and other services are unchanged.",
+    "scope": [
+      "docs/OFFICE_PREPARSE_GATE_PLAN.md",
+      "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/BaseClient.js",
+      "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/api-index.cjs",
+      "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/test-empty-response-regeneration.js",
+      "deployment/production-patches/2026-07-19-office-preparse-gate"
+    ]
+  },
+  "created_at": "2026-07-19T12:56:24Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "deploy_runner": "",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260719-office-preparse-gate",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Restore timestamp-matched /opt/librechat/office-context-patch/BaseClient.js.bak-* and api-index.cjs.bak-* created by deployment/production-patches/2026-07-19-office-preparse-gate/scripts/deploy.sh, then restart only LibreChat-API and verify main root, /api/config, /office/, CodeAPI health, normal chat, and Office download cards.",
+      "restore_revision": "17453690d4da1bad8b3870402ebe4f064ab202a4"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "d4becd04fdbc0e7b52f0a019133e50e9f9b64a3b",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-19T12:56:24Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",
+      "expected": "Current-turn isolation, Office fixture parsing, no-file bypass, parser failure blocking, missing-reference blocking, integration order, and reasoning-only rejection pass.",
+      "type": "local"
+    },
+    {
+      "command": "node deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/test-empty-response-regeneration.js && node deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/test-file-pipeline-simplification.js",
+      "expected": "Existing empty-response and generic file-pipeline contracts pass.",
+      "type": "local"
+    },
+    {
+      "command": "scripts/release-package.sh 20260719-office-preparse-gate",
+      "expected": "An exact d4becd04 artifact contains the canonical BaseClient/API patches and the dated release tests and deploy runner.",
+      "type": "package"
+    },
+    {
+      "command": "Authenticated fresh Office conversation with at least one DOCX and one XLSX",
+      "expected": "CodeAPI pre-parse completes before the model request, a visible answer is returned, and no blank assistant sibling is persisted.",
+      "type": "business"
+    }
+  ]
+}
