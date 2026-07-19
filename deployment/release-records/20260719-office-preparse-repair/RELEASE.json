@@ -12,8 +12,11 @@
     "status": "pending"
   },
   "baseline_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "description": "LibreChat main after the failed Office pre-parse release was rolled back and its diagnosis was finalized",
+      "revision": "4e93e9e7c3a7f9119194d0bebfe24791f2b55281"
+    },
+    "status": "passed"
   },
   "build_attestation": {
     "details": {},
@@ -54,8 +57,11 @@
     "sha256": ""
   },
   "rollback_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "command": "Restore the timestamp-matched /opt/librechat/office-context-patch/BaseClient.js.bak-* and api-index.cjs.bak-* created by the repair deploy runner, restart only LibreChat-API, then verify /, /api/config, /office/, CodeAPI health, normal chat, Office reading, and generated download cards.",
+      "restore_revision": "4e93e9e7c3a7f9119194d0bebfe24791f2b55281"
+    },
+    "status": "passed"
   },
   "runtime_snapshot": {
     "details": {},
@@ -69,15 +75,23 @@
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-19-office-preparse-repair/scripts/test-office-preparse-repair.js",
-      "expected": "office pre-parse repair tests passed"
+      "expected": "office pre-parse repair tests passed",
+      "type": "local"
     },
     {
       "command": "node deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/test-empty-response-regeneration.js",
-      "expected": "empty response regeneration tests passed"
+      "expected": "empty response regeneration tests passed",
+      "type": "local"
     },
     {
       "command": "node --check deployment/production-patches/2026-07-19-office-preparse-repair/office-context-patch/BaseClient.js && node --check deployment/production-patches/2026-07-19-office-preparse-repair/office-context-patch/api-index.cjs",
-      "expected": "both syntax checks exit 0"
+      "expected": "both syntax checks exit 0",
+      "type": "local"
+    },
+    {
+      "command": "Authenticated vip998 Office upload and reading request",
+      "expected": "The file is parsed through the fresh CodeAPI reference before the provider call and the turn returns visible content or a visible error without a blank assistant row.",
+      "type": "business"
     }
   ]
 }
