@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260720-office-file-identity/artifacts/20260720-office-file-identity-48193e0aa729.tar.gz",
+      "manifest": ".release-state/20260720-office-file-identity/artifacts/manifest.json",
+      "value": "555d4c109f486e291c9a078847eeab99917f01fff23a2bf8e8dd39cfaec2f98e"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -19,8 +24,38 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "555d4c109f486e291c9a078847eeab99917f01fff23a2bf8e8dd39cfaec2f98e",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "deployable-artifact",
+      "model-tool-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "model-tool-tests",
+      "patch-contract-tests",
+      "performance-test",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260720-office-file-identity/artifacts/20260720-office-file-identity-48193e0aa729.tar.gz",
+      "checks": [
+        "test-office-file-identity.js",
+        "node --check api-index.cjs",
+        "node --check code-process.js",
+        "node --check request.js",
+        "node --check OfficePreparse.js",
+        "bash -n deploy.sh",
+        "bash -n remote-apply.sh",
+        "git diff --check",
+        "candidate-vs-live scoped diff audit"
+      ],
+      "independent_stage": "local-workspace"
+    },
+    "production_host": false,
+    "release_plan_sha256": "a4cb5d20f247e710f37718a4a245bbad1f617e00fc331e98c09d41709c58f02e",
+    "source_revision": "48193e0aa7295677cfaa88ba04d5b334ba95e516",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Fresh Office uploads and regenerated user turns resolve their files through stable LibreChat file IDs, execute one bounded CodeAPI pre-parse before the model call, and return visible content or a visible error without blank assistant persistence.",
@@ -72,7 +107,7 @@
   "source_revision": "48193e0aa7295677cfaa88ba04d5b334ba95e516",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-19T17:01:01Z",
+  "updated_at": "2026-07-19T17:04:13Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-20-office-file-identity/scripts/test-office-file-identity.js",
