@@ -1,0 +1,83 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Current-turn Office attachments remain resolvable after CodeAPI rotates stale session/file references, pre-parse is bounded and abort-aware, and no-content stops do not persist a successful blank assistant message.",
+    "functions": [
+      "Resolve current Office attachments against fresh CodeAPI priming results",
+      "Reject ambiguous duplicate sandbox filenames",
+      "Bound Office pre-parse to 45 seconds and propagate request aborts",
+      "Preserve semantic-empty and early-abort persistence guards"
+    ],
+    "limitations": [
+      "Legacy priming results without source_file_id use exact unique filenames; duplicate filenames fail visibly instead of being guessed",
+      "The pre-parse manifest is bounded and does not replace later full-file code analysis"
+    ],
+    "reason": "The rolled-back gate compared mutable CodeAPI identifiers saved at upload time with fresh identifiers returned after a stale-session re-upload, causing valid Office files to be rejected before model execution.",
+    "risk": "A regression in agent initialization could block Office turns before the provider call. Deployment is limited to LibreChat-API with timestamped backups and immediate rollback on syntax, health, or boundary failure.",
+    "scope": [
+      "docs/OFFICE_PREPARSE_REPAIR_PLAN.md",
+      "deployment/production-patches/2026-07-19-office-preparse-repair"
+    ]
+  },
+  "created_at": "2026-07-19T15:39:35Z",
+  "mode": "protected",
+  "project_adapter": {
+    "deploy_runner": "deployment/production-patches/2026-07-19-office-preparse-repair/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260719-office-preparse-repair",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "825d87dc1e2f8c7c556e5c0bf7626b81f59f5288",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-19T15:39:35Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-07-19-office-preparse-repair/scripts/test-office-preparse-repair.js",
+      "expected": "office pre-parse repair tests passed"
+    },
+    {
+      "command": "node deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/scripts/test-empty-response-regeneration.js",
+      "expected": "empty response regeneration tests passed"
+    },
+    {
+      "command": "node --check deployment/production-patches/2026-07-19-office-preparse-repair/office-context-patch/BaseClient.js && node --check deployment/production-patches/2026-07-19-office-preparse-repair/office-context-patch/api-index.cjs",
+      "expected": "both syntax checks exit 0"
+    }
+  ]
+}
