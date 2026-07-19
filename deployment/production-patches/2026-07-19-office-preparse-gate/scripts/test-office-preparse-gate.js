@@ -209,6 +209,26 @@ const testThinkingOnlyIsIncomplete = () => {
   );
 };
 
+const testDeployRunnerContract = () => {
+  const deployPath = path.join(
+    repoRoot,
+    'deployment/production-patches/2026-07-19-office-preparse-gate/scripts/deploy.sh',
+  );
+  const remoteApplyPath = path.join(
+    repoRoot,
+    'deployment/production-patches/2026-07-19-office-preparse-gate/scripts/remote-apply.sh',
+  );
+  const deploy = read(deployPath);
+  const remoteApply = read(remoteApplyPath);
+  assert(deploy.includes('release-governance:scoped-deployment'));
+  assert(deploy.includes('release-governance:targets=LibreChat-API,LibreChat-CodeAPI'));
+  assert(deploy.includes('release-governance:target-lock'));
+  assert(deploy.includes('SSH_PASS'));
+  assert(!deploy.includes('u72]!kWllc|q'), 'SSH password was written into the repository');
+  assert(remoteApply.includes('docker restart LibreChat-API'));
+  assert(!remoteApply.includes('docker restart LibreChat-CodeAPI'));
+};
+
 Promise.resolve()
   .then(testCurrentTurnIsolation)
   .then(testSuccessfulPreparse)
@@ -218,6 +238,7 @@ Promise.resolve()
   .then(testMissingReferenceBlocks)
   .then(testIntegrationOrder)
   .then(testThinkingOnlyIsIncomplete)
+  .then(testDeployRunnerContract)
   .then(() => process.stdout.write('office pre-parse gate tests passed\n'))
   .catch((error) => {
     console.error(error);

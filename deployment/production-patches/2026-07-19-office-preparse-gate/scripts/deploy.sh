@@ -1,90 +1,63 @@
 #!/usr/bin/env bash
+# release-governance:scoped-deployment
+# release-governance:targets=LibreChat-API,LibreChat-CodeAPI
+# release-governance:target-lock
 set -Eeuo pipefail
 
-stage_dir="${1:-/tmp/librechat-office-preparse-gate}"
-patch_dir="/opt/librechat/office-context-patch"
-timestamp="$(date +%Y%m%d%H%M%S)"
+test -n "${SSH_PASS:-}"
+test -n "${RELEASE_SOURCE_REVISION:-}"
 
-baseclient_src="$stage_dir/BaseClient.js"
-api_index_src="$stage_dir/api-index.cjs"
-baseclient_dst="$patch_dir/BaseClient.js"
-api_index_dst="$patch_dir/api-index.cjs"
+host="${LIBRECHAT_PRODUCTION_HOST:-152.32.172.162}"
+user="${LIBRECHAT_PRODUCTION_USER:-root}"
+remote_stage="/tmp/librechat-office-preparse-${RELEASE_SOURCE_REVISION:0:12}"
+patch_root="deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch"
+release_root="deployment/production-patches/2026-07-19-office-preparse-gate/scripts"
 
-for file in "$baseclient_src" "$api_index_src" "$baseclient_dst" "$api_index_dst"; do
+for file in "$patch_root/BaseClient.js" "$patch_root/api-index.cjs" "$release_root/remote-apply.sh"; do
   test -f "$file"
 done
 
-baseclient_backup="$baseclient_dst.bak-$timestamp"
-api_index_backup="$api_index_dst.bak-$timestamp"
-cp -a "$baseclient_dst" "$baseclient_backup"
-cp -a "$api_index_dst" "$api_index_backup"
+export LIBRECHAT_DEPLOY_HOST="$host"
+export LIBRECHAT_DEPLOY_USER="$user"
+export LIBRECHAT_DEPLOY_STAGE="$remote_stage"
+export LIBRECHAT_BASECLIENT_SRC="$patch_root/BaseClient.js"
+export LIBRECHAT_API_INDEX_SRC="$patch_root/api-index.cjs"
+export LIBRECHAT_REMOTE_APPLY_SRC="$release_root/remote-apply.sh"
 
-applied=0
-rollback() {
-  cp -a "$baseclient_backup" "$baseclient_dst"
-  cp -a "$api_index_backup" "$api_index_dst"
-  docker restart LibreChat-API >/dev/null
+/usr/bin/expect <<'EXPECT'
+set timeout 300
+set password $env(SSH_PASS)
+set host $env(LIBRECHAT_DEPLOY_HOST)
+set user $env(LIBRECHAT_DEPLOY_USER)
+set stage $env(LIBRECHAT_DEPLOY_STAGE)
+
+proc authenticate {password} {
+  expect {
+    -re "(?i)are you sure you want to continue connecting" {
+      send -- "yes\r"
+      exp_continue
+    }
+    -re "(?i)password:" {
+      send -- "$password\r"
+      exp_continue
+    }
+    eof
+  }
+  catch wait result
+  return [lindex $result 3]
 }
-on_error() {
-  rc=$?
-  trap - ERR
-  if [[ "$applied" == "1" ]]; then
-    rollback
-  fi
-  exit "$rc"
-}
-trap on_error ERR
 
-install_candidate() {
-  src="$1"
-  dst="$2"
-  next="$dst.next-$timestamp"
-  cp "$src" "$next"
-  chmod --reference="$dst" "$next"
-  chown --reference="$dst" "$next"
-  mv "$next" "$dst"
-}
+spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "$user@$host" "mkdir -p '$stage' && chmod 700 '$stage'"
+if {[authenticate $password] != 0} { exit 1 }
 
-install_candidate "$baseclient_src" "$baseclient_dst"
-install_candidate "$api_index_src" "$api_index_dst"
-applied=1
+spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -- \
+  $env(LIBRECHAT_BASECLIENT_SRC) \
+  $env(LIBRECHAT_API_INDEX_SRC) \
+  $env(LIBRECHAT_REMOTE_APPLY_SRC) \
+  "$user@$host:$stage/"
+if {[authenticate $password] != 0} { exit 1 }
 
-grep -Fq 'const OFFICE_PREPARSE_EXTENSIONS' "$api_index_dst"
-grep -Fq 'await prepareCurrentTurnOfficeContext' "$api_index_dst"
-grep -Fq 'Office pre-parse failed for' "$api_index_dst"
-grep -Fq 'part.type === ContentTypes.THINK' "$baseclient_dst"
-grep -Fq 'return false;' "$baseclient_dst"
-
-docker restart LibreChat-API >/dev/null
-
-for _ in $(seq 1 45); do
-  if [[ "$(docker inspect LibreChat-API --format '{{.State.Running}}')" == "true" ]]; then
-    break
-  fi
-  sleep 1
-done
-test "$(docker inspect LibreChat-API --format '{{.State.Running}}')" = "true"
-
-api_ready=0
-for _ in $(seq 1 90); do
-  if curl -ksSf https://152.32.172.162.sslip.io/api/config >/dev/null; then
-    api_ready=1
-    break
-  fi
-  sleep 1
-done
-test "$api_ready" = "1"
-
-docker exec LibreChat-API node --check /app/api/app/clients/BaseClient.js
-docker exec LibreChat-API node --check /app/packages/api/dist/index.cjs
-curl -ksSf https://152.32.172.162.sslip.io/ >/dev/null
-test "$(curl -ksS -o /dev/null -w '%{http_code}' https://152.32.172.162.sslip.io/office/)" = "401"
-test "$(docker inspect LibreChat-CodeAPI --format '{{.State.Running}}')" = "true"
-test "$(docker inspect LibreChat-CodeAPI --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')" = "healthy"
-
-trap - ERR
-printf 'timestamp=%s\n' "$timestamp"
-printf 'backup=%s\n' "$baseclient_backup"
-printf 'backup=%s\n' "$api_index_backup"
-sha256sum "$baseclient_dst" "$api_index_dst"
-docker ps --format '{{.ID}} {{.Names}} {{.Status}}' --filter name=LibreChat-API --filter name=LibreChat-CodeAPI
+spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "$user@$host" \
+  "chmod 700 '$stage/remote-apply.sh' && '$stage/remote-apply.sh' '$stage'"
+exit [authenticate $password]
+EXPECT
