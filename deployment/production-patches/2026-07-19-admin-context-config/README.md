@@ -40,10 +40,14 @@ Office, model prices, and conversations remain unchanged.
 
 ## Follow-up Runtime Configuration
 
-After browser acceptance, save `1,000,000` as the context limit for:
+Save `1,000,000` as the context limit for:
 
 - `MuskAPI / gpt-5.6-sol`;
 - `MuskAPI-Anthropic / claude-fable-5`.
 
-Use the Admin UI. Do not patch MongoDB directly.
-
+The preferred ongoing path is the Admin UI. The initial values may be seeded by
+the repository-owned `set-context-values.sh` operation when the deployment
+invalidates the existing Admin browser session. That operation backs up the
+complete active base override, modifies only the two `context` fields, verifies
+all other model configuration values are byte-equivalent under EJSON, and does
+not restart a service.

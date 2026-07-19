@@ -26,6 +26,8 @@ helper = (ADMIN / "source/src/components/pricing/modelPricing.ts").read_text(enc
 server = (ADMIN / "source/src/server/config.ts").read_text(encoding="utf-8")
 tests = (ADMIN / "source/src/components/pricing/modelPricing.test.ts").read_text(encoding="utf-8")
 deploy = (PATCH / "scripts/deploy.sh").read_text(encoding="utf-8")
+set_context = (PATCH / "scripts/set-context-values.sh").read_text(encoding="utf-8")
+set_context_js = (PATCH / "scripts/set-context-values.js").read_text(encoding="utf-8")
 
 for marker in (
     "com_pricing_context_label",
@@ -47,5 +49,16 @@ for marker in (
     "protected_containers_unchanged=true",
 ):
     assert marker in deploy
+
+for marker in (
+    "PREFLIGHT_ONLY",
+    "protected_containers_unchanged=true",
+    "codexConfigBackups",
+    "modelConfig.context = 1000000",
+):
+    assert marker in set_context or marker in set_context_js
+
+assert "non-context model fields changed" in set_context_js
+assert "db.configs.replaceOne" in set_context_js
 
 print("admin context configuration release checks: ok")

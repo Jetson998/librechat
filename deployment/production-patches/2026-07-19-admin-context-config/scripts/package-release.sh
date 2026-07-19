@@ -17,4 +17,3 @@ git -C "$repo_root" archive --format=tar.gz --output="$archive" "$revision" -- \
 
 printf 'release_commit=%s\narchive=%s\nsha256=%s\n' \
   "$revision" "$archive" "$(shasum -a 256 "$archive" | awk '{print $1}')"
-
