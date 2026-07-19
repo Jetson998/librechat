@@ -54,11 +54,16 @@ for marker in (
     "parseMarketDraft",
     "com_pricing_market_publish",
     "com_pricing_official_prompt",
+    "getModelMetadataDraft",
+    "parseModelMetadataDraft",
+    "com_pricing_context_label",
 ):
     assert marker in admin_helpers or marker in admin_page, f"missing Admin marker: {marker}"
 
 assert "marketPublished: z.boolean()" in admin_server
 assert "officialPrompt: z.number().positive().nullable()" in admin_server
+assert "context: z.number().int().positive().nullable()" in admin_server
+assert "modelConfig.context = data.context" in admin_server
 assert "modelConfig.market" in admin_server
 assert "reads and validates market metadata" in admin_tests
 
@@ -71,6 +76,8 @@ for locale in ("en", "zh-Hans"):
         "com_pricing_market_publish",
         "com_pricing_official_prompt",
         "com_pricing_market_discount_preview",
+        "com_pricing_context_label",
+        "com_pricing_invalid_context",
     ):
         assert translations.get(key), f"{locale} locale missing: {key}"
 

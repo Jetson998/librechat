@@ -1077,6 +1077,7 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
     z.object({
       endpointIndex: z.number().int().nonnegative(),
       model: z.string().trim().min(1).max(200),
+      context: z.number().int().positive().nullable(),
       prompt: z.number().nonnegative().nullable(),
       completion: z.number().nonnegative().nullable(),
       cacheRead: z.number().nonnegative().nullable(),
@@ -1123,6 +1124,8 @@ export const saveCustomEndpointTokenConfigFn = createServerFn({ method: 'POST' }
     const modelConfig: Record<string, unknown> = currentModelConfig
       ? { ...(currentModelConfig as Record<string, unknown>) }
       : {};
+    if (data.context == null) delete modelConfig.context;
+    else modelConfig.context = data.context;
     for (const field of ['prompt', 'completion', 'cacheRead', 'cacheWrite'] as const) {
       const value = data[field];
       if (value == null) delete modelConfig[field];

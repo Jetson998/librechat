@@ -4,6 +4,9 @@ export const PRICE_FIELDS = ['prompt', 'completion', 'cacheRead', 'cacheWrite'] 
 
 export type PriceField = (typeof PRICE_FIELDS)[number];
 export type PricingDraft = Record<PriceField, string>;
+export type ModelMetadataDraft = {
+  context: string;
+};
 export type MarketDraft = {
   published: boolean;
   officialPrompt: string;
@@ -22,6 +25,10 @@ export const EMPTY_PRICING_DRAFT: PricingDraft = {
   completion: '',
   cacheRead: '',
   cacheWrite: '',
+};
+
+export const EMPTY_MODEL_METADATA_DRAFT: ModelMetadataDraft = {
+  context: '',
 };
 
 export const EMPTY_MARKET_DRAFT: MarketDraft = {
@@ -74,6 +81,29 @@ export function getMarketDraft(endpoint: CustomEndpoint | undefined, model: stri
         ? String(officialPrompt)
         : '',
   };
+}
+
+export function getModelMetadataDraft(
+  endpoint: CustomEndpoint | undefined,
+  model: string,
+): ModelMetadataDraft {
+  const context = getModelConfig(endpoint, model)?.context;
+  return {
+    context:
+      typeof context === 'number' && Number.isInteger(context) && context > 0
+        ? String(context)
+        : '',
+  };
+}
+
+export function parseModelMetadataDraft(draft: ModelMetadataDraft): { context: number | null } {
+  const raw = draft.context.trim();
+  if (!raw) return { context: null };
+  const context = Number(raw);
+  if (!Number.isInteger(context) || context <= 0) {
+    throw new Error('context must be a positive integer');
+  }
+  return { context };
 }
 
 export function parseMarketDraft(draft: MarketDraft): {

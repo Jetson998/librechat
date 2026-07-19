@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   getEndpointModels,
   getMarketDraft,
+  getModelMetadataDraft,
   getPricingDraft,
   hasComplexPricing,
   updateModelPricing,
   parseMarketDraft,
+  parseModelMetadataDraft,
   type CustomEndpoint,
 } from './modelPricing';
 
@@ -30,6 +32,14 @@ describe('model pricing helpers', () => {
       cacheRead: '',
       cacheWrite: '',
     });
+  });
+
+  it('reads and validates the model context limit', () => {
+    expect(getModelMetadataDraft(endpoint, 'gpt-5.6-sol')).toEqual({ context: '800000' });
+    expect(parseModelMetadataDraft({ context: '1000000' })).toEqual({ context: 1000000 });
+    expect(parseModelMetadataDraft({ context: '' })).toEqual({ context: null });
+    expect(() => parseModelMetadataDraft({ context: '1.5' })).toThrow();
+    expect(() => parseModelMetadataDraft({ context: '0' })).toThrow();
   });
 
   it('reads and validates market metadata independently from billing prices', () => {

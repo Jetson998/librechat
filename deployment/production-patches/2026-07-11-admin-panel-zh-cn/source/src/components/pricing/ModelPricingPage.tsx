@@ -3,16 +3,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   EMPTY_PRICING_DRAFT,
+  EMPTY_MODEL_METADATA_DRAFT,
   EMPTY_MARKET_DRAFT,
   PRICE_FIELDS,
   getCustomEndpoints,
   getEndpointModels,
   getMarketDraft,
+  getModelMetadataDraft,
   getPricingDraft,
   hasComplexPricing,
   parsePricingDraft,
+  parseModelMetadataDraft,
   parseMarketDraft,
   type MarketDraft,
+  type ModelMetadataDraft,
   type PriceField,
   type PricingDraft,
 } from './modelPricing';
@@ -58,6 +62,9 @@ export function ModelPricingPage() {
   const [modelSearch, setModelSearch] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [draft, setDraft] = useState<PricingDraft>({ ...EMPTY_PRICING_DRAFT });
+  const [metadataDraft, setMetadataDraft] = useState<ModelMetadataDraft>({
+    ...EMPTY_MODEL_METADATA_DRAFT,
+  });
   const [marketDraft, setMarketDraft] = useState<MarketDraft>({ ...EMPTY_MARKET_DRAFT });
 
   useEffect(() => {
@@ -76,6 +83,10 @@ export function ModelPricingPage() {
     () => getMarketDraft(endpoint, selectedModel),
     [endpoint, selectedModel],
   );
+  const savedMetadataDraft = useMemo(
+    () => getModelMetadataDraft(endpoint, selectedModel),
+    [endpoint, selectedModel],
+  );
 
   useEffect(() => {
     setDraft(savedDraft);
@@ -85,26 +96,37 @@ export function ModelPricingPage() {
     setMarketDraft(savedMarketDraft);
   }, [savedMarketDraft]);
 
+  useEffect(() => {
+    setMetadataDraft(savedMetadataDraft);
+  }, [savedMetadataDraft]);
+
   const filteredModels = models.filter((model) =>
     model.toLowerCase().includes(modelSearch.trim().toLowerCase()),
   );
   const isComplex = hasComplexPricing(endpoint, selectedModel);
   const isDirty =
     PRICE_FIELDS.some((field) => draft[field] !== savedDraft[field]) ||
+    metadataDraft.context !== savedMetadataDraft.context ||
     marketDraft.published !== savedMarketDraft.published ||
     marketDraft.officialPrompt !== savedMarketDraft.officialPrompt;
 
   let preview: Partial<Record<PriceField, number>> = {};
+  let metadataPreview: { context: number | null } = { context: null };
   let marketPreview: { published: boolean; officialPrompt: number | null } = {
     published: false,
     officialPrompt: null,
   };
   let validationError = '';
   try {
+    metadataPreview = parseModelMetadataDraft(metadataDraft);
+  } catch {
+    validationError = localize('com_pricing_invalid_context');
+  }
+  try {
     preview = parsePricingDraft(draft);
     marketPreview = parseMarketDraft(marketDraft);
   } catch {
-    validationError = localize('com_pricing_invalid_price');
+    if (!validationError) validationError = localize('com_pricing_invalid_price');
   }
 
   const inputDiscount =
@@ -118,6 +140,7 @@ export function ModelPricingPage() {
         data: {
           endpointIndex,
           model: selectedModel,
+          context: metadataPreview.context,
           prompt: preview.prompt ?? null,
           completion: preview.completion ?? null,
           cacheRead: preview.cacheRead ?? null,
@@ -252,6 +275,47 @@ export function ModelPricingPage() {
             <section className="overflow-hidden rounded-lg border border-(--cui-color-stroke-default)">
               <div className="border-b border-(--cui-color-stroke-default) bg-(--cui-color-background-muted) px-4 py-3">
                 <h2 className="text-sm font-semibold text-(--cui-color-text-default)">
+                  {localize('com_pricing_model_spec')}
+                </h2>
+                <p className="mt-0.5 text-xs text-(--cui-color-text-muted)">
+                  {localize('com_pricing_model_spec_desc')}
+                </p>
+              </div>
+              <div className="grid grid-cols-[minmax(180px,1fr)_minmax(240px,320px)] items-center gap-6 px-4 py-3.5">
+                <div>
+                  <label
+                    htmlFor="pricing-context"
+                    className="text-sm font-medium text-(--cui-color-text-default)"
+                  >
+                    {localize('com_pricing_context_label')}
+                  </label>
+                  <p className="mt-0.5 text-xs text-(--cui-color-text-muted)">
+                    {localize('com_pricing_context_desc')}
+                  </p>
+                </div>
+                <div className="flex h-9 items-center overflow-hidden rounded-md border border-(--cui-color-stroke-default) bg-(--cui-color-background-default) focus-within:border-(--cui-color-stroke-intense)">
+                  <input
+                    id="pricing-context"
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    step="1"
+                    value={metadataDraft.context}
+                    disabled={!canManage || isComplex || saveMutation.isPending}
+                    onChange={(event) => setMetadataDraft({ context: event.target.value })}
+                    placeholder={localize('com_pricing_context_placeholder')}
+                    className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-(--cui-color-text-default) outline-none placeholder:text-(--cui-color-text-disabled) disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                  <span className="shrink-0 border-l border-(--cui-color-stroke-default) px-3 text-xs text-(--cui-color-text-muted)">
+                    Token
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-lg border border-(--cui-color-stroke-default)">
+              <div className="border-b border-(--cui-color-stroke-default) bg-(--cui-color-background-muted) px-4 py-3">
+                <h2 className="text-sm font-semibold text-(--cui-color-text-default)">
                   {localize('com_pricing_direct_prices')}
                 </h2>
                 <p className="mt-0.5 text-xs text-(--cui-color-text-muted)">
@@ -363,6 +427,14 @@ export function ModelPricingPage() {
                 </p>
               </div>
               <dl className="divide-y divide-(--cui-color-stroke-default)">
+                <div className="grid grid-cols-[minmax(160px,1fr)_minmax(120px,auto)] items-center gap-4 px-4 py-2.5 text-sm">
+                  <dt className="font-mono text-xs text-(--cui-color-text-muted)">context</dt>
+                  <dd className="text-right font-medium text-(--cui-color-text-default)">
+                    {metadataPreview.context == null
+                      ? localize('com_pricing_not_set')
+                      : `${metadataPreview.context} Token`}
+                  </dd>
+                </div>
                 {PRICE_FIELDS.map((field) => (
                   <div
                     key={field}
@@ -402,6 +474,7 @@ export function ModelPricingPage() {
             label={localize('com_pricing_discard')}
             onClick={() => {
               setDraft(savedDraft);
+              setMetadataDraft(savedMetadataDraft);
               setMarketDraft(savedMarketDraft);
             }}
             disabled={!isDirty || saveMutation.isPending}
