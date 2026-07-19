@@ -71,13 +71,15 @@ office=401
 office_realm=Office Converter
 ```
 
-## Browser Boundary
+## Browser Acceptance
 
-The Admin deployment invalidated the existing browser login session. The
-deployed bundle and persisted values were verified without guessing or reusing
-an unrelated password. After the next normal login, the Admin pricing page will
-show the new `上下文上限` control and the user model market will format
-`1000000` as `1M`.
+User acceptance passed on 2026-07-19 after a normal login:
+
+- the Admin model pricing page shows the new `上下文上限` control;
+- both configured models show a context limit of `1,000,000` Token;
+- the user model market formats the context value as `1M`;
+- the existing model prices, publication state, and model-market layout remain
+  correct.
 
 ## Rollback
 
