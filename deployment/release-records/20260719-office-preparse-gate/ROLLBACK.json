@@ -22,13 +22,17 @@
     "result": "failed"
   },
   "diagnosis": {
-    "summary": "The deterministic Office pre-parse was invoked directly through createBashExecutionTool().invoke() during agent initialization. The acceptance request did not reach a corresponding CodeAPI /exec before the empty assistant row was persisted, so the request stalled in the tool scheduling or initialization layer rather than in Excel parsing.",
+    "summary": "The acceptance request failed in the resumable Agent integration around the deterministic Office gate, but the available production access logs cannot attribute individual CodeAPI /exec calls to this conversation. Post-rollback isolation probes proved that createBashExecutionTool().invoke(), the real codeEnvRef, file injection, and /mnt/data visibility all work in 54-60 ms. The remaining fault boundary is the real web-request selection/lifecycle path, including abort persistence, rather than Excel parsing or CodeAPI availability.",
     "evidence": [
       "The current-turn file upload reached CodeAPI at 2026-07-19T14:22:47Z.",
-      "No attributable CodeAPI /exec followed for the vip998 request before the assistant row was saved.",
+      "The stored user message contains a complete codeEnvRef and updateFilesUsage returns complete Mongo file documents.",
+      "primeFiles returns id, storage_session_id, name, and kind values compatible with the gate's intended matching contract.",
+      "Post-rollback direct transport probes returned in 54-60 ms and mounted acceptance.xlsx under /mnt/data.",
+      "The running package resolves @librechat/api to /app/packages/api/dist/index.cjs, so the deployment target path was correct.",
       "Mongo persisted an empty assistant row 213.861 seconds after the user message with unfinished=false and error=false.",
       "The direct pre-parse invoke had no bounded timeout and was not wired to the request AbortSignal.",
-      "The existing semantic-empty guard runs after model completion and therefore cannot protect a request stalled before completion."
+      "The pre-parse unit test stubbed the tool invoke and did not cover the real ResumableAgentController, live file normalization, CodeAPI ToolMessage response, or user-stop persistence path.",
+      "The existing semantic-empty guard runs after model completion and does not protect every resumable initialization or abort persistence path."
     ]
   },
   "backup": {
@@ -51,5 +55,5 @@
     "office_status": 401,
     "office_realm": "Office Converter"
   },
-  "decision": "Do not redeploy this artifact. A replacement design must use a bounded, abort-aware pre-parse operation and cover pre-model early-abort persistence with an integration test."
+  "decision": "Do not redeploy this artifact. Before any replacement implementation, add controller-level coverage for real requestFiles normalization, current-turn file selection, real ToolMessage parsing, bounded abort-aware execution, and a user Stop before visible assistant content."
 }

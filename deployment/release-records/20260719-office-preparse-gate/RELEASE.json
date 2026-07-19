@@ -150,10 +150,11 @@
   "source_revision": "2cc9a4ce58b7276beaacece8edc51b35e86ce950",
   "status": "rolled_back",
   "unresolved_issues": [
-    "Direct Office pre-parse through createBashExecutionTool().invoke() can stall before CodeAPI /exec and is not bounded by a timeout or request AbortSignal.",
+    "The production access logs cannot attribute CodeAPI /exec calls to the acceptance conversation, while isolated probes prove the transport and real file injection work; the unresolved fault boundary is the resumable web-request file-selection/lifecycle integration.",
+    "The direct Office pre-parse invoke is not bounded by a timeout or request AbortSignal, even though this was not proven to be the specific acceptance stall.",
     "The pre-model stop path can persist an empty assistant row with unfinished=false and error=false; the existing post-completion semantic guard does not cover this path."
   ],
-  "updated_at": "2026-07-19T14:47:41Z",
+  "updated_at": "2026-07-19T15:07:58Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",
