@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/2026-07-19-generic-governance-onboarding/artifacts/2026-07-19-generic-governance-onboarding-38ded17beab0.tar.gz",
+      "manifest": ".release-state/2026-07-19-generic-governance-onboarding/artifacts/manifest.json",
+      "value": "e9b6b83f064366a0bf8a271edcfd5ea213e1b9c5f362429c6c94799558545362"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -104,7 +109,7 @@
       "status": "blocked_external"
     }
   ],
-  "updated_at": "2026-07-19T03:18:31Z",
+  "updated_at": "2026-07-19T03:26:51Z",
   "validation_plan": [
     {
       "command": "scripts/validate-release-governance.sh",
