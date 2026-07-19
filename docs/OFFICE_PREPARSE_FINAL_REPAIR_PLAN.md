@@ -18,6 +18,12 @@ contracts are missing:
    the regenerated parent user message is loaded as historical tool context,
    while `currentRequestFiles` remains empty. Current-turn Office pre-parse is
    therefore bypassed and no CodeAPI `/exec` occurs.
+3. The running API bundle is bind-mounted from the immutable model-pricing
+   release directory, not from `/opt/librechat/office-context-patch`. The two
+   previous Office deploy runners replaced the latter path and used
+   `docker restart`, which neither changed the active mount nor recreated the
+   container. Their candidate API bundles therefore never entered the running
+   process.
 
 The current resumable controller already catches `initializeClient()` errors,
 emits an error event, completes the GenerationJob, and the existing abort guard
@@ -89,6 +95,30 @@ The implementation release will carry exact production-baseline copies of:
 
 `BaseClient.js`, the upload menu, CodeAPI source, Mongo data, Nginx, Admin
 Panel, generated-file callbacks, and WebAI are out of scope.
+
+## Deployment Contract
+
+Build the candidate `api-index.cjs` from the exact bundle currently mounted at
+`/app/packages/api/dist/index.cjs`, preserving the model-pricing and usage
+features already present there.
+
+The deploy runner must:
+
+1. Create one immutable release directory under `/opt/librechat` containing
+   the three candidate files.
+2. Back up `/opt/librechat/compose.override.yaml`.
+3. Update only the API service volume entries so they mount the candidate:
+   - `api-index.cjs` to `/app/packages/api/dist/index.cjs`;
+   - `code-process.js` to
+     `/app/api/server/services/Files/Code/process.js`;
+   - `request.js` to `/app/api/server/controllers/agents/request.js`.
+4. Recreate only the API service through the existing compose project.
+5. Verify the hashes inside the running container, not only the host staging
+   files.
+
+`docker restart` is insufficient because it retains the old bind-mount source.
+Rollback restores the timestamp-matched compose override, recreates only API,
+and verifies that the original mounted hashes are active again.
 
 ## Required Tests
 
