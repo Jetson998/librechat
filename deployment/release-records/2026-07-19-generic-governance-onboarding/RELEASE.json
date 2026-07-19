@@ -32,7 +32,10 @@
         },
         {
           "commit": "38ded17beab0c72f8326dfcebefee84d68236ca4",
-          "status": "pending_remote_observation"
+          "duration_seconds": 10,
+          "run_id": "29671231398",
+          "status": "passed",
+          "url": "https://github.com/Jetson998/librechat/actions/runs/29671231398"
         }
       ]
     },
@@ -95,20 +98,13 @@
   "unresolved_issues": [
     {
       "category": "execution_not_started",
-      "detail": "The escalated read-only remote reference check was rejected before process start because the automatic approval service returned 503 Service Unavailable.",
+      "detail": "The escalated read-only remote reference check was rejected before process start on repeated attempts because the automatic approval service returned 503 Service Unavailable.",
       "gate": "preflight_permissions",
       "resume_command": "scripts/release-verify.sh 2026-07-19-generic-governance-onboarding",
       "status": "blocked_external"
-    },
-    {
-      "category": "execution_not_started",
-      "detail": "Cleanup of /private/tmp/librechat-governance-dryrun-1d6bad9 was rejected before process start by the same approval-service failure.",
-      "gate": "local_cleanup",
-      "resume_command": "rm -rf /private/tmp/librechat-governance-dryrun-1d6bad9",
-      "status": "blocked_external"
     }
   ],
-  "updated_at": "2026-07-19T02:43:47Z",
+  "updated_at": "2026-07-19T03:18:31Z",
   "validation_plan": [
     {
       "command": "scripts/validate-release-governance.sh",
