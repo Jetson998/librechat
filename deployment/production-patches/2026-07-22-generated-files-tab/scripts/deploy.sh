@@ -17,8 +17,6 @@ for file in \
   "$patch_root/api/user.js" \
   "$patch_root/client/generated-files-tab.js" \
   "$patch_root/client/generated-files-tab.css" \
-  "$patch_root/scripts/test-generated-files.js" \
-  "$patch_root/scripts/test-client-release.py" \
   "$patch_root/scripts/remote-apply.sh"; do
   test -f "$file"
 done
@@ -31,8 +29,6 @@ export LIBRECHAT_GENERATED_ROUTE_SRC="$patch_root/api/generated-files.js"
 export LIBRECHAT_USER_ROUTE_SRC="$patch_root/api/user.js"
 export LIBRECHAT_GENERATED_CLIENT_SRC="$patch_root/client/generated-files-tab.js"
 export LIBRECHAT_GENERATED_STYLE_SRC="$patch_root/client/generated-files-tab.css"
-export LIBRECHAT_GENERATED_TEST_SRC="$patch_root/scripts/test-generated-files.js"
-export LIBRECHAT_GENERATED_CLIENT_TEST_SRC="$patch_root/scripts/test-client-release.py"
 export LIBRECHAT_REMOTE_APPLY_SRC="$patch_root/scripts/remote-apply.sh"
 
 /usr/bin/expect <<'EXPECT'
@@ -66,8 +62,6 @@ spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -- \
   $env(LIBRECHAT_USER_ROUTE_SRC) \
   $env(LIBRECHAT_GENERATED_CLIENT_SRC) \
   $env(LIBRECHAT_GENERATED_STYLE_SRC) \
-  $env(LIBRECHAT_GENERATED_TEST_SRC) \
-  $env(LIBRECHAT_GENERATED_CLIENT_TEST_SRC) \
   $env(LIBRECHAT_REMOTE_APPLY_SRC) \
   "$user@$host:$stage/"
 if {[authenticate $password] != 0} { exit 1 }

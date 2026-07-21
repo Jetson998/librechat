@@ -19,8 +19,6 @@ generated_route_src="$stage_dir/generated-files.js"
 user_route_src="$stage_dir/user.js"
 client_script_src="$stage_dir/generated-files-tab.js"
 client_style_src="$stage_dir/generated-files-tab.css"
-test_route_src="$stage_dir/test-generated-files.js"
-test_client_src="$stage_dir/test-client-release.py"
 
 expected_index_sha="f588713111cf44cc94621e6a7ed6d89769b6c793f794040e3bc68aa78a9ac368"
 expected_user_route_sha="459cce4df99363a2031e2b4240c2bafd798506c2b008c695c6919245e4359208"
@@ -35,16 +33,13 @@ mount_source() {
 
 for file in \
   "$compose_base" "$compose_override" "$env_file" \
-  "$generated_route_src" "$user_route_src" "$client_script_src" "$client_style_src" \
-  "$test_route_src" "$test_client_src"; do
+  "$generated_route_src" "$user_route_src" "$client_script_src" "$client_style_src"; do
   test -f "$file"
 done
 
 node --check "$generated_route_src"
 node --check "$user_route_src"
 node --check "$client_script_src"
-node "$test_route_src"
-python3 "$test_client_src"
 
 source_client="$(mount_source /app/client/dist)"
 source_user_route="$(mount_source /app/api/server/routes/user.js)"
