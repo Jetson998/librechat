@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260722-generated-files-tab/artifacts/20260722-generated-files-tab-d78bc088310b.tar.gz",
+      "manifest": ".release-state/20260722-generated-files-tab/artifacts/manifest.json",
+      "value": "592a6327bfc324b07a69a0566599d7c38e1fa7c9bd7e627a10a17c6d71a35324"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -21,8 +26,37 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "592a6327bfc324b07a69a0566599d7c38e1fa7c9bd7e627a10a17c6d71a35324",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "client-tests",
+      "patch-contract-tests",
+      "performance-test",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260722-generated-files-tab/artifacts/20260722-generated-files-tab-d78bc088310b.tar.gz",
+      "checks": [
+        "generated-files contract tests passed",
+        "generated-files client and route release checks passed",
+        "node --check passed for generated-files.js, user.js, and generated-files-tab.js",
+        "bash -n passed for deploy.sh and remote-apply.sh",
+        "local browser fixture passed tab isolation, native-section restoration, and 720px height checks",
+        "release governance validation passed 31 tests",
+        "10,000 pipeline builds completed in 21.043 ms and 10,000 result rows formatted in 7.082 ms",
+        "git diff --check passed"
+      ]
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "86347d170e0128ed932310abc12c54498f98f842ad627019f8d1105c2b93c5e4",
+    "source_revision": "d78bc088310b1fa897b0c5ea47053438da0ee9b4",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The native My Files dialog keeps the existing upload list under an Uploads tab and shows current-user assistant-delivered generated files under a separate Generated Files tab with search, pagination, source conversation, and authenticated download.",
@@ -75,7 +109,7 @@
   "source_revision": "d78bc088310b1fa897b0c5ea47053438da0ee9b4",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-21T17:47:33Z",
+  "updated_at": "2026-07-21T17:56:50Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-generated-files.js and python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py",
