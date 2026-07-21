@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260722-generated-files-tab/artifacts/20260722-generated-files-tab-6daa4688bb40.tar.gz",
+      "artifact": ".release-state/20260722-generated-files-tab/artifacts/20260722-generated-files-tab-9062311e1644.tar.gz",
       "manifest": ".release-state/20260722-generated-files-tab/artifacts/manifest.json",
-      "value": "ac0591123ac0022005f8f350d311f4752968b4c43dd0449c53969a64b72bfd3f"
+      "value": "3fb9eb4d3c5717c950dd1f35648b764371a47c7a88728c8ec1bb9d3afe12f7fd"
     },
     "status": "passed"
   },
@@ -26,7 +26,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "ac0591123ac0022005f8f350d311f4752968b4c43dd0449c53969a64b72bfd3f",
+    "artifact_sha256": "3fb9eb4d3c5717c950dd1f35648b764371a47c7a88728c8ec1bb9d3afe12f7fd",
     "build_environment": "independent-build",
     "completed_requirements": [
       "api-artifact",
@@ -40,13 +40,15 @@
       "release-scope-tests"
     ],
     "details": {
-      "artifact": ".release-state/20260722-generated-files-tab/artifacts/20260722-generated-files-tab-6daa4688bb40.tar.gz",
+      "artifact": ".release-state/20260722-generated-files-tab/artifacts/20260722-generated-files-tab-9062311e1644.tar.gz",
       "checks": [
         "generated-files contract tests passed",
         "generated-files client and route release checks passed",
         "node --check passed for generated-files.js, user.js, and generated-files-tab.js",
         "bash -n passed for deploy.sh and remote-apply.sh",
         "local browser fixture passed nested production table structure, tab isolation, native-section restoration, and generated rows",
+        "live deployed Client index normalized to the exact protected baseline after removing the previous generated-files asset tags",
+        "upgrade-safe deployment path accepts only the protected base user route or the exact staged generated-files user route",
         "release governance validation passed 31 tests",
         "10,000 pipeline builds completed in 7.017 ms and 10,000 result rows formatted in 3.054 ms",
         "git diff --check passed"
@@ -54,8 +56,8 @@
     },
     "production_host": false,
     "provider": "Codex local independent validation",
-    "release_plan_sha256": "c6f201268cb24d160a75fcd7e8714152dd153fc6a6ee0bd6c826962dcf048dcc",
-    "source_revision": "6daa4688bb40d57b1dc29fd61c2aa6b650f74628",
+    "release_plan_sha256": "86038fab5153aad22dfe94a0b3b964739d86ca6f65b0d49a20b55814cf3790d7",
+    "source_revision": "9062311e16444948ccc9b48c8885f821afda749b",
     "status": "passed"
   },
   "change_summary": {
@@ -109,7 +111,7 @@
   "source_revision": "9062311e16444948ccc9b48c8885f821afda749b",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-21T18:07:47Z",
+  "updated_at": "2026-07-21T18:31:35Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-generated-files.js and python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py",
