@@ -51,7 +51,8 @@ The endpoint returns only current-user data and server-generated download paths.
 The browser request follows LibreChat's existing JWT contract: it reads the
 current access token from local storage, falls back to `/api/auth/refresh` when
 needed, and sends `Authorization: Bearer <token>`. Same-origin cookies alone do
-not authenticate this route.
+not authenticate this route. Downloads use the same authenticated fetch path and
+then create a local Blob download; direct anchor navigation cannot carry the JWT.
 
 ## Release Boundary
 

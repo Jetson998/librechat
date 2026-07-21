@@ -233,6 +233,11 @@
   border-color: transparent;
 }
 
+.lc-generated-download:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
 .lc-generated-files-footer {
   display: flex;
   min-height: 48px;

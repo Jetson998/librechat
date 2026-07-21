@@ -15,10 +15,14 @@ required_script = (
     "conversationPath",
     "MutationObserver",
     "role=\"tab\"",
-    "credentials: 'same-origin'",
+    "options.credentials || 'same-origin'",
     "window.localStorage.getItem('token')",
     "/api/auth/refresh",
     "Authorization: `Bearer ${token}`",
+    "authenticatedFetch",
+    "response.blob()",
+    "URL.createObjectURL(blob)",
+    "data-download-path",
     "tableRegion.previousElementSibling",
     "tableRegion.parentElement",
 )
@@ -57,7 +61,11 @@ assert '<div class="native-table"><div class="native-table-scroll"><table>' in (
 ).read_text(encoding="utf-8")
 fixture = (root / "scripts/fixture.html").read_text(encoding="utf-8")
 assert "fixture-access-token" in fixture
-assert "options.headers?.Authorization !== 'Bearer fixture-access-token'" in fixture
+assert "requestUrl.startsWith('/api/files/download')" in fixture
+assert "requiresAuth && options.headers?.Authorization !== 'Bearer fixture-access-token'" in fixture
+assert "blob: async () => new Blob(['fixture-download'])" in fixture
+assert "result.textContent = this.download" in fixture
+assert 'id="fixture-download-result"' in fixture
 for marker in (
     "normalized-index.html",
     "generated-files-tab\\.css\\?v=",

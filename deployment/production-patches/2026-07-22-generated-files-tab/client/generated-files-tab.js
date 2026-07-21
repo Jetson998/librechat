@@ -145,9 +145,9 @@
               <td>${escapeHtml(formatBytes(file.bytes))}</td>
               <td>${file.conversationPath ? `<a class="lc-generated-conversation-link" href="${escapeHtml(file.conversationPath)}">查看对话</a>` : '-'}</td>
               <td>${escapeHtml(formatDate(file.generatedAt || file.updatedAt))}</td>
-              <td><a class="lc-generated-download" href="${escapeHtml(file.downloadPath)}" aria-label="下载 ${escapeHtml(file.filename)}" title="下载">
+              <td><button type="button" class="lc-generated-download" data-download-path="${escapeHtml(file.downloadPath)}" data-download-name="${escapeHtml(file.filename)}" aria-label="下载 ${escapeHtml(file.filename)}" title="下载">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
-              </a></td>
+              </button></td>
             </tr>`,
           )
           .join('')}</tbody>
@@ -175,6 +175,46 @@
     return typeof payload?.token === 'string' ? payload.token : '';
   }
 
+  async function authenticatedFetch(url, options = {}) {
+    const token = await getAccessToken();
+    return fetch(url, {
+      ...options,
+      credentials: options.credentials || 'same-origin',
+      headers: {
+        ...(options.headers || {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  }
+
+  async function downloadFile(button) {
+    const path = button.dataset.downloadPath;
+    const filename = button.dataset.downloadName || 'download';
+    if (!path || button.disabled) return;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    try {
+      const response = await authenticatedFetch(path, { headers: { Accept: '*/*' } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      anchor.hidden = true;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (error) {
+      console.error('[generated-files] download failed', error);
+      button.title = '下载失败，请重试';
+    } finally {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
+  }
+
   async function loadFiles(state) {
     state.controller?.abort();
     state.controller = new AbortController();
@@ -187,13 +227,8 @@
     });
     if (state.query) params.set('query', state.query);
     try {
-      const token = await getAccessToken();
-      const response = await fetch(`/api/user/generated-files?${params}`, {
-        credentials: 'same-origin',
-        headers: {
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+      const response = await authenticatedFetch(`/api/user/generated-files?${params}`, {
+        headers: { Accept: 'application/json' },
         signal: state.controller.signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -228,6 +263,11 @@
       }, 250);
     });
     panel.addEventListener('click', (event) => {
+      const download = event.target.closest('[data-download-path]');
+      if (download) {
+        downloadFile(download);
+        return;
+      }
       const action = event.target.closest('[data-action]')?.dataset.action;
       if (action === 'refresh' || action === 'retry') loadFiles(state);
       const page = Number(event.target.closest('[data-page]')?.dataset.page);

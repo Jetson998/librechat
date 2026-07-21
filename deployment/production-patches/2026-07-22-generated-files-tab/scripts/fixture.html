@@ -20,16 +20,22 @@
     </style>
     <script>
       window.localStorage.setItem('token', 'fixture-access-token');
+      HTMLAnchorElement.prototype.click = function () {
+        const result = document.getElementById('fixture-download-result');
+        if (result) result.textContent = this.download;
+      };
       window.fetch = async (url, options = {}) => {
-        if (
-          String(url).startsWith('/api/user/generated-files') &&
-          options.headers?.Authorization !== 'Bearer fixture-access-token'
-        ) {
+        const requestUrl = String(url);
+        const requiresAuth =
+          requestUrl.startsWith('/api/user/generated-files') ||
+          requestUrl.startsWith('/api/files/download');
+        if (requiresAuth && options.headers?.Authorization !== 'Bearer fixture-access-token') {
           return { ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) };
         }
         return {
           ok: true,
           status: 200,
+          blob: async () => new Blob(['fixture-download']),
           json: async () => ({
           files: [
             { file_id: '1', filename: 'API渠道模型来源说明_基础版.pptx', type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes: 483201, generatedAt: '2026-07-22T01:12:00Z', conversationPath: '/c/demo-1', downloadPath: '#download-1' },
@@ -43,6 +49,7 @@
     </script>
   </head>
   <body>
+    <output id="fixture-download-result" aria-live="polite"></output>
     <section role="dialog" aria-modal="true">
       <div><h2>我的文件</h2></div>
       <div class="native-toolbar"><div><h2>文件</h2><p>管理当前账户上传的文件</p></div><input placeholder="搜索文件" /></div>

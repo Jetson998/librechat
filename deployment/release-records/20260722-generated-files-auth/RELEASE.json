@@ -1,7 +1,13 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "billable_model_requests": 0,
+      "browser_result": "Generated Files loaded exactly one delivered PPTX and excluded the uploaded XLSX, but direct download navigation returned No auth token.",
+      "failure": "The list request used the JWT, while the rendered download anchor navigated without an Authorization header.",
+      "result": "failed"
+    },
+    "status": "failed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +19,10 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/generated-files-tab-20260722025640"
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -101,13 +109,30 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "admin_status": 200,
+      "api_config_status": 200,
+      "api_container_after": "e37f379cb4b5",
+      "api_container_before": "513759df7636",
+      "generated_files_unauthenticated_status": 401,
+      "office_status": 401,
+      "protected_containers_unchanged": true,
+      "release_dir": "/opt/librechat/generated-files-tab/1e8c59b77910-20260722025640",
+      "root_status": 200,
+      "usage_dashboard_unauthenticated_status": 401
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "1e8c59b779100098e2e0c6bf9338ab0a18439d38",
-  "status": "planned",
-  "unresolved_issues": [],
+  "status": "failed",
+  "unresolved_issues": [
+    {
+      "issue": "Generated-file download used direct anchor navigation and therefore omitted LibreChat's JWT.",
+      "next_step": "Fetch the file with the existing JWT, create a Blob URL, and repeat authenticated download acceptance.",
+      "status": "open"
+    }
+  ],
   "updated_at": "2026-07-21T18:51:00Z",
   "validation_plan": [
     {
