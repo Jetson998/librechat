@@ -1,7 +1,20 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "evidence": ".release-state/20260722-visible-artifact-limit/acceptance-result.json",
+      "business_evidence": ".release-state/20260722-visible-artifact-limit/business-acceptance.json",
+      "account": "vip998@example.local",
+      "conversation_id": "4b93e69e-366d-488f-8eef-a037950e72ec",
+      "conversation_url": "https://152.32.172.162.sslip.io/c/4b93e69e-366d-488f-8eef-a037950e72ec",
+      "request_message_id": "4dc42678-ec6c-4b95-9065-22d95697c5f2",
+      "assistant_message_id": "1e67b398-f496-4f52-b480-ab0712d2378f",
+      "generated_file_id": "4f852ab7-d890-462f-ac2b-3ec6fe2a0ce7",
+      "generated_filename": "visible-artifact-acceptance.pptx",
+      "visible_deliverables": 1,
+      "unrequested_visible_files": 0,
+      "billable_model_requests": 1
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +26,13 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "compose_override_backup": "/opt/librechat/compose.override.yaml.bak-20260722004612",
+      "mongo_backup_id": "generated-artifact-delivery-36d386dc294e-20260722004612",
+      "release_dir": "/opt/librechat/visible-artifact-limit/36d386dc294e-20260722004612",
+      "restore_scope": "Restore the timestamp-matched Compose override and Mongo base-config backup, then recreate only LibreChat-API. CodeAPI, RAG, and Mongo containers remain unchanged."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -65,8 +83,9 @@
       "Append the same one-default/three-maximum/no-ZIP contract to GPT and Fable model prompts"
     ],
     "limitations": [
-      "The visibility classifier uses filenames, paths, persisted artifact roles, and the current user request; intentionally unusual filenames may require a later classifier rule",
+      "The visibility classifier uses filenames, paths, assistant-attachment artifact roles, and the current user request; intentionally unusual filenames may require a later classifier rule",
       "Hidden internal files remain available to the same owner and conversation for continued editing and audit",
+      "LibreChat's native db.files metadata schema currently permits codeEnvRef only. artifactRole and artifactVisibilityReason are therefore retained on the Mongo assistant-message attachment object, while the db.files row retains ownership, conversation, message, storage, and status fields.",
       "The separate latest-branch refresh issue is outside this release"
     ],
     "reason": "Conversation a0dc9c6f-ce21-4fae-ab0d-0e8ab25bb108 produced one valid 17-slide PPTX but exposed 51 attachments because LibreChat treated all CodeAPI artifacts as customer deliverables.",
@@ -88,8 +107,12 @@
   "project_id": "librechat-self-host",
   "release_id": "20260722-visible-artifact-limit",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "path": ".release-state/20260722-visible-artifact-limit/release-plan.json",
+      "minimum_mode": "enhanced",
+      "acceptance_level": "heavy"
+    },
+    "sha256": "eabe78a18167886b8a179ac0ab86ffd332cfadbe31fe4f3c4e4a89c19061fe31"
   },
   "rollback_reference": {
     "details": {
@@ -99,14 +122,43 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "captured_at": "2026-07-21T17:03:27Z",
+      "artifact_sha256": "f8c6bf86e64d14075991b797ce24f02306f998e163da13a78732771d6164761b",
+      "release_dir": "/opt/librechat/visible-artifact-limit/36d386dc294e-20260722004612",
+      "in_container_hashes": {
+        "/app/api/app/clients/BaseClient.js": "5675ea2a03db9f77a76816fb2605ffe0e3520dc998005987ab1c791bc6e38060",
+        "/app/api/server/services/Files/GeneratedArtifactVisibility.js": "6b069e44e9925051719d65e63b88a7d2c57d5495e8e03d0662575e1643cda66d",
+        "/app/api/server/services/Files/Code/process.js": "6d85ad180cdc8b42460d0d286f0025ddf277f85305d518626f030b62563f6e64"
+      },
+      "container_ids": {
+        "LibreChat-API": "57169fd30450",
+        "LibreChat-CodeAPI": "ddba629a7b63",
+        "LibreChat-RAG-API": "d16e85e1e103",
+        "chat-mongodb": "01d5bc03e9cb"
+      },
+      "unchanged_services": [
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "chat-mongodb"
+      ],
+      "mongo_config_version": 56,
+      "mongo_contract_verify": "verify=ok",
+      "public_checks": {
+        "main_root": 200,
+        "api_config": 200,
+        "office_auth_boundary": "401 Basic realm=Office Converter"
+      },
+      "codeapi_health": "healthy",
+      "api_error_log_check": "No uncaught, unhandled, fatal, syntax, type, or reference errors in the acceptance window."
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "36d386dc294ea00f3fefd283627866906cac8d25",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-21T16:36:17Z",
+  "updated_at": "2026-07-21T17:03:27Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-22-visible-artifact-limit/scripts/test-visible-artifact-limit.js",
