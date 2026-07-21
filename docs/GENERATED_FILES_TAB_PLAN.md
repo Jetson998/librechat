@@ -37,7 +37,9 @@ The existing dialog title remains `我的文件` and receives two compact tabs:
 
 The generated tab includes filename search, pagination, refresh, loading, empty,
 and error states. It follows the existing My Files typography, table header,
-row spacing, border, and dialog dimensions.
+row spacing, border, and dialog dimensions. The native `我的文件` heading remains
+the only dialog title; the generated view does not add a duplicate section title
+or descriptive subtitle below the tabs.
 
 ## API
 

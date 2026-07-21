@@ -211,7 +211,6 @@
     panel.setAttribute('role', 'tabpanel');
     panel.setAttribute('aria-label', '生成的文件');
     panel.innerHTML = `<div class="lc-generated-files-toolbar">
-      <div><h2>生成的文件</h2><p>对话中已交付、可下载的文件</p></div>
       <div class="lc-generated-files-actions">
         <label><span class="sr-only">搜索生成的文件</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><input type="search" placeholder="搜索文件名" autocomplete="off" /></label>
         <button type="button" data-action="refresh" aria-label="刷新生成的文件" title="刷新"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"></path></svg></button>

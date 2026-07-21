@@ -24,6 +24,8 @@ required_script = (
 )
 for marker in required_script:
     assert marker in script, marker
+assert '<h2>生成的文件</h2>' not in script
+assert '对话中已交付、可下载的文件' not in script
 
 required_style = (
     ".lc-generated-files-tabs",
