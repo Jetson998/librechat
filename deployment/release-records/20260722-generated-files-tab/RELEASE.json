@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260722-generated-files-tab/artifacts/20260722-generated-files-tab-ab5b8c28dc3d.tar.gz",
+      "manifest": ".release-state/20260722-generated-files-tab/artifacts/manifest.json",
+      "value": "63e0758649e8a0f1f8c7f4e824020cc98d5f7ebaea26ec29a0b97f1866a29d43"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -13,16 +18,45 @@
   },
   "baseline_reference": {
     "details": {
+      "active_user_route_sha256": "459cce4df99363a2031e2b4240c2bafd798506c2b008c695c6919245e4359208",
       "description": "Production LibreChat after the visible-artifact-limit release and before the generated-files tab",
       "implementation_parent_revision": "cb9832e871a925a261af0b9f98ad03b1ca01ec98",
-      "public_index_sha256": "f588713111cf44cc94621e6a7ed6d89769b6c793f794040e3bc68aa78a9ac368",
-      "active_user_route_sha256": "459cce4df99363a2031e2b4240c2bafd798506c2b008c695c6919245e4359208"
+      "public_index_sha256": "f588713111cf44cc94621e6a7ed6d89769b6c793f794040e3bc68aa78a9ac368"
     },
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "63e0758649e8a0f1f8c7f4e824020cc98d5f7ebaea26ec29a0b97f1866a29d43",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "client-tests",
+      "patch-contract-tests",
+      "performance-test",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260722-generated-files-tab/artifacts/20260722-generated-files-tab-ab5b8c28dc3d.tar.gz",
+      "checks": [
+        "generated-files contract tests passed",
+        "generated-files client and route release checks passed",
+        "node --check passed for generated-files.js, user.js, and generated-files-tab.js",
+        "bash -n passed for deploy.sh and remote-apply.sh",
+        "local browser fixture passed tab isolation, native-section restoration, and 720px height checks",
+        "release governance validation passed 31 tests",
+        "10,000 pipeline builds completed in 21.043 ms and 10,000 result rows formatted in 7.082 ms",
+        "git diff --check passed"
+      ]
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "40ec23d8a8579c13f9b3eedeefdeeaa4402f74309130e2700a9a4e5ff40e9a90",
+    "source_revision": "ab5b8c28dc3d6454359f0af30fba376511669fb8",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The native My Files dialog keeps the existing upload list under an Uploads tab and shows current-user assistant-delivered generated files under a separate Generated Files tab with search, pagination, source conversation, and authenticated download.",
@@ -75,7 +109,7 @@
   "source_revision": "ab5b8c28dc3d6454359f0af30fba376511669fb8",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-21T17:43:00Z",
+  "updated_at": "2026-07-21T17:47:33Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-generated-files.js and python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py",
