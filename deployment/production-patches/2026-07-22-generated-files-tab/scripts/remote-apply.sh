@@ -48,12 +48,32 @@ test -d "$source_client"
 test -f "$source_client/index.html"
 test -f "$source_user_route"
 test -f "$source_usage_route"
-test "$(sha_file "$source_client/index.html")" = "$expected_index_sha"
-test "$(sha_file "$source_user_route")" = "$expected_user_route_sha"
+python3 - "$source_client/index.html" "$work_dir/normalized-index.html" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+source, destination = map(Path, sys.argv[1:])
+text = source.read_text(encoding="utf-8")
+text = re.sub(
+    r'<link rel="stylesheet" href="/generated-files-tab\.css\?v=[^"]+">',
+    '',
+    text,
+)
+text = re.sub(
+    r'<script id="generated-files-tab" src="/generated-files-tab\.js\?v=[^"]+"></script>',
+    '',
+    text,
+)
+destination.write_text(text, encoding="utf-8")
+PY
+test "$(sha_file "$work_dir/normalized-index.html")" = "$expected_index_sha"
+source_user_route_sha="$(sha_file "$source_user_route")"
+test "$source_user_route_sha" = "$expected_user_route_sha" || \
+  test "$source_user_route_sha" = "$(sha_file "$user_route_src")"
 grep -Fq 'user-usage-dashboard.js?v=1d6bad93acc5' "$source_client/index.html"
 grep -Fq 'business-upload-label-patch' "$source_client/index.html"
 grep -Fq 'context-safety-stage-b' "$source_client/index.html"
-! grep -Fq 'generated-files-tab.js' "$source_client/index.html"
 
 cp -a "$source_client" "$candidate_client"
 install -m 0444 "$client_script_src" "$candidate_client/generated-files-tab.js"
@@ -65,8 +85,17 @@ import sys
 path = Path(sys.argv[1])
 version = sys.argv[2][:12]
 text = path.read_text(encoding="utf-8")
-if "generated-files-tab.js" in text or "generated-files-tab.css" in text:
-    raise SystemExit("generated files assets are already present")
+import re
+text = re.sub(
+    r'<link rel="stylesheet" href="/generated-files-tab\.css\?v=[^"]+">',
+    '',
+    text,
+)
+text = re.sub(
+    r'<script id="generated-files-tab" src="/generated-files-tab\.js\?v=[^"]+"></script>',
+    '',
+    text,
+)
 text = text.replace(
     "</head>",
     f'<link rel="stylesheet" href="/generated-files-tab.css?v={version}"></head>',

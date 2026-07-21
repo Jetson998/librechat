@@ -5,6 +5,7 @@ script = (root / "client/generated-files-tab.js").read_text(encoding="utf-8")
 style = (root / "client/generated-files-tab.css").read_text(encoding="utf-8")
 route = (root / "api/generated-files.js").read_text(encoding="utf-8")
 user_route = (root / "api/user.js").read_text(encoding="utf-8")
+remote_apply = (root / "scripts/remote-apply.sh").read_text(encoding="utf-8")
 
 required_script = (
     "上传的文件",
@@ -49,5 +50,12 @@ assert "response" not in route.lower()
 assert '<div class="native-table"><div class="native-table-scroll"><table>' in (
     root / "scripts/fixture.html"
 ).read_text(encoding="utf-8")
+for marker in (
+    "normalized-index.html",
+    "generated-files-tab\\.css\\?v=",
+    "generated-files-tab\\.js\\?v=",
+    'test "$source_user_route_sha" = "$(sha_file "$user_route_src")"',
+):
+    assert marker in remote_apply, marker
 
 print("generated-files client and route release checks passed")
