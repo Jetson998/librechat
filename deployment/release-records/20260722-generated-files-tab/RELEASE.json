@@ -1,0 +1,93 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Production LibreChat after the visible-artifact-limit release and before the generated-files tab",
+      "implementation_parent_revision": "cb9832e871a925a261af0b9f98ad03b1ca01ec98",
+      "public_index_sha256": "f588713111cf44cc94621e6a7ed6d89769b6c793f794040e3bc68aa78a9ac368",
+      "active_user_route_sha256": "459cce4df99363a2031e2b4240c2bafd798506c2b008c695c6919245e4359208"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The native My Files dialog keeps the existing upload list under an Uploads tab and shows current-user assistant-delivered generated files under a separate Generated Files tab with search, pagination, source conversation, and authenticated download.",
+    "functions": [
+      "Add an authenticated current-user generated-files API derived from visible assistant message references",
+      "Join referenced artifacts to owner-scoped execute_code file records and exclude intermediate roles",
+      "Add Uploads and Generated Files tabs without replacing or reimplementing the native upload table",
+      "Show filename, type, size, source conversation, generated time, search, pagination, refresh, and download",
+      "Keep generated-file browsing separate from model context and conversation attachment selection"
+    ],
+    "limitations": [
+      "The tab lists files still present in the files collection; deleted or retention-expired files are not shown",
+      "The browser enhancement currently recognizes the Chinese and English My Files dialog titles",
+      "Generated-file deletion remains in the native file-management path and is not duplicated in this tab"
+    ],
+    "reason": "Generated outputs are downloadable from assistant messages but are absent from the native My Files surface, so users cannot browse prior deliverables separately from uploaded source files.",
+    "risk": "Protected Client and authenticated API route change. A selector drift could prevent the tab from appearing, or an ownership/filter regression could return the wrong file set. Deployment uses immutable versioned assets, exact Client/user-route baselines, a Compose backup, automatic rollback, and recreates only LibreChat-API.",
+    "scope": [
+      "docs/GENERATED_FILES_TAB_PLAN.md",
+      "deployment/production-patches/2026-07-22-generated-files-tab"
+    ]
+  },
+  "created_at": "2026-07-21T17:43:00Z",
+  "mode": "protected",
+  "project_adapter": {
+    "deploy_runner": "deployment/production-patches/2026-07-22-generated-files-tab/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260722-generated-files-tab",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "ab5b8c28dc3d6454359f0af30fba376511669fb8",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-21T17:43:00Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-generated-files.js and python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py",
+      "expected": "Owner binding, assistant-only references, intermediate exclusion, execute_code filtering, pagination, download paths, Client tabs, search, and accessibility markers pass.",
+      "type": "local"
+    },
+    {
+      "command": "Local browser fixture acceptance at scripts/fixture.html",
+      "expected": "Upload and generated sections switch without overlap, the original upload table is restored exactly, and the generated view fits a 720px-high viewport without dialog scrolling.",
+      "type": "local"
+    },
+    {
+      "command": "Authenticated vip998 My Files acceptance without a model request",
+      "expected": "The acceptance PPTX appears once under Generated Files, the uploaded XLSX remains under Uploads, hidden QA artifacts are absent, search works, and download succeeds.",
+      "type": "business"
+    }
+  ]
+}
