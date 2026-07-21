@@ -68,11 +68,18 @@
     );
     if (!title) return null;
     const table = dialog.querySelector('table');
-    const tableWrap = table?.parentElement;
-    const toolbar = tableWrap?.previousElementSibling;
-    const pagination = tableWrap?.nextElementSibling;
-    if (!tableWrap || !toolbar || !pagination) return null;
-    return { title, header: title.parentElement, nativeSections: [toolbar, tableWrap, pagination] };
+    let tableRegion = table?.parentElement;
+    while (
+      tableRegion &&
+      tableRegion !== dialog &&
+      (!tableRegion.previousElementSibling || !tableRegion.nextElementSibling)
+    ) {
+      tableRegion = tableRegion.parentElement;
+    }
+    const toolbar = tableRegion?.previousElementSibling;
+    const pagination = tableRegion?.nextElementSibling;
+    if (!tableRegion || tableRegion === dialog || !toolbar || !pagination) return null;
+    return { title, header: title.parentElement, nativeSections: [toolbar, tableRegion, pagination] };
   }
 
   function setActiveView(state, view) {

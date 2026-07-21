@@ -15,6 +15,8 @@ required_script = (
     "MutationObserver",
     "role=\"tab\"",
     "credentials: 'same-origin'",
+    "tableRegion.previousElementSibling",
+    "tableRegion.parentElement",
 )
 for marker in required_script:
     assert marker in script, marker
@@ -44,6 +46,8 @@ assert "createUsageDashboardHandler" in user_route
 assert "configMiddleware, usageDashboardHandler" in user_route
 assert "req.query.user" not in route
 assert "response" not in route.lower()
+assert '<div class="native-table"><div class="native-table-scroll"><table>' in (
+    root / "scripts/fixture.html"
+).read_text(encoding="utf-8")
 
 print("generated-files client and route release checks passed")
-
