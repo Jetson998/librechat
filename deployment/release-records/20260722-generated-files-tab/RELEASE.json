@@ -61,8 +61,11 @@
     "sha256": ""
   },
   "rollback_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "command": "Restore the timestamp-matched /opt/librechat/backups/generated-files-tab-*/compose.override.yaml to /opt/librechat/compose.override.yaml, recreate only LibreChat-API, then verify /, /api/config, /api/user/usage-dashboard, /office/, the native My Files upload table, and generated download cards.",
+      "restore_revision": "cb9832e871a925a261af0b9f98ad03b1ca01ec98"
+    },
+    "status": "passed"
   },
   "runtime_snapshot": {
     "details": {},
