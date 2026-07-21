@@ -1,0 +1,93 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Production generated-files tab release 9062311 with the authenticated panel load failing because its standalone fetch omitted the JWT header.",
+      "production_release_dir": "/opt/librechat/generated-files-tab/9062311e1644-20260722023310",
+      "revision": "9062311e16444948ccc9b48c8885f821afda749b"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The Generated Files tab authenticates with LibreChat's current JWT and lists the current user's delivered artifacts while the native Uploads tab remains unchanged.",
+    "functions": [
+      "Read the existing LibreChat access token from local storage",
+      "Fall back to the existing /api/auth/refresh endpoint when no access token is stored",
+      "Send the JWT Authorization header on generated-files list requests",
+      "Make the browser fixture return 401 when the Authorization contract regresses"
+    ],
+    "limitations": [
+      "This release does not alter generated-file discovery, ownership filtering, retention, or deletion",
+      "The existing generated-files API and native file download route remain unchanged"
+    ],
+    "reason": "Production acceptance showed both file-category tabs, but Generated Files entered its error state because the standalone Client fetch relied on same-origin cookies instead of LibreChat's bearer-token authentication contract.",
+    "risk": "Narrow Client authentication change in the already versioned generated-files asset. Deployment still recreates only LibreChat-API because the Client bundle is mounted through that service; exact baselines, immutable assets, and automatic rollback remain enforced.",
+    "scope": [
+      "docs/GENERATED_FILES_TAB_PLAN.md",
+      "deployment/production-patches/2026-07-22-generated-files-tab"
+    ]
+  },
+  "created_at": "2026-07-21T18:43:25Z",
+  "mode": "protected",
+  "project_adapter": {
+    "deploy_runner": "deployment/production-patches/2026-07-22-generated-files-tab/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260722-generated-files-auth",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Restore the timestamp-matched /opt/librechat/backups/generated-files-tab-*/compose.override.yaml created by this deployment, recreate only LibreChat-API, then verify /, /api/config, /api/user/usage-dashboard, /office/, and both My Files tabs.",
+      "restore_revision": "9062311e16444948ccc9b48c8885f821afda749b"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "61a2a33e7f2a9a6a36781635113092f3501fe616",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-21T18:43:25Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-generated-files.js and python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py",
+      "expected": "The API contract passes and the Client/fixture enforce the JWT Authorization header.",
+      "type": "local"
+    },
+    {
+      "command": "Local browser fixture acceptance at scripts/fixture.html",
+      "expected": "The generated table loads when the bearer token is present and would fail with 401 if the header is omitted.",
+      "type": "local"
+    },
+    {
+      "command": "Authenticated vip998 My Files acceptance without a model request",
+      "expected": "The generated PPTX appears once, the uploaded XLSX is excluded, search and download work, and switching back restores the native upload table.",
+      "type": "business"
+    }
+  ]
+}
