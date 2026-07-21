@@ -22,17 +22,10 @@ for continued editing and audit, while showing only the requested deliverables.
   requested formats with a hard visible limit of three.
 - `BaseClient.js` filters only the assistant message attachments and file cards;
   non-file tool attachments remain unchanged.
-- `code-process.js` adds `metadata.artifactRole` and
-  `metadata.artifactVisibilityReason` to generated-file objects; the values are
-  persisted on the assistant message's `files` and `attachments` entries and
-  drive the customer-visible selection.
+- `code-process.js` persists `metadata.artifactRole` and
+  `metadata.artifactVisibilityReason` on generated files.
 - `mongo-config.js` appends the same delivery contract to the active GPT and
   Fable model specs without replacing their existing prompts.
-
-LibreChat's native `db.files.metadata` schema currently permits `codeEnvRef`
-only, so the two classification values are not stored on the `db.files` row.
-The file row still retains owner, conversation, message, storage, status, and
-retention data; the assistant message retains the artifact classification.
 
 ## Safety Boundary
 
