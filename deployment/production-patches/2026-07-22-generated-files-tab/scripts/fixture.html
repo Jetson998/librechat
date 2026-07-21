@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>生成的文件页签验收</title>
+    <link rel="stylesheet" href="../client/generated-files-tab.css" />
+    <style>
+      :root { color-scheme: light; --text-primary: #111827; --text-secondary: #667085; --surface-primary: #fff; --surface-hover: #f2f4f7; --border-light: #e4e7ec; --border-medium: #d0d5dd; --ring-primary: #2563eb; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      body { margin: 0; background: #f7f8fa; color: var(--text-primary); }
+      [role="dialog"] { position: fixed; inset: 5vh 4vw; display: grid; gap: 16px; overflow: auto; border-radius: 12px; background: white; padding: 24px; box-shadow: 0 20px 60px rgba(16, 24, 40, .16); }
+      h2 { margin: 0; font-size: 18px; }
+      .native-toolbar { display: flex; align-items: end; justify-content: space-between; margin-top: 8px; }
+      .native-toolbar p { margin: 4px 0 0; color: var(--text-secondary); font-size: 13px; }
+      .native-toolbar input { height: 36px; width: 250px; border: 1px solid var(--border-medium); border-radius: 6px; padding: 0 10px; }
+      .native-table { min-height: 28rem; overflow: auto; border: 1px solid var(--border-light); border-radius: 6px; }
+      .native-table table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .native-table th, .native-table td { border-bottom: 1px solid var(--border-light); padding: 9px 16px; text-align: left; }
+      .native-pagination { display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 14px; }
+    </style>
+    <script>
+      window.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+          files: [
+            { file_id: '1', filename: 'API渠道模型来源说明_基础版.pptx', type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes: 483201, generatedAt: '2026-07-22T01:12:00Z', conversationPath: '/c/demo-1', downloadPath: '#download-1' },
+            { file_id: '2', filename: '模型_API_服务能力表_修订版.xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', bytes: 129482, generatedAt: '2026-07-21T18:05:00Z', conversationPath: '/c/demo-2', downloadPath: '#download-2' },
+            { file_id: '3', filename: '渠道分析结论.docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', bytes: 92184, generatedAt: '2026-07-20T09:35:00Z', conversationPath: '/c/demo-3', downloadPath: '#download-3' }
+          ],
+          pagination: { page: 1, limit: 20, total: 3, pages: 1 }
+        })
+      });
+    </script>
+  </head>
+  <body>
+    <section role="dialog" aria-modal="true">
+      <div><h2>我的文件</h2></div>
+      <div class="native-toolbar"><div><h2>文件</h2><p>管理当前账户上传的文件</p></div><input placeholder="搜索文件" /></div>
+      <div class="native-table"><table><thead><tr><th>文件名</th><th>存储</th><th>日期</th><th>大小</th></tr></thead><tbody><tr><td>模型_API_服务能力表.xlsx</td><td>本地</td><td>2026/07/22</td><td>128 KB</td></tr><tr><td>参考资料.pdf</td><td>本地</td><td>2026/07/21</td><td>2.1 MB</td></tr></tbody></table></div>
+      <div class="native-pagination"><span>已选择 0 / 2 行</span><span>上一页&nbsp;&nbsp;下一页</span></div>
+    </section>
+    <script src="../client/generated-files-tab.js"></script>
+  </body>
+</html>
