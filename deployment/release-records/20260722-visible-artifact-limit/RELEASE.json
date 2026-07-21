@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260722-visible-artifact-limit/artifacts/20260722-visible-artifact-limit-36d386dc294e.tar.gz",
+      "manifest": ".release-state/20260722-visible-artifact-limit/artifacts/manifest.json",
+      "value": "f8c6bf86e64d14075991b797ce24f02306f998e163da13a78732771d6164761b"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -20,8 +25,35 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "f8c6bf86e64d14075991b797ce24f02306f998e163da13a78732771d6164761b",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "deployable-artifact",
+      "model-tool-artifact",
+      "versioned-patch-artifact",
+      "data-change-tests",
+      "model-tool-tests",
+      "patch-contract-tests",
+      "performance-test",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260722-visible-artifact-limit/artifacts/20260722-visible-artifact-limit-36d386dc294e.tar.gz",
+      "checks": [
+        "visible artifact limit tests passed",
+        "office file identity tests passed",
+        "node --check on BaseClient.js, GeneratedArtifactVisibility.js, code-process.js, and mongo-config.js",
+        "bash -n on deploy.sh and remote-apply.sh",
+        "release governance validation passed 31 tests",
+        "10,000-artifact classifier benchmark selected one deliverable in 24.532 ms",
+        "git diff --check"
+      ]
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "eabe78a18167886b8a179ac0ab86ffd332cfadbe31fe4f3c4e4a89c19061fe31",
+    "source_revision": "36d386dc294ea00f3fefd283627866906cac8d25",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "A normal generated-file reply shows one complete requested deliverable, explicit reasonable multi-format replies show at most three files, and internal QA or per-page artifacts remain persisted but do not appear as customer download cards.",
@@ -74,7 +106,7 @@
   "source_revision": "36d386dc294ea00f3fefd283627866906cac8d25",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-21T16:35:00Z",
+  "updated_at": "2026-07-21T16:36:17Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-22-visible-artifact-limit/scripts/test-visible-artifact-limit.js",
