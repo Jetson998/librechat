@@ -1,0 +1,95 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Production LibreChat after the Office file-identity release and before generated-artifact visibility filtering",
+      "implementation_parent_revision": "274ec154e11bd72becce2bc0b57ca6e9cda73ebb",
+      "live_baseclient_sha256": "f432035ec723a92a000ecd7e2738f437bdfa1cfef91e8f73832a03230b96528b"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "A normal generated-file reply shows one complete requested deliverable, explicit reasonable multi-format replies show at most three files, and internal QA or per-page artifacts remain persisted but do not appear as customer download cards.",
+    "functions": [
+      "Classify CodeAPI outputs as deliverable or intermediate without deleting persisted files",
+      "Select requested output formats and default to one visible deliverable",
+      "Enforce a hard upper bound of three visible generated files per assistant reply",
+      "Hide ZIP fallback, per-slide PPTX, rendered pages, manifests, QA, errors, previews, and temporary artifacts",
+      "Append the same one-default/three-maximum/no-ZIP contract to GPT and Fable model prompts"
+    ],
+    "limitations": [
+      "The visibility classifier uses filenames, paths, persisted artifact roles, and the current user request; intentionally unusual filenames may require a later classifier rule",
+      "Hidden internal files remain available to the same owner and conversation for continued editing and audit",
+      "The separate latest-branch refresh issue is outside this release"
+    ],
+    "reason": "Conversation a0dc9c6f-ce21-4fae-ab0d-0e8ab25bb108 produced one valid 17-slide PPTX but exposed 51 attachments because LibreChat treated all CodeAPI artifacts as customer deliverables.",
+    "risk": "Enhanced model-tool and Mongo configuration change. A classifier regression could hide a requested output or expose an internal artifact. Deployment uses immutable bind mounts, a Compose backup, a Mongo base-config backup, automatic rollback, and recreates only LibreChat-API.",
+    "scope": [
+      "docs/PPT_SINGLE_TURN_ARTIFACT_DIAGNOSIS_2026-07-21.md",
+      "deployment/production-patches/2026-07-22-visible-artifact-limit"
+    ]
+  },
+  "created_at": "2026-07-21T16:29:11Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "deploy_runner": "deployment/production-patches/2026-07-22-visible-artifact-limit/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260722-visible-artifact-limit",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Restore the timestamp-matched /opt/librechat/compose.override.yaml.bak-* and generated-artifact-delivery-* Mongo backup created by remote-apply.sh, recreate only LibreChat-API, then verify /, /api/config, /office/, CodeAPI health, normal chat, Office reading, and generated download cards.",
+      "restore_revision": "274ec154e11bd72becce2bc0b57ca6e9cda73ebb"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "36d386dc294ea00f3fefd283627866906cac8d25",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-21T16:35:00Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-07-22-visible-artifact-limit/scripts/test-visible-artifact-limit.js",
+      "expected": "The recorded 17-slide incident shape selects only the complete PPTX; default one-file, explicit multi-format, hard cap three, no-ZIP, metadata, BaseClient, and prompt-contract assertions pass.",
+      "type": "local"
+    },
+    {
+      "command": "node deployment/production-patches/2026-07-20-office-file-identity/scripts/test-office-file-identity.js plus syntax and governance validation",
+      "expected": "The prior Office file identity chain and all release-governance checks remain passing.",
+      "type": "local"
+    },
+    {
+      "command": "Authenticated vip998 single-turn generated-file acceptance with at most one billable model request",
+      "expected": "One complete requested file is downloadable, internal artifacts are absent from the assistant message, Mongo retains their owner/conversation metadata, and CodeAPI remains healthy and unchanged.",
+      "type": "business"
+    }
+  ]
+}
