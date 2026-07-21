@@ -1,7 +1,20 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "evidence": ".release-state/20260722-generated-files-download-auth/acceptance-result.json",
+      "business_evidence": ".release-state/20260722-generated-files-download-auth/business-acceptance.json",
+      "account": "vip998@example.local",
+      "conversation_id": "4b93e69e-366d-488f-8eef-a037950e72ec",
+      "conversation_url": "https://152.32.172.162.sslip.io/c/4b93e69e-366d-488f-8eef-a037950e72ec",
+      "generated_filename": "visible-artifact-acceptance.pptx",
+      "generated_files_listed": 1,
+      "uploaded_input_excluded_from_generated_view": true,
+      "authenticated_download_completed_without_error": true,
+      "conversation_url_unchanged": true,
+      "native_uploads_view_restored": true,
+      "billable_model_requests": 0
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +26,12 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/generated-files-tab-20260722031155",
+      "release_dir": "/opt/librechat/generated-files-tab/029799a602eb-20260722031155",
+      "restore_scope": "Restore the timestamp-matched Compose override from the backup directory, recreate only LibreChat-API, and verify the root, API config, generated-files authentication, generated-file download, and native Uploads view."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -89,8 +106,12 @@
   "project_id": "librechat-self-host",
   "release_id": "20260722-generated-files-download-auth",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "path": ".release-state/20260722-generated-files-download-auth/release-plan.json",
+      "minimum_mode": "protected",
+      "acceptance_level": "light"
+    },
+    "sha256": "866bd41df00b67784b8c041e658e8ca6b3c2308a49c2c08f7ee4bcf740ec5675"
   },
   "rollback_reference": {
     "details": {
@@ -100,14 +121,47 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "captured_at": "2026-07-21T19:24:12Z",
+      "artifact_sha256": "dbcff8d50456cf33621780956fe965334de1bfc30355bed242aed0b912b7b0f0",
+      "release_dir": "/opt/librechat/generated-files-tab/029799a602eb-20260722031155",
+      "client_mount_before": "/opt/librechat/generated-files-tab/1e8c59b77910-20260722025640/client-dist",
+      "client_mount_after": "/opt/librechat/generated-files-tab/029799a602eb-20260722031155/client-dist",
+      "compose_sha_before": "cb132394415e0b6e6317483ad7d1d8c1640821c451a9320c84c65bfdbb967ec8",
+      "compose_sha_after": "20f8be7d7a40739acfba81a5cb4d8e265529c92e0d6cf4898a1e644fd1cca73c",
+      "api_container_before": "e37f379cb4b51f67a8d969947de16a0eb619afe6ef9e9f2d891f581bd73777e7",
+      "api_container_after": "a5f80e18b3a9a2419d9f8fa5d30deb5064049b294922dbaca27477a5482a72fb",
+      "unchanged_services": [
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "chat-mongodb",
+        "LibreChat-Admin-Panel"
+      ],
+      "protected_containers_unchanged": true,
+      "public_checks": {
+        "main_root": 200,
+        "api_config": 200,
+        "admin": 200,
+        "office_auth_boundary": "401 Basic realm=Office Converter",
+        "generated_files_unauthenticated": 401,
+        "usage_dashboard_unauthenticated": 401
+      },
+      "browser_acceptance": {
+        "generated_files_loading_error": false,
+        "duplicate_generated_heading": false,
+        "authenticated_download_error": false,
+        "download_url_unchanged": true,
+        "download_control_reenabled": true,
+        "native_uploads_view_restored": true
+      }
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "029799a602eb25d5cf85ad0cb565ffa70dd493a6",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-21T19:08:39Z",
+  "updated_at": "2026-07-21T19:24:12Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-generated-files.js and python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py",
