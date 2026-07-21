@@ -46,6 +46,10 @@ GET /api/user/generated-files?page=1&limit=20&query=<filename>
 ```
 
 The endpoint returns only current-user data and server-generated download paths.
+The browser request follows LibreChat's existing JWT contract: it reads the
+current access token from local storage, falls back to `/api/auth/refresh` when
+needed, and sends `Authorization: Bearer <token>`. Same-origin cookies alone do
+not authenticate this route.
 
 ## Release Boundary
 
@@ -66,6 +70,6 @@ request is required for acceptance.
 - download succeeds through the normal authenticated file route;
 - filename search and pagination work;
 - unauthenticated API access returns `401`;
+- the generated-files browser request includes the current LibreChat JWT;
 - another user's files are not returned;
 - root, `/api/config`, Admin Panel, and `/office/` smoke checks remain unchanged.
-

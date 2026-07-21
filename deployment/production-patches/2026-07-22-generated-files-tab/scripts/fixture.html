@@ -19,17 +19,27 @@
       .native-pagination { display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 14px; }
     </style>
     <script>
-      window.fetch = async () => ({
-        ok: true,
-        json: async () => ({
+      window.localStorage.setItem('token', 'fixture-access-token');
+      window.fetch = async (url, options = {}) => {
+        if (
+          String(url).startsWith('/api/user/generated-files') &&
+          options.headers?.Authorization !== 'Bearer fixture-access-token'
+        ) {
+          return { ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
           files: [
             { file_id: '1', filename: 'API渠道模型来源说明_基础版.pptx', type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes: 483201, generatedAt: '2026-07-22T01:12:00Z', conversationPath: '/c/demo-1', downloadPath: '#download-1' },
             { file_id: '2', filename: '模型_API_服务能力表_修订版.xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', bytes: 129482, generatedAt: '2026-07-21T18:05:00Z', conversationPath: '/c/demo-2', downloadPath: '#download-2' },
             { file_id: '3', filename: '渠道分析结论.docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', bytes: 92184, generatedAt: '2026-07-20T09:35:00Z', conversationPath: '/c/demo-3', downloadPath: '#download-3' }
           ],
           pagination: { page: 1, limit: 20, total: 3, pages: 1 }
-        })
-      });
+          })
+        };
+      };
     </script>
   </head>
   <body>

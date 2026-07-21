@@ -16,6 +16,9 @@ required_script = (
     "MutationObserver",
     "role=\"tab\"",
     "credentials: 'same-origin'",
+    "window.localStorage.getItem('token')",
+    "/api/auth/refresh",
+    "Authorization: `Bearer ${token}`",
     "tableRegion.previousElementSibling",
     "tableRegion.parentElement",
 )
@@ -50,6 +53,9 @@ assert "response" not in route.lower()
 assert '<div class="native-table"><div class="native-table-scroll"><table>' in (
     root / "scripts/fixture.html"
 ).read_text(encoding="utf-8")
+fixture = (root / "scripts/fixture.html").read_text(encoding="utf-8")
+assert "fixture-access-token" in fixture
+assert "options.headers?.Authorization !== 'Bearer fixture-access-token'" in fixture
 for marker in (
     "normalized-index.html",
     "generated-files-tab\\.css\\?v=",

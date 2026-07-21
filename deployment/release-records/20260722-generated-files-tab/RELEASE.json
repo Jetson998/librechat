@@ -1,7 +1,13 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "billable_model_requests": 0,
+      "browser_result": "The Uploads and Generated Files tabs rendered, but the generated-files panel showed its load-error state.",
+      "failure": "The standalone Client fetch omitted LibreChat's JWT Authorization header, so the authenticated route returned 401.",
+      "result": "failed"
+    },
+    "status": "failed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +19,10 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/generated-files-tab-20260722023310"
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -104,13 +112,31 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "admin_status": 200,
+      "api_config_status": 200,
+      "api_container_after": "513759df",
+      "api_container_before": "9a107d31",
+      "generated_files_unauthenticated_status": 401,
+      "office_realm": "Office Converter",
+      "office_status": 401,
+      "protected_containers_unchanged": true,
+      "release_dir": "/opt/librechat/generated-files-tab/9062311e1644-20260722023310",
+      "root_status": 200,
+      "usage_dashboard_unauthenticated_status": 401
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "9062311e16444948ccc9b48c8885f821afda749b",
-  "status": "planned",
-  "unresolved_issues": [],
+  "status": "failed",
+  "unresolved_issues": [
+    {
+      "issue": "Generated Files browser request did not send the JWT Authorization header.",
+      "next_step": "Release the authenticated Client request fix and repeat vip998 browser acceptance without a model request.",
+      "status": "open"
+    }
+  ],
   "updated_at": "2026-07-21T18:31:35Z",
   "validation_plan": [
     {

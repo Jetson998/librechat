@@ -161,6 +161,20 @@
     </div>`;
   }
 
+  async function getAccessToken() {
+    const storedToken = window.localStorage.getItem('token');
+    if (storedToken) return storedToken;
+
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return '';
+    const payload = await response.json().catch(() => null);
+    return typeof payload?.token === 'string' ? payload.token : '';
+  }
+
   async function loadFiles(state) {
     state.controller?.abort();
     state.controller = new AbortController();
@@ -173,9 +187,13 @@
     });
     if (state.query) params.set('query', state.query);
     try {
+      const token = await getAccessToken();
       const response = await fetch(`/api/user/generated-files?${params}`, {
         credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         signal: state.controller.signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
