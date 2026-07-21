@@ -29,7 +29,8 @@
       "Read the existing LibreChat access token from local storage",
       "Fall back to the existing /api/auth/refresh endpoint when no access token is stored",
       "Send the JWT Authorization header on generated-files list requests",
-      "Make the browser fixture return 401 when the Authorization contract regresses"
+      "Make the browser fixture return 401 when the Authorization contract regresses",
+      "Remove the duplicate Generated Files heading and subtitle so the dialog follows the native Archived Conversations hierarchy"
     ],
     "limitations": [
       "This release does not alter generated-file discovery, ownership filtering, retention, or deletion",
@@ -69,7 +70,7 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "61a2a33e7f2a9a6a36781635113092f3501fe616",
+  "source_revision": "1e8c59b779100098e2e0c6bf9338ab0a18439d38",
   "status": "planned",
   "unresolved_issues": [],
   "updated_at": "2026-07-21T18:43:25Z",
