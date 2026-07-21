@@ -110,15 +110,11 @@ failure of LibreChat's core PPTX generation or file persistence path.
 For an ordinary request such as "output the PPT":
 
 - 17 slides means one 17-slide PPTX, not 17 PPTX files.
-- Default visible deliverables should normally be:
-  - primary PPTX;
-  - optional PDF;
-  - optional preview image;
-  - optional source/data package.
-- Four visible files is already a high default for one response.
-- More files remain valid when the user explicitly requests separate exports.
-- A large explicit result set should be collapsed in the UI or offered as a ZIP;
-  it must not be silently discarded.
+- One reply defaults to one complete visible deliverable.
+- A reasonable explicit multi-format request may expose at most three files.
+- More than three independent files is not supported in one reply. The user
+  must split the task or request one complete deliverable.
+- ZIP is not supported as a fallback for an oversized result set.
 - Intermediate JSON, per-slide renders, compatibility probes, and temporary
   single-page decks must remain hidden from the customer file surface.
 
@@ -137,8 +133,8 @@ A governed repair should address these boundaries separately:
 4. Show only `deliverable` files as normal download cards. Keep intermediate QA
    files available for diagnostics but hidden by default.
 5. Stop optional QA after a bounded validation of the complete PPTX. Do not split
-   a finished deck unless the user explicitly requests per-slide files or the
-   selected specialized workflow requires and confirms them.
+   a finished deck into customer-visible per-slide files. If a user asks for
+   more than three independent files, ask them to split the task instead.
 6. Add a generated-files view under My Files, filtered to user-visible
    deliverables and isolated by owner. Listing a file must not automatically add
    it to another conversation's model context.
@@ -155,7 +151,7 @@ A future fix is not accepted until one fresh authenticated conversation proves:
 - no unrequested single-slide PPTX files appear as customer attachments;
 - visible attachments remain within the expected delivery set;
 - internal QA files remain hidden but auditable;
+- no ZIP fallback is offered;
 - the result appears without a manual page refresh;
 - Mongo records preserve user ownership, conversation identity, artifact role,
   and the final assistant attachment references.
-
