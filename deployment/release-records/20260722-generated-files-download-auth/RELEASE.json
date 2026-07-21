@@ -1,0 +1,93 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Production generated-files release 1e8c59b with list authentication and native visual hierarchy working, but direct download navigation failing JWT authentication.",
+      "production_release_dir": "/opt/librechat/generated-files-tab/1e8c59b77910-20260722025640",
+      "revision": "1e8c59b779100098e2e0c6bf9338ab0a18439d38"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Generated Files lists current-user deliverables and downloads each file through an authenticated Blob request without leaving the conversation page.",
+    "functions": [
+      "Reuse the generated-files JWT helper for both list and download requests",
+      "Fetch download bytes with Authorization instead of direct anchor navigation",
+      "Create a temporary Blob URL with the original filename and revoke it after use",
+      "Make the browser fixture reject unauthenticated download requests and record the downloaded filename"
+    ],
+    "limitations": [
+      "This release does not change file ownership, retention, discovery, or server download routes",
+      "Download failures keep the user on the current page and expose a retry title on the download control"
+    ],
+    "reason": "Authenticated vip998 acceptance proved the generated list and styling were correct, but clicking the file link navigated to the protected route without a bearer token and returned No auth token.",
+    "risk": "Narrow Client download behavior change. The API query and route are unchanged; deployment remains versioned, recreates only LibreChat-API, and preserves the prior release as the rollback target.",
+    "scope": [
+      "docs/GENERATED_FILES_TAB_PLAN.md",
+      "deployment/production-patches/2026-07-22-generated-files-tab"
+    ]
+  },
+  "created_at": "2026-07-21T19:06:27Z",
+  "mode": "protected",
+  "project_adapter": {
+    "deploy_runner": "deployment/production-patches/2026-07-22-generated-files-tab/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260722-generated-files-download-auth",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Restore the timestamp-matched /opt/librechat/backups/generated-files-tab-*/compose.override.yaml created by this deployment, recreate only LibreChat-API, then verify /, /api/config, /office/, Generated Files list loading, and the native Uploads tab.",
+      "restore_revision": "1e8c59b779100098e2e0c6bf9338ab0a18439d38"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "029799a602eb25d5cf85ad0cb565ffa70dd493a6",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-21T19:06:27Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-generated-files.js and python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py",
+      "expected": "List and download authentication markers, API ownership rules, and Client release checks pass.",
+      "type": "local"
+    },
+    {
+      "command": "Local browser fixture download acceptance",
+      "expected": "The fixture rejects missing JWT headers and records the original filename after Blob download.",
+      "type": "local"
+    },
+    {
+      "command": "Authenticated vip998 My Files acceptance without a model request",
+      "expected": "One generated PPTX is listed, uploaded inputs are excluded, search works, authenticated download succeeds, and Uploads restores.",
+      "type": "business"
+    }
+  ]
+}
