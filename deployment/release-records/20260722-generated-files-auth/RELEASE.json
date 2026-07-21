@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260722-generated-files-auth/artifacts/20260722-generated-files-auth-1e8c59b77910.tar.gz",
+      "manifest": ".release-state/20260722-generated-files-auth/artifacts/manifest.json",
+      "value": "8ed9178175f638e8477f7545b46e433813c9bc0b926ccb07fbc8c86216cc49d6"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -20,8 +25,38 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "8ed9178175f638e8477f7545b46e433813c9bc0b926ccb07fbc8c86216cc49d6",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "client-tests",
+      "patch-contract-tests",
+      "performance-test",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260722-generated-files-auth/artifacts/20260722-generated-files-auth-1e8c59b77910.tar.gz",
+      "checks": [
+        "generated-files API contract tests passed",
+        "generated-files Client release checks passed",
+        "browser fixture rejects missing JWT Authorization and renders generated rows with the bearer token",
+        "duplicate Generated Files heading and subtitle are absent",
+        "node --check passed for generated-files-tab.js",
+        "bash -n passed for deploy.sh and remote-apply.sh",
+        "release governance validation passed 31 tests",
+        "git diff --check passed",
+        "existing generated-files pipeline performance evidence remains unchanged because the API implementation is unchanged"
+      ]
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "9544c752159b0de1003e60015d3fa4c9651aab000c5afc87f955fbe720741a71",
+    "source_revision": "1e8c59b779100098e2e0c6bf9338ab0a18439d38",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The Generated Files tab authenticates with LibreChat's current JWT and lists the current user's delivered artifacts while the native Uploads tab remains unchanged.",
@@ -73,7 +108,7 @@
   "source_revision": "1e8c59b779100098e2e0c6bf9338ab0a18439d38",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-21T18:43:25Z",
+  "updated_at": "2026-07-21T18:51:00Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-generated-files.js and python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py",
