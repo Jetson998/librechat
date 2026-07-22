@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type * as t from '@/types';
 import { adjustUserBalanceFn, getUserBalanceFn } from '@/server';
+import { cn, notifyError, notifySuccess } from '@/utils';
 import { FormDialog } from '@/components/shared';
 import { useLocalize } from '@/hooks';
-import { cn, notifyError, notifySuccess } from '@/utils';
 
 const formatUsd = (value: number) =>
   new Intl.NumberFormat('en-US', {

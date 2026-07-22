@@ -21,9 +21,9 @@ import {
 } from '@/components/shared';
 import { useAnnouncement, useCapabilities, useLocalize } from '@/hooks';
 import { cn, notifySuccess, notifyError } from '@/utils';
+import { UserBalanceDialog } from './UserBalanceDialog';
 import { CreateUserDialog } from './CreateUserDialog';
 import { UserDetailDialog } from './UserDetailDialog';
-import { UserBalanceDialog } from './UserBalanceDialog';
 import { ConfirmDialog } from '@/components/access';
 import { SystemCapabilities } from '@/constants';
 
