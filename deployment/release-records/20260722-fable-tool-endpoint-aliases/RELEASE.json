@@ -1,7 +1,21 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "billable_model_requests": 1,
+      "business_evidence": ".release-state/20260722-fable-tool-endpoint-aliases/business-acceptance.json",
+      "conversation_id": "9b947fcc-8e44-4220-a48f-5e5a39a5a3b1",
+      "conversation_url": "https://152.32.172.162.sslip.io/c/9b947fcc-8e44-4220-a48f-5e5a39a5a3b1",
+      "evidence": ".release-state/20260722-fable-tool-endpoint-aliases/acceptance-result.json",
+      "generated_files": [
+        "GapAnalysis_Exam_BankC.docx",
+        "AnswerKey_INTERNAL_BankC.docx"
+      ],
+      "normalized_aliases": [
+        "Bash->bash_tool",
+        "Skill->skill"
+      ]
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +27,13 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "compose_override_backup": "/opt/librechat/compose.override.yaml.bak-20260722142358",
+      "mongo_backup_id": "fable-tool-alias-022223b351d9-20260722142358",
+      "release_dir": "/opt/librechat/fable-tool-alias/022223b351d9-20260722142358",
+      "restore_scope": "Restore the timestamp-matched Compose override and Mongo base-config backup, recreate only LibreChat-API, then verify the root, API config, CodeAPI health, Fable chat, and Office file reading."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -90,8 +109,18 @@
   "project_id": "librechat-self-host",
   "release_id": "20260722-fable-tool-endpoint-aliases",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "heavy",
+      "matched_rules": [
+        "api-runtime",
+        "model-tool-routing",
+        "persistent-data",
+        "production-patch"
+      ],
+      "minimum_mode": "enhanced",
+      "path": ".release-state/20260722-fable-tool-endpoint-aliases/release-plan.json"
+    },
+    "sha256": "3e48697f847eb7076df4ef80f9cdf4c328b492101d06242db7fbd19a963dbb7a"
   },
   "rollback_reference": {
     "details": {
@@ -101,14 +130,35 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_captured_at": "2026-07-22T06:33:39.948Z",
+      "api_error_log_check": "No legacy Bash, Read, or Skill tool-not-found error in the post-deploy acceptance window.",
+      "artifact_sha256": "04864e60fef46a0b7aa808b1aa5ce7ed4dd17024a04d305988d0b2f72b963040",
+      "codeapi": {
+        "container_id": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+        "health": "healthy",
+        "unchanged": true
+      },
+      "deployed_at": "2026-07-22T06:24:23Z",
+      "in_container_hashes": {
+        "/app/packages/api/dist/index.cjs": "615c030c56c62d9ce90f92d3591fb99d7fda29a058daa0b4076850bb6fc5f182",
+        "/app/packages/api/dist/tool-call-normalizer.cjs": "a5a1feca10545e1bba60b3a872101cc961526609c482aa5b7b049bdbaead7f7a"
+      },
+      "mongo_config_version_after": 64,
+      "public_checks": {
+        "api_config": 200,
+        "main_root": 200
+      },
+      "release_dir": "/opt/librechat/fable-tool-alias/022223b351d9-20260722142358",
+      "superseded_by": "20260722-public-code-tool-contract"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "022223b351d97b835f0ccdcefb8bd056023d337b",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-22T06:06:50Z",
+  "updated_at": "2026-07-22T15:13:03Z",
   "validation_plan": [
     {
       "command": "node scripts/test-release.js and node scripts/test-mongo-config.js in the versioned patch directory",
