@@ -1,0 +1,95 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Production LibreChat after generated-files download acceptance and before the Fable legacy tool-alias compatibility change",
+      "implementation_parent_revision": "f5170d952d8cd281b94b70db6bff30e6d4625a35",
+      "live_api_index_sha256": "b9379a4ee7f5f6d7bca4d99d88a8aa70b9e0dcbe4aae35dbe1393b55f6ea86de"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "When Fable emits the recorded Claude Code aliases for a file task, LibreChat deterministically invokes its registered bash_tool, read_file, and skill tools with the original code-session file context, so the model can read the complete current-turn DOCX from /mnt/data instead of stopping at the bounded manifest preview.",
+    "functions": [
+      "Normalize Bash to bash_tool before event-driven tool loading",
+      "Normalize Read.file_path to read_file.path",
+      "Normalize Skill.skill to skill.skillName",
+      "Preserve tool-call IDs, code-session context, and injected file references",
+      "Correct only the claude-fable-5 prompt to name the registered LibreChat tools"
+    ],
+    "limitations": [
+      "Grep remains unsupported and is not converted into a synthesized shell command",
+      "The Office manifest remains bounded at 20000 characters; complete reading continues through /mnt/data",
+      "The compatibility mapping is limited to the exact Bash, Read, and Skill aliases"
+    ],
+    "reason": "Conversation 9b947fcc-8e44-4220-a48f-5e5a39a5a3b1 had valid codeEnvRef values and successful Office pre-parse, but Fable called Bash, Read, Skill, and Grep while LibreChat registered bash_tool, read_file, and skill. The stale Fable prompt also incorrectly instructed the model to use Bash.",
+    "risk": "Enhanced model-tool routing and base-config change. Incorrect normalization could load the wrong tool or alter arguments. The release uses exact alias and argument mappings, fixture tests from the production payloads, a fail-closed production baseline hash, Compose and Mongo backups, and API-only recreation.",
+    "scope": [
+      "docs/FABLE_TOOL_ALIAS_NORMALIZATION_PLAN.md",
+      "deployment/production-patches/2026-07-22-fable-tool-endpoint-aliases"
+    ]
+  },
+  "created_at": "2026-07-22T06:02:25Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "deploy_runner": "deployment/production-patches/2026-07-22-fable-tool-endpoint-aliases/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260722-fable-tool-endpoint-aliases",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Restore the timestamp-matched /opt/librechat/compose.override.yaml.bak-* and fable-tool-alias-* Mongo backup created by remote-apply.sh, recreate only LibreChat-API, then verify /, /api/config, CodeAPI health, Fable normal chat, and Office file reading.",
+      "restore_revision": "f5170d952d8cd281b94b70db6bff30e6d4625a35"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "022223b351d97b835f0ccdcefb8bd056023d337b",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-22T06:02:25Z",
+  "validation_plan": [
+    {
+      "command": "node scripts/test-release.js and node scripts/test-mongo-config.js in the versioned patch directory",
+      "expected": "Recorded Bash, Read, and Skill payloads normalize exactly; canonical and unknown tools remain unchanged; Mongo preflight/apply/verify/rollback preserve all unrelated configuration.",
+      "type": "local"
+    },
+    {
+      "command": "node --check, bash -n, git diff --check, and scripts/validate-release-governance.sh",
+      "expected": "Candidate runtime files, deployment scripts, repository formatting, and all release-governance tests pass.",
+      "type": "local"
+    },
+    {
+      "command": "Authenticated vip998 Fable DOCX reading acceptance with at most one billable model request",
+      "expected": "The current-turn DOCX is available under /mnt/data, a normalized tool executes successfully, a requested body passage is returned, and the acceptance window has no legacy Tool not found error for Bash, Read, or Skill.",
+      "type": "business"
+    }
+  ]
+}
