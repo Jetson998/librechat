@@ -115,7 +115,10 @@ export const adjustUserBalanceFn = createServerFn({ method: 'POST' })
     z.object({
       id: z.string().min(1),
       adjustmentId: z.string().min(8).max(100),
-      amountUsd: z.number().finite().refine((value) => value !== 0),
+      amountUsd: z
+        .number()
+        .finite()
+        .refine((value) => value !== 0),
       note: z.string().max(200),
     }),
   )
