@@ -12,8 +12,11 @@
     "status": "pending"
   },
   "baseline_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "description": "LibreChat main before the user balance and administrator credit feature",
+      "revision": "681c36c"
+    },
+    "status": "passed"
   },
   "build_attestation": {
     "details": {},
@@ -64,15 +67,18 @@
     "sha256": ""
   },
   "rollback_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "command": "Revert source revision 8023a63037499d703fff7b40e2d7136985a246bf before any production deployment; a production rollback command will be recorded after packaging and target preflight.",
+      "restore_revision": "681c36c"
+    },
+    "status": "passed"
   },
   "runtime_snapshot": {
     "details": {},
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "",
+  "source_revision": "8023a63037499d703fff7b40e2d7136985a246bf",
   "status": "planned",
   "unresolved_issues": [
     "Admin Panel CI must pass before this release is eligible for production packaging or deployment."
