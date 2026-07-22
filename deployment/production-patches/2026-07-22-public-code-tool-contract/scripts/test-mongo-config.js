@@ -25,7 +25,7 @@ const source = {
           name: GPT_MODEL,
           preset: {
             model: GPT_MODEL,
-            promptPrefix: `${GPT_OLD_TOOL_SENTENCE}\nGPT Office rules remain.`,
+            promptPrefix: '[CONTEXT_SAFETY_BATCH_V1]\nGPT batch rules remain.',
           },
         },
         {
@@ -50,9 +50,10 @@ assert.deepEqual(candidate.unrelated, { keep: true });
 const specs = Object.fromEntries(
   candidate.overrides.modelSpecs.list.map((spec) => [spec.name, spec]),
 );
-assert(specs[GPT_MODEL].preset.promptPrefix.startsWith(GPT_NEUTRAL_SENTENCE));
-assert(!specs[GPT_MODEL].preset.promptPrefix.includes('Bash 或 execute_code'));
-assert(specs[GPT_MODEL].preset.promptPrefix.includes('GPT Office rules remain.'));
+assert.equal(
+  specs[GPT_MODEL].preset.promptPrefix,
+  '[CONTEXT_SAFETY_BATCH_V1]\nGPT batch rules remain.',
+);
 assert(specs[FABLE_MODEL].preset.promptPrefix.startsWith(FABLE_NEUTRAL_SENTENCE));
 assert(specs[FABLE_MODEL].preset.promptPrefix.includes(NEUTRAL_PROGRESS_SENTENCE));
 assert(!specs[FABLE_MODEL].preset.promptPrefix.includes('调用 bash_tool 运行 Python'));
@@ -61,5 +62,18 @@ assert.equal(specs['future-model'].preset.promptPrefix, 'Do not modify me.');
 
 const idempotent = applyContract(candidate);
 assert.deepEqual(idempotent, candidate);
+
+const legacyGptSource = JSON.parse(JSON.stringify(source));
+legacyGptSource.overrides.modelSpecs.list.find(
+  (spec) => spec.name === GPT_MODEL,
+).preset.promptPrefix = `${GPT_OLD_TOOL_SENTENCE}\nGPT Office rules remain.`;
+const legacyGptCandidate = applyContract(legacyGptSource);
+assertConfigured(legacyGptCandidate);
+const legacyGptPrompt = legacyGptCandidate.overrides.modelSpecs.list.find(
+  (spec) => spec.name === GPT_MODEL,
+).preset.promptPrefix;
+assert(legacyGptPrompt.startsWith(GPT_NEUTRAL_SENTENCE));
+assert(legacyGptPrompt.includes('GPT Office rules remain.'));
+assert(!legacyGptPrompt.includes('Bash 或 execute_code'));
 
 console.log('public code tool contract Mongo tests passed');

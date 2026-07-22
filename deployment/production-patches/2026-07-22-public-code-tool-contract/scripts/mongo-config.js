@@ -54,7 +54,10 @@ function replaceOneState(prompt, modelName, states, replacement) {
 
 function transformGptPrompt(prompt) {
   if (typeof prompt !== 'string') throw new Error(`${GPT_MODEL} promptPrefix must be a string`);
-  return replaceOneState(prompt, GPT_MODEL, [GPT_OLD_TOOL_SENTENCE], GPT_NEUTRAL_SENTENCE);
+  const oldCount = countOccurrences(prompt, GPT_OLD_TOOL_SENTENCE);
+  if (oldCount === 1) return prompt.replace(GPT_OLD_TOOL_SENTENCE, GPT_NEUTRAL_SENTENCE);
+  if (oldCount === 0) return prompt;
+  throw new Error(`unexpected ${GPT_MODEL} prompt state`);
 }
 
 function transformFablePrompt(prompt) {
@@ -89,9 +92,6 @@ function assertConfigured(document) {
   const gptPrompt = getModelSpec(document, GPT_MODEL)?.preset?.promptPrefix;
   const fablePrompt = getModelSpec(document, FABLE_MODEL)?.preset?.promptPrefix;
 
-  if (countOccurrences(gptPrompt, GPT_NEUTRAL_SENTENCE) !== 1) {
-    throw new Error('GPT neutral environment sentence mismatch');
-  }
   if (countOccurrences(fablePrompt, FABLE_NEUTRAL_SENTENCE) !== 1) {
     throw new Error('Fable neutral environment sentence mismatch');
   }
@@ -113,6 +113,12 @@ function assertConfigured(document) {
       if (countOccurrences(prompt, stale) !== 0) {
         throw new Error(`${modelName} still contains model-specific tool contract`);
       }
+    }
+  }
+
+  for (const staleFragment of ['Bash 或 execute_code', '工具名通常显示为 Bash']) {
+    if (String(gptPrompt || '').includes(staleFragment)) {
+      throw new Error(`${GPT_MODEL} still contains stale tool-name guidance`);
     }
   }
 }
