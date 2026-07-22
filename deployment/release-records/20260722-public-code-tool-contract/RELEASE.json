@@ -1,0 +1,96 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Production LibreChat after the Fable legacy alias release and before the public code tool contract",
+      "implementation_parent_revision": "ba9b01adeeedbcdab9054ff195086496965f7df9",
+      "live_api_index_sha256": "615c030c56c62d9ce90f92d3591fb99d7fda29a058daa0b4076850bb6fc5f182",
+      "live_tool_normalizer_sha256": "a5a1feca10545e1bba60b3a872101cc961526609c482aa5b7b049bdbaead7f7a"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Every current or future model using the LibreChat Agent code/file path receives one runtime contract generated from the tools actually registered for that run, so model-specific prompts no longer drift toward Bash, execute_code, or unavailable Claude Code CLI names.",
+    "functions": [
+      "Build a stable public contract from the current run's registered bash_tool, read_file, skill, create_file, and edit_file definitions",
+      "Append the contract once in the common Agent initializer after code, file-authoring, and Skill registration",
+      "Identify execute_code as a capability marker rather than a callable tool",
+      "Retain the strict Bash, Read, and Skill compatibility normalizer in the common ON_TOOL_EXECUTE entry",
+      "Remove conflicting code-tool-name sentences from the current GPT and Fable model prompts while preserving Office and file isolation rules"
+    ],
+    "limitations": [
+      "The public contract applies to the LibreChat Agent execution path; a future non-Agent integration requires its own acceptance",
+      "Grep, Glob, Edit, LS, execute_code, and unknown names remain unsupported and are not converted",
+      "The contract lists only tools actually registered for the current run and does not enable capabilities by itself"
+    ],
+    "reason": "The Fable incident proved that per-model tool-name prompts drift from the Agent registry. GPT still described Bash or execute_code even though execute_code expands into bash_tool and read_file. Fixing each model separately would repeat the failure whenever a model spec is added or overwritten.",
+    "risk": "Enhanced common Agent-instruction and base-config change. An incorrect contract could advertise an unavailable tool to every code-capable model. The implementation derives names from actual tool definitions, emits nothing when no relevant tool is registered, preserves strict alias boundaries, uses immutable API mounts, and includes Compose and Mongo rollback backups.",
+    "scope": [
+      "docs/PUBLIC_CODE_TOOL_CONTRACT_PLAN.md",
+      "deployment/production-patches/2026-07-22-public-code-tool-contract"
+    ]
+  },
+  "created_at": "2026-07-22T12:44:21Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "deploy_runner": "deployment/production-patches/2026-07-22-public-code-tool-contract/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260722-public-code-tool-contract",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Restore the timestamp-matched /opt/librechat/compose.override.yaml.bak-* and public-code-tool-contract-* Mongo backup created by remote-apply.sh, recreate only LibreChat-API, then verify /, /api/config, CodeAPI health, GPT/Fable normal chat, and one code-tool call.",
+      "restore_revision": "ba9b01adeeedbcdab9054ff195086496965f7df9"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "30d750e19a83dda6011435f338e59ead06f3b892",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-22T12:44:21Z",
+  "validation_plan": [
+    {
+      "command": "node scripts/test-release.js and node scripts/test-mongo-config.js in the versioned patch directory",
+      "expected": "The contract is empty without registered code/file tools, lists only actual canonical tools in stable order, keeps strict alias behavior, and the Mongo migration preserves unrelated configuration and is idempotent.",
+      "type": "local"
+    },
+    {
+      "command": "node --check, bash -n, git diff --check, and scripts/validate-release-governance.sh",
+      "expected": "Candidate runtime modules, deployment scripts, repository formatting, and all release-governance tests pass.",
+      "type": "local"
+    },
+    {
+      "command": "Authenticated vip998 code-tool acceptance with at most one billable model request",
+      "expected": "A code-capable model calls a canonical registered tool directly, the response completes, the runtime contract names match the tool registry, and the acceptance window has no Tool execute_code/Bash/Read/Skill not found error.",
+      "type": "business"
+    }
+  ]
+}
