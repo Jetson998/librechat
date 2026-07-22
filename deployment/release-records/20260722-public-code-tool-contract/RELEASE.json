@@ -4,13 +4,8 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {
-      "algorithm": "sha256",
-      "artifact": ".release-state/20260722-public-code-tool-contract/artifacts/20260722-public-code-tool-contract-30d750e19a83.tar.gz",
-      "manifest": ".release-state/20260722-public-code-tool-contract/artifacts/manifest.json",
-      "value": "ff02e37365fa931e028eb5883dfb6063e2165005afcd31ead1b1a826a7fa76ea"
-    },
-    "status": "passed"
+    "details": {},
+    "status": "pending"
   },
   "backup_reference": {
     "details": {},
@@ -26,37 +21,8 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "ff02e37365fa931e028eb5883dfb6063e2165005afcd31ead1b1a826a7fa76ea",
-    "build_environment": "independent-build",
-    "completed_requirements": [
-      "api-artifact",
-      "deployable-artifact",
-      "versioned-patch-artifact",
-      "api-tests",
-      "data-change-tests",
-      "patch-contract-tests",
-      "release-scope-tests"
-    ],
-    "details": {
-      "artifact": ".release-state/20260722-public-code-tool-contract/artifacts/20260722-public-code-tool-contract-30d750e19a83.tar.gz",
-      "checks": [
-        "Public contract is empty when no code/file tools are registered",
-        "Contract lists only canonical tools actually registered for the run in stable order",
-        "execute_code is identified as a capability marker and is not normalized",
-        "Existing Bash, Read, and Skill compatibility tests remain passing",
-        "Mongo GPT/Fable prompt cleanup preserves unrelated fields and is idempotent",
-        "node --check passed for api-index.cjs, code-tool-contract.cjs, tool-call-normalizer.cjs, and mongo-config.js",
-        "bash -n passed for deploy.sh and remote-apply.sh",
-        "release governance validation passed 31 tests",
-        "git diff --check passed",
-        "candidate api-index.cjs differs from the deployed baseline only at the public contract import and append point"
-      ],
-      "provider": "Codex local independent validation"
-    },
-    "production_host": false,
-    "release_plan_sha256": "eed7377eba0ae3fd48a031fa6d8badabfc83e945fe81b1bcaa28c555018dd8df",
-    "source_revision": "30d750e19a83dda6011435f338e59ead06f3b892",
-    "status": "passed"
+    "details": {},
+    "status": "pending"
   },
   "change_summary": {
     "expected_result": "Every current or future model using the LibreChat Agent code/file path receives one runtime contract generated from the tools actually registered for that run, so model-specific prompts no longer drift toward Bash, execute_code, or unavailable Claude Code CLI names.",
@@ -72,7 +38,7 @@
       "Grep, Glob, Edit, LS, execute_code, and unknown names remain unsupported and are not converted",
       "The contract lists only tools actually registered for the current run and does not enable capabilities by itself"
     ],
-    "reason": "The Fable incident proved that per-model tool-name prompts drift from the Agent registry. GPT still described Bash or execute_code even though execute_code expands into bash_tool and read_file. Fixing each model separately would repeat the failure whenever a model spec is added or overwritten.",
+    "reason": "The Fable incident proved that per-model tool-name prompts drift from the Agent registry. GPT had previously described Bash or execute_code, while the current Admin configuration later replaced that whole paragraph with unrelated safety rules. Both states show that model-specific text is not a durable source of tool truth.",
     "risk": "Enhanced common Agent-instruction and base-config change. An incorrect contract could advertise an unavailable tool to every code-capable model. The implementation derives names from actual tool definitions, emits nothing when no relevant tool is registered, preserves strict alias boundaries, uses immutable API mounts, and includes Compose and Mongo rollback backups.",
     "scope": [
       "docs/PUBLIC_CODE_TOOL_CONTRACT_PLAN.md",
@@ -106,7 +72,7 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "30d750e19a83dda6011435f338e59ead06f3b892",
+  "source_revision": "fc288a3c6edd9a47dbf0a6d509af39fc0eb5f05e",
   "status": "planned",
   "unresolved_issues": [],
   "updated_at": "2026-07-22T14:27:40Z",
