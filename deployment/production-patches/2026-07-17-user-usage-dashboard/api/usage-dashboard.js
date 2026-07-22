@@ -3,6 +3,7 @@
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const VALID_RANGES = new Set(['7', '30', 'all']);
+const CREDITS_PER_USD = 1000000;
 
 function clampInteger(value, fallback, minimum, maximum) {
   const parsed = Number.parseInt(value, 10);
@@ -514,7 +515,30 @@ function round(value, decimals = 2) {
   return Math.round(value * factor) / factor;
 }
 
-function formatResult(raw, options, currency, pricingIndex = null, market = []) {
+function formatAccount(record, balanceEnabled) {
+  const adjustments = Array.isArray(record?.adminAdjustments)
+    ? [...record.adminAdjustments]
+        .reverse()
+        .slice(0, 100)
+        .map((entry) => ({
+          adjustmentId: entry.adjustmentId,
+          amountUsd: round(Number(entry.amountCredits || 0) / CREDITS_PER_USD, 6),
+          balanceAfterUsd:
+            entry.balanceAfterCredits == null
+              ? null
+              : round(Number(entry.balanceAfterCredits) / CREDITS_PER_USD, 6),
+          note: entry.note || '',
+          createdAt: entry.createdAt,
+        }))
+    : [];
+  return {
+    balanceEnabled,
+    balanceUsd: round(Number(record?.tokenCredits || 0) / CREDITS_PER_USD, 6),
+    adjustments,
+  };
+}
+
+function formatResult(raw, options, currency, pricingIndex = null, market = [], account = null) {
   const emptySummary = {
     tokens: 0,
     cost: 0,
@@ -547,6 +571,7 @@ function formatResult(raw, options, currency, pricingIndex = null, market = []) 
     modelOptions: raw.modelOptions || [],
     conversationOptions: raw.conversationOptions || [],
     market,
+    account,
     logs: (raw.logs || []).map((item) =>
       decorateCostBreakdown(
         { ...item, cost: item.cost == null ? null : round(item.cost, 4) },
@@ -594,7 +619,13 @@ function createUsageDashboardHandler({ mongoose, logger, now = () => new Date() 
         pricingCutoff,
         pricingCutoffModels,
       });
-      const [raw = {}] = await Message.aggregate(pipeline).allowDiskUse(false).exec();
+      const transactionUserId = new mongoose.Types.ObjectId(userId);
+      const [aggregation, balanceRecord] = await Promise.all([
+        Message.aggregate(pipeline).allowDiskUse(false).exec(),
+        mongoose.connection.collection('balances').findOne({ user: transactionUserId }),
+      ]);
+      const [raw = {}] = aggregation;
+      const balanceEnabled = req.config?.balance?.enabled === true;
       return res.json(
         formatResult(
           raw,
@@ -602,6 +633,7 @@ function createUsageDashboardHandler({ mongoose, logger, now = () => new Date() 
           currency,
           buildPricingIndex(req.config),
           buildModelMarket(req.config),
+          formatAccount(balanceRecord, balanceEnabled),
         ),
       );
     } catch (error) {
@@ -618,6 +650,7 @@ module.exports = {
   createUsageDashboardHandler,
   decorateCostBreakdown,
   formatResult,
+  formatAccount,
   getCutoff,
   parsePricingCutoff,
   parsePricingCutoffModels,

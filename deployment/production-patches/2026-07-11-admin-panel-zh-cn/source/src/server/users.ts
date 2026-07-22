@@ -85,3 +85,52 @@ export const searchUsersFn = createServerFn({ method: 'GET' })
     const json = (await response.json()) as { users: AdminUserSearchResult[] };
     return { users: json.users ?? [] };
   });
+
+export interface UserBalanceAdjustment {
+  adjustmentId: string;
+  amountUsd: number;
+  balanceAfterUsd: number | null;
+  note: string;
+  createdAt: string;
+  administratorId: string;
+}
+
+export interface UserBalanceResponse {
+  balanceEnabled: boolean;
+  balanceUsd: number;
+  adjustments: UserBalanceAdjustment[];
+  applied?: boolean;
+}
+
+export const getUserBalanceFn = createServerFn({ method: 'GET' })
+  .inputValidator(z.object({ id: z.string().min(1) }))
+  .handler(async ({ data }): Promise<UserBalanceResponse> => {
+    const response = await apiFetch(`/api/admin/users/${encodeURIComponent(data.id)}/balance`);
+    if (!response.ok) await extractApiError(response, 'Failed to load user balance');
+    return (await response.json()) as UserBalanceResponse;
+  });
+
+export const adjustUserBalanceFn = createServerFn({ method: 'POST' })
+  .inputValidator(
+    z.object({
+      id: z.string().min(1),
+      adjustmentId: z.string().min(8).max(100),
+      amountUsd: z.number().finite().refine((value) => value !== 0),
+      note: z.string().max(200),
+    }),
+  )
+  .handler(async ({ data }): Promise<UserBalanceResponse> => {
+    const response = await apiFetch(
+      `/api/admin/users/${encodeURIComponent(data.id)}/balance-adjustments`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          adjustmentId: data.adjustmentId,
+          amountUsd: data.amountUsd,
+          note: data.note.trim(),
+        }),
+      },
+    );
+    if (!response.ok) await extractApiError(response, 'Failed to adjust user balance');
+    return (await response.json()) as UserBalanceResponse;
+  });

@@ -132,6 +132,10 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg>
                   <span>对话日志</span>
                 </button>
+                <button type="button" role="tab" data-view="account" aria-controls="lcUsageDashboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"></rect><path d="M16 13h.01"></path><path d="M2 10h20"></path></svg>
+                  <span>额度记录</span>
+                </button>
                 <button type="button" role="tab" data-view="market" aria-controls="lcUsageDashboard">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l2-5h14l2 5"></path><path d="M5 13v7h14v-7"></path><path d="M9 20v-5h6v5"></path><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"></path></svg>
                   <span>模型市场</span>
@@ -511,6 +515,47 @@
       </div>`;
   }
 
+  function renderAccount(data) {
+    const account = data.account || { balanceEnabled: false, balanceUsd: 0, adjustments: [] };
+    const rows = (account.adjustments || []).length
+      ? account.adjustments
+          .map(
+            (entry) => `
+              <tr>
+                <td>${formatTimestamp(entry.createdAt)}</td>
+                <td class="${Number(entry.amountUsd) >= 0 ? 'is-positive' : 'is-negative'}">
+                  ${Number(entry.amountUsd) >= 0 ? '+' : ''}${formatCost(entry.amountUsd, data.currency)}
+                </td>
+                <td>${entry.balanceAfterUsd == null ? '-' : formatCost(entry.balanceAfterUsd, data.currency)}</td>
+                <td>${escapeHtml(entry.note || '-')}</td>
+              </tr>`,
+          )
+          .join('')
+      : '<tr><td colspan="4"><div class="lc-usage-empty">暂无管理员额度记录</div></td></tr>';
+    return `
+      <div class="lc-usage-account">
+        <section class="lc-usage-balance-hero">
+          <div>
+            <span>当前可用余额</span>
+            <strong>${account.balanceEnabled ? formatCost(account.balanceUsd, data.currency) : '暂未启用'}</strong>
+            <p>${account.balanceEnabled ? '用于支付后续对话请求的 Token 费用' : '管理员启用余额功能后将在这里显示'}</p>
+          </div>
+          <span class="lc-usage-balance-badge">暂不支持在线充值</span>
+        </section>
+        <section class="lc-usage-surface lc-usage-credit-records">
+          <div class="lc-usage-surface-header">
+            <div><h2>额度记录</h2><p>管理员增加或扣减的账户额度</p></div>
+          </div>
+          <div class="lc-usage-table-wrap">
+            <table>
+              <thead><tr><th>时间</th><th>变动金额</th><th>变动后余额</th><th>备注</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </section>
+      </div>`;
+  }
+
   function searchFilter(name, placeholder, options) {
     const selectedValue = state[name];
     const selected = options.find((item) => item.value === selectedValue);
@@ -600,7 +645,7 @@
       button.classList.toggle('is-active', button.dataset.range === state.range);
     });
     const toolbar = panel.querySelector('.lc-usage-toolbar');
-    if (toolbar) toolbar.hidden = state.view === 'market';
+    if (toolbar) toolbar.hidden = state.view === 'market' || state.view === 'account';
 
     if (state.loading && !state.data) {
       root.innerHTML = '<div class="lc-usage-status"><i></i><span>正在加载用量数据</span></div>';
@@ -617,6 +662,10 @@
       root.innerHTML = renderMarket(data);
       return;
     }
+    if (state.view === 'account') {
+      root.innerHTML = renderAccount(data);
+      return;
+    }
     const summary = data.summary;
     const incomplete = summary.costIncomplete ? '<span class="lc-usage-cost-note">部分历史记录无费用</span>' : '';
     if (state.view === 'logs') {
@@ -627,6 +676,11 @@
 
     root.innerHTML = `
       <div class="lc-usage-overview">
+        <section class="lc-usage-overview-balance" aria-label="账户余额">
+          <div><span>当前可用余额</span><strong>${data.account?.balanceEnabled ? formatCost(data.account.balanceUsd, data.currency) : '暂未启用'}</strong></div>
+          <p>${data.account?.balanceEnabled ? '额度由管理员配置，暂不支持在线充值' : '余额功能尚未启用'}</p>
+          <button type="button" data-view="account">查看额度记录</button>
+        </section>
         <section class="lc-usage-metric-groups" aria-label="核心统计">
           <div><h2>消耗统计</h2><div class="lc-usage-metric-grid">
             ${metric('Token 消耗', formatNumber(summary.tokens), '对话请求的 Token 数', 'token')}

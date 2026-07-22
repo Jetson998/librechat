@@ -25,8 +25,14 @@ export interface UserRowProps {
   hasUserProfile: boolean;
   isLast: boolean;
   onViewDetails: () => void;
+  onManageBalance: () => void;
   onDelete: () => void;
   canManage: boolean;
+}
+
+export interface UserBalanceDialogProps {
+  user: TUser | null;
+  onClose: () => void;
 }
 
 export type RemoveTarget =

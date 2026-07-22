@@ -1,0 +1,88 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Administrators can adjust a user's USD credit and users can see current balance plus administrator credit records while native LibreChat transactions continue to charge usage.",
+    "functions": [
+      "Admin user balance lookup",
+      "Atomic idempotent USD credit adjustment",
+      "Authenticated user balance display",
+      "Administrator credit history with post-adjustment balance"
+    ],
+    "limitations": [
+      "No payment gateway or user self-service recharge",
+      "Only the latest 200 administrator adjustments are retained per user",
+      "Admin dependency build is delegated to the repository's fixed-version Admin CI"
+    ],
+    "reason": "Customers need a visible account balance and administrators need an auditable NewAPI-style credit operation without replacing LibreChat's native balance and transaction accounting.",
+    "risk": "Persistent balance writes and three affected runtime surfaces require balance backup, isolation checks, and targeted API, Client, and Admin acceptance before production.",
+    "scope": [
+      "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source/src/components/users",
+      "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source/src/server/users.ts",
+      "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source/src/types/user.ts",
+      "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source/src/locales",
+      "deployment/production-patches/2026-07-17-admin-user-creation/api-patch",
+      "deployment/production-patches/2026-07-17-user-usage-dashboard/api",
+      "deployment/production-patches/2026-07-17-user-usage-dashboard/client",
+      "deployment/production-patches/2026-07-22-user-balance-credits",
+      "docs/USER_BALANCE_CREDITS_PLAN.md",
+      "docs/demos/user-usage-dashboard-demo.html"
+    ]
+  },
+  "created_at": "2026-07-22T15:46:30Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260722-user-balance-credits",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "",
+  "status": "planned",
+  "unresolved_issues": [
+    "Admin Panel CI must pass before this release is eligible for production packaging or deployment."
+  ],
+  "updated_at": "2026-07-22T15:46:30Z",
+  "validation_plan": [
+    "Run focused Admin balance handler tests for add, replay, deduction, and overdraft rejection",
+    "Run authenticated usage dashboard aggregation and client marker tests",
+    "Run Admin locale, typecheck, unit, and build checks with the locked toolchain",
+    "Verify resolved production balance.enabled before allowing adjustments",
+    "Back up balances and perform two-user isolation acceptance before production deployment"
+  ]
+}

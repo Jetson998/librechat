@@ -23,6 +23,7 @@ import { useAnnouncement, useCapabilities, useLocalize } from '@/hooks';
 import { cn, notifySuccess, notifyError } from '@/utils';
 import { CreateUserDialog } from './CreateUserDialog';
 import { UserDetailDialog } from './UserDetailDialog';
+import { UserBalanceDialog } from './UserBalanceDialog';
 import { ConfirmDialog } from '@/components/access';
 import { SystemCapabilities } from '@/constants';
 
@@ -45,6 +46,7 @@ export function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TUser | null>(null);
   const [detailUser, setDetailUser] = useState<TUser | null>(null);
+  const [balanceUser, setBalanceUser] = useState<TUser | null>(null);
   const { message: announcement, announce } = useAnnouncement();
 
   const { data: users = [], isLoading } = useQuery(usersQueryOptions);
@@ -186,6 +188,7 @@ export function UsersPage() {
                   hasUserProfile={userProfileSet.has(user.id)}
                   isLast={i === filtered.length - 1}
                   onViewDetails={() => setDetailUser(user)}
+                  onManageBalance={() => setBalanceUser(user)}
                   onDelete={() => setDeleteTarget(user)}
                   canManage={canManage}
                 />
@@ -217,6 +220,8 @@ export function UsersPage() {
         canAssignConfigs={canAssignConfigs}
       />
 
+      <UserBalanceDialog user={balanceUser} onClose={() => setBalanceUser(null)} />
+
       <ConfirmDialog
         open={!!deleteTarget}
         title={localize('com_users_delete_title')}
@@ -241,6 +246,7 @@ function UserRow({
   hasUserProfile,
   isLast,
   onViewDetails,
+  onManageBalance,
   onDelete,
   canManage,
 }: t.UserRowProps) {
@@ -248,6 +254,15 @@ function UserRow({
 
   const kebabItems: t.KebabMenuItem[] = [
     { label: localize('com_users_view_details'), icon: 'user', onClick: onViewDetails },
+    ...(canManage
+      ? [
+          {
+            label: localize('com_users_balance_manage'),
+            icon: 'payment',
+            onClick: onManageBalance,
+          } as t.KebabMenuItem,
+        ]
+      : []),
     ...(canManage
       ? [
           {

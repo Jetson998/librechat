@@ -359,6 +359,117 @@
   overflow: hidden;
 }
 
+.lc-usage-overview-balance {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--lc-usage-border);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.lc-usage-overview-balance > div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lc-usage-overview-balance span,
+.lc-usage-overview-balance p {
+  color: var(--lc-usage-muted);
+  font-size: 12px;
+}
+
+.lc-usage-overview-balance strong {
+  color: var(--lc-usage-text);
+  font-size: 20px;
+  font-weight: 650;
+}
+
+.lc-usage-overview-balance p {
+  flex: 1;
+  margin: 0;
+}
+
+.lc-usage-overview-balance button {
+  border: 0;
+  background: transparent;
+  color: var(--lc-usage-brand);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lc-usage-account {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lc-usage-balance-hero {
+  display: flex;
+  min-height: 132px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px;
+  border: 1px solid var(--lc-usage-border);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.lc-usage-balance-hero span,
+.lc-usage-balance-hero p {
+  color: var(--lc-usage-muted);
+  font-size: 12px;
+}
+
+.lc-usage-balance-hero strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--lc-usage-text);
+  font-size: 32px;
+  font-weight: 680;
+  line-height: 1.1;
+}
+
+.lc-usage-balance-hero p {
+  margin: 8px 0 0;
+}
+
+.lc-usage-balance-hero .lc-usage-balance-badge {
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #f0f1f3;
+  white-space: nowrap;
+}
+
+.lc-usage-credit-records {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.lc-usage-credit-records .lc-usage-table-wrap {
+  max-height: calc(90vh - 350px);
+  overflow: auto;
+}
+
+.lc-usage-credit-records td.is-positive {
+  color: #087a55;
+  font-weight: 650;
+}
+
+.lc-usage-credit-records td.is-negative {
+  color: #b42318;
+  font-weight: 650;
+}
+
 .lc-usage-toolbar,
 .lc-usage-surface-header,
 .lc-usage-log-footer {

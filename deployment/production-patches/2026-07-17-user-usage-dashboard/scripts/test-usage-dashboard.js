@@ -7,6 +7,7 @@ const {
   buildModelMarket,
   createUsageDashboardHandler,
   formatResult,
+  formatAccount,
   buildPricingIndex,
   decorateCostBreakdown,
   parsePricingCutoff,
@@ -119,6 +120,16 @@ assert.deepEqual(market, [{
 assert.equal(JSON.stringify(market).includes('MuskAPI'), false, 'endpoint names must not leak');
 assert.equal(JSON.stringify(market).includes('hidden'), false, 'unpublished models must not leak');
 assert.equal(formatted.pagination.total, 2);
+const account = formatAccount({
+  tokenCredits: 12500000,
+  adminAdjustments: [
+    { adjustmentId: 'adjustment_1', amountCredits: 10000000, note: 'Initial credit', createdAt: new Date('2026-07-20T00:00:00Z') },
+    { adjustmentId: 'adjustment_2', amountCredits: -500000, note: 'Correction', createdAt: new Date('2026-07-21T00:00:00Z') },
+  ],
+}, true);
+assert.equal(account.balanceUsd, 12.5);
+assert.equal(account.adjustments[0].adjustmentId, 'adjustment_2', 'newest adjustment must be first');
+assert.equal(account.adjustments[0].amountUsd, -0.5);
 
 let capturedPipeline;
 const fakeAggregate = {
@@ -127,6 +138,7 @@ const fakeAggregate = {
 };
 const mongoose = {
   models: { Message: { aggregate(value) { capturedPipeline = value; return fakeAggregate; } } },
+  connection: { collection(name) { assert.equal(name, 'balances'); return { async findOne() { return { tokenCredits: 2500000, adminAdjustments: [] }; } }; } },
   Types: { ObjectId: class ObjectId {
     static isValid(value) { return value === userId; }
     constructor(value) { this.value = value; }
@@ -142,6 +154,7 @@ function response() {
   await handler({ user: { id: userId }, query: { range: '30' } }, ok);
   assert.equal(ok.statusCode, 200);
   assert.equal(capturedPipeline[0].$match.user, userId);
+  assert.equal(ok.body.account.balanceUsd, 2.5);
   const unauthorized = response();
   await handler({ user: null, query: {} }, unauthorized);
   assert.equal(unauthorized.statusCode, 401);

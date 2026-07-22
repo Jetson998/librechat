@@ -11,7 +11,7 @@ for marker in [
     "对话实例数", "对话轮次", "平均上下文", "平均对话轮次",
     "时间</th><th>模型</th><th>对话实例</th><th>轮次</th><th>Token 消耗</th><th>费用消耗",
     "近 7 天", "近 30 天", "全部",
-    'data-view="overview"', 'data-view="logs"',
+    'data-view="overview"', 'data-view="logs"', 'data-view="account"',
     'data-chart-tooltip', 'lc-usage-axis-label', 'lc-usage-model-chart',
     'pointermove', 'focusin',
     'lc-usage-token-detail', 'lc-usage-cost-detail', '普通输入', '缓存读取', '缓存写入', '历史明细不可拆分',
@@ -20,6 +20,7 @@ for marker in [
     'lc-usage-market-col-model', 'lc-usage-market-col-rate', 'lc-usage-market-price-meta',
     "页面 ${state.page} / ${totalPages}", "上一页", "下一页",
     "data-filter-toggle", "event.key !== 'Escape'", "input.blur()",
+    "当前可用余额", "额度记录", "暂不支持在线充值", "renderAccount",
 ]:
     assert marker in script, f"missing client marker: {marker}"
 for forbidden in ["对话回合", "本轮次", "本轮费用", "成功状态"]:
@@ -38,6 +39,9 @@ assert "table-layout: fixed" in style
 assert ".lc-usage-market-col-model" in style
 assert ".lc-usage-market-col-rate" in style
 assert ".lc-usage-market-price-meta" in style
+assert ".lc-usage-overview-balance" in style
+assert ".lc-usage-balance-hero" in style
+assert ".lc-usage-credit-records" in style
 assert "managed_targets" in (ROOT / "scripts" / "deploy.sh").read_text(encoding="utf-8")
 assert "@media (max-width: 680px)" in style
 assert "data-conversation-link" in script
