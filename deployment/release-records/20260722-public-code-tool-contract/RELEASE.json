@@ -1,7 +1,21 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "assistant_message_id": "f63dbe36-5dca-417c-b235-89041110e489",
+      "billable_model_requests": 1,
+      "business_evidence": ".release-state/20260722-public-code-tool-contract/business-acceptance.json",
+      "conversation_id": "8201042b-8946-43cd-b504-e93dde75f333",
+      "conversation_url": "https://152.32.172.162.sslip.io/c/8201042b-8946-43cd-b504-e93dde75f333",
+      "evidence": ".release-state/20260722-public-code-tool-contract/acceptance-result.json",
+      "file_id": "1b569033-1539-4e25-a6b2-f41650a108b3",
+      "filename": "public-code-tool-contract-acceptance.txt",
+      "request_message_id": "d6f44ee7-5444-417d-aae9-7f2ed616b7a0",
+      "result": "1517",
+      "tool_call_id": "call_4G5iOL9iHLwyO9lRzoC7N72l",
+      "tool_name": "bash_tool"
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +27,13 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "compose_override_backup": "/opt/librechat/compose.override.yaml.bak-20260722224930",
+      "mongo_backup_id": "public-code-tool-contract-fc288a3c6edd-20260722224930",
+      "release_dir": "/opt/librechat/public-code-tool-contract/fc288a3c6edd-20260722224930",
+      "restore_scope": "Restore the timestamp-matched Compose override and Mongo base-config backup, then recreate only LibreChat-API and verify the root, API config, CodeAPI health, GPT/Fable chat, and one canonical code-tool call."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -93,8 +112,17 @@
   "project_id": "librechat-self-host",
   "release_id": "20260722-public-code-tool-contract",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "heavy",
+      "matched_rules": [
+        "api-runtime",
+        "persistent-data",
+        "production-patch"
+      ],
+      "minimum_mode": "enhanced",
+      "path": ".release-state/20260722-public-code-tool-contract/release-plan.json"
+    },
+    "sha256": "1bbb490152843e6b37168836b6feaf84332d48e58f8ab5bba970bf65478ba6de"
   },
   "rollback_reference": {
     "details": {
@@ -104,14 +132,50 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_captured_at": "2026-07-22T15:07:29Z",
+      "api_error_log_check": "No legacy tool-not-found, uncaught, unhandled, fatal, syntax, type, or reference errors in the acceptance window.",
+      "artifact_sha256": "83f3ec99c2440004f8faf1cccf3f388b57acdc8cabaddf7989f82f5486212687",
+      "business_acceptance": {
+        "assistant_error": false,
+        "assistant_unfinished": false,
+        "download_card_present": true,
+        "generated_file_content": "1517\n",
+        "legacy_alias_used": false,
+        "persisted_tool_name": "bash_tool"
+      },
+      "codeapi": {
+        "container_id": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+        "health": "healthy",
+        "started_at": "2026-07-17T09:09:38.445154735Z",
+        "unchanged": true
+      },
+      "deployed_at": "2026-07-22T14:49:51Z",
+      "in_container_hashes": {
+        "/app/packages/api/dist/code-tool-contract.cjs": "5d5d098c47852d2e0f8f91e8420238b5341a3c6adce7d03abca6819c057f20fe",
+        "/app/packages/api/dist/index.cjs": "4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b",
+        "/app/packages/api/dist/tool-call-normalizer.cjs": "a5a1feca10545e1bba60b3a872101cc961526609c482aa5b7b049bdbaead7f7a"
+      },
+      "mongo_config_version": 65,
+      "normalizer_smoke": "passed",
+      "public_checks": {
+        "api_config": 200,
+        "main_root": 200
+      },
+      "release_dir": "/opt/librechat/public-code-tool-contract/fc288a3c6edd-20260722224930",
+      "unchanged_services": [
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "chat-mongodb"
+      ]
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "fc288a3c6edd9a47dbf0a6d509af39fc0eb5f05e",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-22T14:47:05Z",
+  "updated_at": "2026-07-22T15:07:29Z",
   "validation_plan": [
     {
       "command": "node scripts/test-release.js and node scripts/test-mongo-config.js in the versioned patch directory",
