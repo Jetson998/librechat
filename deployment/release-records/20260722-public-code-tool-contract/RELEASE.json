@@ -83,6 +83,7 @@
   "created_at": "2026-07-22T12:44:21Z",
   "mode": "enhanced",
   "project_adapter": {
+    "billable_model_request_allowed": true,
     "deploy_runner": "deployment/production-patches/2026-07-22-public-code-tool-contract/scripts/deploy.sh",
     "package_required_paths": [],
     "protected_services": [],

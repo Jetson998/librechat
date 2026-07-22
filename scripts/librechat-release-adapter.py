@@ -273,6 +273,11 @@ def validate_record_for_project(record):
     adapter = record.get("project_adapter")
     if not isinstance(adapter, dict):
         raise AdapterError("release record project_adapter object is required")
+    billable_opt_in = adapter.get("billable_model_request_allowed", False)
+    if not isinstance(billable_opt_in, bool):
+        raise AdapterError(
+            "project_adapter.billable_model_request_allowed must be boolean"
+        )
     return mode
 
 
@@ -537,7 +542,14 @@ def validate_acceptance_evidence(payload, record, plan):
     billable_requests = payload.get("billable_model_requests", 0)
     if not isinstance(billable_requests, int) or billable_requests < 0 or billable_requests > 1:
         raise AdapterError("acceptance_failed: billable model requests must be between 0 and 1")
-    if "billable-model-request" not in plan["conditional_checks"] and billable_requests:
+    billable_opt_in = record.get("project_adapter", {}).get(
+        "billable_model_request_allowed", False
+    )
+    if (
+        "billable-model-request" not in plan["conditional_checks"]
+        and billable_opt_in is not True
+        and billable_requests
+    ):
         raise AdapterError("acceptance_failed: model request was not selected by the release plan")
 
 
@@ -724,6 +736,7 @@ def command_prepare(args):
     )
     record = load_json(path)
     record["project_adapter"] = {
+        "billable_model_request_allowed": False,
         "deploy_runner": "",
         "package_required_paths": [],
         "protected_services": [],

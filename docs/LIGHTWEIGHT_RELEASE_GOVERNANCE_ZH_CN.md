@@ -199,6 +199,11 @@ artifact、配置和环境假设仍然一致。只有本次修改影响模型或
 模型请求，且最多一条；只有影响 UI 时才要求浏览器验证。若计划只包含自动
 HTTP smoke，不要求额外业务证据文件，可省略 `--evidence`。
 
+通常由路径规则自动加入 `billable-model-request`。若发布记录已经明确安排了
+模型验收、但补丁文件名未命中对应路径规则，必须在提交并审核过的
+`project_adapter` 中显式设置 `billable_model_request_allowed: true`；该开关
+不会放宽数量上限，验收证据仍只能记录 0 或 1 条实际请求。
+
 ```json
 {
   "status": "passed",

@@ -232,6 +232,34 @@ class LibreChatContractTests(unittest.TestCase):
         with self.assertRaises(adapter.AdapterError):
             adapter.validate_runtime_evidence(evidence, record, plan)
 
+    def test_billable_acceptance_requires_plan_or_explicit_record_opt_in(self):
+        adapter = load_adapter_module()
+        record = {
+            "source_revision": "revision-one",
+            "project_adapter": {},
+        }
+        plan = {
+            "release_plan_sha256": "plan-one",
+            "acceptance_checks": ["limited-model-request"],
+            "conditional_checks": [],
+        }
+        evidence = {
+            "status": "passed",
+            "source_revision": "revision-one",
+            "release_plan_sha256": "plan-one",
+            "checks": [{"id": "limited-model-request", "status": "passed"}],
+            "billable_model_requests": 1,
+        }
+        with self.assertRaises(adapter.AdapterError):
+            adapter.validate_acceptance_evidence(evidence, record, plan)
+
+        record["project_adapter"]["billable_model_request_allowed"] = True
+        adapter.validate_acceptance_evidence(evidence, record, plan)
+
+        evidence["billable_model_requests"] = 2
+        with self.assertRaises(adapter.AdapterError):
+            adapter.validate_acceptance_evidence(evidence, record, plan)
+
     def test_production_attestation_proves_build_ran_off_target(self):
         adapter = load_adapter_module()
         record = {
