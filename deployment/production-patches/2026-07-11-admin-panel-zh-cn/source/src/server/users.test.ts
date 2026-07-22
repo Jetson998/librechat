@@ -10,13 +10,16 @@ const extractApiErrorMock = vi.fn(async (_response: Response, fallback: string) 
 vi.mock('zod', () => {
   const schema = {
     email: () => schema,
+    finite: () => schema,
     max: () => schema,
     min: () => schema,
+    refine: () => schema,
   };
   return {
     z: {
       boolean: () => schema,
       nativeEnum: () => schema,
+      number: () => schema,
       object: () => schema,
       string: () => schema,
     },
