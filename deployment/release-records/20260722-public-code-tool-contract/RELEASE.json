@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260722-public-code-tool-contract/artifacts/20260722-public-code-tool-contract-fc288a3c6edd.tar.gz",
+      "manifest": ".release-state/20260722-public-code-tool-contract/artifacts/manifest.json",
+      "value": "83f3ec99c2440004f8faf1cccf3f388b57acdc8cabaddf7989f82f5486212687"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -21,8 +26,38 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "83f3ec99c2440004f8faf1cccf3f388b57acdc8cabaddf7989f82f5486212687",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "data-change-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260722-public-code-tool-contract/artifacts/20260722-public-code-tool-contract-fc288a3c6edd.tar.gz",
+      "checks": [
+        "Public contract is empty when no code/file tools are registered",
+        "Contract lists only canonical tools actually registered for the run in stable order",
+        "execute_code is identified as a capability marker and is not normalized",
+        "Existing Bash, Read, and Skill compatibility tests remain passing",
+        "Mongo GPT/Fable prompt cleanup preserves unrelated fields and is idempotent",
+        "Mongo preflight accepts both a legacy GPT tool paragraph and a current GPT prompt with no model-specific tool paragraph",
+        "node --check passed for api-index.cjs, code-tool-contract.cjs, tool-call-normalizer.cjs, and mongo-config.js",
+        "bash -n passed for deploy.sh and remote-apply.sh",
+        "release governance validation passed 31 tests",
+        "git diff --check passed",
+        "candidate api-index.cjs differs from the deployed baseline only at the public contract import and append point"
+      ],
+      "provider": "Codex local independent validation"
+    },
+    "production_host": false,
+    "release_plan_sha256": "1bbb490152843e6b37168836b6feaf84332d48e58f8ab5bba970bf65478ba6de",
+    "source_revision": "fc288a3c6edd9a47dbf0a6d509af39fc0eb5f05e",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Every current or future model using the LibreChat Agent code/file path receives one runtime contract generated from the tools actually registered for that run, so model-specific prompts no longer drift toward Bash, execute_code, or unavailable Claude Code CLI names.",
@@ -75,7 +110,7 @@
   "source_revision": "fc288a3c6edd9a47dbf0a6d509af39fc0eb5f05e",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-22T14:27:40Z",
+  "updated_at": "2026-07-22T14:47:05Z",
   "validation_plan": [
     {
       "command": "node scripts/test-release.js and node scripts/test-mongo-config.js in the versioned patch directory",
