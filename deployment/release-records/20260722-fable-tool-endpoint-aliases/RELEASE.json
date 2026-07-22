@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260722-fable-tool-endpoint-aliases/artifacts/20260722-fable-tool-endpoint-aliases-022223b351d9.tar.gz",
+      "manifest": ".release-state/20260722-fable-tool-endpoint-aliases/artifacts/manifest.json",
+      "value": "04864e60fef46a0b7aa808b1aa5ce7ed4dd17024a04d305988d0b2f72b963040"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -20,8 +25,37 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "04864e60fef46a0b7aa808b1aa5ce7ed4dd17024a04d305988d0b2f72b963040",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "deployable-artifact",
+      "model-tool-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "data-change-tests",
+      "model-tool-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260722-fable-tool-endpoint-aliases/artifacts/20260722-fable-tool-endpoint-aliases-022223b351d9.tar.gz",
+      "checks": [
+        "Recorded Bash, Read, and Skill payload regression tests passed",
+        "Canonical and unknown tool calls remain unchanged",
+        "Mongo preflight, apply, verify, idempotence, preservation, and rollback tests passed",
+        "node --check passed for api-index.cjs, tool-call-normalizer.cjs, and mongo-config.js",
+        "bash -n passed for deploy.sh and remote-apply.sh",
+        "release governance validation passed 31 tests",
+        "git diff --check passed",
+        "candidate api-index.cjs differs from the live baseline only at the normalization import and ON_TOOL_EXECUTE call path"
+      ],
+      "provider": "Codex local independent validation"
+    },
+    "production_host": false,
+    "release_plan_sha256": "3e48697f847eb7076df4ef80f9cdf4c328b492101d06242db7fbd19a963dbb7a",
+    "source_revision": "022223b351d97b835f0ccdcefb8bd056023d337b",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "When Fable emits the recorded Claude Code aliases for a file task, LibreChat deterministically invokes its registered bash_tool, read_file, and skill tools with the original code-session file context, so the model can read the complete current-turn DOCX from /mnt/data instead of stopping at the bounded manifest preview.",
@@ -74,7 +108,7 @@
   "source_revision": "022223b351d97b835f0ccdcefb8bd056023d337b",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-22T06:02:25Z",
+  "updated_at": "2026-07-22T06:06:50Z",
   "validation_plan": [
     {
       "command": "node scripts/test-release.js and node scripts/test-mongo-config.js in the versioned patch directory",
