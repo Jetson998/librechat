@@ -63,9 +63,31 @@ localization files must remain sorted.
 Strict ESLint still covers the complete source tree with `--max-warnings 0`, but
 it runs in the repository GitHub Actions gate together with typecheck, unit
 tests, and the application build. A successful gate publishes an immutable
-`admin-ci-<source-hash>` tag. The 4 GiB production host does not repeat those
-memory-heavy checks; it builds only the exact CI-verified source after the
-lightweight source, locale, format, and import-order gates pass again.
+`admin-ci-<source-hash>` tag only after tests, build, GHCR publication and the
+release image asset all succeed. The existence of that final tag is therefore
+not treated separately from the complete workflow result.
+
+## Current Fast Release Path
+
+The normal Admin Panel release is intentionally limited to three operator
+stages:
+
+1. Run one local preflight command: `scripts/admin-panel-ci-preflight.sh`.
+2. Push once and require the complete GitHub Actions workflow to pass.
+3. Deploy the CI-built GHCR image with a backup, targeted container recreation
+   and page-level acceptance.
+
+The local and GitHub checks both call
+`.github/scripts/admin-panel-quality-gate.sh`, so their locale, format, import,
+lint, typecheck, test and build definitions cannot drift. The 4 GiB production
+host does not repeat dependency installation, tests or the Admin application
+build.
+
+When Bun `1.3.11` is available locally, run the complete source gate with:
+
+```bash
+scripts/admin-panel-ci-preflight.sh
+```
 
 Run the source and localization preflight with:
 
@@ -84,12 +106,13 @@ directory, and reruns the source and CI-attestation gates against the packed
 artifact. It also writes a sibling `.env` metadata file containing
 `LOCAL_TARBALL` and `TARBALL_SHA256` for the remote deploy step.
 
-After the implementation commit is pushed, wait for the matching
-`admin-ci-<source-hash>` tag and record that attestation in the release. Then
-stage the release on the production host and build it without changing a running
-container. The build script uses a disposable BuildKit container capped at 1.25
-GiB and 0.75 CPU by default, with a 45-minute hard timeout; it fails closed if
-those controls are unavailable:
+After the implementation commit is pushed, verify that the complete workflow
+run succeeded, that the matching `admin-ci-<source-hash>` final tag exists, and
+that the GHCR image is available. Record the run, source hash, tag and image in
+the release before production deployment.
+
+The older production-host BuildKit commands below remain a recovery fallback;
+they are not the normal release path:
 
 ```bash
 scripts/build-image.sh

@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - '.github/workflows/admin-panel-zh-cn-ci.yml'
+      - '.github/scripts/admin-panel-quality-gate.sh'
       - 'deployment/production-patches/2026-07-11-admin-panel-zh-cn/SOURCE_TREE_SHA256'
       - 'deployment/production-patches/2026-07-11-admin-panel-zh-cn/source/**'
   workflow_dispatch:
@@ -45,31 +46,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run complete quality gate
-        working-directory: ${{ env.SOURCE_DIR }}
-        run: |
-          bun run locales:check
-          bun run format:check:baseline
-          bun run sort-imports:check:baseline
-          bun run lint:strict
-          bun run typecheck
-          NODE_ENV=test SESSION_SECRET=ci-test-secret-do-not-use-in-production bun run test
-          bun run build
-
-      - name: Publish verified source tag
-        run: |
-          source_hash=$(cat "$RELEASE_DIR/SOURCE_TREE_SHA256")
-          tag="admin-ci-${source_hash:0:12}"
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          remote_commit=$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')
-          if [[ -n "$remote_commit" ]]; then
-            tagged_source_hash=$(git show "$remote_commit:$RELEASE_DIR/SOURCE_TREE_SHA256")
-            test "$tagged_source_hash" = "$source_hash"
-            echo "Verified tag already attests source tree $source_hash: $tag"
-            exit 0
-          fi
-          git tag "$tag" "$GITHUB_SHA"
-          git push origin "refs/tags/$tag"
+        run: .github/scripts/admin-panel-quality-gate.sh
 
       - name: Build amd64 release image on CI runner
         env:
@@ -89,19 +66,6 @@ jobs:
           mkdir -p /tmp/admin-panel-image
           docker save "$image_ref" | gzip -1 > /tmp/admin-panel-image/admin-panel-image.tar.gz
 
-      - name: Publish image as CI release asset
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          source_hash=$(cat "$RELEASE_DIR/SOURCE_TREE_SHA256")
-          tag="admin-ci-${source_hash:0:12}"
-          asset=/tmp/admin-panel-image/admin-panel-image.tar.gz
-          gh release view "$tag" >/dev/null 2>&1 || \
-            gh release create "$tag" \
-              --title "Admin Panel CI ${source_hash:0:12}" \
-              --notes "CI-attested amd64 Admin Panel image for source tree ${source_hash}."
-          gh release upload "$tag" "$asset" --clobber
-
       - name: Publish public GHCR image
         env:
           GH_TOKEN: ${{ github.token }}
@@ -114,3 +78,33 @@ jobs:
           docker push "$image_ref"
           docker logout ghcr.io
           docker manifest inspect "$image_ref" >/dev/null
+
+      - name: Publish image as CI release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source_hash=$(cat "$RELEASE_DIR/SOURCE_TREE_SHA256")
+          tag="admin-image-${source_hash:0:12}"
+          asset=/tmp/admin-panel-image/admin-panel-image.tar.gz
+          gh release view "$tag" >/dev/null 2>&1 || \
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "Admin Panel image ${source_hash:0:12}" \
+              --notes "amd64 Admin Panel image for source tree ${source_hash}."
+          gh release upload "$tag" "$asset" --clobber
+
+      - name: Publish final verified source tag
+        run: |
+          source_hash=$(cat "$RELEASE_DIR/SOURCE_TREE_SHA256")
+          tag="admin-ci-${source_hash:0:12}"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          remote_commit=$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')
+          if [[ -n "$remote_commit" ]]; then
+            tagged_source_hash=$(git show "$remote_commit:$RELEASE_DIR/SOURCE_TREE_SHA256")
+            test "$tagged_source_hash" = "$source_hash"
+            echo "Verified final tag already attests source tree $source_hash: $tag"
+            exit 0
+          fi
+          git tag "$tag" "$GITHUB_SHA"
+          git push origin "refs/tags/$tag"

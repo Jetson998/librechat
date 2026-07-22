@@ -1,15 +1,40 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998@example.local",
+      "admin_panel_backend_available": true,
+      "admin_panel_static_assets_available": true,
+      "billable_model_requests": 0,
+      "credit_adjustments_written": 0,
+      "credit_history_view_opened": true,
+      "current_balance_displayed": "$0.00",
+      "usage_dashboard_opened": true,
+      "usage_metrics_visible": [
+        "token usage",
+        "estimated cost",
+        "conversation instances",
+        "conversation turns",
+        "average context"
+      ],
+      "user_recharge_disabled_message_visible": true
+    },
+    "status": "passed"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "admin_image": "ghcr.io/jetson998/librechat-admin-panel-zh-cn:ca5aa4c17881",
+      "admin_source_sha256": "ca5aa4c17881314a9409c62e5654d3f094f25de1155a4a102319c19b08d65631",
+      "ci_verified_tag": "admin-ci-ca5aa4c17881"
+    },
+    "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/user-balance-credits-20260723011842",
+      "release_dir": "/opt/librechat/user-balance-credits/918b2228b667-20260723011842",
+      "restore_scope": "Restore the timestamp-matched API, Client, Admin and Mongo configuration artifacts, recreate only LibreChat-API and LibreChat-Admin-Panel, then verify the main app, usage dashboard, Admin Panel and Office authentication boundary."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -19,8 +44,29 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "build_environment": "ci",
+    "completed_requirements": [
+      "admin locale validation",
+      "admin formatting validation",
+      "admin import ordering validation",
+      "admin lint",
+      "admin typecheck",
+      "admin unit tests",
+      "admin production build",
+      "amd64 image build",
+      "GHCR publication"
+    ],
+    "details": {
+      "github_actions_run": "29940651767",
+      "image": "ghcr.io/jetson998/librechat-admin-panel-zh-cn:ca5aa4c17881",
+      "source_sha256": "ca5aa4c17881314a9409c62e5654d3f094f25de1155a4a102319c19b08d65631",
+      "verified_commit": "918b2228b667c5611868daab9d33c48bea2f8468",
+      "verified_tag": "admin-ci-ca5aa4c17881"
+    },
+    "production_host": false,
+    "provider": "GitHub Actions",
+    "source_revision": "918b2228b667c5611868daab9d33c48bea2f8468",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Administrators can adjust a user's USD credit and users can see current balance plus administrator credit records while native LibreChat transactions continue to charge usage.",
@@ -63,27 +109,55 @@
   "project_id": "librechat-self-host",
   "release_id": "20260722-user-balance-credits",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "targeted",
+      "deployment_targets": [
+        "LibreChat-API",
+        "LibreChat-Admin-Panel",
+        "Mongo base configuration"
+      ]
+    },
+    "sha256": "recorded-post-deployment"
   },
   "rollback_reference": {
     "details": {
-      "command": "Revert source revision 8023a63037499d703fff7b40e2d7136985a246bf before any production deployment; a production rollback command will be recorded after packaging and target preflight.",
-      "restore_revision": "681c36c"
+      "command": "Restore the timestamp-matched API, Client, Admin and Mongo configuration artifacts from /opt/librechat/backups/user-balance-credits-20260723011842, recreate only LibreChat-API and LibreChat-Admin-Panel, then repeat targeted acceptance.",
+      "restore_revision": "681c36c",
+      "production_backup": "/opt/librechat/backups/user-balance-credits-20260723011842"
     },
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "admin_container_after": "53d4071e329102e8fb8653c4cbdea00646bde97a686e60e85d526035b1d1aced",
+      "api_container_after": "f97fcb9096f2d1fa3cfb15de333d944e9aa3bcdfe7ecaf39d63fa1a3d1fca37a",
+      "client_assets": [
+        "user-usage-dashboard-918b222.js",
+        "user-usage-dashboard-918b222.css"
+      ],
+      "config_version_after": 66,
+      "config_version_before": 65,
+      "native_balance_enabled": true,
+      "native_transactions_enabled": true,
+      "office_auth_boundary": "401 Basic realm=Office Converter",
+      "protected_services_unchanged": [
+        "LibreChat-NGINX",
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "chat-mongodb"
+      ],
+      "release_dir": "/opt/librechat/user-balance-credits/918b2228b667-20260723011842"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
-  "source_revision": "8023a63037499d703fff7b40e2d7136985a246bf",
-  "status": "planned",
+  "source_revision": "918b2228b667c5611868daab9d33c48bea2f8468",
+  "status": "deployed",
   "unresolved_issues": [
-    "Admin Panel CI must pass before this release is eligible for production packaging or deployment."
+    "No real administrator credit adjustment was executed during acceptance, so production balances and credit history were not modified.",
+    "Admin Panel container recreation invalidated the prior browser session; a signed-in administrator should perform the first real credit adjustment when operationally required."
   ],
-  "updated_at": "2026-07-22T15:46:30Z",
+  "updated_at": "2026-07-22T17:18:42Z",
   "validation_plan": [
     "Run focused Admin balance handler tests for add, replay, deduction, and overdraft rejection",
     "Run authenticated usage dashboard aggregation and client marker tests",
