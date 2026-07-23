@@ -2,9 +2,9 @@
 
 Date: 2026-07-23
 
-Status: one-shot harness implemented and locally verified. No real relay key is
-configured, no external model request was made, and Phase 2B real-model
-acceptance remains pending.
+Status: one-shot harness implemented and locally verified. One approved real
+relay request was later attempted and failed strict plan validation. No retry
+was performed. See `docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_FAILURE.md`.
 
 ## 一、完成范围
 
@@ -188,25 +188,15 @@ loopback，因此测试通过明确授权在沙箱外执行；仍未访问外部
 默认 `npm start` 仍使用 FakeProvider 和 FakeExecutor。Phase 2B 工具没有 HTTP
 入口，也不能由 LibreChat 请求或环境配置自动启用。
 
-## 九、当前阻塞
+## 九、真实验收结果与当前阻塞
 
-当前环境中以下变量均不存在：
+真实 relay 已接受 `/v1/chat/completions`、`json_object`、metadata、usage 和缓存字段，
+但模型 plan 包含白名单之外的字段，任务在 CodeAPI 前失败。失败同时暴露了 invalid
+plan 的付费调用没有 completed journal 和 usage receipt 的问题。
 
-```text
-FILE_AGENT_PHASE2B_BASE_URL
-FILE_AGENT_PHASE2B_API_KEY
-FILE_AGENT_PHASE2B_MODEL
-```
-
-因此没有执行真实模型调用。要完成 Phase 2B 只缺：
-
-1. 一个受限非生产 relay Key；
-2. 一个 allowlisted model 名；
-3. relay base URL；
-4. 上游是否保证 `Idempotency-Key` 的明确声明。
-
-真实调用完成后必须把脱敏报告摘要写入新的验收记录并提交。若任何契约字段、计划
-质量、预算或 artifact 验证失败，Phase 2B 保持不通过，Phase 3 Connector 不实施。
+Phase 2B 保持不通过。必须先实现并验证
+`docs/FILE_AGENT_RUNTIME_PHASE2B_INVALID_PLAN_RECEIPT_PLAN.md`；第二次真实调用需新
+审批和预算，不能自动重试或覆盖第一次证据。
 
 ## 十、回滚
 

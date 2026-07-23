@@ -5,13 +5,16 @@ Date: 2026-07-23
 Status: architecture approved. Phase 0, the isolated Phase 1 CodeAPI POC, and
 the recorded-relay Phase 2A single-model POC are implemented and locally
 verified; there is no production traffic, LibreChat integration, external model
-call, or deployment. The Phase 2B one-shot harness is ready, but the real relay
-acceptance has not run. The Phase 3 LibreChat Connector design gate is defined
-but implementation remains blocked on Phase 2B. Records:
+call, or deployment. The Phase 2B one-shot harness is ready; one real relay
+request was attempted and failed strict plan validation, exposing an invalid
+response receipt gap. No retry was performed. The Phase 3 LibreChat Connector
+design gate is defined but implementation remains blocked on Phase 2B. Records:
 `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`,
 `docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`, and
 `docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`. Phase 2B harness record:
-`docs/FILE_AGENT_RUNTIME_PHASE2B_HARNESS_IMPLEMENTATION.md`. Connector plan:
+`docs/FILE_AGENT_RUNTIME_PHASE2B_HARNESS_IMPLEMENTATION.md`. Real relay failure:
+`docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_FAILURE.md`. Receipt fix plan:
+`docs/FILE_AGENT_RUNTIME_PHASE2B_INVALID_PLAN_RECEIPT_PLAN.md`. Connector plan:
 `docs/FILE_AGENT_RUNTIME_PHASE3_CONNECTOR_PLAN.md`.
 
 ## 一、决策摘要
