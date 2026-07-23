@@ -5,10 +5,12 @@ Date: 2026-07-23
 Status: architecture approved. Phase 0, the isolated Phase 1 CodeAPI POC, and
 the recorded-relay Phase 2A single-model POC are implemented and locally
 verified; there is no production traffic, LibreChat integration, external model
-call, or deployment. Implementation records:
+call, or deployment. The Phase 3 LibreChat Connector design gate is defined but
+implementation remains blocked on Phase 2B. Records:
 `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`,
 `docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`, and
-`docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`.
+`docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`. Connector plan:
+`docs/FILE_AGENT_RUNTIME_PHASE3_CONNECTOR_PLAN.md`.
 
 ## 一、决策摘要
 
