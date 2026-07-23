@@ -10,6 +10,7 @@
     "test": "node --test test/*.test.js",
     "check": "node --check src/*.js && node --check scripts/*.js && node --check scripts/*.cjs && node --check test/*.js",
     "phase3d:accept": "node scripts/phase3d-nonproduction-acceptance.js",
-    "phase3db:accept": "node scripts/phase3db-librechat-acceptance.js"
+    "phase3db:accept": "node scripts/phase3db-librechat-acceptance.js",
+    "phase3dc:accept": "node scripts/phase3dc-external-acceptance.js"
   }
 }

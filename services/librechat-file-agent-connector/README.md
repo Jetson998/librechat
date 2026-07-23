@@ -52,6 +52,10 @@ production entry point.
 - one guarded Phase 3D-B acceptance command using the pinned full LibreChat API
   and client build, a real browser, temporary MongoDB, Runtime/API restart
   recovery, native download-card verification, and native fallback verification;
+- one disabled-by-default Phase 3D-C command that maps the Runtime executor to
+  LibreChat's native CodeAPI protocol and enforces one external non-production
+  task, model/token/CodeAPI/time budgets, fixture hashing, artifact hashing, and
+  credential persistence checks;
 - generated assistant messages that pair every delivered file attachment with
   a matching native `execute_code` tool-call content part.
 
@@ -59,7 +63,7 @@ production entry point.
 
 - a production wiring module or startup hook;
 - a production Runtime secret source, rotation policy, or network deployment;
-- a real non-production external CodeAPI and model-relay acceptance task;
+- an executed and recorded real non-production external CodeAPI/model-relay task;
 - production feature flags, customer files, or deployment;
 - Word, PPT, PDF, or additional Runtime workers.
 
@@ -100,3 +104,30 @@ FILE_AGENT_PHASE3DB_CONFIRM=FULL_ISOLATED_LIBRECHAT_ACCEPTANCE \
 FILE_AGENT_PHASE3DB_UPSTREAM_ROOT=/path/to/pinned/librechat \
 npm run phase3db:accept
 ```
+
+Phase 3D-C is a separate external non-production gate. It requires a test-only
+model key and a pre-primed CodeAPI reference for the tracked repository fixture.
+The command refuses production scope, remote MongoDB, URLs containing
+credentials, missing confirmation, or an unbounded route:
+
+```sh
+FILE_AGENT_PHASE3DC_SCOPE=non-production \
+FILE_AGENT_PHASE3DC_CONFIRM=ONE_EXTERNAL_NON_PRODUCTION_TASK \
+FILE_AGENT_PHASE3DC_KEY_SCOPE=non-production \
+FILE_AGENT_PHASE3DC_MODEL_BASE_URL=https://relay.example.test \
+FILE_AGENT_PHASE3DC_MODEL_API_KEY=provided-at-runtime \
+FILE_AGENT_PHASE3DC_MODEL=model-name \
+FILE_AGENT_PHASE3DC_MODEL_SUPPORTS_IDEMPOTENCY=false \
+FILE_AGENT_PHASE3DC_CODEAPI_BASE_URL=https://codeapi.example.test \
+FILE_AGENT_PHASE3DC_CODEAPI_BEARER_TOKEN=provided-at-runtime \
+FILE_AGENT_PHASE3DC_CODEAPI_SESSION_ID=preprimed-session \
+FILE_AGENT_PHASE3DC_CODEAPI_FILE_ID=preprimed-file \
+FILE_AGENT_PHASE3DC_CODEAPI_RESOURCE_ID=test-user \
+FILE_AGENT_PHASE3DC_MONGO_MODE=memory-server \
+FILE_AGENT_PHASE3DC_NODE_MODULES=/path/to/isolated/node_modules \
+npm run phase3dc:accept
+```
+
+The report contains only contract type, latency, usage, artifact size/hash and
+idempotent delivery counts. It does not retain URLs, keys, authorization,
+customer files, or raw model output.

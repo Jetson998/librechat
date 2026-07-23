@@ -52,12 +52,12 @@ customerData: false
 | 单次输出 Token | 256 |
 | 总输出 Token | 512 |
 | context projection | 8,000 characters |
-| CodeAPI `/exec` calls | 6 |
+| CodeAPI `/exec` calls | 7: 1 preflight + 6 task calls |
 | 单次 CodeAPI timeout | 30 seconds |
 | 总墙钟时间 | 180 seconds |
 | 可见 artifact | 1 XLSX |
 
-六次 CodeAPI 调用对应稳定 worker 的 `prepare -> execute -> verify -> repair execute ->
+六次任务 CodeAPI 调用对应稳定 worker 的 `prepare -> execute -> verify -> repair execute ->
 verify -> publish`。模型只选择白名单 action，不生成或重写长脚本。
 
 ## 四、执行顺序
@@ -87,7 +87,7 @@ CodeAPI 预检失败时不调用模型。
 
 1. 启动临时 MongoDB、loopback Runtime HTTP 和 Connector；
 2. 提交一个固定 XLSX transform task；
-3. 最多执行两次真实模型调用和六次 CodeAPI 调用；
+3. 最多执行两次真实模型调用、一次 CodeAPI 预检和六次任务 CodeAPI 调用；
 4. 等待 verified artifact 和 completed delivery；
 5. 重放 reconcile，确认 transaction、file、message 和 final event 不重复；
 6. 下载并计算 artifact SHA-256，不保存文件正文或原始模型输出。

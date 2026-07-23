@@ -4,6 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { CodeApiHttpTransport } from '../../file-agent-runtime/src/codeapi-transport.js';
@@ -158,12 +159,58 @@ function closeServer(server) {
   });
 }
 
-async function main() {
+async function createIsolatedDependencies({ rootDir, fixturePath }) {
+  const codeApi = await new IsolatedCodeApiServer(path.join(rootDir, 'codeapi')).start();
+  const relay = await new IsolatedModelRelay().start();
+  const sessionId = 'phase3d-isolated-session';
+  const codeFileId = 'phase3d-input-xlsx';
+  await codeApi.registerFile({
+    sessionId,
+    fileId: codeFileId,
+    name: 'source.xlsx',
+    sourcePath: fixturePath,
+  });
+  return {
+    sessionId,
+    codeFileId,
+    resourceKind: 'user',
+    resourceId: 'phase3d-user',
+    billingModel: 'gpt-5.6-sol',
+    providerRoute: {
+      baseUrl: relay.baseUrl,
+      model: 'recorded-office-planner',
+      apiKey: 'isolated-non-production-key',
+      capabilityProfile: 'office-planner-v1',
+      supportsIdempotency: true,
+      outputBudgetTokens: 500,
+    },
+    providerTransport: new OpenAiChatTransport(),
+    executorTransport: new CodeApiHttpTransport({ baseUrl: codeApi.baseUrl }),
+    assertCompleted() {
+      assert.equal(relay.actualExecutions.size, 2);
+      assert.ok([...codeApi.actualExecutions.values()].every((count) => count === 1));
+    },
+    report: {
+      modelRelay: 'isolated-recorded',
+      codeApi: 'isolated-execution-server',
+    },
+    async stop() {
+      await relay.stop();
+      await codeApi.stop();
+    },
+  };
+}
+
+export async function runPhase3DAcceptance({
+  confirmation = CONFIRMATION,
+  createDependencies = createIsolatedDependencies,
+  taskTimeoutMs = 20_000,
+} = {}) {
   if (requiredEnvironment('FILE_AGENT_PHASE3D_SCOPE') !== 'non-production') {
     throw new Error('FILE_AGENT_PHASE3D_SCOPE must equal non-production');
   }
-  if (requiredEnvironment('FILE_AGENT_PHASE3D_CONFIRM') !== CONFIRMATION) {
-    throw new Error(`FILE_AGENT_PHASE3D_CONFIRM must equal ${CONFIRMATION}`);
+  if (requiredEnvironment('FILE_AGENT_PHASE3D_CONFIRM') !== confirmation) {
+    throw new Error(`FILE_AGENT_PHASE3D_CONFIRM must equal ${confirmation}`);
   }
 
   const dependencyRoot = process.env.FILE_AGENT_PHASE3D_NODE_MODULES;
@@ -178,8 +225,7 @@ async function main() {
   const mongo = new MongoClient(mongoEnvironment.uri, { serverSelectionTimeoutMS: 5_000 });
   let runtime;
   let runtimeServer;
-  let codeApi;
-  let relay;
+  let dependencies;
   let reconciler;
 
   try {
@@ -192,36 +238,32 @@ async function main() {
     });
     await Promise.all([deliveryStore.init(), billingSnapshotStore.init()]);
 
-    codeApi = await new IsolatedCodeApiServer(path.join(rootDir, 'codeapi')).start();
-    relay = await new IsolatedModelRelay().start();
-    const sessionId = 'phase3d-isolated-session';
-    const codeFileId = 'phase3d-input-xlsx';
-    await codeApi.registerFile({
+    dependencies = await createDependencies({ rootDir, fixturePath });
+    const {
       sessionId,
-      fileId: codeFileId,
-      name: 'source.xlsx',
-      sourcePath: fixturePath,
+      codeFileId,
+      providerRoute,
+      providerTransport,
+      executorTransport,
+    } = dependencies;
+    const userId = dependencies.userId ?? 'phase3d-user';
+    const tenantId = dependencies.tenantId ?? 'phase3d-tenant';
+    let provider = new SingleModelAgentProvider({
+      routes: { 'file-agent-primary': providerRoute },
+      transport: providerTransport,
+      journal: new FileModelCallJournal(path.join(rootDir, 'provider-journal')),
+      projector: new ContextProjector({ maxChars: 8_000 }),
     });
+    if (dependencies.wrapProvider) {
+      provider = dependencies.wrapProvider(provider);
+    }
 
     runtime = new FileAgentRuntime({
       store: new FileTaskStore(path.join(rootDir, 'runtime')),
-      provider: new SingleModelAgentProvider({
-        routes: {
-          'file-agent-primary': {
-            baseUrl: relay.baseUrl,
-            model: 'recorded-office-planner',
-            apiKey: 'isolated-non-production-key',
-            capabilityProfile: 'office-planner-v1',
-            supportsIdempotency: true,
-            outputBudgetTokens: 500,
-          },
-        },
-        transport: new OpenAiChatTransport(),
-        journal: new FileModelCallJournal(path.join(rootDir, 'provider-journal')),
-        projector: new ContextProjector({ maxChars: 8_000 }),
-      }),
+      provider,
       executor: new CodeApiXlsxExecutor({
-        transport: new CodeApiHttpTransport({ baseUrl: codeApi.baseUrl }),
+        transport: executorTransport,
+        timeoutMs: dependencies.executorTimeoutMs ?? 120_000,
       }),
       maxConcurrentTasks: 1,
     });
@@ -238,7 +280,7 @@ async function main() {
       runtimeClient,
       ports,
       featureEnabled: true,
-      allowlistedUserIds: new Set(['phase3d-user']),
+      allowlistedUserIds: new Set([userId]),
       reconcilerId: `phase3d-${process.pid}`,
     });
     reconciler = new FileAgentReconciler({ connector, intervalMs: 50 });
@@ -260,7 +302,7 @@ async function main() {
     const result = await app.locals.fileAgentRuntimeBridge.tryRoute({
       req: {
         app,
-        user: { id: 'phase3d-user', tenantId: 'phase3d-tenant' },
+        user: { id: userId, tenantId },
         body: { files: [{ file_id: 'phase3d-librechat-file' }] },
         config: {},
       },
@@ -268,20 +310,25 @@ async function main() {
         options: {
           endpoint: 'agents',
           endpointTokenConfig: {
-            'gpt-5.6-sol': { prompt: 0.6, completion: 3.6, read: 0.06, write: 0.75 },
+            [dependencies.billingModel]: {
+              prompt: 0.6,
+              completion: 3.6,
+              read: 0.06,
+              write: 0.75,
+            },
           },
-          agent: { endpoint: 'custom', model: 'gpt-5.6-sol' },
+          agent: { endpoint: 'custom', model: dependencies.billingModel },
           attachments: [{
             file_id: 'phase3d-librechat-file',
-            user: 'phase3d-user',
-            tenantId: 'phase3d-tenant',
+            user: userId,
+            tenantId,
             filename: 'source.xlsx',
             bytes: 4_096,
             type: XLSX_MIME,
             metadata: {
               codeEnvRef: {
-                kind: 'user',
-                id: 'phase3d-user',
+                kind: dependencies.resourceKind,
+                id: dependencies.resourceId,
                 storage_session_id: sessionId,
                 file_id: codeFileId,
               },
@@ -289,7 +336,7 @@ async function main() {
           }],
         },
       },
-      userId: 'phase3d-user',
+      userId,
       conversationId: 'phase3d-conversation',
       userMessageId: 'phase3d-message',
       assistantMessageId: 'phase3d-message_',
@@ -311,9 +358,14 @@ async function main() {
     assert.equal(result.suppressNativeAgent, true);
     assert.equal(persistenceCalls, 1);
     await runtime.waitFor(result.taskId, (task) => task.status === 'completed', {
-      timeoutMs: 20_000,
+      timeoutMs: taskTimeoutMs,
     });
-    const delivery = await waitForDelivery(deliveryStore, result.deliveryId, 'completed');
+    const delivery = await waitForDelivery(
+      deliveryStore,
+      result.deliveryId,
+      'completed',
+      taskTimeoutMs,
+    );
     const operationsBeforeReplay = [...ports.operations];
     await connector.reconcile(result.deliveryId);
 
@@ -331,29 +383,33 @@ async function main() {
       runningTasks: 0,
       queuedTasks: 0,
     });
-    assert.equal(relay.actualExecutions.size, 2);
-    assert.ok([...codeApi.actualExecutions.values()].every((count) => count === 1));
+    await dependencies.assertCompleted?.({
+      database,
+      delivery,
+      ports,
+      result,
+      rootDir,
+      runtime,
+    });
 
-    process.stdout.write(`${JSON.stringify({
+    return {
       schemaVersion: '1.0',
       status: 'passed',
       scope: 'non-production',
       database: mongoEnvironment.mode,
       runtimeTransport: 'loopback-http',
-      modelRelay: 'isolated-recorded',
-      codeApi: 'isolated-execution-server',
+      ...dependencies.report,
       deliveryStatus: delivery.status,
       usageEvents: ports.transactions.size / 2,
       generatedFiles: ports.files.size,
       replayProducedDuplicates: false,
       runtimeCapacity: runtime.getCapacity(),
-    }, null, 2)}\n`);
+    };
   } finally {
     await reconciler?.stop().catch(() => {});
     await closeServer(runtimeServer).catch(() => {});
     await runtime?.stop().catch(() => {});
-    await relay?.stop().catch(() => {});
-    await codeApi?.stop().catch(() => {});
+    await dependencies?.stop?.().catch(() => {});
     try {
       await mongo.db(databaseName).dropDatabase();
     } catch {}
@@ -363,7 +419,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`${error?.stack ?? error}\n`);
-  process.exitCode = 1;
-});
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+if (isMain) {
+  runPhase3DAcceptance()
+    .then((report) => process.stdout.write(`${JSON.stringify(report, null, 2)}\n`))
+    .catch((error) => {
+      process.stderr.write(`${error?.stack ?? error}\n`);
+      process.exitCode = 1;
+    });
+}
