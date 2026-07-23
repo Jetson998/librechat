@@ -10,6 +10,7 @@ POC described in:
 - `docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE2_SINGLE_MODEL_POC_PLAN.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`
+- `docs/FILE_AGENT_RUNTIME_PHASE2B_HARNESS_IMPLEMENTATION.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE3_CONNECTOR_PLAN.md`
 
 It uses Node.js built-in modules only. The Phase 1 XLSX fixture executes Python
@@ -204,3 +205,33 @@ The Phase 1 and Phase 2A implementations do not read LibreChat Mongo, import
 LibreChat source, call `processCodeOutput()`, calculate prices, or access
 production CodeAPI or a production model relay. The fixtures map only isolated
 local sessions and contain no customer data.
+
+## Phase 2B One-shot Harness
+
+`scripts/phase2b-once.js` is a disabled-by-default non-production acceptance
+harness. It always uses the tracked `test/fixtures/phase2b-source.xlsx`, an
+isolated local CodeAPI fixture, one allowlisted model route, at most two model
+calls, an 8,000-character context projection, and fixed input/output budgets.
+
+The harness refuses a real relay unless all of these variables are present:
+
+```text
+FILE_AGENT_PHASE2B_BASE_URL
+FILE_AGENT_PHASE2B_API_KEY
+FILE_AGENT_PHASE2B_MODEL
+FILE_AGENT_PHASE2B_KEY_SCOPE=non-production
+FILE_AGENT_PHASE2B_CONFIRM=ONE_NON_PRODUCTION_BILLABLE_TASK
+FILE_AGENT_PHASE2B_SUPPORTS_IDEMPOTENCY=true|false
+```
+
+Run only after a separately scoped test key is approved:
+
+```sh
+npm run phase2b:run
+```
+
+The retained `.phase2b/phase2b-report.json` records status, latency, usage,
+request-contract compatibility and model quality without storing the API key or
+relay URL. Re-running the same directory uses the same task idempotency key and
+provider journal instead of creating a second billable task. The harness never
+writes LibreChat transactions and is not reachable from `npm start`.

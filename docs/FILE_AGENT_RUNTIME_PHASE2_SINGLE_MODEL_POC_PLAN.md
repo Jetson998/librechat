@@ -3,9 +3,9 @@
 Date: 2026-07-23
 
 Status: design gate approved. Phase 2A is implemented and locally verified
-against an isolated recorded relay. Phase 2B still requires separate approval
-and a scoped non-production key. Neither phase may receive production
-LibreChat traffic.
+against an isolated recorded relay. The Phase 2B one-shot harness is implemented
+and locally verified, but no real relay key is configured and no external model
+request has been made. Neither phase may receive production LibreChat traffic.
 
 ## 一、目标
 
