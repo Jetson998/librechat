@@ -32,6 +32,21 @@ function clone(value) {
   return structuredClone(value);
 }
 
+function applyTaskDefaults(task) {
+  if (!task) {
+    return task;
+  }
+  task.recordedUsageEventIds ??= [];
+  task.usageRecords ??= [];
+  task.recordedCompactionIds ??= [];
+  task.progress ??= {
+    stagnationCount: 0,
+    lastFailedVerificationFingerprint: null,
+    lastRepairActionSignature: null,
+  };
+  return task;
+}
+
 export class TaskNotFoundError extends Error {
   constructor(taskId) {
     super(`Task not found: ${taskId}`);
@@ -109,6 +124,14 @@ export class FileTaskStore {
         completedItemIds: [],
         itemResults: {},
         activeItem: null,
+        recordedUsageEventIds: [],
+        usageRecords: [],
+        recordedCompactionIds: [],
+        progress: {
+          stagnationCount: 0,
+          lastFailedVerificationFingerprint: null,
+          lastRepairActionSignature: null,
+        },
         result: null,
         error: null,
         lastSequence: 1,
@@ -156,7 +179,7 @@ export class FileTaskStore {
       if (!entry.isFile() || !entry.name.endsWith('.json')) {
         continue;
       }
-      const task = await this.#readJson(path.join(this.tasksDir, entry.name));
+      const task = applyTaskDefaults(await this.#readJson(path.join(this.tasksDir, entry.name)));
       if (task && !isTerminal(task.status)) {
         tasks.push(task);
       }
@@ -173,7 +196,7 @@ export class FileTaskStore {
         throw new TaskNotFoundError(taskId);
       }
 
-      const draft = clone(current);
+      const draft = clone(applyTaskDefaults(current));
       const pendingEvents = [];
       const emit = (event) => pendingEvents.push(clone(event));
       const changed = mutator(draft, emit);
@@ -219,7 +242,7 @@ export class FileTaskStore {
       if (!entry.isFile() || !entry.name.endsWith('.json')) {
         continue;
       }
-      const task = await this.#readJson(path.join(this.tasksDir, entry.name));
+      const task = applyTaskDefaults(await this.#readJson(path.join(this.tasksDir, entry.name)));
       if (task?.idempotencyKeyHash === idempotencyKeyHash) {
         await this.#atomicWriteJson(this.#idempotencyPath(idempotencyKeyHash), {
           idempotencyKeyHash,
@@ -233,7 +256,7 @@ export class FileTaskStore {
   }
 
   async #readTask(taskId) {
-    return this.#readJson(this.#taskPath(taskId));
+    return applyTaskDefaults(await this.#readJson(this.#taskPath(taskId)));
   }
 
   async #writeTask(task) {

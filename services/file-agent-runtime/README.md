@@ -1,12 +1,15 @@
 # File Agent Runtime
 
-This directory contains the non-production File Agent Runtime foundation and
-the Phase 1 isolated CodeAPI executor POC described in:
+This directory contains the non-production File Agent Runtime foundation,
+the Phase 1 isolated CodeAPI executor POC, and the Phase 2A recorded single-model
+POC described in:
 
 - `docs/INDEPENDENT_FILE_AGENT_RUNTIME_ARCHITECTURE.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE1_CODEAPI_POC_PLAN.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`
+- `docs/FILE_AGENT_RUNTIME_PHASE2_SINGLE_MODEL_POC_PLAN.md`
+- `docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`
 
 It uses Node.js built-in modules only. The Phase 1 XLSX fixture executes Python
 inside an isolated test CodeAPI service; the Runtime package itself does not
@@ -26,6 +29,15 @@ import Python libraries.
 - one persisted workbook script and one incremental patch path;
 - workbook verification and one CodeAPI artifact reference;
 - item-level external idempotency proven across Runtime restart;
+- formal `ProviderAdapter` contract and typed provider errors;
+- one allowlisted OpenAI-compatible model route;
+- persistent model call journal with completed replay, digest conflict, and
+  ambiguous-commit handling;
+- structured model plans restricted to versioned worker actions;
+- bounded context projection without scripts, stdout, credentials, or prices;
+- durable input/cache-read/cache-write/output usage events;
+- progress fingerprints that stop repeated repair plans before duplicate work;
+- isolated recorded model relay with no external model calls or cost;
 - fake adapters for the original Phase 0 state-machine tests;
 - local development HTTP API bound to `127.0.0.1` by default.
 
@@ -34,7 +46,7 @@ import Python libraries.
 - LibreChat Connector;
 - production authentication or signed task scopes;
 - production CodeAPI authentication or protocol mapping;
-- real model calls;
+- real external model calls or a Phase 2B test key;
 - Word, PPT, PDF, or general Office workers;
 - usage ingestion or billing;
 - artifact persistence through `processCodeOutput()`;
@@ -43,7 +55,7 @@ import Python libraries.
 
 ## Run
 
-Requires Node.js 20 or newer. Phase 1 tests also require Python 3 with
+Requires Node.js 20 or newer. XLSX tests also require Python 3 with
 `openpyxl` in the test environment.
 
 ```sh
@@ -53,13 +65,14 @@ npm test
 npm start
 ```
 
-`npm test` starts a temporary HTTP server on `127.0.0.1` for the isolated
-CodeAPI fixture. It never calls production or a remote service.
+`npm test` starts temporary HTTP servers on `127.0.0.1` for the isolated
+CodeAPI and recorded model relay fixtures. It never calls production or a
+remote service.
 
 The default `npm start` command intentionally still uses `FakeProvider` and
-`FakeExecutor`. Phase 1 CodeAPI components are not selectable from the server
-entry point, which prevents accidental connection to a real endpoint before a
-separate non-production integration gate.
+`FakeExecutor`. Phase 1 CodeAPI and Phase 2A provider components are not
+selectable from the server entry point, which prevents accidental connection
+to a real endpoint before a separate non-production integration gate.
 
 Defaults:
 
@@ -139,9 +152,54 @@ path. It does not regenerate a large program.
 The final Runtime result contains one opaque CodeAPI artifact reference only.
 It is not a LibreChat file record and is not a download card.
 
+## Phase 2A Provider Contract
+
+The task contains only an allowlisted `modelRouteId` and capability profile.
+Route URLs, credentials, models, budgets, and idempotency support are injected
+into `SingleModelAgentProvider` and are not persisted in the task.
+
+Each provider item uses the Runtime item ID as its `callId`. Before an upstream
+request, `FileModelCallJournal` writes a pending record under:
+
+```text
+<journal-dir>/model-calls/<sha256-call-id>.json
+```
+
+A normalized plan and usage record are atomically marked completed before the
+provider returns to the Runtime. Completed calls replay locally. Pending calls
+may only replay when the route guarantees idempotency; otherwise the task moves
+to `needs_input` instead of risking a duplicate billable request.
+
+## Context And Usage
+
+`ContextProjector` sends only the objective, acceptance criteria, phase,
+resource names and hashes, bounded recent item summaries, verification state,
+and progress state. The serialized projection is capped at 12,000 characters
+by default. Full scripts, stdout, file contents, credentials, URLs, prices, and
+LibreChat objects are excluded.
+
+Successful provider calls persist one idempotent `usage.recorded` event with:
+
+```text
+inputTokens
+cacheReadTokens
+cacheWriteTokens
+outputTokens
+```
+
+The Runtime does not calculate cost or create LibreChat transactions.
+
+## Progress Contract
+
+Failed verification results receive a stable fingerprint. The first failure
+enters repair normally. If the same failure returns after repair and the model
+again proposes the same repair action signature, the Runtime moves to
+`needs_input` before executing duplicate CodeAPI work. Hard call-count limits
+remain safety boundaries, not the primary scheduler.
+
 ## Safety Boundary
 
-The Phase 1 implementation does not read LibreChat Mongo, import LibreChat
-source, call `processCodeOutput()`, calculate prices, or access production
-CodeAPI. The test fixture maps only an isolated `/mnt/data` directory and an
-explicit session allowlist.
+The Phase 1 and Phase 2A implementations do not read LibreChat Mongo, import
+LibreChat source, call `processCodeOutput()`, calculate prices, or access
+production CodeAPI or a production model relay. The fixtures map only isolated
+local sessions and contain no customer data.

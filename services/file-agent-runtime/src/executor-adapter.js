@@ -76,5 +76,9 @@ export function assertExecutorAdapter(executor) {
 }
 
 export function isAbortError(error) {
-  return error?.name === 'AbortError' || error instanceof ExecutorCanceledError;
+  return (
+    error?.name === 'AbortError' ||
+    error instanceof ExecutorCanceledError ||
+    error?.code === 'PROVIDER_CANCELED'
+  );
 }

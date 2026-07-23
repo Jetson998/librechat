@@ -2,11 +2,13 @@
 
 Date: 2026-07-23
 
-Status: architecture approved. Phase 0 and the isolated Phase 1 CodeAPI POC are
-implemented and locally verified; there is no production traffic, integration,
-or deployment. Implementation records:
-`docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md` and
-`docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`.
+Status: architecture approved. Phase 0, the isolated Phase 1 CodeAPI POC, and
+the recorded-relay Phase 2A single-model POC are implemented and locally
+verified; there is no production traffic, LibreChat integration, external model
+call, or deployment. Implementation records:
+`docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`,
+`docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`, and
+`docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`.
 
 ## 一、决策摘要
 

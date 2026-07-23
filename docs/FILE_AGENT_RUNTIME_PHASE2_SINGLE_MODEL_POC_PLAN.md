@@ -2,9 +2,10 @@
 
 Date: 2026-07-23
 
-Status: design gate approved for repository implementation. Phase 2A is an
-isolated recorded-relay POC. Phase 2B requires separate approval and a scoped
-non-production key. Neither phase may receive production LibreChat traffic.
+Status: design gate approved. Phase 2A is implemented and locally verified
+against an isolated recorded relay. Phase 2B still requires separate approval
+and a scoped non-production key. Neither phase may receive production
+LibreChat traffic.
 
 ## 一、目标
 

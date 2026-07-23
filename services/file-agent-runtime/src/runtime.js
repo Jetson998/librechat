@@ -1,8 +1,9 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { canTransition, isTerminal } from './constants.js';
 import { assertExecutorAdapter, isAbortError } from './executor-adapter.js';
+import { assertProviderAdapter } from './provider-adapter.js';
 
 export class RuntimeShutdownError extends Error {
   constructor() {
@@ -47,13 +48,70 @@ function errorRecord(error) {
   return record;
 }
 
+function hashJson(value) {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+function unwrapProviderValue(result) {
+  return result?.value ?? result;
+}
+
+function actionSignature(plan) {
+  return hashJson((plan?.actions ?? []).map((action) => ({ kind: action.kind })));
+}
+
+function verificationFingerprint(verification) {
+  return hashJson({
+    passed: verification?.passed === true,
+    summary: verification?.summary ?? '',
+    repairMarker: verification?.repairMarker ?? null,
+    outputHash: verification?.outputHash ?? null,
+    errorSignature: verification?.errorSignature ?? null,
+  });
+}
+
+function persistProviderMetadata(task, emit, result, itemId) {
+  const call = result?.call;
+  const usage = result?.usage;
+  if (call?.callId && usage && !task.recordedUsageEventIds.includes(call.callId)) {
+    const usageRecord = {
+      usageEventId: call.callId,
+      callId: call.callId,
+      modelRouteId: call.modelRouteId,
+      providerModel: call.providerModel,
+      inputTokens: usage.inputTokens,
+      cacheReadTokens: usage.cacheReadTokens,
+      cacheWriteTokens: usage.cacheWriteTokens,
+      outputTokens: usage.outputTokens,
+      occurredAt: usage.occurredAt ?? new Date().toISOString(),
+    };
+    task.recordedUsageEventIds.push(call.callId);
+    task.usageRecords.push(usageRecord);
+    emit({ type: 'usage.recorded', data: { usage: usageRecord } });
+  }
+
+  const compaction = result?.context?.compaction;
+  const compactionId = `${itemId}:context`;
+  if (compaction && !task.recordedCompactionIds.includes(compactionId)) {
+    task.recordedCompactionIds.push(compactionId);
+    emit({
+      type: 'context.compacted',
+      data: {
+        compactionId,
+        omittedItemCount: compaction.omittedItemCount,
+        projectionCharacters: compaction.projectionCharacters,
+      },
+    });
+  }
+}
+
 export class FileAgentRuntime {
   #running = new Map();
   #stopping = false;
 
   constructor({ store, provider, executor, testHooks }) {
     this.store = store;
-    this.provider = provider;
+    this.provider = assertProviderAdapter(provider);
     this.executor = assertExecutorAdapter(executor);
     this.testHooks = testHooks;
   }
@@ -227,6 +285,10 @@ export class FileAgentRuntime {
       if (shutdown || canceled || (isAbortError(error) && signal.aborted)) {
         return;
       }
+      if (error?.code === 'PROVIDER_AMBIGUOUS_COMMIT') {
+        await this.#moveToNeedsInput(taskId, error.message, 'provider_ambiguous_commit');
+        return;
+      }
       await this.#failTask(taskId, error);
     }
   }
@@ -246,14 +308,15 @@ export class FileAgentRuntime {
   async #plan(task, signal) {
     const instructionRevision = task.instructionRevision;
     const nextPlanRevision = task.planRevision + 1;
-    const plan = await this.#runItem({
+    const providerResult = await this.#runItem({
       task,
       itemId: `${task.taskId}:plan:${nextPlanRevision}:${instructionRevision}`,
       kind: 'model_plan',
       summary: `Create plan revision ${nextPlanRevision}`,
       signal,
-      operation: () => this.provider.plan({ task, signal }),
+      operation: (itemId) => this.provider.plan({ callId: itemId, task, signal }),
     });
+    const plan = unwrapProviderValue(providerResult);
 
     await this.store.mutateTask(task.taskId, (current, emit) => {
       if (current.status !== 'planning') {
@@ -339,7 +402,21 @@ export class FileAgentRuntime {
       if (current.status !== 'verifying' || current.planRevision !== task.planRevision) {
         return false;
       }
-      current.verification = verification;
+      const fingerprint = verificationFingerprint(verification);
+      current.verification = { ...verification, fingerprint };
+      if (verification.passed) {
+        current.progress.stagnationCount = 0;
+        current.progress.lastFailedVerificationFingerprint = null;
+      } else if (current.progress.lastFailedVerificationFingerprint === fingerprint) {
+        current.progress.stagnationCount += 1;
+        emit({
+          type: 'progress.stalled',
+          data: { fingerprint, stagnationCount: current.progress.stagnationCount },
+        });
+      } else {
+        current.progress.stagnationCount = 0;
+        current.progress.lastFailedVerificationFingerprint = fingerprint;
+      }
       const next = verification.passed ? 'publishing' : 'repairing';
       current.status = next;
       current.phase = next;
@@ -350,14 +427,20 @@ export class FileAgentRuntime {
 
   async #repair(task, signal) {
     const nextPlanRevision = task.planRevision + 1;
-    const plan = await this.#runItem({
+    const providerResult = await this.#runItem({
       task,
       itemId: `${task.taskId}:repair-plan:${nextPlanRevision}`,
       kind: 'model_repair_plan',
       summary: `Create repair plan revision ${nextPlanRevision}`,
       signal,
-      operation: () => this.provider.repair({ task, verification: task.verification, signal }),
+      operation: (itemId) => this.provider.repair({
+        callId: itemId,
+        task,
+        verification: task.verification,
+        signal,
+      }),
     });
+    const plan = unwrapProviderValue(providerResult);
 
     await this.store.mutateTask(task.taskId, (current, emit) => {
       if (current.status !== 'repairing' || current.planRevision !== task.planRevision) {
@@ -367,6 +450,7 @@ export class FileAgentRuntime {
       current.plan = plan;
       current.executionCursor = 0;
       current.appliedInstructionRevision = current.instructionRevision;
+      const nextActionSignature = actionSignature(plan);
       emit({
         type: 'plan.updated',
         data: { planRevision: nextPlanRevision, actionCount: plan.actions?.length ?? 0, repair: true },
@@ -375,7 +459,22 @@ export class FileAgentRuntime {
         current.status = 'needs_input';
         current.phase = 'needs_input';
         emit({ type: 'task.needs_input', phase: 'needs_input', data: { question: plan.question } });
+      } else if (
+        current.progress.stagnationCount > 0 &&
+        current.progress.lastRepairActionSignature === nextActionSignature
+      ) {
+        current.status = 'needs_input';
+        current.phase = 'needs_input';
+        emit({
+          type: 'task.needs_input',
+          phase: 'needs_input',
+          data: {
+            reason: 'repeated_no_progress_plan',
+            question: 'The same repair plan did not change verification. Additional guidance is required.',
+          },
+        });
       } else {
+        current.progress.lastRepairActionSignature = nextActionSignature;
         current.status = 'executing';
         current.phase = 'executing';
         emit({ type: 'task.phase_changed', phase: 'executing', data: { from: 'repairing', to: 'executing' } });
@@ -451,6 +550,7 @@ export class FileAgentRuntime {
           current.completedItemIds.push(itemId);
         }
         current.itemResults[itemId] = result;
+        persistProviderMetadata(current, emit, result, itemId);
         if (current.activeItem?.itemId === itemId) {
           current.activeItem = null;
         }
@@ -462,6 +562,9 @@ export class FileAgentRuntime {
       });
       return result;
     } catch (error) {
+      if (error instanceof RuntimeShutdownError) {
+        throw error;
+      }
       if (!signal.aborted) {
         await this.store.mutateTask(task.taskId, (current, emit) => {
           if (isTerminal(current.status)) {
@@ -512,6 +615,27 @@ export class FileAgentRuntime {
       task.activeItem = null;
       task.error = errorRecord(error);
       emit({ type: 'task.failed', phase: 'failed', data: { previous, error: task.error } });
+      return true;
+    });
+  }
+
+  async #moveToNeedsInput(taskId, question, reason) {
+    await this.store.mutateTask(taskId, (task, emit) => {
+      if (isTerminal(task.status) || task.status === 'needs_input') {
+        return false;
+      }
+      if (!canTransition(task.status, 'needs_input')) {
+        throw new Error(`Illegal task transition: ${task.status} -> needs_input`);
+      }
+      const previous = task.status;
+      task.status = 'needs_input';
+      task.phase = 'needs_input';
+      task.activeItem = null;
+      emit({
+        type: 'task.needs_input',
+        phase: 'needs_input',
+        data: { previous, reason, question },
+      });
       return true;
     });
   }

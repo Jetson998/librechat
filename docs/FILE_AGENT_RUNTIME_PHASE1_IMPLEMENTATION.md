@@ -156,9 +156,9 @@ tests: 13 passed, 0 failed
 - 没有模型 usage、上下文投影或进展判断；
 - artifact 尚未经过 LibreChat `processCodeOutput()` 持久化。
 
-## 九、下一步门禁
+## 九、Phase 2A 门禁（已完成）
 
-进入 Phase 2 前必须先形成单模型集成设计，至少解决：
+Phase 2A 已通过单模型集成设计和隔离记录化 relay 验收，解决了：
 
 1. ProviderAdapter 的结构化计划与 usage 契约；
 2. 真实非生产 CodeAPI transport 的认证和协议映射；
@@ -168,7 +168,8 @@ tests: 13 passed, 0 failed
 6. usage 只回传 LibreChat 入账，不在 Runtime 保存价格；
 7. Phase 2 仍不得接生产流量。
 
-未通过这些门禁，不允许把 Runtime 路由接入 LibreChat。
+实施记录见 `docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`。真实非生产模型
+Phase 2B 仍需单独审批，当前仍不允许把 Runtime 路由接入 LibreChat。
 
 ## 十、回滚
 

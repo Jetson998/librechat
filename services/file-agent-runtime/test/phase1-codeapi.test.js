@@ -248,7 +248,7 @@ test('Runtime rejects an incomplete ExecutorAdapter before starting a task', () 
   assert.throws(
     () => new FileAgentRuntime({
       store: {},
-      provider: {},
+      provider: { plan() {}, repair() {} },
       executor: { prepare() {} },
     }),
     /executor.execute must be a function/,
