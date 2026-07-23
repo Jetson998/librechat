@@ -11,9 +11,11 @@ upstream repository: https://github.com/danny-avila/LibreChat.git
 upstream commit: 60eba76375213dafc1874d943e41371201c300ab
 source file: api/server/controllers/agents/request.js
 source blob: 49d9329f0ce7778cb108cdc70ca18aed4c8ec0eb
+route file: api/server/routes/agents/chat.js
+route blob: 9463406652635e1acc8eebaea429e1432ae3234c
 ```
 
-The overlay refuses verification if either the commit or source blob differs.
+The overlay refuses verification if the commit or either source blob differs.
 This prevents a context-based patch from being treated as compatible with a
 different LibreChat controller lifecycle.
 
@@ -65,10 +67,14 @@ files with primed CodeAPI references. `createBillingSnapshot()` must use the
 resolved model pricing for that request and return `snapshotId`. No endpoint
 credential may enter the snapshot or task manifest.
 
-The route layer may pass the bridge as the sixth controller argument only for a
-non-production allowlisted test process. Route registration, collection names,
-Runtime process supervision, and feature-flag configuration are deliberately
-not included in this overlay.
+The route reads only the explicit `req.app.locals.fileAgentRuntimeBridge` value
+and passes it as the sixth controller argument. No environment variable enables
+the bridge and an absent app-local preserves the original path. A
+non-production host process must install the bridge after composing its
+allowlist, collections, native ports, Runtime client, and reconciler.
+
+Collection names, Runtime process supervision, feature-flag configuration, and
+production startup wiring are deliberately not included in this overlay.
 
 ## Verify
 
@@ -76,7 +82,7 @@ not included in this overlay.
 scripts/verify-file-agent-upstream-overlay.sh /path/to/clean/librechat-upstream
 ```
 
-The verifier checks the source pin and blob, applies the overlay in a detached
-temporary worktree, runs `git diff --check` and `node --check`, confirms there
-is still exactly one native `client.sendMessage()` call, and confirms that only
-the pinned controller file changes.
+The verifier checks the source pin and both blobs, applies the overlay in a
+detached temporary worktree, runs `git diff --check` and `node --check`, confirms
+there is still exactly one native `client.sendMessage()` call, and confirms
+that only the pinned controller and route files change.

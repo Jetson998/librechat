@@ -1,6 +1,6 @@
 {
   "name": "@jetson998/file-agent-runtime",
-  "version": "0.2.1-phase2b-harness",
+  "version": "0.3.0-phase3-runtime-queue",
   "private": true,
   "type": "module",
   "engines": {

@@ -2,6 +2,7 @@ import { LibreChatFileAgentConnector } from './connector.js';
 import { MongoBillingSnapshotStore } from './mongo-billing-snapshot-store.js';
 import { MongoDeliveryStore } from './mongo-delivery-store.js';
 import { NativeLibreChatPorts } from './native-ports.js';
+import { FileAgentReconciler } from './reconciler.js';
 import { RuntimeClient } from './runtime-client.js';
 import { ServiceScopeSigner } from './service-scope.js';
 import { clone } from './stable.js';
@@ -188,6 +189,8 @@ export function createLibreChatHostIntegration({
   allowlistedUserIds = new Set(),
   reconcilerId,
   leaseTtlMs,
+  reconcileIntervalMs,
+  onReconcileError,
 }) {
   const deliveryCollection = requiredCollection(collections?.deliveries, 'delivery');
   const billingSnapshotCollection = requiredCollection(
@@ -253,15 +256,24 @@ export function createLibreChatHostIntegration({
     ...(reconcilerId ? { reconcilerId } : {}),
     ...(leaseTtlMs ? { leaseTtlMs } : {}),
   });
+  const reconciler = new FileAgentReconciler({
+    connector,
+    ...(reconcileIntervalMs ? { intervalMs: reconcileIntervalMs } : {}),
+    ...(onReconcileError ? { onError: onReconcileError } : {}),
+  });
 
   const integration = {
     connector,
+    reconciler,
     ports,
     runtimeClient: resolvedRuntimeClient,
     stores: { deliveryStore, billingSnapshotStore },
     async init() {
       await Promise.all([deliveryStore.init(), billingSnapshotStore.init()]);
       return integration;
+    },
+    async stop() {
+      await reconciler.stop();
     },
   };
   return integration;

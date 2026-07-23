@@ -20,7 +20,10 @@ function manifest(overrides = {}) {
   };
 }
 
-async function createHarness(t, { providerDelayMs = 0, executorDelayMs = 0, rootDir } = {}) {
+async function createHarness(
+  t,
+  { providerDelayMs = 0, executorDelayMs = 0, rootDir, maxConcurrentTasks = 2 } = {},
+) {
   const ownedRoot = rootDir ?? (await mkdtemp(path.join(tmpdir(), 'file-agent-runtime-')));
   const store = new FileTaskStore(ownedRoot);
   const executor = new FakeExecutor({ delayMs: executorDelayMs });
@@ -28,6 +31,7 @@ async function createHarness(t, { providerDelayMs = 0, executorDelayMs = 0, root
     store,
     executor,
     provider: new FakeProvider({ delayMs: providerDelayMs }),
+    maxConcurrentTasks,
   });
   await runtime.start();
 
@@ -133,6 +137,36 @@ test('cancel is terminal and stops the in-flight fake executor', async (t) => {
   assert.equal(persisted.events.at(-1).type, 'task.canceled');
 });
 
+test('Runtime queues tasks above its own concurrency limit', async (t) => {
+  const { runtime } = await createHarness(t, {
+    executorDelayMs: 80,
+    maxConcurrentTasks: 1,
+  });
+  const first = await runtime.submit({
+    idempotencyKey: 'capacity-first',
+    manifest: manifest(),
+  });
+  const second = await runtime.submit({
+    idempotencyKey: 'capacity-second',
+    manifest: manifest(),
+  });
+
+  await runtime.waitFor(first.task.taskId, (task) => task.status === 'preparing');
+  assert.deepEqual(runtime.getCapacity(), {
+    maxConcurrentTasks: 1,
+    runningTasks: 1,
+    queuedTasks: 1,
+  });
+
+  await runtime.waitFor(first.task.taskId, (task) => task.status === 'completed');
+  await runtime.waitFor(second.task.taskId, (task) => task.status === 'completed');
+  assert.deepEqual(runtime.getCapacity(), {
+    maxConcurrentTasks: 1,
+    runningTasks: 0,
+    queuedTasks: 0,
+  });
+});
+
 test('restart resumes a non-terminal task from the persisted checkpoint', async (t) => {
   const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-runtime-restart-'));
   t.after(() => rm(rootDir, { recursive: true, force: true }));
@@ -203,6 +237,7 @@ test('HTTP API exposes submit, task lookup, and durable event cursor', async (t)
   assert.equal(capabilitiesResponse.status, 200);
   const capabilities = await capabilitiesResponse.json();
   assert.ok(capabilities.taskContractVersions.includes('office-file-agent.v1'));
+  assert.equal(capabilities.maxInputFiles, 1);
   assert.equal(capabilities.maxVisibleArtifacts, 3);
 
   const submit = await handleRuntimeFetch(runtime, new Request(`${baseUrl}/v1/tasks`, {

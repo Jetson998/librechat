@@ -299,6 +299,37 @@ test('prepared Runtime routing rejects request mutation before delivery creation
   assert.equal((await harness.store.listRecoverable()).length, 0);
 });
 
+test('Runtime capability rejects extra input files before user-turn persistence', async (t) => {
+  const harness = await createHarness(t);
+  const baseRequest = request({
+    files: [
+      ...request().files,
+      {
+        fileId: 'librechat-file-2',
+        name: 'source-2.xlsx',
+        mimeType: XLSX_MIME,
+        sha256: 'b'.repeat(64),
+        conversationId: 'conversation-1',
+        ownershipVerified: true,
+        codeEnvRef: {
+          storage_session_id: 'phase3a-session',
+          file_id: 'codeapi-source-2',
+        },
+      },
+    ],
+  });
+  delete baseRequest.billingSnapshotRef;
+
+  const prepared = await harness.connector.prepareRoute(baseRequest);
+
+  assert.equal(prepared.suppressNativeAgent, false);
+  assert.deepEqual(prepared.decision, {
+    route: 'native',
+    reason: 'runtime_file_count_unsupported',
+  });
+  assert.equal((await harness.store.listRecoverable()).length, 0);
+});
+
 test('ambiguous submit remains pending and reconciles with the same Runtime idempotency key', async (t) => {
   const harness = await createHarness(t);
   let firstSubmit = true;

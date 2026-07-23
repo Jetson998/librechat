@@ -69,6 +69,36 @@ test('ordinary chat remains native without persistence or billing writes', async
   assert.equal(result.suppressNativeAgent, false);
 });
 
+test('host turn constraints can return native before Runtime capability discovery', async () => {
+  const calls = [];
+  const bridge = new FileAgentControllerBridge({
+    connector: {
+      prepareRoute: async () => {
+        calls.push('connector');
+      },
+      submit: async () => {},
+    },
+    prepareRequest: async () => ({ route: 'native', reason: 'temporary_chat_unsupported' }),
+    persistUserTurn: async () => {
+      calls.push('persist');
+    },
+    createBillingSnapshot: async () => {
+      calls.push('snapshot');
+    },
+    scheduleReconcile: async () => {
+      calls.push('schedule');
+    },
+  });
+
+  const result = await bridge.tryRoute({ req: {} });
+
+  assert.deepEqual(calls, []);
+  assert.deepEqual(result.decision, {
+    route: 'native',
+    reason: 'temporary_chat_unsupported',
+  });
+});
+
 test('eligible work persists before snapshot and Runtime submission', async () => {
   const calls = [];
   const preparedRoute = {

@@ -19,6 +19,7 @@ export const DEFAULT_RUNTIME_CAPABILITIES = Object.freeze({
   outputMimeTypes: [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   ],
+  maxInputFiles: 1,
   maxVisibleArtifacts: 3,
 });
 

@@ -97,6 +97,12 @@ export function decideFileAgentCapabilityRoute({
   if (files.some((file) => !capabilities.inputMimeTypes?.includes(file.mimeType))) {
     return native('runtime_file_type_unsupported');
   }
+  if (
+    Number.isSafeInteger(capabilities.maxInputFiles) &&
+    files.length > capabilities.maxInputFiles
+  ) {
+    return native('runtime_file_count_unsupported');
+  }
   return { route: 'runtime', reason: 'eligible_complex_file_task' };
 }
 

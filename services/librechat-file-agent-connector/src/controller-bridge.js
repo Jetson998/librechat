@@ -49,6 +49,13 @@ export class FileAgentControllerBridge {
 
   async tryRoute(context) {
     const request = await this.prepareRequest(context);
+    if (request?.route === 'native') {
+      return {
+        routed: false,
+        suppressNativeAgent: false,
+        decision: request,
+      };
+    }
     const preparedRoute = await this.connector.prepareRoute(request);
     if (preparedRoute.suppressNativeAgent !== true) {
       return {

@@ -210,3 +210,11 @@ index 49d9329..81a5ca8 100644
 +    fileAgentRuntime,
 +  );
  }
+diff --git a/api/server/routes/agents/chat.js b/api/server/routes/agents/chat.js
+index 9463406..901ddf9 100644
+--- a/api/server/routes/agents/chat.js
++++ b/api/server/routes/agents/chat.js
+@@ -83 +83,2 @@ const controller = async (req, res, next) => {
+-  await AgentController(req, res, next, initializeClient, addTitle);
++  const fileAgentRuntime = req.app?.locals?.fileAgentRuntimeBridge ?? null;
++  await AgentController(req, res, next, initializeClient, addTitle, fileAgentRuntime);

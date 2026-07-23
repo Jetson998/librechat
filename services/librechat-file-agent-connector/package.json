@@ -1,6 +1,6 @@
 {
   "name": "@jetson998/librechat-file-agent-connector",
-  "version": "0.5.0-phase3c-controller",
+  "version": "0.6.0-phase3d-host",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "check": "node --check src/*.js && node --check test/*.js"
+    "check": "node --check src/*.js && node --check scripts/*.js && node --check test/*.js",
+    "phase3d:accept": "node scripts/phase3d-nonproduction-acceptance.js"
   }
 }

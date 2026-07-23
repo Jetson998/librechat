@@ -48,6 +48,10 @@ import Python libraries.
 - read-only Runtime capability discovery for the Phase 3A Connector contract.
 - optional Phase 3B request authorization hook for signed internal `/v1/*`
   service scopes; `/healthz` remains outside service authentication.
+- explicit `maxInputFiles: 1` capability advertisement for the current XLSX
+  worker;
+- a Runtime-owned FIFO queue with a configurable `maxConcurrentTasks` limit,
+  defaulting to two concurrent tasks.
 
 ## Not Implemented
 
@@ -99,6 +103,10 @@ FILE_AGENT_DATA_DIR
 ```
 
 The development server must not be exposed publicly.
+
+The in-process Runtime constructor also accepts `maxConcurrentTasks`. Queued
+tasks remain durable and begin in FIFO order when a running slot is released;
+LibreChat request concurrency is not used as Runtime capacity.
 
 ## Runtime API
 

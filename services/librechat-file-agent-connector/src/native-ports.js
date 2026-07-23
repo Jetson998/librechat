@@ -16,6 +16,44 @@ function normalizeExistingIds(value) {
   return value instanceof Set ? value : new Set(value);
 }
 
+function requiredPrice(value, name) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new TypeError(`Billing snapshot ${name} price is required`);
+  }
+  return value;
+}
+
+export function createFrozenPricing(prices) {
+  const prompt = requiredPrice(prices?.prompt, 'prompt');
+  const completion = requiredPrice(prices?.completion, 'completion');
+  const cacheRead = prices?.cacheRead == null
+    ? null
+    : requiredPrice(prices.cacheRead, 'cacheRead');
+  const cacheWrite = prices?.cacheWrite == null
+    ? null
+    : requiredPrice(prices.cacheWrite, 'cacheWrite');
+  return Object.freeze({
+    getMultiplier: ({ tokenType }) => {
+      if (tokenType === 'prompt') {
+        return prompt;
+      }
+      if (tokenType === 'completion') {
+        return completion;
+      }
+      return 1;
+    },
+    getCacheMultiplier: ({ cacheType }) => {
+      if (cacheType === 'read') {
+        return cacheRead;
+      }
+      if (cacheType === 'write') {
+        return cacheWrite;
+      }
+      return null;
+    },
+  });
+}
+
 function stableTransactionId(usageEventId, tokenType) {
   return sha256(`file-agent-usage:${usageEventId}:${tokenType}`);
 }
@@ -74,6 +112,7 @@ export class NativeLibreChatPorts {
 
   async writeUsageTransactions({ usageEventId, usage, delivery }) {
     const snapshot = await this.#getBillingSnapshot(delivery);
+    const pricing = createFrozenPricing(snapshot.prices);
     const prepared = this.prepareStructuredTokenSpend(
       {
         user: delivery.user,
@@ -93,7 +132,7 @@ export class NativeLibreChatPorts {
         },
         completionTokens: usage.outputTokens,
       },
-      clone(snapshot.pricing),
+      pricing,
     ).map((entry) => ({ ...entry, doc: { ...entry.doc } }));
 
     const idsByTokenType = {};

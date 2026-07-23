@@ -107,13 +107,19 @@ function persistProviderMetadata(task, emit, result, itemId) {
 
 export class FileAgentRuntime {
   #running = new Map();
+  #queue = [];
+  #queued = new Set();
   #stopping = false;
 
-  constructor({ store, provider, executor, testHooks }) {
+  constructor({ store, provider, executor, testHooks, maxConcurrentTasks = 2 }) {
+    if (!Number.isSafeInteger(maxConcurrentTasks) || maxConcurrentTasks < 1) {
+      throw new TypeError('maxConcurrentTasks must be a positive safe integer');
+    }
     this.store = store;
     this.provider = assertProviderAdapter(provider);
     this.executor = assertExecutorAdapter(executor);
     this.testHooks = testHooks;
+    this.maxConcurrentTasks = maxConcurrentTasks;
   }
 
   async start() {
@@ -127,6 +133,8 @@ export class FileAgentRuntime {
 
   async stop() {
     this.#stopping = true;
+    this.#queue = [];
+    this.#queued.clear();
     for (const { controller } of this.#running.values()) {
       controller.abort(new RuntimeShutdownError());
     }
@@ -164,6 +172,7 @@ export class FileAgentRuntime {
     });
 
     if (mutation.changed) {
+      this.#removeQueued(taskId);
       this.#running.get(taskId)?.controller.abort();
     }
     return mutation.task;
@@ -229,17 +238,47 @@ export class FileAgentRuntime {
   }
 
   #schedule(taskId) {
-    if (this.#stopping || this.#running.has(taskId)) {
+    if (this.#stopping || this.#running.has(taskId) || this.#queued.has(taskId)) {
       return;
     }
 
-    const controller = new AbortController();
-    const promise = this.#runTask(taskId, controller.signal)
-      .catch(() => {})
-      .finally(() => {
-        this.#running.delete(taskId);
-      });
-    this.#running.set(taskId, { controller, promise });
+    this.#queued.add(taskId);
+    this.#queue.push(taskId);
+    this.#drainQueue();
+  }
+
+  #removeQueued(taskId) {
+    if (!this.#queued.delete(taskId)) {
+      return;
+    }
+    this.#queue = this.#queue.filter((queuedTaskId) => queuedTaskId !== taskId);
+  }
+
+  #drainQueue() {
+    while (!this.#stopping && this.#running.size < this.maxConcurrentTasks) {
+      const taskId = this.#queue.shift();
+      if (!taskId) {
+        return;
+      }
+      this.#queued.delete(taskId);
+
+      const controller = new AbortController();
+      const promise = this.#runTask(taskId, controller.signal)
+        .catch(() => {})
+        .finally(() => {
+          this.#running.delete(taskId);
+          this.#drainQueue();
+        });
+      this.#running.set(taskId, { controller, promise });
+    }
+  }
+
+  getCapacity() {
+    return {
+      maxConcurrentTasks: this.maxConcurrentTasks,
+      runningTasks: this.#running.size,
+      queuedTasks: this.#queue.length,
+    };
   }
 
   async #runTask(taskId, signal) {

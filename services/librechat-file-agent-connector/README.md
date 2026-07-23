@@ -1,9 +1,10 @@
 # LibreChat File Agent Connector
 
 This package contains the Phase 3A local contract POC, Phase 3B native host
-adapters, and the Phase 3C non-production controller bridge for the independent
-File Agent Runtime. It uses Node.js built-in modules only and has no production
-entry point.
+adapters, the Phase 3C controller bridge, and the Phase 3D non-production
+upstream host adapter for the independent File Agent Runtime. The runtime
+package and normal tests use Node.js built-in modules only. There is no
+production entry point.
 
 ## Implemented
 
@@ -38,13 +39,23 @@ entry point.
   cannot start a second native Agent execution;
 - best-effort immediate reconciliation scheduling backed by durable periodic
   recovery when the scheduler is temporarily unavailable.
+- an explicit upstream adapter that resolves only `req.body.files` from the
+  initialized `client.options.attachments`, validates user/tenant/CodeAPI
+  ownership, freezes the resolved provider pricing, and installs the bridge on
+  `Express app.locals`;
+- Runtime capability enforcement for exactly one current-turn XLSX input;
+- a Runtime-owned FIFO capacity queue, independent of LibreChat's short-lived
+  pending-request counter;
+- an immediate and periodic reconciler with per-delivery wake deduplication;
+- one guarded Phase 3D acceptance command using a real loopback MongoDB,
+  loopback Runtime HTTP, isolated CodeAPI, and isolated recorded model relay.
 
 ## Not Implemented
 
-- a production wiring module for concrete LibreChat imports or collections;
-- concrete route registration that injects the controller bridge into the
-  running LibreChat process;
+- a production wiring module or startup hook;
+- a completed full LibreChat build and browser test-account acceptance;
 - a production Runtime secret source, rotation policy, or network deployment;
+- a real non-production external CodeAPI and model-relay acceptance task;
 - production feature flags, customer files, or deployment;
 - Word, PPT, PDF, or additional Runtime workers.
 
@@ -59,3 +70,18 @@ npm test
 Tests route requests through the real local Runtime HTTP handler, recorded
 LibreChat ports, and an in-memory Mongo contract double. They do not access a
 real Mongo deployment, CodeAPI, a model relay, customer files, or the network.
+
+The separately guarded Phase 3D acceptance uses a real temporary `mongod` and
+requires external test-only dependencies outside this repository:
+
+```sh
+FILE_AGENT_PHASE3D_SCOPE=non-production \
+FILE_AGENT_PHASE3D_CONFIRM=ONE_ISOLATED_NON_PRODUCTION_TASK \
+FILE_AGENT_PHASE3D_MONGO_MODE=memory-server \
+FILE_AGENT_PHASE3D_NODE_MODULES=/path/to/isolated/node_modules \
+npm run phase3d:accept
+```
+
+`FILE_AGENT_PHASE3D_MONGO_MODE=uri` may instead use an explicitly supplied
+loopback `FILE_AGENT_PHASE3D_MONGO_URI`. The command refuses remote Mongo hosts,
+production scope, missing confirmation, or missing test dependencies.

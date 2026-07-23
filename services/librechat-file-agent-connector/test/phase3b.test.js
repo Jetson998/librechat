@@ -162,6 +162,7 @@ function nativeHarness({ snapshot, processCodeOutput } = {}) {
     modelRouteId: 'file-agent-primary',
     endpoint: 'custom',
     model: 'gpt-5.6-sol',
+    prices: { prompt: 0.6, completion: 3.6, cacheRead: 0.06, cacheWrite: 0.75 },
     pricing: { source: 'native-pricing' },
     endpointTokenConfig: { prompt: 0.6, completion: 3.6, cacheRead: 0.06, cacheWrite: 0.75 },
     balance: { enabled: true },
@@ -174,7 +175,16 @@ function nativeHarness({ snapshot, processCodeOutput } = {}) {
         : null,
     },
     prepareStructuredTokenSpend: (txData, tokenUsage, pricing) => {
-      preparedArgs = { txData: clone(txData), tokenUsage: clone(tokenUsage), pricing: clone(pricing) };
+      preparedArgs = {
+        txData: clone(txData),
+        tokenUsage: clone(tokenUsage),
+        pricing: {
+          prompt: pricing.getMultiplier({ tokenType: 'prompt' }),
+          completion: pricing.getMultiplier({ tokenType: 'completion' }),
+          cacheRead: pricing.getCacheMultiplier({ cacheType: 'read' }),
+          cacheWrite: pricing.getCacheMultiplier({ cacheType: 'write' }),
+        },
+      };
       return [
         { doc: { tokenType: 'prompt' }, tokenValue: -1, balance: txData.balance },
         { doc: { tokenType: 'completion' }, tokenValue: -2, balance: txData.balance },
@@ -356,7 +366,12 @@ test('native usage replay preserves structured token granularity and does not re
     completionTokens: 1_459,
   });
   assert.equal(harness.getPreparedArgs().txData.endpointTokenConfig.cacheRead, 0.06);
-  assert.deepEqual(harness.getPreparedArgs().pricing, { source: 'native-pricing' });
+  assert.deepEqual(harness.getPreparedArgs().pricing, {
+    prompt: 0.6,
+    completion: 3.6,
+    cacheRead: 0.06,
+    cacheWrite: 0.75,
+  });
 
   harness.transactions.delete(stableTransactionId('usage-1', 'completion'));
   await harness.ports.writeUsageTransactions({ usageEventId: 'usage-1', usage, delivery });
