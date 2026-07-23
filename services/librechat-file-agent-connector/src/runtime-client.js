@@ -8,7 +8,12 @@ export class RuntimeHttpError extends Error {
 }
 
 export class RuntimeClient {
-  constructor({ baseUrl, fetchImpl = globalThis.fetch, serviceToken = null }) {
+  constructor({
+    baseUrl,
+    fetchImpl = globalThis.fetch,
+    serviceToken = null,
+    scopeSigner = null,
+  }) {
     if (typeof baseUrl !== 'string' || baseUrl.trim() === '') {
       throw new TypeError('RuntimeClient baseUrl is required');
     }
@@ -18,6 +23,7 @@ export class RuntimeClient {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.fetchImpl = fetchImpl;
     this.serviceToken = serviceToken;
+    this.scopeSigner = scopeSigner;
   }
 
   discoverCapabilities() {
@@ -52,16 +58,24 @@ export class RuntimeClient {
 
   async #request(pathname, { method = 'GET', headers = {}, body } = {}) {
     const requestHeaders = new Headers(headers);
+    const serializedBody = body === undefined ? undefined : JSON.stringify(body);
     if (body !== undefined) {
       requestHeaders.set('content-type', 'application/json');
     }
-    if (this.serviceToken) {
+    if (this.scopeSigner) {
+      requestHeaders.set('authorization', `Bearer ${this.scopeSigner.sign({
+        method,
+        pathname,
+        body: serializedBody ?? '',
+        headers: requestHeaders,
+      })}`);
+    } else if (this.serviceToken) {
       requestHeaders.set('authorization', `Bearer ${this.serviceToken}`);
     }
     const response = await this.fetchImpl(`${this.baseUrl}${pathname}`, {
       method,
       headers: requestHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: serializedBody,
     });
     const text = await response.text();
     let parsed = null;

@@ -37,12 +37,13 @@ export class MessageFinalizer {
       }
     });
     ensureReceipts(delivery, runtimeTask);
+    const text = successText(delivery);
 
     if (!delivery.finalization.messageSaved) {
       const fileIds = Object.values(delivery.artifactReceipts).map((receipt) => receipt.fileId);
       await this.ports.saveAssistantMessage({
         delivery,
-        text: successText(delivery),
+        text,
         fileIds,
       });
       delivery = await this.store.mutate(deliveryId, (draft) => {
@@ -55,6 +56,7 @@ export class MessageFinalizer {
         payload: {
           messageId: delivery.assistantMessageId,
           conversationId: delivery.conversationId,
+          text,
           fileIds: Object.values(delivery.artifactReceipts).map((receipt) => receipt.fileId),
         },
       });
@@ -84,7 +86,14 @@ export class MessageFinalizer {
     if (!delivery.finalization.finalEventSaved) {
       await this.ports.emitDone({
         delivery,
-        payload: { messageId: delivery.assistantMessageId, status, error: message },
+        payload: {
+          messageId: delivery.assistantMessageId,
+          conversationId: delivery.conversationId,
+          text: message,
+          status,
+          error: message,
+          fileIds: [],
+        },
       });
       delivery = await this.store.mutate(deliveryId, (draft) => {
         draft.finalization.finalEventSaved = true;

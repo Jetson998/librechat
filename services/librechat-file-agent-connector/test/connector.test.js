@@ -306,6 +306,10 @@ test('completed Runtime task records usage, delivers one artifact, then finalize
   assert.equal(harness.ports.finalEvents.size, 1);
   assert.equal(harness.ports.completedJobs.size, 1);
   assert.deepEqual(harness.ports.messages.get('assistant-message-1').fileIds.length, 1);
+  assert.equal(
+    harness.ports.finalEvents.get('stream-1').text,
+    harness.ports.messages.get('assistant-message-1').text,
+  );
 
   const artifactIndex = harness.ports.operations.findIndex((entry) => entry.startsWith('artifact:'));
   const messageIndex = harness.ports.operations.indexOf('message:saved');

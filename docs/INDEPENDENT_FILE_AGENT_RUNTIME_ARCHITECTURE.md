@@ -7,8 +7,10 @@ the recorded-relay Phase 2A single-model POC are implemented and locally
 verified; there is no production traffic, LibreChat integration, or deployment.
 The Phase 2B one-shot harness, invalid-response receipt recovery, and a new
 strict-schema real relay task are complete. The Phase 3A local LibreChat
-Connector contract POC is implemented and verified; Phase 3B integration and
-production routing have not started. Records:
+Connector contract POC is implemented and verified. Phase 3B repository-side
+Mongo, native-port, lease, and signed-service-scope adapters are also locally
+verified; real non-production LibreChat wiring and production routing have not
+started. Records:
 `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`,
 `docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`, and
 `docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`. Phase 2B harness record:
@@ -17,7 +19,8 @@ production routing have not started. Records:
 `docs/FILE_AGENT_RUNTIME_PHASE2B_INVALID_PLAN_RECEIPT_PLAN.md`. Real acceptance:
 `docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_ACCEPTANCE.md`. Connector plan:
 `docs/FILE_AGENT_RUNTIME_PHASE3_CONNECTOR_PLAN.md`. Phase 3A implementation:
-`docs/FILE_AGENT_RUNTIME_PHASE3A_IMPLEMENTATION.md`.
+`docs/FILE_AGENT_RUNTIME_PHASE3A_IMPLEMENTATION.md`. Phase 3B implementation:
+`docs/FILE_AGENT_RUNTIME_PHASE3B_IMPLEMENTATION.md`.
 
 ## 一、决策摘要
 

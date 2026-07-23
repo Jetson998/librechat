@@ -2,10 +2,11 @@
 
 Date: 2026-07-23
 
-Status: design gate approved, Phase 2B prerequisite satisfied, and Phase 3A
-local Connector contract POC implemented. Phase 3B integration has not started.
-This plan does not approve production traffic, customer files, billable
-acceptance, or deployment.
+Status: design gate approved, Phase 2B prerequisite satisfied, Phase 3A local
+Connector contract POC implemented, and Phase 3B repository-side native
+adapters locally verified. Real non-production LibreChat wiring and interruption
+acceptance remain pending. This plan does not approve production traffic,
+customer files, billable acceptance, or deployment.
 
 ## 一、目标
 
@@ -445,6 +446,10 @@ expiry
 - 只对测试账号和测试 conversation 开 flag；
 - Runtime、LibreChat API 和浏览器分别做一次中断恢复；
 - 不进入生产，不使用客户文件。
+
+Repository-side adapter result: implemented and locally verified. Real
+non-production process wiring and browser interruption acceptance remain a
+separate gate; see `docs/FILE_AGENT_RUNTIME_PHASE3B_IMPLEMENTATION.md`.
 
 ### Phase 3C：受控发布候选
 

@@ -13,6 +13,7 @@ POC described in:
 - `docs/FILE_AGENT_RUNTIME_PHASE2B_HARNESS_IMPLEMENTATION.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE3_CONNECTOR_PLAN.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE3A_IMPLEMENTATION.md`
+- `docs/FILE_AGENT_RUNTIME_PHASE3B_IMPLEMENTATION.md`
 
 It uses Node.js built-in modules only. The Phase 1 XLSX fixture executes Python
 inside an isolated test CodeAPI service; the Runtime package itself does not
@@ -44,11 +45,13 @@ import Python libraries.
 - fake adapters for the original Phase 0 state-machine tests;
 - local development HTTP API bound to `127.0.0.1` by default.
 - read-only Runtime capability discovery for the Phase 3A Connector contract.
+- optional Phase 3B request authorization hook for signed internal `/v1/*`
+  service scopes; `/healthz` remains outside service authentication.
 
 ## Not Implemented
 
 - production LibreChat Connector integration;
-- production authentication or signed task scopes;
+- production secret distribution, rotation, or public authentication;
 - production CodeAPI authentication or protocol mapping;
 - persistent external model credentials or a production model route;
 - Word, PPT, PDF, or general Office workers;

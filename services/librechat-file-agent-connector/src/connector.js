@@ -8,12 +8,22 @@ import { decideFileAgentPreflight, decideFileAgentRoute } from './task-router.js
 import { UsageIngestion } from './usage-ingestion.js';
 
 export class LibreChatFileAgentConnector {
-  constructor({ store, runtimeClient, ports, featureEnabled = false, allowlistedUserIds = new Set() }) {
+  constructor({
+    store,
+    runtimeClient,
+    ports,
+    featureEnabled = false,
+    allowlistedUserIds = new Set(),
+    reconcilerId = randomUUID(),
+    leaseTtlMs = 30_000,
+  }) {
     this.store = store;
     this.runtimeClient = runtimeClient;
     this.ports = ports;
     this.featureEnabled = featureEnabled;
     this.allowlistedUserIds = allowlistedUserIds;
+    this.reconcilerId = reconcilerId;
+    this.leaseTtlMs = leaseTtlMs;
     const finalizer = new MessageFinalizer({ store, ports });
     this.finalizer = finalizer;
     this.consumer = new EventConsumer({
@@ -122,10 +132,25 @@ export class LibreChatFileAgentConnector {
         results.push(delivery);
         continue;
       }
+      let leased = null;
+      if (typeof this.store.acquireLease === 'function') {
+        leased = await this.store.acquireLease(delivery.deliveryId, {
+          owner: this.reconcilerId,
+          ttlMs: this.leaseTtlMs,
+        });
+        if (!leased) {
+          results.push(delivery);
+          continue;
+        }
+      }
       try {
         results.push(await this.reconcile(delivery.deliveryId));
       } catch (error) {
         results.push({ deliveryId: delivery.deliveryId, error: error.message });
+      } finally {
+        if (leased && typeof this.store.releaseLease === 'function') {
+          await this.store.releaseLease(delivery.deliveryId, this.reconcilerId);
+        }
       }
     }
     return results;

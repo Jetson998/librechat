@@ -1,8 +1,9 @@
 # LibreChat File Agent Connector
 
-This package is the Phase 3A local contract POC between LibreChat and the
-independent File Agent Runtime. It uses Node.js built-in modules only and has no
-production entry point.
+This package contains the Phase 3A local contract POC and the Phase 3B
+non-production LibreChat integration adapters for the independent File Agent
+Runtime. It uses Node.js built-in modules only and has no production entry
+point.
 
 ## Implemented
 
@@ -18,13 +19,19 @@ production entry point.
 - delivery retry after message or final-event interruption;
 - delivery failure for artifact policy violations;
 - restart reconciliation from the last completed Runtime sequence.
+- Mongo-backed delivery records with optimistic updates, unique submission
+  identities, recoverable scans, and short multi-replica leases;
+- immutable model-specific billing snapshots without endpoint credentials;
+- injected native LibreChat ports for structured transactions,
+  `processCodeOutput()`, message persistence, and GenerationJobManager;
+- stable transaction IDs that repair partial usage writes without rebilling;
+- HMAC service scopes bound to the exact HTTP method, path, query, body, and
+  task idempotency header.
 
 ## Not Implemented
 
-- Mongo-backed delivery records or multi-replica leases;
-- real `prepareStructuredTokenSpend()` or `bulkWriteTransactions()` calls;
-- real `processCodeOutput()`, message persistence, or GenerationJobManager;
-- production service authentication or signed task scopes;
+- a production wiring module for concrete LibreChat imports or collections;
+- a production Runtime secret source, rotation policy, or network deployment;
 - production feature flags, customer files, or deployment;
 - Word, PPT, PDF, or additional Runtime workers.
 
@@ -36,6 +43,6 @@ npm run check
 npm test
 ```
 
-Tests route requests through the real local Runtime HTTP handler and use
-recorded LibreChat ports. They do not access Mongo, CodeAPI, a model relay, or
-the network.
+Tests route requests through the real local Runtime HTTP handler, recorded
+LibreChat ports, and an in-memory Mongo contract double. They do not access a
+real Mongo deployment, CodeAPI, a model relay, customer files, or the network.

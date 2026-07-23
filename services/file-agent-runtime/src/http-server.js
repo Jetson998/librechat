@@ -64,13 +64,17 @@ function parseAfter(url) {
 export async function handleRuntimeFetch(
   runtime,
   request,
-  { capabilities = DEFAULT_RUNTIME_CAPABILITIES } = {},
+  { capabilities = DEFAULT_RUNTIME_CAPABILITIES, authorizeRequest = null } = {},
 ) {
   try {
     const url = new URL(request.url);
 
     if (request.method === 'GET' && url.pathname === '/healthz') {
       return jsonResponse(200, { status: 'ok', mode: 'development' });
+    }
+
+    if (url.pathname.startsWith('/v1/') && authorizeRequest) {
+      await authorizeRequest(request.clone());
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/capabilities') {
@@ -157,7 +161,7 @@ function toWebHeaders(incomingHeaders) {
   return headers;
 }
 
-export function createRuntimeHttpServer(runtime) {
+export function createRuntimeHttpServer(runtime, options = {}) {
   return createServer(async (incoming, outgoing) => {
     try {
       const body = ['GET', 'HEAD'].includes(incoming.method) ? undefined : await readIncomingBody(incoming);
@@ -166,7 +170,7 @@ export function createRuntimeHttpServer(runtime) {
         headers: toWebHeaders(incoming.headers),
         body,
       });
-      const response = await handleRuntimeFetch(runtime, request);
+      const response = await handleRuntimeFetch(runtime, request, options);
       const responseBody = Buffer.from(await response.arrayBuffer());
       outgoing.writeHead(response.status, Object.fromEntries(response.headers));
       outgoing.end(responseBody);
