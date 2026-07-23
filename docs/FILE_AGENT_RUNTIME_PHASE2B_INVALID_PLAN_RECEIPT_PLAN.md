@@ -2,8 +2,9 @@
 
 Date: 2026-07-23
 
-Status: implemented and locally verified. A second real-model request remains a
-separate, one-shot acceptance action and must use a new run directory.
+Status: implemented, locally verified, and followed by a successful isolated
+real-model acceptance in a new run directory. See
+`docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_ACCEPTANCE.md`.
 
 ## 一、目标
 
@@ -183,8 +184,9 @@ action.summary: bounded string
 用于不支持 strict JSON Schema 的 relay，继续发送 JSON object，但必须经过相同本地
 白名单校验。模型多字段时直接 completed_invalid，不做同任务 prompt retry。
 
-目标 relay 本次只证明 `json_object` 成功，尚未证明 `json_schema`。第二次真实验收前
-必须明确选择模式，不能自动失败后切换协议再请求。
+第一次目标 relay 请求只证明了 `json_object`。后续单独批准的真实验收明确选择
+`json_schema`，两次请求均返回 HTTP 200，两个计划也通过本地白名单校验。整个过程
+没有在协议失败后自动切换模式或追加请求。
 
 ## 七、usage 字段
 
@@ -256,9 +258,9 @@ documentation
 不修改 LibreChat Connector、生产 patch、CodeAPI、Office Worker、价格、transaction、
 消息、文件或 UI。
 
-## 十一、停止条件
+## 十一、真实复验启动前停止条件
 
-出现以下任一情况不执行第二次真实验收：
+真实复验启动前曾使用以下停止条件；这些条件均在复验前完成检查：
 
 - invalid receipt 仍可能保持 pending；
 - usage 不能在 failed task 中幂等保留；
@@ -297,5 +299,5 @@ diff check: passed
 ```
 
 测试证明无效响应只触发一次 relay execution，重放使用安全回执；journal 和报告均不含
-未知字段值、原始响应、API Key 或 relay URL。真实 relay 的第二次单次验收结果必须
-另行记录，不能由本地测试替代。
+未知字段值、原始响应、API Key 或 relay URL。真实 relay 的第二次单次验收已另行记录
+在 `docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_ACCEPTANCE.md`，没有用本地测试替代。
