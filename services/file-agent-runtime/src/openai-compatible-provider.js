@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import {
+  ProviderAmbiguousCommitError,
   ProviderCanceledError,
   ProviderProtocolError,
   ProviderRejectedError,
@@ -41,10 +42,69 @@ function normalizeUsage(usage) {
       'cacheReadTokens',
     ),
     cacheWriteTokens: nonNegativeInteger(
-      usage.cache_creation_input_tokens ?? usage.cache_write_tokens ?? 0,
+      usage.prompt_tokens_details?.cached_creation_tokens ??
+        usage.cache_creation_input_tokens ??
+        usage.cache_write_tokens ??
+        0,
       'cacheWriteTokens',
     ),
     outputTokens: nonNegativeInteger(usage.completion_tokens ?? usage.output_tokens, 'outputTokens'),
+  };
+}
+
+function responseFormatFor(route, operation) {
+  const mode = route.structuredOutputMode ?? 'json_object';
+  if (mode === 'json_object') {
+    return { type: 'json_object' };
+  }
+  if (mode !== 'json_schema') {
+    throw new ProviderRouteError(`Unsupported structured output mode: ${mode}`);
+  }
+  const actionKind = operation === 'repair' ? 'xlsx_patch_and_transform' : 'xlsx_transform';
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: `office_${operation}_plan`,
+      strict: true,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          schemaVersion: { type: 'string', const: '1.0' },
+          summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+          needsInput: { type: 'boolean' },
+          question: {
+            anyOf: [
+              { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+              { type: 'null' },
+            ],
+          },
+          actions: {
+            type: 'array',
+            minItems: 0,
+            maxItems: MAX_ACTIONS,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                kind: { type: 'string', enum: [actionKind] },
+                summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+              },
+              required: ['kind', 'summary'],
+            },
+          },
+        },
+        required: ['schemaVersion', 'summary', 'needsInput', 'question', 'actions'],
+      },
+    },
+  };
+}
+
+function safeProtocolError(error) {
+  return {
+    name: error.name,
+    code: error.code,
+    message: error.message,
   };
 }
 
@@ -163,7 +223,7 @@ export class OpenAiChatTransport {
               content: JSON.stringify({ operation, context }),
             },
           ],
-          response_format: { type: 'json_object' },
+          response_format: responseFormatFor(route, operation),
           max_tokens: route.outputBudgetTokens,
           temperature: 0,
           metadata: { operation, call_id: callId },
@@ -222,8 +282,13 @@ export class SingleModelAgentProvider {
     if (!transport || typeof transport.invoke !== 'function') {
       throw new TypeError('SingleModelAgentProvider transport.invoke is required');
     }
-    if (!journal || typeof journal.begin !== 'function' || typeof journal.complete !== 'function') {
-      throw new TypeError('SingleModelAgentProvider journal is required');
+    if (
+      !journal ||
+      typeof journal.begin !== 'function' ||
+      typeof journal.completeValid !== 'function' ||
+      typeof journal.completeInvalid !== 'function'
+    ) {
+      throw new TypeError('SingleModelAgentProvider journal with valid and invalid completion is required');
     }
     if (!projector || typeof projector.project !== 'function') {
       throw new TypeError('SingleModelAgentProvider projector is required');
@@ -251,6 +316,9 @@ export class SingleModelAgentProvider {
     }
     if (route.capabilityProfile !== capabilityProfile) {
       throw new ProviderRouteError('Task capability profile does not match the configured route');
+    }
+    if (!PROFILE_ACTIONS[capabilityProfile]) {
+      throw new ProviderRouteError(`Unsupported capability profile: ${capabilityProfile}`);
     }
     if (
       typeof route.baseUrl !== 'string' ||
@@ -281,6 +349,13 @@ export class SingleModelAgentProvider {
         call: { ...journalState.result.call, replayed: true },
       };
     }
+    if (journalState.action === 'replay_invalid') {
+      const receipt = {
+        ...journalState.receipt,
+        call: { ...journalState.receipt.call, replayed: true },
+      };
+      throw new ProviderProtocolError(receipt.error.message, { receipt });
+    }
 
     const response = await this.transport.invoke({
       callId,
@@ -289,26 +364,51 @@ export class SingleModelAgentProvider {
       context: projection.context,
       signal,
     });
-    const value = validatePlan(response.plan, { capabilityProfile, operation });
     const occurredAt = new Date().toISOString();
-    const result = {
-      value,
-      call: {
-        callId,
-        modelRouteId: routeId,
-        providerModel: response.providerModel,
-        replayed: journalState.replay === true,
-      },
-      usage: {
-        ...response.usage,
-        occurredAt,
-      },
-      context: {
-        digest: projection.digest,
-        characters: projection.characters,
-        compaction: projection.compaction,
-      },
+    const call = {
+      callId,
+      modelRouteId: routeId,
+      providerModel: response.providerModel,
+      replayed: journalState.replay === true,
     };
-    return this.journal.complete({ callId, requestDigest, routeId, result });
+    const usage = { ...response.usage, occurredAt };
+    const context = {
+      digest: projection.digest,
+      characters: projection.characters,
+      compaction: projection.compaction,
+    };
+    const responseDigest = sha256(JSON.stringify(response.plan));
+    let value;
+    try {
+      value = validatePlan(response.plan, { capabilityProfile, operation });
+    } catch (error) {
+      if (!(error instanceof ProviderProtocolError)) {
+        throw error;
+      }
+      const receipt = {
+        call,
+        usage,
+        context,
+        responseDigest,
+        error: safeProtocolError(error),
+      };
+      let persistedReceipt;
+      try {
+        persistedReceipt = await this.journal.completeInvalid({
+          callId,
+          requestDigest,
+          routeId,
+          receipt,
+        });
+      } catch (cause) {
+        throw new ProviderAmbiguousCommitError(
+          'Provider returned an invalid plan but its completion receipt could not be persisted',
+          { cause },
+        );
+      }
+      throw new ProviderProtocolError(error.message, { receipt: persistedReceipt });
+    }
+    const result = { value, call, usage, context };
+    return this.journal.completeValid({ callId, requestDigest, routeId, result });
   }
 }

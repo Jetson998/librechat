@@ -2,9 +2,11 @@
 
 Date: 2026-07-23
 
-Status: one-shot harness implemented and locally verified. One approved real
-relay request was later attempted and failed strict plan validation. No retry
-was performed. See `docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_FAILURE.md`.
+Status: one-shot harness and invalid-plan receipt recovery are implemented and
+locally verified. A new isolated real relay task subsequently passed Phase 2B.
+See
+`docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_FAILURE.md` and
+`docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_ACCEPTANCE.md`.
 
 ## 一、完成范围
 
@@ -169,7 +171,7 @@ git diff --check
 
 ```text
 syntax checks: passed
-tests: 23 passed, 0 failed
+tests: 27 passed, 0 failed
 diff check: passed
 ```
 
@@ -194,9 +196,14 @@ loopback，因此测试通过明确授权在沙箱外执行；仍未访问外部
 但模型 plan 包含白名单之外的字段，任务在 CodeAPI 前失败。失败同时暴露了 invalid
 plan 的付费调用没有 completed journal 和 usage receipt 的问题。
 
-Phase 2B 保持不通过。必须先实现并验证
-`docs/FILE_AGENT_RUNTIME_PHASE2B_INVALID_PLAN_RECEIPT_PLAN.md`；第二次真实调用需新
-审批和预算，不能自动重试或覆盖第一次证据。
+无效计划回执修复已实现并通过本地全量测试：失败响应会写 `completed_invalid`，四粒度
+usage 会在任务失败事件前幂等保留，安全回执重放不会再次调用 relay。第一次真实失败
+证据仍保持原样，不迁移旧 pending journal。
+
+新的隔离真实任务已使用 strict `json_schema` 完成 transform、验证失败后的增量 repair、
+再次验证和单一 XLSX artifact 发布。Phase 2B 现已通过；第一次失败证据和旧 pending
+journal 仍保持原样。完整结果见
+`docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_ACCEPTANCE.md`。
 
 ## 十、回滚
 

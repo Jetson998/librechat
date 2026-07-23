@@ -2,8 +2,8 @@
 
 Date: 2026-07-23
 
-Status: design gate. No implementation or second real-model request is approved
-by this document.
+Status: implemented and locally verified. A second real-model request remains a
+separate, one-shot acceptance action and must use a new run directory.
 
 ## 一、目标
 
@@ -272,3 +272,30 @@ documentation
 
 本方案没有生产影响。实现回滚为撤销后续代码提交；本次真实失败记录和脱敏运行目录
 必须保留，不因回滚删除。
+
+## 十三、实施结果
+
+实现范围严格保持在第十节边界内：
+
+- journal 新增 `completed_valid` / `completed_invalid`，并兼容读取旧 `completed`；
+- 无效 plan 在抛出协议错误前写入仅含 call、四粒度 usage、context 摘要、响应摘要和
+  固定错误信息的安全回执；
+- Runtime 在 `item.failed` / `task.failed` 前幂等写入回执 usage；
+- `completed_invalid` 重放不再调用 relay；
+- 无效回执写盘失败转为 `ProviderAmbiguousCommitError`；
+- route 可显式选择 `json_object` 或 strict `json_schema`，本地白名单校验始终保留；
+- `prompt_tokens_details.cached_creation_tokens` 已映射为 cache write usage；
+- Phase 2B 报告增加 transport completion、plan acceptance、journal 状态、协议错误、
+  响应摘要和无效回执 usage 证明，不保存原始 plan。
+
+本地验证：
+
+```text
+syntax checks: passed
+tests: 27 passed, 0 failed
+diff check: passed
+```
+
+测试证明无效响应只触发一次 relay execution，重放使用安全回执；journal 和报告均不含
+未知字段值、原始响应、API Key 或 relay URL。真实 relay 的第二次单次验收结果必须
+另行记录，不能由本地测试替代。

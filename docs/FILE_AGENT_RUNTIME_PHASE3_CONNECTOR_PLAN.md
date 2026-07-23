@@ -2,9 +2,9 @@
 
 Date: 2026-07-23
 
-Status: design gate only. Implementation and any LibreChat connection remain
-blocked until Phase 2B confirms the real relay contract. This plan does not
-approve production traffic, customer files, billable acceptance, or deployment.
+Status: design gate approved and Phase 2B prerequisite satisfied. Connector
+implementation may begin in the repository, but this plan does not approve
+production traffic, customer files, billable acceptance, or deployment.
 
 ## 一、目标
 
@@ -32,8 +32,10 @@ Phase 3 实现前必须先完成 Phase 2B，并留下可审计结果：
 4. 记录模型计划质量、调用次数、Token 和延迟；
 5. 不写 LibreChat transaction，不访问客户文件，不部署生产。
 
-Phase 2B 未通过时允许继续编写契约测试和本地 fixture，但不得让 Connector 调用
-真实 Runtime route，也不得在 LibreChat 请求路径启用 feature flag。
+Phase 2B 已通过，证据见
+`docs/FILE_AGENT_RUNTIME_PHASE2B_REAL_RELAY_ACCEPTANCE.md`。Connector 实现仍必须先
+完成本地契约测试和 release gate；在单独审批前，不得让 LibreChat 请求路径启用真实
+Runtime route 或 feature flag。
 
 ## 三、责任边界
 

@@ -12,7 +12,11 @@ import { ExecutorAdapter } from '../src/executor-adapter.js';
 import { FakeExecutor } from '../src/fake-adapters.js';
 import { FileModelCallJournal } from '../src/model-call-journal.js';
 import { OpenAiChatTransport, SingleModelAgentProvider } from '../src/openai-compatible-provider.js';
-import { ProviderAmbiguousCommitError, ProviderCallConflictError } from '../src/provider-adapter.js';
+import {
+  ProviderAmbiguousCommitError,
+  ProviderCallConflictError,
+  ProviderProtocolError,
+} from '../src/provider-adapter.js';
 import { FileAgentRuntime, RuntimeShutdownError } from '../src/runtime.js';
 import { FileTaskStore } from '../src/task-store.js';
 import { IsolatedCodeApiServer } from './isolated-codeapi.js';
@@ -421,6 +425,204 @@ test('Provider rejects unknown actions and command-bearing model output', async 
   );
   assert.equal(failed.error.code, 'PROVIDER_PROTOCOL');
   assert.match(failed.error.message, /unsupported fields|not allowed/);
+  assert.deepEqual(
+    failed.usageRecords.map((usage) => [
+      usage.inputTokens,
+      usage.cacheReadTokens,
+      usage.cacheWriteTokens,
+      usage.outputTokens,
+    ]),
+    [[500, 0, 0, 70]],
+  );
+  const usageSequence = failed.events.find((event) => event.type === 'usage.recorded').sequence;
+  const itemFailed = failed.events.find((event) => event.type === 'item.failed');
+  const taskFailed = failed.events.find((event) => event.type === 'task.failed');
+  assert.ok(usageSequence < itemFailed.sequence);
+  assert.ok(itemFailed.sequence < taskFailed.sequence);
+  const journal = new FileModelCallJournal(path.join(rootDir, 'provider-journal'));
+  const journalRecord = await journal.get(itemFailed.item.itemId);
+  assert.equal(journalRecord.status, 'completed_invalid');
+  assert.equal(journalRecord.receipt.error.code, 'PROVIDER_PROTOCOL');
+  const persistedJournal = JSON.stringify(journalRecord);
+  assert.ok(!persistedJournal.includes('run_shell'));
+  assert.ok(!persistedJournal.includes('cat /etc/passwd'));
+  assert.ok(!persistedJournal.includes('command'));
+});
+
+test('Completed invalid plan replays its safe receipt without another model request', async (t) => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-phase2-invalid-replay-'));
+  const relay = await new IsolatedModelRelay({
+    responseFor: () => ({
+      schemaVersion: '1.0',
+      summary: 'Return one plan with an unsupported top-level field',
+      needsInput: false,
+      actions: [{ kind: 'xlsx_transform', summary: 'Use the stable transform' }],
+      unsupportedDetail: 'must-not-be-persisted',
+    }),
+  }).start();
+  t.after(async () => {
+    await relay.stop();
+    await rm(rootDir, { recursive: true, force: true });
+  });
+  const provider = createProvider({ rootDir, relay, supportsIdempotency: false });
+  const task = {
+    taskId: 'phase2-invalid-replay-task',
+    manifest: modelManifest(),
+    phase: 'planning',
+    planRevision: 0,
+    instructionRevision: 0,
+    events: [],
+    itemResults: {},
+    progress: {
+      stagnationCount: 0,
+      lastFailedVerificationFingerprint: null,
+    },
+  };
+  const callId = 'phase2-invalid-replay-call';
+
+  let firstError;
+  await assert.rejects(
+    provider.plan({ callId, task }),
+    (error) => {
+      firstError = error;
+      return error instanceof ProviderProtocolError && error.receipt?.call?.replayed === false;
+    },
+  );
+  let replayError;
+  await assert.rejects(
+    provider.plan({ callId, task }),
+    (error) => {
+      replayError = error;
+      return error instanceof ProviderProtocolError && error.receipt?.call?.replayed === true;
+    },
+  );
+
+  assert.equal(relay.executionCount(callId), 1);
+  assert.deepEqual(replayError.receipt.usage, firstError.receipt.usage);
+  assert.equal(replayError.receipt.responseDigest, firstError.receipt.responseDigest);
+  const journalRecord = await new FileModelCallJournal(
+    path.join(rootDir, 'provider-journal'),
+  ).get(callId);
+  assert.equal(journalRecord.status, 'completed_invalid');
+  assert.ok(!JSON.stringify(journalRecord).includes('must-not-be-persisted'));
+});
+
+test('Strict JSON Schema forbids extra fields and cached_creation_tokens maps to cache write', async () => {
+  let requestBody;
+  const transport = new OpenAiChatTransport({
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return new Response(JSON.stringify({
+        model: 'strict-schema-model',
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                schemaVersion: '1.0',
+                summary: 'Use the stable transform',
+                needsInput: false,
+                question: null,
+                actions: [{ kind: 'xlsx_transform', summary: 'Transform the workbook' }],
+              }),
+            },
+          },
+        ],
+        usage: {
+          prompt_tokens: 800,
+          completion_tokens: 60,
+          prompt_tokens_details: {
+            cached_tokens: 120,
+            cached_creation_tokens: 45,
+          },
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    },
+  });
+
+  const result = await transport.invoke({
+    callId: 'strict-schema-call',
+    route: {
+      baseUrl: 'https://strict.example.invalid',
+      model: 'strict-schema-model',
+      outputBudgetTokens: 256,
+      structuredOutputMode: 'json_schema',
+    },
+    operation: 'plan',
+    context: { schemaVersion: '1.0', objective: 'Test strict schema' },
+  });
+
+  assert.equal(requestBody.response_format.type, 'json_schema');
+  assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.equal(requestBody.response_format.json_schema.schema.additionalProperties, false);
+  assert.equal(
+    requestBody.response_format.json_schema.schema.properties.actions.items.additionalProperties,
+    false,
+  );
+  assert.equal(result.usage.cacheReadTokens, 120);
+  assert.equal(result.usage.cacheWriteTokens, 45);
+});
+
+test('Invalid plan receipt persistence failure becomes ambiguous', async () => {
+  const provider = new SingleModelAgentProvider({
+    routes: {
+      'file-agent-primary': {
+        baseUrl: 'https://recorded.example.invalid',
+        model: 'recorded-model',
+        capabilityProfile: 'office-planner-v1',
+        supportsIdempotency: false,
+        outputBudgetTokens: 128,
+      },
+    },
+    transport: {
+      async invoke() {
+        return {
+          plan: {
+            schemaVersion: '1.0',
+            summary: 'Invalid extra field',
+            needsInput: false,
+            actions: [{ kind: 'xlsx_transform', summary: 'Transform' }],
+            extra: true,
+          },
+          providerModel: 'recorded-model',
+          usage: {
+            inputTokens: 100,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            outputTokens: 20,
+          },
+        };
+      },
+    },
+    journal: {
+      async begin() {
+        return { action: 'execute', replay: false };
+      },
+      async completeValid() {
+        throw new Error('valid completion must not run');
+      },
+      async completeInvalid() {
+        throw new Error('injected journal write failure');
+      },
+    },
+    projector: {
+      project() {
+        return {
+          context: { schemaVersion: '1.0' },
+          digest: 'context-digest',
+          characters: 23,
+          compaction: null,
+        };
+      },
+    },
+  });
+
+  await assert.rejects(
+    provider.plan({
+      callId: 'invalid-write-failure',
+      task: { manifest: modelManifest() },
+    }),
+    ProviderAmbiguousCommitError,
+  );
 });
 
 test('Ambiguous provider completion moves the task to needs_input without an automatic retry', async (t) => {

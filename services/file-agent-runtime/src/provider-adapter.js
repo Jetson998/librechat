@@ -1,9 +1,12 @@
 export class ProviderError extends Error {
-  constructor(message, { code = 'PROVIDER_ERROR', retryable = false, cause } = {}) {
+  constructor(message, { code = 'PROVIDER_ERROR', retryable = false, cause, receipt } = {}) {
     super(message, { cause });
     this.name = new.target.name;
     this.code = code;
     this.retryable = retryable;
+    if (receipt) {
+      this.receipt = structuredClone(receipt);
+    }
   }
 }
 

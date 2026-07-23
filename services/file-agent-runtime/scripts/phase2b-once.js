@@ -65,6 +65,14 @@ function parseBoolean(value, fallback = false) {
   throw new TypeError('FILE_AGENT_PHASE2B_SUPPORTS_IDEMPOTENCY must be true or false');
 }
 
+function structuredOutputMode(value) {
+  const mode = value || 'json_object';
+  if (!['json_object', 'json_schema'].includes(mode)) {
+    throw new TypeError('FILE_AGENT_PHASE2B_STRUCTURED_OUTPUT_MODE must be json_object or json_schema');
+  }
+  return mode;
+}
+
 function isLoopback(url) {
   const hostname = new URL(url).hostname;
   return ['127.0.0.1', '::1', 'localhost'].includes(hostname);
@@ -95,6 +103,7 @@ function validateOptions(options) {
     apiKey,
     baseUrl,
     model,
+    structuredOutputMode: structuredOutputMode(options.structuredOutputMode),
     supportsIdempotency: parseBoolean(options.supportsIdempotency, false),
   };
 }
@@ -180,7 +189,22 @@ class Phase2BBudgetedProvider {
       throw new ProviderRouteError(`Phase 2B call budget exceeded: ${MAX_CALLS}`);
     }
     this.attemptedCalls += 1;
-    const result = await this.delegate[operation](args);
+    let result;
+    try {
+      result = await this.delegate[operation](args);
+    } catch (error) {
+      if (error?.receipt?.usage) {
+        this.journaledCalls += 1;
+        this.totalInputTokens += error.receipt.usage.inputTokens;
+        this.totalOutputTokens += error.receipt.usage.outputTokens;
+        this.budgetExceeded =
+          error.receipt.usage.inputTokens > INPUT_BUDGET_TOKENS_PER_CALL ||
+          this.totalInputTokens > TOTAL_INPUT_BUDGET_TOKENS ||
+          error.receipt.usage.outputTokens > OUTPUT_BUDGET_TOKENS_PER_CALL ||
+          this.totalOutputTokens > TOTAL_OUTPUT_BUDGET_TOKENS;
+      }
+      throw error;
+    }
     this.journaledCalls += 1;
     this.totalInputTokens += result.usage.inputTokens;
     this.totalOutputTokens += result.usage.outputTokens;
@@ -256,10 +280,21 @@ function usageTotals(task) {
   );
 }
 
-function buildReport({ task, observations, budget, fixtureHash, startedAt, finishedAt, supportsIdempotency }) {
+function buildReport({
+  task,
+  observations,
+  budget,
+  fixtureHash,
+  journalRecords,
+  startedAt,
+  finishedAt,
+  structuredOutputMode: outputMode,
+  supportsIdempotency,
+}) {
   const successfulObservations = observations.filter(
     (entry) => entry.response.status >= 200 && entry.response.status < 300,
   );
+  const invalidRecords = journalRecords.filter((record) => record.status === 'completed_invalid');
   return {
     schemaVersion: '1.0',
     phase: '2B',
@@ -280,6 +315,7 @@ function buildReport({ task, observations, budget, fixtureHash, startedAt, finis
       providerModels: [...new Set((task.usageRecords ?? []).map((usage) => usage.providerModel))],
       capabilityProfile: CAPABILITY_PROFILE,
       operatorDeclaredIdempotency: supportsIdempotency,
+      structuredOutputMode: outputMode,
     },
     fixture: {
       name: 'phase2b-source.xlsx',
@@ -298,11 +334,23 @@ function buildReport({ task, observations, budget, fixtureHash, startedAt, finis
     usage: usageTotals(task),
     contract: {
       requestCount: observations.length,
+      transportCompleted: successfulObservations.length > 0,
+      planAccepted: journalRecords.some((record) => record.status === 'completed_valid'),
+      journalStatuses: journalRecords.map((record) => record.status),
+      protocolError: task.error?.code === 'PROVIDER_PROTOCOL'
+        ? { code: task.error.code, name: task.error.name, message: task.error.message }
+        : null,
+      responseDigests: invalidRecords.map((record) => record.receipt?.responseDigest).filter(Boolean),
+      usageFromInvalidReceipt:
+        invalidRecords.length > 0 &&
+        invalidRecords.every((record) =>
+          task.recordedUsageEventIds?.includes(record.receipt?.call?.callId),
+        ),
       chatCompletionsAccepted: successfulObservations.length > 0,
       responseFormatAccepted:
         successfulObservations.length > 0 &&
         successfulObservations.every(
-          (entry) => entry.request.responseFormatType === 'json_object',
+          (entry) => entry.request.responseFormatType === outputMode,
         ),
       metadataAccepted:
         successfulObservations.length > 0 &&
@@ -373,6 +421,7 @@ export async function runPhase2B(rawOptions) {
   });
 
   const store = new FileTaskStore(path.join(runDir, 'runtime'));
+  const journal = new FileModelCallJournal(path.join(runDir, 'provider-journal'));
   const budgetedProvider = new Phase2BBudgetedProvider(
     new SingleModelAgentProvider({
       routes: {
@@ -382,11 +431,12 @@ export async function runPhase2B(rawOptions) {
           apiKey: options.apiKey,
           capabilityProfile: CAPABILITY_PROFILE,
           supportsIdempotency: options.supportsIdempotency,
+          structuredOutputMode: options.structuredOutputMode,
           outputBudgetTokens: OUTPUT_BUDGET_TOKENS_PER_CALL,
         },
       },
       transport: guardedTransport,
-      journal: new FileModelCallJournal(path.join(runDir, 'provider-journal')),
+      journal,
       projector: new ContextProjector({ maxChars: CONTEXT_BUDGET_CHARS }),
     }),
   );
@@ -447,6 +497,16 @@ export async function runPhase2B(rawOptions) {
     );
     const finishedAt = new Date().toISOString();
     await assertSecretsNotPersisted(runDir, [options.apiKey, options.baseUrl]);
+    const modelCallIds = (task.events ?? [])
+      .filter(
+        (event) =>
+          event.type === 'item.started' &&
+          ['model_plan', 'model_repair_plan'].includes(event.item?.kind),
+      )
+      .map((event) => event.item.itemId);
+    const journalRecords = (
+      await Promise.all(modelCallIds.map((callId) => journal.get(callId)))
+    ).filter(Boolean);
     const reportPath = path.join(runDir, 'phase2b-report.json');
     if (observed.observations.length === 0) {
       try {
@@ -465,8 +525,10 @@ export async function runPhase2B(rawOptions) {
       observations: observed.observations,
       budget: budgetedProvider.snapshot(),
       fixtureHash,
+      journalRecords,
       startedAt,
       finishedAt,
+      structuredOutputMode: options.structuredOutputMode,
       supportsIdempotency: options.supportsIdempotency,
     });
     await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, {
@@ -488,6 +550,7 @@ function optionsFromEnvironment() {
     confirmation: process.env.FILE_AGENT_PHASE2B_CONFIRM,
     keyScope: process.env.FILE_AGENT_PHASE2B_KEY_SCOPE,
     supportsIdempotency: process.env.FILE_AGENT_PHASE2B_SUPPORTS_IDEMPOTENCY,
+    structuredOutputMode: process.env.FILE_AGENT_PHASE2B_STRUCTURED_OUTPUT_MODE,
     runDir: process.env.FILE_AGENT_PHASE2B_RUN_DIR,
   };
 }

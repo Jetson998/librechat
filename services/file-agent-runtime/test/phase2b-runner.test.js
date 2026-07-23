@@ -25,6 +25,7 @@ test('Phase 2B one-shot runner uses the repository fixture and emits a redacted 
     model: 'recorded-office-planner',
     allowLocalFixture: true,
     supportsIdempotency: true,
+    structuredOutputMode: 'json_schema',
     runDir,
   };
   const first = await runPhase2B(options);
@@ -35,6 +36,7 @@ test('Phase 2B one-shot runner uses the repository fixture and emits a redacted 
   assert.equal(first.budgets.observed.journaledCalls, 2);
   assert.equal(first.budgets.observed.budgetExceeded, false);
   assert.equal(first.contract.requestCount, 2);
+  assert.equal(first.route.structuredOutputMode, 'json_schema');
   assert.equal(first.contract.responseFormatAccepted, true);
   assert.equal(first.contract.metadataAccepted, true);
   assert.equal(first.contract.idempotencyHeaderSent, true);
@@ -129,5 +131,68 @@ test('Phase 2B journals an over-budget paid response before stopping the task', 
   const journalFiles = await readdir(journalDir);
   assert.equal(journalFiles.length, 1);
   const journal = JSON.parse(await readFile(path.join(journalDir, journalFiles[0]), 'utf8'));
-  assert.equal(journal.status, 'completed');
+  assert.equal(journal.status, 'completed_valid');
+});
+
+test('Phase 2B report retains invalid-plan usage without the raw plan', async (t) => {
+  const runDir = await mkdtemp(path.join(tmpdir(), 'file-agent-phase2b-invalid-'));
+  t.after(() => rm(runDir, { recursive: true, force: true }));
+  const fetchImpl = async () => new Response(JSON.stringify({
+    model: 'recorded-invalid-model',
+    choices: [
+      {
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({
+            schemaVersion: '1.0',
+            summary: 'Return invalid extra metadata',
+            needsInput: false,
+            actions: [{ kind: 'xlsx_transform', summary: 'Use the stable transform' }],
+            rawUnsupportedField: 'must-not-appear-in-report-or-journal',
+          }),
+        },
+      },
+    ],
+    usage: {
+      prompt_tokens: 900,
+      completion_tokens: 80,
+      prompt_tokens_details: {
+        cached_tokens: 200,
+        cached_creation_tokens: 30,
+      },
+    },
+  }), { status: 200, headers: { 'content-type': 'application/json' } });
+
+  const report = await runPhase2B({
+    baseUrl: 'http://127.0.0.1:1',
+    apiKey: 'phase2b-invalid-plan-secret',
+    model: 'recorded-invalid-model',
+    allowLocalFixture: true,
+    supportsIdempotency: false,
+    fetchImpl,
+    runDir,
+  });
+
+  assert.equal(report.task.status, 'failed');
+  assert.equal(report.contract.transportCompleted, true);
+  assert.equal(report.contract.planAccepted, false);
+  assert.deepEqual(report.contract.journalStatuses, ['completed_invalid']);
+  assert.equal(report.contract.protocolError.code, 'PROVIDER_PROTOCOL');
+  assert.equal(report.contract.usageFromInvalidReceipt, true);
+  assert.equal(report.contract.responseDigests.length, 1);
+  assert.deepEqual(report.usage, {
+    inputTokens: 900,
+    cacheReadTokens: 200,
+    cacheWriteTokens: 30,
+    outputTokens: 80,
+  });
+  const persisted = (
+    await Promise.all(
+      (await readdir(path.join(runDir, 'provider-journal', 'model-calls'))).map((name) =>
+        readFile(path.join(runDir, 'provider-journal', 'model-calls', name), 'utf8'),
+      ),
+    )
+  ).join('\n');
+  assert.ok(!persisted.includes('must-not-appear-in-report-or-journal'));
+  assert.ok(!JSON.stringify(report).includes('must-not-appear-in-report-or-journal'));
 });

@@ -570,6 +570,7 @@ export class FileAgentRuntime {
           if (isTerminal(current.status)) {
             return false;
           }
+          persistProviderMetadata(current, emit, error?.receipt, itemId);
           if (current.activeItem?.itemId === itemId) {
             current.activeItem = null;
           }

@@ -2,11 +2,11 @@
 
 Date: 2026-07-23
 
-Status: design gate approved. Phase 2A is implemented and locally verified.
-The Phase 2B one-shot harness is implemented; one approved real relay request
-was attempted and failed strict plan validation. No retry was performed. The
-invalid-plan receipt fix is designed but not implemented. Neither phase may
-receive production LibreChat traffic.
+Status: Phase 2A and Phase 2B are implemented and verified. The first real relay
+attempt failed strict plan validation; invalid-plan receipt recovery was then
+implemented, and a new isolated strict-schema task passed. Neither phase may
+receive production LibreChat traffic without the Phase 3 Connector and release
+gates.
 
 ## 一、目标
 

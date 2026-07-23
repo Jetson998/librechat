@@ -50,8 +50,11 @@ export class FileModelCallJournal {
       if (existing.requestDigest !== requestDigest || existing.routeId !== routeId) {
         throw new ProviderCallConflictError();
       }
-      if (existing.status === 'completed') {
+      if (existing.status === 'completed' || existing.status === 'completed_valid') {
         return { action: 'replay', result: clone(existing.result) };
+      }
+      if (existing.status === 'completed_invalid') {
+        return { action: 'replay_invalid', receipt: clone(existing.receipt) };
       }
       if (existing.status === 'ambiguous') {
         throw new ProviderAmbiguousCommitError();
@@ -71,7 +74,11 @@ export class FileModelCallJournal {
     });
   }
 
-  async complete({ callId, requestDigest, routeId, result }) {
+  complete(args) {
+    return this.completeValid(args);
+  }
+
+  async completeValid({ callId, requestDigest, routeId, result }) {
     this.#validateIdentity({ callId, requestDigest, routeId });
     await this.init();
     return this.#withLock(async () => {
@@ -82,18 +89,53 @@ export class FileModelCallJournal {
       if (existing.requestDigest !== requestDigest || existing.routeId !== routeId) {
         throw new ProviderCallConflictError();
       }
-      if (existing.status === 'completed') {
+      if (existing.status === 'completed' || existing.status === 'completed_valid') {
         return clone(existing.result);
+      }
+      if (existing.status === 'completed_invalid') {
+        throw new ProviderCallConflictError('Provider call was already completed with an invalid response');
       }
       if (existing.status === 'ambiguous') {
         throw new ProviderAmbiguousCommitError();
       }
-      existing.status = 'completed';
+      existing.status = 'completed_valid';
       existing.result = clone(result);
       existing.completedAt = new Date().toISOString();
       existing.updatedAt = existing.completedAt;
       await this.#write(callId, existing);
       return clone(existing.result);
+    });
+  }
+
+  async completeInvalid({ callId, requestDigest, routeId, receipt }) {
+    this.#validateIdentity({ callId, requestDigest, routeId });
+    if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) {
+      throw new TypeError('Invalid provider receipt is required');
+    }
+    await this.init();
+    return this.#withLock(async () => {
+      const existing = await this.#read(callId);
+      if (!existing) {
+        throw new ProviderCallConflictError('Provider call was completed without a pending journal entry');
+      }
+      if (existing.requestDigest !== requestDigest || existing.routeId !== routeId) {
+        throw new ProviderCallConflictError();
+      }
+      if (existing.status === 'completed_invalid') {
+        return clone(existing.receipt);
+      }
+      if (existing.status === 'completed' || existing.status === 'completed_valid') {
+        throw new ProviderCallConflictError('Provider call was already completed with a valid response');
+      }
+      if (existing.status === 'ambiguous') {
+        throw new ProviderAmbiguousCommitError();
+      }
+      existing.status = 'completed_invalid';
+      existing.receipt = clone(receipt);
+      existing.completedAt = new Date().toISOString();
+      existing.updatedAt = existing.completedAt;
+      await this.#write(callId, existing);
+      return clone(existing.receipt);
     });
   }
 
