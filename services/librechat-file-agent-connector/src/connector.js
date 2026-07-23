@@ -4,8 +4,32 @@ import { ArtifactDelivery, ArtifactPolicyError } from './artifact-delivery.js';
 import { EventConsumer } from './event-consumer.js';
 import { MessageFinalizer } from './message-finalizer.js';
 import { buildTaskSubmission } from './task-manifest-builder.js';
-import { decideFileAgentPreflight, decideFileAgentRoute } from './task-router.js';
+import {
+  decideFileAgentCandidate,
+  decideFileAgentCapabilityRoute,
+  decideFileAgentPreflight,
+  decideFileAgentRoute,
+} from './task-router.js';
+import { digestJson } from './stable.js';
 import { UsageIngestion } from './usage-ingestion.js';
+
+function routeKey(request) {
+  return digestJson({
+    userId: request.userId,
+    tenantId: request.tenantId ?? null,
+    conversationId: request.conversationId,
+    userMessageId: request.userMessageId,
+    assistantMessageId: request.assistantMessageId,
+    streamId: request.streamId,
+    instruction: request.instruction,
+    files: request.files,
+    sessionId: request.sessionId,
+    modelRouteId: request.modelRouteId,
+    capabilityProfile: request.capabilityProfile,
+    acceptance: request.acceptance,
+    limits: request.limits,
+  });
+}
 
 export class LibreChatFileAgentConnector {
   constructor({
@@ -24,6 +48,7 @@ export class LibreChatFileAgentConnector {
     this.allowlistedUserIds = allowlistedUserIds;
     this.reconcilerId = reconcilerId;
     this.leaseTtlMs = leaseTtlMs;
+    this.preparedRoutes = new WeakMap();
     const finalizer = new MessageFinalizer({ store, ports });
     this.finalizer = finalizer;
     this.consumer = new EventConsumer({
@@ -36,7 +61,35 @@ export class LibreChatFileAgentConnector {
     });
   }
 
-  async submit(request) {
+  async prepareRoute(request) {
+    const candidate = decideFileAgentCandidate({
+      ...request,
+      featureEnabled: this.featureEnabled,
+      allowlistedUserIds: this.allowlistedUserIds,
+    });
+    if (candidate.route !== 'candidate') {
+      return { suppressNativeAgent: false, decision: candidate };
+    }
+    const capabilities = await this.runtimeClient.discoverCapabilities();
+    const decision = decideFileAgentCapabilityRoute({
+      ...request,
+      capabilities,
+    });
+    if (decision.route !== 'runtime') {
+      return { suppressNativeAgent: false, decision };
+    }
+    const prepared = Object.freeze({
+      suppressNativeAgent: true,
+      decision,
+    });
+    this.preparedRoutes.set(prepared, {
+      capabilities,
+      routeKey: routeKey(request),
+    });
+    return prepared;
+  }
+
+  async submit(request, { preparedRoute = null } = {}) {
     const preflight = decideFileAgentPreflight({
       ...request,
       featureEnabled: this.featureEnabled,
@@ -45,7 +98,19 @@ export class LibreChatFileAgentConnector {
     if (preflight.route !== 'candidate') {
       return { accepted: false, suppressNativeAgent: false, decision: preflight };
     }
-    const capabilities = await this.runtimeClient.discoverCapabilities();
+    let capabilities;
+    if (preparedRoute != null) {
+      const prepared = this.preparedRoutes.get(preparedRoute);
+      if (!prepared) {
+        throw new TypeError('preparedRoute was not created by this connector');
+      }
+      if (prepared.routeKey !== routeKey(request)) {
+        throw new TypeError('Runtime route inputs changed after preparation');
+      }
+      capabilities = prepared.capabilities;
+    } else {
+      capabilities = await this.runtimeClient.discoverCapabilities();
+    }
     const decision = decideFileAgentRoute({
       ...request,
       featureEnabled: this.featureEnabled,

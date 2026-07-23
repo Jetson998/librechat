@@ -1,0 +1,212 @@
+diff --git a/api/server/controllers/agents/request.js b/api/server/controllers/agents/request.js
+index 49d9329..81a5ca8 100644
+--- a/api/server/controllers/agents/request.js
++++ b/api/server/controllers/agents/request.js
+@@ -178,0 +179,107 @@ async function finishResumableRequest(req, userId) {
++function getRuntimeAlwaysAppliedSkills(client) {
++  const primes = client?.options?.agent?.alwaysApplySkillPrimes;
++  if (!Array.isArray(primes)) {
++    return [];
++  }
++  return primes
++    .map((prime) => prime?.name)
++    .filter((name) => typeof name === 'string' && name.length > 0);
++}
++
++async function persistRuntimeUserTurn({
++  req,
++  client,
++  userId,
++  streamId,
++  preliminaryUserMessage,
++  preliminaryResponseMessageId,
++}) {
++  if (!preliminaryUserMessage?.messageId || !preliminaryResponseMessageId) {
++    throw new Error('Runtime routing requires preallocated user and assistant message IDs');
++  }
++  const userMessage = {
++    ...preliminaryUserMessage,
++    sender: 'User',
++    isCreatedByUser: true,
++  };
++
++  if (req.body.files) {
++    if (!Array.isArray(client?.options?.attachments)) {
++      throw new Error('Runtime routing requires initialized LibreChat file attachments');
++    }
++    const files = buildMessageFiles(req.body.files, client.options.attachments);
++    if (files.length !== req.body.files.length) {
++      throw new Error('Runtime routing could not resolve every uploaded file attachment');
++    }
++    userMessage.files = files;
++    delete userMessage.image_urls;
++  }
++
++  if (!Array.isArray(userMessage.alwaysAppliedSkills)) {
++    const alwaysAppliedSkills = getRuntimeAlwaysAppliedSkills(client);
++    if (alwaysAppliedSkills.length > 0) {
++      userMessage.alwaysAppliedSkills = alwaysAppliedSkills;
++    }
++  }
++
++  const saved = await client.saveMessageToDatabase(
++    userMessage,
++    client.getSaveOptions(),
++    userId,
++  );
++  if (!saved?.message || !saved?.conversation) {
++    throw new Error('Runtime routing did not durably save the user message and conversation');
++  }
++  client.savedMessageIds?.add(userMessage.messageId);
++
++  await GenerationJobManager.updateMetadata(streamId, {
++    responseMessageId: preliminaryResponseMessageId,
++    userMessage,
++  });
++  await GenerationJobManager.emitChunk(streamId, {
++    created: true,
++    message: userMessage,
++    streamId,
++  });
++  return { userMessage: saved.message, conversation: saved.conversation };
++}
++
++async function saveRuntimeHandoffFailure({
++  req,
++  userId,
++  conversationId,
++  endpoint,
++  iconURL,
++  model,
++  sender,
++  userMessageId,
++  assistantMessageId,
++}) {
++  if (!userMessageId || !assistantMessageId) {
++    return;
++  }
++  await saveMessage(
++    {
++      userId,
++      isTemporary: req?.body?.isTemporary,
++      interfaceConfig: req?.config?.interfaceConfig,
++    },
++    {
++      messageId: assistantMessageId,
++      conversationId,
++      parentMessageId: userMessageId,
++      sender: sender ?? 'AI',
++      text: '文件任务启动失败，请稍后重试。',
++      unfinished: false,
++      error: true,
++      isCreatedByUser: false,
++      user: userId,
++      endpoint,
++      iconURL,
++      model,
++      ...(req.body?.agent_id && { agent_id: req.body.agent_id }),
++    },
++    { context: 'api/server/controllers/agents/request.js - Runtime handoff failure' },
++  );
++}
++
+@@ -214 +321,8 @@ function rejectPreliminaryParentMessageId(res) {
+-const ResumableAgentController = async (req, res, next, initializeClient, addTitle) => {
++const ResumableAgentController = async (
++  req,
++  res,
++  next,
++  initializeClient,
++  addTitle,
++  fileAgentRuntime = null,
++) => {
+@@ -650,0 +765,48 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
++        if (typeof fileAgentRuntime?.tryRoute === 'function') {
++          const runtimeRoute = await fileAgentRuntime.tryRoute({
++            req,
++            res,
++            client,
++            job,
++            streamId,
++            conversationId,
++            userId,
++            text,
++            endpointOption,
++            userMessageId: preliminaryUserMessage?.messageId,
++            assistantMessageId: preliminaryResponseMessageId,
++            persistUserTurn: () =>
++              persistRuntimeUserTurn({
++                req,
++                client,
++                userId,
++                streamId,
++                preliminaryUserMessage,
++                preliminaryResponseMessageId,
++              }),
++          });
++          if (runtimeRoute?.suppressNativeAgent === true) {
++            job.abortController.signal.removeEventListener('abort', abortTitleOnJobAbort);
++            acceptsTitleEvents = false;
++            resolveConvoReady();
++            if (runtimeRoute.scheduleError) {
++              logger.warn('[ResumableAgentController] Runtime reconcile scheduling deferred', {
++                streamId,
++                deliveryId: runtimeRoute.deliveryId,
++                error: runtimeRoute.scheduleError,
++              });
++            }
++            await finishResumableRequest(req, userId);
++            if (client) {
++              disposeClient(client);
++            }
++            logger.debug('[ResumableAgentController] Runtime owns file task completion', {
++              streamId,
++              deliveryId: runtimeRoute.deliveryId,
++              taskId: runtimeRoute.taskId,
++              pending: runtimeRoute.pending,
++            });
++            return;
++          }
++        }
++
+@@ -987,0 +1150,20 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
++          if (error?.userTurnPersisted === true) {
++            try {
++              await saveRuntimeHandoffFailure({
++                req,
++                userId,
++                conversationId,
++                endpoint: endpointOption.endpoint,
++                iconURL: endpointIconURL,
++                model: responseModel,
++                sender: client?.sender,
++                userMessageId: preliminaryUserMessage?.messageId,
++                assistantMessageId: preliminaryResponseMessageId,
++              });
++            } catch (saveError) {
++              logger.error(
++                '[ResumableAgentController] Failed to persist Runtime handoff error message',
++                saveError,
++              );
++            }
++          }
+@@ -1078,2 +1260,16 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
+-const AgentController = async (req, res, next, initializeClient, addTitle) => {
+-  return ResumableAgentController(req, res, next, initializeClient, addTitle);
++const AgentController = async (
++  req,
++  res,
++  next,
++  initializeClient,
++  addTitle,
++  fileAgentRuntime = null,
++) => {
++  return ResumableAgentController(
++    req,
++    res,
++    next,
++    initializeClient,
++    addTitle,
++    fileAgentRuntime,
++  );
+ }

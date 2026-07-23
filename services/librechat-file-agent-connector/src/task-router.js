@@ -38,6 +38,52 @@ export function decideFileAgentRoute({
   if (preflight.route !== 'candidate') {
     return preflight;
   }
+  return decideFileAgentCapabilityRoute({ files, capabilityProfile, capabilities });
+}
+
+export function decideFileAgentCandidate({
+  featureEnabled,
+  userId,
+  allowlistedUserIds,
+  conversationId,
+  instruction,
+  files,
+  sessionId,
+  modelRouteId,
+  capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
+}) {
+  if (featureEnabled !== true) {
+    return native('feature_disabled');
+  }
+  if (!(allowlistedUserIds instanceof Set) || !allowlistedUserIds.has(userId)) {
+    return native('user_not_allowlisted');
+  }
+  if (typeof instruction !== 'string' || !COMPLEX_FILE_INTENT.test(instruction)) {
+    return native('not_complex_file_intent');
+  }
+  if (!Array.isArray(files) || files.length === 0) {
+    return native('no_files');
+  }
+  if (files.some((file) => file.ownershipVerified !== true || file.conversationId !== conversationId)) {
+    return native('file_scope_not_verified');
+  }
+  if (typeof sessionId !== 'string' || sessionId.trim() === '') {
+    return native('codeapi_session_not_primed');
+  }
+  if (typeof modelRouteId !== 'string' || modelRouteId.trim() === '') {
+    return native('model_route_missing');
+  }
+  if (typeof capabilityProfile !== 'string' || capabilityProfile.trim() === '') {
+    return native('capability_profile_missing');
+  }
+  return { route: 'candidate', reason: 'local_candidate_passed' };
+}
+
+export function decideFileAgentCapabilityRoute({
+  files,
+  capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
+  capabilities,
+}) {
   if (
     !capabilities ||
     !capabilities.taskContractVersions?.includes(TASK_CONTRACT_VERSION) ||
@@ -66,29 +112,22 @@ export function decideFileAgentPreflight({
   billingSnapshotRef,
   capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
 }) {
-  if (featureEnabled !== true) {
-    return native('feature_disabled');
+  const candidate = decideFileAgentCandidate({
+    featureEnabled,
+    userId,
+    allowlistedUserIds,
+    conversationId,
+    instruction,
+    files,
+    sessionId,
+    modelRouteId,
+    capabilityProfile,
+  });
+  if (candidate.route !== 'candidate') {
+    return candidate;
   }
-  if (!(allowlistedUserIds instanceof Set) || !allowlistedUserIds.has(userId)) {
-    return native('user_not_allowlisted');
-  }
-  if (typeof instruction !== 'string' || !COMPLEX_FILE_INTENT.test(instruction)) {
-    return native('not_complex_file_intent');
-  }
-  if (!Array.isArray(files) || files.length === 0) {
-    return native('no_files');
-  }
-  if (files.some((file) => file.ownershipVerified !== true || file.conversationId !== conversationId)) {
-    return native('file_scope_not_verified');
-  }
-  if (typeof sessionId !== 'string' || sessionId.trim() === '') {
-    return native('codeapi_session_not_primed');
-  }
-  if (typeof modelRouteId !== 'string' || typeof billingSnapshotRef !== 'string') {
-    return native('billing_or_model_route_missing');
-  }
-  if (typeof capabilityProfile !== 'string' || capabilityProfile.trim() === '') {
-    return native('capability_profile_missing');
+  if (typeof billingSnapshotRef !== 'string' || billingSnapshotRef.trim() === '') {
+    return native('billing_snapshot_missing');
   }
   return { route: 'candidate', reason: 'local_preflight_passed' };
 }

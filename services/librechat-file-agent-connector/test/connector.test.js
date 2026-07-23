@@ -243,6 +243,62 @@ test('Phase 3A routes only eligible allowlisted file work and ordinary chat neve
   assert.equal((await harness.store.listRecoverable()).length, 0);
 });
 
+test('prepared Runtime routing performs capability discovery before durable submission', async (t) => {
+  const harness = await createHarness(t);
+  let capabilityCalls = 0;
+  const connector = new LibreChatFileAgentConnector({
+    store: harness.store,
+    runtimeClient: {
+      discoverCapabilities: async () => {
+        capabilityCalls += 1;
+        return harness.runtimeClient.discoverCapabilities();
+      },
+      submit: (...args) => harness.runtimeClient.submit(...args),
+      getEvents: (...args) => harness.runtimeClient.getEvents(...args),
+      getTask: (...args) => harness.runtimeClient.getTask(...args),
+      cancel: (...args) => harness.runtimeClient.cancel(...args),
+      steer: (...args) => harness.runtimeClient.steer(...args),
+    },
+    ports: harness.ports,
+    featureEnabled: true,
+    allowlistedUserIds: new Set(['user-1']),
+  });
+  const baseRequest = request();
+  delete baseRequest.billingSnapshotRef;
+
+  const preparedRoute = await connector.prepareRoute(baseRequest);
+  assert.equal(preparedRoute.suppressNativeAgent, true);
+  assert.equal('capabilities' in preparedRoute, false);
+  assert.equal(capabilityCalls, 1);
+
+  const submitted = await connector.submit(
+    { ...baseRequest, billingSnapshotRef: 'billing-snapshot-1' },
+    { preparedRoute },
+  );
+  assert.equal(submitted.accepted, true);
+  assert.equal(capabilityCalls, 1);
+});
+
+test('prepared Runtime routing rejects request mutation before delivery creation', async (t) => {
+  const harness = await createHarness(t);
+  const baseRequest = request();
+  delete baseRequest.billingSnapshotRef;
+  const preparedRoute = await harness.connector.prepareRoute(baseRequest);
+
+  await assert.rejects(
+    harness.connector.submit(
+      {
+        ...baseRequest,
+        instruction: '生成另一份不同的 Excel',
+        billingSnapshotRef: 'billing-snapshot-1',
+      },
+      { preparedRoute },
+    ),
+    /inputs changed after preparation/,
+  );
+  assert.equal((await harness.store.listRecoverable()).length, 0);
+});
+
 test('ambiguous submit remains pending and reconciles with the same Runtime idempotency key', async (t) => {
   const harness = await createHarness(t);
   let firstSubmit = true;

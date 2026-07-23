@@ -1,9 +1,9 @@
 # LibreChat File Agent Connector
 
-This package contains the Phase 3A local contract POC and the Phase 3B
-non-production LibreChat integration adapters for the independent File Agent
-Runtime. It uses Node.js built-in modules only and has no production entry
-point.
+This package contains the Phase 3A local contract POC, Phase 3B native host
+adapters, and the Phase 3C non-production controller bridge for the independent
+File Agent Runtime. It uses Node.js built-in modules only and has no production
+entry point.
 
 ## Implemented
 
@@ -29,11 +29,21 @@ point.
 - stable transaction IDs that repair partial usage writes without rebilling;
 - HMAC service scopes bound to the exact HTTP method, path, query, body, and
   task idempotency header.
+- a two-stage controller handoff: capability routing is prepared without
+  persistence, then the authoritative user message and conversation are saved
+  before the immutable billing snapshot and Runtime delivery are created;
+- prepared-route identity checks that reject request mutation between probe and
+  submission without creating a delivery;
+- fail-closed ownership after user persistence, so a failed Runtime handoff
+  cannot start a second native Agent execution;
+- best-effort immediate reconciliation scheduling backed by durable periodic
+  recovery when the scheduler is temporarily unavailable.
 
 ## Not Implemented
 
 - a production wiring module for concrete LibreChat imports or collections;
-- a registered LibreChat request-controller hook or production feature flag;
+- concrete route registration that injects the controller bridge into the
+  running LibreChat process;
 - a production Runtime secret source, rotation policy, or network deployment;
 - production feature flags, customer files, or deployment;
 - Word, PPT, PDF, or additional Runtime workers.
