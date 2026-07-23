@@ -15,6 +15,10 @@ import {
   NativeLibreChatPorts,
   RuntimeClient,
   ServiceScopeSigner,
+  createLibreChatFinalEventBuilder,
+  createLibreChatHostIntegration,
+  createLibreChatMessageBuilder,
+  createMongoTransactionIdFinder,
   createRuntimeAuthorizer,
   stableTransactionId,
 } from '../src/index.js';
@@ -218,7 +222,10 @@ function nativeHarness({ snapshot, processCodeOutput } = {}) {
       model: current.model,
       ...(status ? { status } : {}),
     }),
-    buildFinalEvent: ({ responseMessage }) => ({ final: true, responseMessage }),
+    buildFinalEvent: async ({ getResponseMessage }) => ({
+      final: true,
+      responseMessage: await getResponseMessage(),
+    }),
   });
   return {
     ports,
@@ -391,6 +398,10 @@ test('native artifact replay produces one LibreChat file receipt and awaits prev
     (await store.get(created.delivery.deliveryId)).artifactReceipts['artifact-1'].fileId,
     'librechat-artifact-1',
   );
+  assert.equal(
+    (await store.get(created.delivery.deliveryId)).artifactReceipts['artifact-1'].toolCallId,
+    'file-agent:artifact-1',
+  );
 });
 
 test('native message, final event, and generation job use the same preallocated message in order', async () => {
@@ -530,4 +541,239 @@ test('the concrete Runtime HTTP server forwards its service authorizer', async (
   assert.equal((await client.discoverCapabilities()).schemaVersion, '1.0');
   assert.equal((await fetch(`${baseUrl}/v1/capabilities`)).status, 401);
   assert.equal((await fetch(`${baseUrl}/healthz`)).status, 200);
+});
+
+test('host message builder rehydrates owned generated files in Runtime artifact order', async () => {
+  const requested = [];
+  const builder = createLibreChatMessageBuilder({
+    getFilesByIds: async (query) => {
+      requested.push(clone(query));
+      return [
+        {
+          file_id: 'file-2',
+          filename: 'second.xlsx',
+          user: 'user-1',
+          tenantId: 'tenant-1',
+          conversationId: 'conversation-1',
+          internal: true,
+        },
+        {
+          file_id: 'file-1',
+          filename: 'first.xlsx',
+          user: 'user-1',
+          tenantId: 'tenant-1',
+          conversationId: 'conversation-1',
+          internal: true,
+        },
+      ];
+    },
+    sanitizeFileForTransmit: (file) => ({ file_id: file.file_id, filename: file.filename }),
+    resolveMessageIdentity: ({ billingSnapshot }) => ({
+      sender: 'GPT-5.6-Sol',
+      endpoint: billingSnapshot.endpoint,
+      model: 'gpt-5.6-sol',
+    }),
+  });
+  const message = await builder({
+    kind: 'completed',
+    delivery: deliveryRecord({ tenantId: 'tenant-1' }),
+    text: '文件已生成。',
+    fileIds: ['file-1', 'file-2'],
+    artifacts: [
+      { fileId: 'file-1', toolCallId: 'file-agent:artifact-1' },
+      { fileId: 'file-2', toolCallId: 'file-agent:artifact-2' },
+    ],
+    billingSnapshot: { endpoint: 'custom' },
+  });
+  assert.deepEqual(requested, [{
+    fileIds: ['file-1', 'file-2'],
+    userId: 'user-1',
+    tenantId: 'tenant-1',
+    conversationId: 'conversation-1',
+  }]);
+  assert.deepEqual(message.files.map((file) => file.file_id), ['file-1', 'file-2']);
+  assert.deepEqual(
+    message.attachments.map((file) => file.toolCallId),
+    ['file-agent:artifact-1', 'file-agent:artifact-2'],
+  );
+  assert.equal(message.messageId, 'assistant-message-1');
+  assert.equal(message.user, 'user-1');
+  assert.equal(message.text, '文件已生成。');
+  assert.equal(message.parentMessageId, 'user-message-1');
+  assert.equal(message.unfinished, false);
+  assert.equal(JSON.stringify(message).includes('internal'), false);
+});
+
+test('host message builder refuses missing or unauthorized generated file records', async () => {
+  const builder = createLibreChatMessageBuilder({
+    getFilesByIds: async () => [],
+    sanitizeFileForTransmit: clone,
+    resolveMessageIdentity: async () => ({ sender: 'Assistant', endpoint: 'custom', model: 'm' }),
+  });
+  await assert.rejects(
+    builder({
+      kind: 'completed',
+      delivery: deliveryRecord(),
+      text: 'not delivered',
+      fileIds: ['missing-file'],
+      artifacts: [],
+      billingSnapshot: {},
+    }),
+    /not found or not owned/,
+  );
+
+  const foreignBuilder = createLibreChatMessageBuilder({
+    getFilesByIds: async () => [{
+      file_id: 'foreign-file',
+      user: 'other-user',
+      conversationId: 'conversation-1',
+    }],
+    sanitizeFileForTransmit: clone,
+    resolveMessageIdentity: async () => ({ sender: 'Assistant', endpoint: 'custom', model: 'm' }),
+  });
+  await assert.rejects(
+    foreignBuilder({
+      kind: 'completed',
+      delivery: deliveryRecord(),
+      text: 'not delivered',
+      fileIds: ['foreign-file'],
+      artifacts: [],
+      billingSnapshot: {},
+    }),
+    /not found or not owned/,
+  );
+
+  for (const file of [
+    {
+      file_id: 'wrong-tenant',
+      user: 'user-1',
+      tenantId: 'other-tenant',
+      conversationId: 'conversation-1',
+    },
+    {
+      file_id: 'wrong-conversation',
+      user: 'user-1',
+      tenantId: 'tenant-1',
+      conversationId: 'other-conversation',
+    },
+  ]) {
+    const scopedBuilder = createLibreChatMessageBuilder({
+      getFilesByIds: async () => [file],
+      sanitizeFileForTransmit: clone,
+      resolveMessageIdentity: async () => ({
+        sender: 'Assistant',
+        endpoint: 'custom',
+        model: 'm',
+      }),
+    });
+    await assert.rejects(
+      scopedBuilder({
+        kind: 'completed',
+        delivery: deliveryRecord({ tenantId: 'tenant-1' }),
+        text: 'not delivered',
+        fileIds: [file.file_id],
+        artifacts: [],
+        billingSnapshot: {},
+      }),
+      /not found or not owned/,
+    );
+  }
+
+  const unsafeIdentityBuilder = createLibreChatMessageBuilder({
+    getFilesByIds: async () => [],
+    sanitizeFileForTransmit: clone,
+    resolveMessageIdentity: async () => ({
+      sender: 'Assistant',
+      endpoint: 'custom',
+      model: 'm',
+      messageId: 'must-not-override',
+    }),
+  });
+  await assert.rejects(
+    unsafeIdentityBuilder({
+      kind: 'completed',
+      delivery: deliveryRecord(),
+      text: 'not delivered',
+      fileIds: [],
+      artifacts: [],
+      billingSnapshot: {},
+    }),
+    /unsupported field: messageId/,
+  );
+});
+
+test('host final-event builder loads authoritative conversation, user, and assistant messages', async () => {
+  const builder = createLibreChatFinalEventBuilder({
+    loadConversation: async ({ userId, conversationId }) => ({
+      userId,
+      conversationId,
+      title: '文件任务',
+    }),
+    loadMessage: async ({ messageId }) => messageId === 'user-message-1'
+      ? { messageId, text: '生成文件' }
+      : { messageId, text: '权威已保存回复', _id: 'internal-mongo-id' },
+    sanitizeMessageForTransmit: (message) => ({
+      messageId: message.messageId,
+      ...(message.messageId === 'assistant-message-1' ? { text: message.text } : {}),
+    }),
+  });
+  const event = await builder({ delivery: deliveryRecord() });
+  assert.equal(event.final, true);
+  assert.equal(event.title, '文件任务');
+  assert.deepEqual(event.requestMessage, { messageId: 'user-message-1' });
+  assert.deepEqual(event.responseMessage, {
+    messageId: 'assistant-message-1',
+    text: '权威已保存回复',
+  });
+});
+
+test('Mongo transaction finder scopes stable IDs to the delivery owner', async () => {
+  const collection = new FakeMongoCollection();
+  collection.documents.push(
+    { _id: 'tx-1', user: 'user-1' },
+    { _id: 'tx-2', user: 'user-2' },
+  );
+  const findIds = createMongoTransactionIdFinder(collection);
+  assert.deepEqual(
+    await findIds({ ids: ['tx-1', 'tx-2'], user: 'user-1' }),
+    ['tx-1'],
+  );
+});
+
+test('host integration composes stores and native dependencies without production access', async () => {
+  const collections = {
+    deliveries: new FakeMongoCollection(),
+    billingSnapshots: new FakeMongoCollection(),
+    transactions: new FakeMongoCollection(),
+  };
+  const integration = createLibreChatHostIntegration({
+    collections,
+    runtimeClient: { discoverCapabilities: async () => DEFAULT_RUNTIME_CAPABILITIES },
+    native: {
+      getFilesByIds: async () => [],
+      sanitizeFileForTransmit: clone,
+      resolveMessageIdentity: async () => ({
+        sender: 'Assistant',
+        endpoint: 'custom',
+        model: 'gpt-5.6-sol',
+      }),
+      loadConversation: async () => ({ conversationId: 'conversation-1', title: 'Test' }),
+      loadMessage: async () => ({ messageId: 'user-message-1' }),
+      sanitizeMessageForTransmit: clone,
+      prepareStructuredTokenSpend: () => [],
+      bulkWriteTransactions: async () => {},
+      transactionDbOps: {},
+      processCodeOutput: async () => ({ file: { file_id: 'file-1' } }),
+      saveMessage: async (_context, message) => message,
+      generationJobManager: { emitDone: async () => {}, completeJob: async () => {} },
+      resolveRequest: async () => ({ user: { id: 'user-1' } }),
+    },
+    featureEnabled: true,
+    allowlistedUserIds: new Set(['user-1']),
+  });
+  const initialized = await integration.init();
+  assert.equal(initialized, integration);
+  assert.ok(collections.deliveries.indexes.some((entry) => entry.options.unique));
+  assert.ok(collections.billingSnapshots.indexes.some((entry) => entry.options.unique));
+  assert.equal(integration.connector.featureEnabled, true);
 });

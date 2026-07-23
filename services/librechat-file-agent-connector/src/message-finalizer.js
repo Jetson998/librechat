@@ -24,6 +24,15 @@ function successText(delivery) {
   return `已完成文件处理并生成 ${names.join('、')}，文件已附在本条回复中，可直接下载。`;
 }
 
+function deliveredArtifacts(delivery) {
+  return Object.entries(delivery.artifactReceipts).map(([artifactId, receipt]) => ({
+    artifactId,
+    fileId: receipt.fileId,
+    name: receipt.name,
+    toolCallId: receipt.toolCallId ?? `file-agent:${artifactId}`,
+  }));
+}
+
 export class MessageFinalizer {
   constructor({ store, ports }) {
     this.store = store;
@@ -38,13 +47,14 @@ export class MessageFinalizer {
     });
     ensureReceipts(delivery, runtimeTask);
     const text = successText(delivery);
+    const artifacts = deliveredArtifacts(delivery);
 
     if (!delivery.finalization.messageSaved) {
-      const fileIds = Object.values(delivery.artifactReceipts).map((receipt) => receipt.fileId);
       await this.ports.saveAssistantMessage({
         delivery,
         text,
-        fileIds,
+        fileIds: artifacts.map((artifact) => artifact.fileId),
+        artifacts,
       });
       delivery = await this.store.mutate(deliveryId, (draft) => {
         draft.finalization.messageSaved = true;
@@ -57,7 +67,8 @@ export class MessageFinalizer {
           messageId: delivery.assistantMessageId,
           conversationId: delivery.conversationId,
           text,
-          fileIds: Object.values(delivery.artifactReceipts).map((receipt) => receipt.fileId),
+          fileIds: artifacts.map((artifact) => artifact.fileId),
+          artifacts,
         },
       });
       delivery = await this.store.mutate(deliveryId, (draft) => {
@@ -93,6 +104,7 @@ export class MessageFinalizer {
           status,
           error: message,
           fileIds: [],
+          artifacts: [],
         },
       });
       delivery = await this.store.mutate(deliveryId, (draft) => {

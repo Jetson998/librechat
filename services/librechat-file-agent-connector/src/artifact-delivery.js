@@ -63,6 +63,7 @@ export class ArtifactDelivery {
         status: 'completed',
         fileId: file.fileId,
         name: artifact.name,
+        toolCallId: file.toolCallId ?? file.file?.toolCallId ?? `file-agent:${artifactId}`,
       };
     });
   }

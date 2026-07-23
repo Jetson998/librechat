@@ -4,9 +4,10 @@ Date: 2026-07-23
 
 Status: design gate approved, Phase 2B prerequisite satisfied, Phase 3A local
 Connector contract POC implemented, and Phase 3B repository-side native
-adapters locally verified. Real non-production LibreChat wiring and interruption
-acceptance remain pending. This plan does not approve production traffic,
-customer files, billable acceptance, or deployment.
+adapters plus the host composition root locally verified. Real non-production
+LibreChat process wiring and interruption acceptance remain pending. This plan
+does not approve production traffic, customer files, billable acceptance, or
+deployment.
 
 ## 一、目标
 
@@ -449,7 +450,8 @@ expiry
 
 Repository-side adapter result: implemented and locally verified. Real
 non-production process wiring and browser interruption acceptance remain a
-separate gate; see `docs/FILE_AGENT_RUNTIME_PHASE3B_IMPLEMENTATION.md`.
+separate gate; see `docs/FILE_AGENT_RUNTIME_PHASE3B_IMPLEMENTATION.md` and
+`docs/FILE_AGENT_RUNTIME_PHASE3B_HOST_WIRING.md`.
 
 ### Phase 3C：受控发布候选
 

@@ -14,3 +14,9 @@ export {
 export { MongoDeliveryStore } from './mongo-delivery-store.js';
 export { MongoBillingSnapshotStore } from './mongo-billing-snapshot-store.js';
 export { NativeLibreChatPorts, stableTransactionId } from './native-ports.js';
+export {
+  createLibreChatFinalEventBuilder,
+  createLibreChatHostIntegration,
+  createLibreChatMessageBuilder,
+  createMongoTransactionIdFinder,
+} from './librechat-host-integration.js';

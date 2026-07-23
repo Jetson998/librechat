@@ -24,6 +24,8 @@ point.
 - immutable model-specific billing snapshots without endpoint credentials;
 - injected native LibreChat ports for structured transactions,
   `processCodeOutput()`, message persistence, and GenerationJobManager;
+- one host composition root for Mongo stores, Runtime authentication, native
+  ports, generated-file download refs, and final-event reconstruction;
 - stable transaction IDs that repair partial usage writes without rebilling;
 - HMAC service scopes bound to the exact HTTP method, path, query, body, and
   task idempotency header.
@@ -31,6 +33,7 @@ point.
 ## Not Implemented
 
 - a production wiring module for concrete LibreChat imports or collections;
+- a registered LibreChat request-controller hook or production feature flag;
 - a production Runtime secret source, rotation policy, or network deployment;
 - production feature flags, customer files, or deployment;
 - Word, PPT, PDF, or additional Runtime workers.

@@ -14,6 +14,7 @@ POC described in:
 - `docs/FILE_AGENT_RUNTIME_PHASE3_CONNECTOR_PLAN.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE3A_IMPLEMENTATION.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE3B_IMPLEMENTATION.md`
+- `docs/FILE_AGENT_RUNTIME_PHASE3B_HOST_WIRING.md`
 
 It uses Node.js built-in modules only. The Phase 1 XLSX fixture executes Python
 inside an isolated test CodeAPI service; the Runtime package itself does not

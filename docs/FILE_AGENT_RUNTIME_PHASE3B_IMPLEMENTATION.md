@@ -6,6 +6,9 @@ Status: repository-side non-production integration contracts implemented and
 locally verified. No real Mongo deployment, LibreChat API process, customer
 file, external model call, production traffic, or deployment was used.
 
+The repository-side LibreChat host composition is also implemented; see
+`docs/FILE_AGENT_RUNTIME_PHASE3B_HOST_WIRING.md`.
+
 ## 一、实施范围
 
 Phase 3B 在现有 Connector POC 上增加可注入的 LibreChat 原生适配层，不伪造本仓库
@@ -19,6 +22,7 @@ mongo-delivery-store
 mongo-billing-snapshot-store
 native-ports
 service-scope
+librechat-host-integration
 ```
 
 Runtime HTTP server 增加可选 `authorizeRequest` hook。`/v1/*` 可以启用服务签名，
@@ -114,8 +118,9 @@ GenerationJobManager.completeJob(streamId)
 delivery completed
 ```
 
-final payload 现在携带与已保存消息完全相同的确定性 text。API 在 message 保存后、
-final emit 前中断时，可以重建同一 response，而不是生成另一条 sibling 或不同文案。
+final payload 携带与已保存消息相同的确定性 text；host composition 在实际 emit 前
+重新读取权威 assistant message。API 在 message 保存后、final emit 前中断时，会发送
+Mongo 中同一 response，而不是生成另一条 sibling 或不同文案。
 
 ## 五、服务认证
 
@@ -155,7 +160,7 @@ Connector 测试覆盖原 Phase 3A 场景，并新增：
 
 ```text
 connector syntax checks: passed
-connector tests: 25 passed, 0 failed
+connector tests: 30 passed, 0 failed
 runtime syntax checks: passed
 runtime tests: 27 passed, 0 failed
 git diff check: passed

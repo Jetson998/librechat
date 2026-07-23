@@ -1,6 +1,6 @@
 {
   "name": "@jetson998/librechat-file-agent-connector",
-  "version": "0.4.0-phase3b",
+  "version": "0.4.1-phase3b-host",
   "private": true,
   "type": "module",
   "engines": {

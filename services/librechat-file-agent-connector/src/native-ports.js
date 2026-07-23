@@ -150,31 +150,49 @@ export class NativeLibreChatPorts {
     return { fileId, file: clone(result.file) };
   }
 
-  saveAssistantMessage({ delivery, text, fileIds }) {
-    return this.#saveMessage({ kind: 'completed', delivery, text, fileIds });
+  saveAssistantMessage({ delivery, text, fileIds, artifacts = [] }) {
+    return this.#saveMessage({ kind: 'completed', delivery, text, fileIds, artifacts });
   }
 
   saveNeedsInput({ delivery, question }) {
-    return this.#saveMessage({ kind: 'needs_input', delivery, text: question, fileIds: [] });
+    return this.#saveMessage({
+      kind: 'needs_input',
+      delivery,
+      text: question,
+      fileIds: [],
+      artifacts: [],
+    });
   }
 
   saveTerminalMessage({ delivery, status, message }) {
-    return this.#saveMessage({ kind: status, delivery, text: message, fileIds: [], status });
+    return this.#saveMessage({
+      kind: status,
+      delivery,
+      text: message,
+      fileIds: [],
+      artifacts: [],
+      status,
+    });
   }
 
   async emitDone({ delivery, payload }) {
     const text = payload.text ?? payload.error ?? '';
-    const message = await this.#buildMessage({
-      kind: payload.status ?? 'completed',
-      delivery,
-      text,
-      fileIds: payload.fileIds ?? [],
-      status: payload.status,
-    });
+    let responseMessagePromise = null;
+    const getResponseMessage = () => {
+      responseMessagePromise ??= this.#buildMessage({
+        kind: payload.status ?? 'completed',
+        delivery,
+        text,
+        fileIds: payload.fileIds ?? [],
+        artifacts: payload.artifacts ?? [],
+        status: payload.status,
+      });
+      return responseMessagePromise;
+    };
     const finalEvent = await this.buildFinalEvent({
       delivery,
       payload: clone(payload),
-      responseMessage: clone(message),
+      getResponseMessage,
     });
     await this.generationJobManager.emitDone(delivery.streamId, finalEvent);
   }
@@ -187,20 +205,28 @@ export class NativeLibreChatPorts {
     return this.updateNativeProgress(args);
   }
 
-  async #saveMessage({ kind, delivery, text, fileIds, status }) {
+  async #saveMessage({ kind, delivery, text, fileIds, artifacts, status }) {
     const req = await this.resolveRequest({ delivery });
     const requestContext = await this.buildRequestContext({ delivery, request: req });
-    const message = await this.#buildMessage({ kind, delivery, text, fileIds, status });
+    const message = await this.#buildMessage({
+      kind,
+      delivery,
+      text,
+      fileIds,
+      artifacts,
+      status,
+    });
     return this.saveNativeMessage(requestContext, message, { context: MESSAGE_CONTEXT });
   }
 
-  async #buildMessage({ kind, delivery, text, fileIds, status }) {
+  async #buildMessage({ kind, delivery, text, fileIds, artifacts = [], status }) {
     const snapshot = await this.#getBillingSnapshot(delivery);
     return this.buildMessage({
       kind,
       delivery,
       text,
       fileIds: [...fileIds],
+      artifacts: clone(artifacts),
       status,
       billingSnapshot: clone(snapshot),
     });
