@@ -3,8 +3,10 @@
 Date: 2026-07-23
 
 Status: Phase 3D-A isolated real-Mongo acceptance and Phase 3D-B pinned full
-LibreChat browser acceptance passed. One real external CodeAPI/model task remains
-a separate non-production gate. Production was not changed.
+LibreChat browser acceptance passed. Phase 3D-C external acceptance tooling is
+implemented, but its real external task remains unexecuted because no
+non-production CodeAPI endpoint and primed fixture reference are configured.
+Production was not changed.
 
 ## 一、范围
 
@@ -134,9 +136,11 @@ deliveries=2 snapshots=2 transactions=8 generatedFiles=2 outputMessages=2
 
 ## 六、下一道非生产门禁
 
-Phase 3D-C 再使用隔离测试 Key 执行一次有预算上限的真实外部 model relay 与真实
-非生产 CodeAPI 任务。验收报告只保留 endpoint contract、usage、延迟、文件 hash 和
-状态，不保存 URL、Key、客户文件或原始模型输出。
+Phase 3D-C 的受预算验收器已经实现，见
+`docs/FILE_AGENT_RUNTIME_PHASE3DC_IMPLEMENTATION.md`。待提供真实非生产 CodeAPI 的
+endpoint、测试身份和已 prime fixture ref 后，再执行一次外部 model relay 与 CodeAPI
+任务。验收报告只保留 endpoint contract、usage、延迟、文件 hash 和状态，不保存
+URL、Key、客户文件或原始模型输出。
 
 Phase 3D-C 通过并另行批准生产方案前，不创建 production patch，不部署生产，不开放
 客户流量，也不扩展 Word、PPT、PDF worker。
