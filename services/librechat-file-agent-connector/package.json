@@ -1,0 +1,13 @@
+{
+  "name": "@jetson998/librechat-file-agent-connector",
+  "version": "0.3.0-phase3a",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/*.js && node --check test/*.js"
+  }
+}

@@ -2,9 +2,10 @@
 
 Date: 2026-07-23
 
-Status: design gate approved and Phase 2B prerequisite satisfied. Connector
-implementation may begin in the repository, but this plan does not approve
-production traffic, customer files, billable acceptance, or deployment.
+Status: design gate approved, Phase 2B prerequisite satisfied, and Phase 3A
+local Connector contract POC implemented. Phase 3B integration has not started.
+This plan does not approve production traffic, customer files, billable
+acceptance, or deployment.
 
 ## 一、目标
 
@@ -435,6 +436,8 @@ expiry
 - transaction、message、GenerationJobManager 和 `processCodeOutput()` 使用记录化 ports；
 - 不接 Mongo、不构建生产 bundle、不调用外部模型。
 
+实施结果：已完成，见 `docs/FILE_AGENT_RUNTIME_PHASE3A_IMPLEMENTATION.md`。
+
 ### Phase 3B：非生产 LibreChat 集成
 
 - 增加真实 delivery store 和 lease；
@@ -500,6 +503,6 @@ Phase 3 不做：
 
 ## 十九、回滚
 
-本设计阶段没有运行时影响。后续 Phase 3A 仍只包含本地 POC，回滚为撤销对应提交。
+本设计和 Phase 3A 本地 POC 没有生产运行时影响。Phase 3A 回滚为撤销对应提交。
 Phase 3B 必须提供独立 feature flag；关闭后所有新请求回到原 LibreChat 链路，已有
 Runtime task 由 reconciler 完成交付或明确取消，不能静默丢弃。

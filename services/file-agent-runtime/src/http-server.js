@@ -8,6 +8,20 @@ const CANCEL_PATH = /^\/v1\/tasks\/([0-9a-f-]{36})\/cancel$/i;
 const STEER_PATH = /^\/v1\/tasks\/([0-9a-f-]{36})\/steer$/i;
 const BODY_LIMIT_BYTES = 1024 * 1024;
 
+export const DEFAULT_RUNTIME_CAPABILITIES = Object.freeze({
+  schemaVersion: '1.0',
+  taskContractVersions: ['office-file-agent.v1'],
+  taskTypes: ['office_transform'],
+  capabilityProfiles: ['office-planner-v1'],
+  inputMimeTypes: [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ],
+  outputMimeTypes: [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ],
+  maxVisibleArtifacts: 3,
+});
+
 function jsonResponse(status, body) {
   return new Response(`${JSON.stringify(body)}\n`, {
     status,
@@ -47,12 +61,20 @@ function parseAfter(url) {
   return Number(value);
 }
 
-export async function handleRuntimeFetch(runtime, request) {
+export async function handleRuntimeFetch(
+  runtime,
+  request,
+  { capabilities = DEFAULT_RUNTIME_CAPABILITIES } = {},
+) {
   try {
     const url = new URL(request.url);
 
     if (request.method === 'GET' && url.pathname === '/healthz') {
       return jsonResponse(200, { status: 'ok', mode: 'development' });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/v1/capabilities') {
+      return jsonResponse(200, capabilities);
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/tasks') {

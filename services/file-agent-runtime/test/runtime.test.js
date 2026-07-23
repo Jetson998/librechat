@@ -196,6 +196,15 @@ test('HTTP API exposes submit, task lookup, and durable event cursor', async (t)
   const health = await handleRuntimeFetch(runtime, new Request(`${baseUrl}/healthz`));
   assert.equal(health.status, 200);
 
+  const capabilitiesResponse = await handleRuntimeFetch(
+    runtime,
+    new Request(`${baseUrl}/v1/capabilities`),
+  );
+  assert.equal(capabilitiesResponse.status, 200);
+  const capabilities = await capabilitiesResponse.json();
+  assert.ok(capabilities.taskContractVersions.includes('office-file-agent.v1'));
+  assert.equal(capabilities.maxVisibleArtifacts, 3);
+
   const submit = await handleRuntimeFetch(runtime, new Request(`${baseUrl}/v1/tasks`, {
     method: 'POST',
     headers: {

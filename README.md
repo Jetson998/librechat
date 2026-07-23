@@ -51,6 +51,10 @@ email/password login enabled.
 - [File Agent Runtime Phase 0 implementation](docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md):
   locally verified task state machine, idempotency, event cursor, cancel,
   steer, restart recovery, and fake adapters with no production integration.
+- [File Agent Runtime Phase 3A Connector implementation](docs/FILE_AGENT_RUNTIME_PHASE3A_IMPLEMENTATION.md):
+  locally verified Runtime-to-LibreChat contract, idempotent usage and artifact
+  delivery, message/final ordering, and interruption recovery through recorded
+  ports with no production integration.
 - [Targeted Excel analysis plan](docs/OFFICE_TARGETED_EXCEL_ANALYSIS_PLAN.md):
   structure-first workbook review without unrequested full-text dump artifacts.
 - [Empty response and regeneration recovery plan](docs/EMPTY_RESPONSE_REGENERATION_PLAN.md):
