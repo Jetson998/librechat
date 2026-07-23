@@ -1,6 +1,6 @@
 {
   "name": "@jetson998/file-agent-runtime",
-  "version": "0.0.1-phase0",
+  "version": "0.1.0-phase1-poc",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "check": "node --check src/*.js && node --check test/*.js"
   }
 }

@@ -1,5 +1,7 @@
 import { setTimeout as delay } from 'node:timers/promises';
 
+import { ExecutorAdapter } from './executor-adapter.js';
+
 function normalizeActions(actions) {
   if (!Array.isArray(actions) || actions.length === 0) {
     return [
@@ -60,8 +62,9 @@ export class FakeProvider {
   }
 }
 
-export class FakeExecutor {
+export class FakeExecutor extends ExecutorAdapter {
   constructor({ delayMs = 0 } = {}) {
+    super();
     this.delayMs = delayMs;
     this.invocations = [];
   }
@@ -126,8 +129,4 @@ export class FakeExecutor {
   #record(itemId, operation) {
     this.invocations.push({ itemId, operation });
   }
-}
-
-export function isAbortError(error) {
-  return error?.name === 'AbortError';
 }

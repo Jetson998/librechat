@@ -2,7 +2,9 @@
 
 Date: 2026-07-23
 
-Status: implemented and locally verified; no production integration or deployment.
+Status: implemented and locally verified; Phase 1 has since been implemented
+under `docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`. There is still no
+production integration or deployment.
 
 ## 一、目标
 
@@ -125,7 +127,7 @@ Phase 0 不是可部署的生产服务：
 
 不得将当前 HTTP 服务暴露到公网，也不得接入生产 LibreChat。
 
-## 八、下一步门禁
+## 八、Phase 1 门禁（已完成）
 
 Phase 1 只做非生产 CodeAPI 文件 POC：
 
@@ -137,7 +139,8 @@ Phase 1 只做非生产 CodeAPI 文件 POC：
 6. 验证 Runtime 重启后不会重复生成外部 artifact；
 7. 不修改生产 Office 上传、CodeAPI priming 或 LibreChat 消息链路。
 
-Phase 1 通过后，才进入单模型 Phase 2。
+上述门禁已由 Phase 1 隔离 POC 通过。单模型 Phase 2 仍需独立设计，不得直接接入
+生产。
 
 ## 九、回滚
 

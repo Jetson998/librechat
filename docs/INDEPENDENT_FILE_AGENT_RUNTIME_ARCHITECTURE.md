@@ -2,9 +2,11 @@
 
 Date: 2026-07-23
 
-Status: architecture approved. Phase 0 is implemented and locally verified;
-there is no production traffic, integration, or deployment. Implementation
-record: `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`.
+Status: architecture approved. Phase 0 and the isolated Phase 1 CodeAPI POC are
+implemented and locally verified; there is no production traffic, integration,
+or deployment. Implementation records:
+`docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md` and
+`docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`.
 
 ## 一、决策摘要
 

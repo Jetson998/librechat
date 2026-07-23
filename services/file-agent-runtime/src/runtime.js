@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { canTransition, isTerminal } from './constants.js';
-import { isAbortError } from './fake-adapters.js';
+import { assertExecutorAdapter, isAbortError } from './executor-adapter.js';
 
 export class RuntimeShutdownError extends Error {
   constructor() {
@@ -34,20 +34,28 @@ export function validateTaskManifest(manifest) {
 }
 
 function errorRecord(error) {
-  return {
+  const record = {
     name: error?.name ?? 'Error',
     message: error?.message ?? String(error),
   };
+  if (typeof error?.code === 'string') {
+    record.code = error.code;
+  }
+  if (typeof error?.retryable === 'boolean') {
+    record.retryable = error.retryable;
+  }
+  return record;
 }
 
 export class FileAgentRuntime {
   #running = new Map();
   #stopping = false;
 
-  constructor({ store, provider, executor }) {
+  constructor({ store, provider, executor, testHooks }) {
     this.store = store;
     this.provider = provider;
-    this.executor = executor;
+    this.executor = assertExecutorAdapter(executor);
+    this.testHooks = testHooks;
   }
 
   async start() {
@@ -429,6 +437,12 @@ export class FileAgentRuntime {
     try {
       const result = await operation(itemId);
       signal.throwIfAborted();
+      await this.testHooks?.afterItemOperation?.({
+        taskId: task.taskId,
+        itemId,
+        kind,
+        result,
+      });
       await this.store.mutateTask(task.taskId, (current, emit) => {
         if (isTerminal(current.status)) {
           return false;

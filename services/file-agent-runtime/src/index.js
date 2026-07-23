@@ -25,12 +25,12 @@ const server = createRuntimeHttpServer(runtime);
 
 server.listen(port, host, () => {
   process.stdout.write(
-    `File Agent Runtime Phase 0 listening on http://${host}:${port} with dataDir=${dataDir}\n`,
+    `File Agent Runtime development server listening on http://${host}:${port} with dataDir=${dataDir}\n`,
   );
 });
 
 async function shutdown(signal) {
-  process.stdout.write(`Received ${signal}; stopping Phase 0 runtime\n`);
+  process.stdout.write(`Received ${signal}; stopping development runtime\n`);
   server.close();
   await runtime.stop();
 }

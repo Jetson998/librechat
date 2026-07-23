@@ -52,7 +52,7 @@ export async function handleRuntimeFetch(runtime, request) {
     const url = new URL(request.url);
 
     if (request.method === 'GET' && url.pathname === '/healthz') {
-      return jsonResponse(200, { status: 'ok', phase: 'phase0' });
+      return jsonResponse(200, { status: 'ok', mode: 'development' });
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/tasks') {
