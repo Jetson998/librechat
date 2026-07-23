@@ -8,6 +8,7 @@ import {
   createUpstreamMongoCollections,
   createUpstreamRuntimeRequestResolver,
   installUpstreamControllerBridge,
+  startUpstreamLibreChatHostIntegration,
 } from '../src/upstream-controller-adapter.js';
 
 function attachment(overrides = {}) {
@@ -165,6 +166,11 @@ test('billing snapshot freezes the effective native token rates', async () => {
   });
   assert.deepEqual(created.balance, { enabled: true });
   assert.deepEqual(created.transactions, { enabled: true });
+  assert.deepEqual(created.messageIdentity, {
+    sender: 'gpt-5.6-sol',
+    endpoint: 'custom',
+    model: 'gpt-5.6-sol',
+  });
   ctx.client.options.endpointTokenConfig['gpt-5.6-sol'].prompt = 99;
   assert.equal(created.endpointTokenConfig['gpt-5.6-sol'].prompt, 0.6);
 });
@@ -237,4 +243,40 @@ test('upstream Mongo collection names and Express bridge installation are explic
   );
   uninstall();
   assert.equal(app.locals.fileAgentRuntimeBridge, undefined);
+});
+
+test('upstream host lifecycle installs the bridge, starts reconciliation, and stops idempotently', async () => {
+  const operations = [];
+  const app = { locals: {} };
+  const integration = {
+    connector: {
+      prepareRoute: async () => ({ suppressNativeAgent: false }),
+      submit: async () => ({ suppressNativeAgent: false }),
+    },
+    stores: { billingSnapshotStore: { create: async () => ({ snapshotId: 'snapshot-1' }) } },
+    reconciler: {
+      start: () => operations.push('start'),
+      wake: async (deliveryId) => operations.push(`wake:${deliveryId}`),
+    },
+    init: async () => operations.push('init'),
+    stop: async () => operations.push('stop'),
+  };
+  const host = await startUpstreamLibreChatHostIntegration({
+    app,
+    integration,
+    controllerBridge: {
+      modelRouteId: 'file-agent-primary',
+      getBalanceConfig: () => ({ enabled: false }),
+      getTransactionsConfig: () => ({ enabled: true }),
+      getMultiplier: () => 1,
+      getCacheMultiplier: () => null,
+    },
+  });
+
+  assert.equal(app.locals.fileAgentRuntimeBridge, host.bridge);
+  assert.deepEqual(operations, ['init', 'start']);
+  await host.stop();
+  await host.stop();
+  assert.equal(app.locals.fileAgentRuntimeBridge, undefined);
+  assert.deepEqual(operations, ['init', 'start', 'stop']);
 });

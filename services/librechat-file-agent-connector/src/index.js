@@ -39,4 +39,5 @@ export {
   createUpstreamMongoCollections,
   createUpstreamRuntimeRequestResolver,
   installUpstreamControllerBridge,
+  startUpstreamLibreChatHostIntegration,
 } from './upstream-controller-adapter.js';

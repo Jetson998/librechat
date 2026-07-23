@@ -183,6 +183,17 @@ function resolvedEndpoint(client) {
   );
 }
 
+function resolvedMessageIdentity(client, endpoint, model) {
+  const sender = valueString(client?.sender) ?? model;
+  const iconURL = valueString(client?.options?.iconURL);
+  return {
+    sender,
+    endpoint,
+    model,
+    ...(iconURL ? { iconURL } : {}),
+  };
+}
+
 function nonNegativeRate(value, name) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
     throw new TypeError(`${name} did not resolve to a non-negative finite rate`);
@@ -241,6 +252,7 @@ export function createUpstreamBillingSnapshotCreator({
       endpointTokenConfig: currentModelTokenConfig,
       balance: getBalanceConfig(req.config),
       transactions: getTransactionsConfig(req.config),
+      messageIdentity: resolvedMessageIdentity(client, endpoint, model),
     });
   };
 }
@@ -317,6 +329,47 @@ export function installUpstreamControllerBridge({ app, bridge }) {
     if (app.locals.fileAgentRuntimeBridge === bridge) {
       delete app.locals.fileAgentRuntimeBridge;
     }
+  };
+}
+
+export async function startUpstreamLibreChatHostIntegration({
+  app,
+  integration,
+  controllerBridge,
+}) {
+  if (!integration || typeof integration.init !== 'function') {
+    throw new TypeError('LibreChat host integration.init is required');
+  }
+  if (!integration.reconciler || typeof integration.reconciler.start !== 'function') {
+    throw new TypeError('LibreChat host integration reconciler is required');
+  }
+  if (!integration.stores?.billingSnapshotStore) {
+    throw new TypeError('LibreChat host billing snapshot store is required');
+  }
+
+  await integration.init();
+  const bridge = createUpstreamControllerBridge({
+    ...controllerBridge,
+    connector: integration.connector,
+    billingSnapshotStore: integration.stores.billingSnapshotStore,
+    scheduleReconcile: ({ submission }) =>
+      integration.reconciler.wake(submission.delivery.deliveryId),
+  });
+  const uninstall = installUpstreamControllerBridge({ app, bridge });
+  integration.reconciler.start();
+
+  let stopped = false;
+  return {
+    bridge,
+    integration,
+    async stop() {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
+      uninstall();
+      await integration.stop();
+    },
   };
 }
 

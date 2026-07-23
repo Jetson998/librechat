@@ -51,3 +51,26 @@ test('reconciler periodically scans recoverable deliveries and stops cleanly', a
   assert.ok(stoppedAt >= 2);
   assert.equal(scans, stoppedAt);
 });
+
+test('reconciler reports per-delivery errors returned by a batch scan', async () => {
+  const errors = [];
+  const reconciler = new FileAgentReconciler({
+    connector: {
+      reconcile: async () => null,
+      reconcileAll: async () => [
+        { deliveryId: 'delivery-1', error: 'finalization failed' },
+        { deliveryId: 'delivery-2', status: 'completed' },
+      ],
+    },
+    onError: (error, context) => errors.push({ message: error.message, context }),
+  });
+
+  await reconciler.wakeAll();
+
+  assert.deepEqual(errors, [
+    {
+      message: 'finalization failed',
+      context: { deliveryId: 'delivery-1', batch: true },
+    },
+  ]);
+});

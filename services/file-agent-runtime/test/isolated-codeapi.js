@@ -7,6 +7,7 @@ import path from 'node:path';
 import { XLSX_MIME } from '../src/deterministic-xlsx.js';
 
 const BODY_LIMIT = 1024 * 1024;
+const UPLOAD_BODY_LIMIT = 16 * 1024 * 1024;
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -42,9 +43,73 @@ async function readBody(request) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
+async function readRawBody(request, limit = BODY_LIMIT) {
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of request) {
+    total += chunk.length;
+    if (total > limit) {
+      throw new Error('request body too large');
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+function parseMultipart(request, body) {
+  const contentType = request.headers['content-type'] ?? '';
+  const boundary = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i)?.slice(1).find(Boolean);
+  if (!boundary) {
+    throw new Error('multipart boundary is required');
+  }
+  const marker = `--${boundary}`;
+  const raw = body.toString('latin1');
+  const fields = {};
+  let file = null;
+  for (const section of raw.split(marker).slice(1)) {
+    if (section.startsWith('--')) {
+      break;
+    }
+    const normalized = section.replace(/^\r\n/, '').replace(/\r\n$/, '');
+    const headerEnd = normalized.indexOf('\r\n\r\n');
+    if (headerEnd < 0) {
+      continue;
+    }
+    const headers = normalized.slice(0, headerEnd);
+    const disposition = headers.match(/content-disposition:[^\r\n]+/i)?.[0] ?? '';
+    const name = disposition.match(/name="([^"]+)"/i)?.[1];
+    if (!name) {
+      continue;
+    }
+    let payload = normalized.slice(headerEnd + 4);
+    if (payload.endsWith('\r\n')) {
+      payload = payload.slice(0, -2);
+    }
+    const filename = disposition.match(/filename="([^"]*)"/i)?.[1];
+    if (filename != null) {
+      file = { name, filename, buffer: Buffer.from(payload, 'latin1') };
+    } else {
+      fields[name] = payload;
+    }
+  }
+  return { fields, file };
+}
+
+function compactId() {
+  return randomUUID().replaceAll('-', '').slice(0, 21);
+}
+
 function respond(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
   response.end(`${JSON.stringify(body)}\n`);
+}
+
+function respondBuffer(response, status, body, contentType = 'application/octet-stream') {
+  response.writeHead(status, {
+    'content-type': contentType,
+    'content-length': body.length,
+  });
+  response.end(body);
 }
 
 function runCommand(command, { cwd, timeoutMs }) {
@@ -73,8 +138,10 @@ export class IsolatedCodeApiServer {
     this.sessionsDir = path.join(this.rootDir, 'sessions');
     this.allowedSessions = new Set();
     this.registeredFiles = new Map();
+    this.artifactFiles = new Map();
     this.actualExecutions = new Map();
     this.requests = [];
+    this.uploads = [];
     this.server = createServer((request, response) => this.#handle(request, response));
   }
 
@@ -118,7 +185,16 @@ export class IsolatedCodeApiServer {
 
   async #handle(request, response) {
     try {
-      if (request.method !== 'POST' || request.url !== '/exec') {
+      const url = new URL(request.url, 'http://isolated-codeapi.local');
+      if (request.method === 'POST' && url.pathname === '/upload') {
+        await this.#upload(request, response);
+        return;
+      }
+      if (request.method === 'GET' && url.pathname.startsWith('/download/')) {
+        await this.#download(url, response);
+        return;
+      }
+      if (request.method !== 'POST' || url.pathname !== '/exec') {
         respond(response, 404, { error: 'not found' });
         return;
       }
@@ -166,6 +242,61 @@ export class IsolatedCodeApiServer {
     }
   }
 
+  async #upload(request, response) {
+    const body = await readRawBody(request, UPLOAD_BODY_LIMIT);
+    const { fields, file } = parseMultipart(request, body);
+    if (!file || file.name !== 'file') {
+      respond(response, 400, { error: 'file is required' });
+      return;
+    }
+    if (!['user', 'agent', 'skill'].includes(fields.kind) || !fields.id) {
+      respond(response, 400, { error: 'kind and id are required' });
+      return;
+    }
+    const sessionId = compactId();
+    const fileId = compactId();
+    const uploadDir = path.join(this.sessionsDir, sessionId, 'uploads');
+    const sourcePath = path.join(uploadDir, fileId);
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(sourcePath, file.buffer);
+    this.allowedSessions.add(sessionId);
+    this.registeredFiles.set(`${sessionId}:${fileId}`, {
+      name: file.filename,
+      sourcePath,
+    });
+    this.uploads.push({
+      sessionId,
+      fileId,
+      filename: file.filename,
+      kind: fields.kind,
+      id: fields.id,
+      bytes: file.buffer.length,
+    });
+    respond(response, 200, {
+      message: 'success',
+      storage_session_id: sessionId,
+      files: [{ fileId, filename: file.filename }],
+    });
+  }
+
+  async #download(url, response) {
+    const match = url.pathname.match(/^\/download\/([^/]+)\/([^/]+)$/);
+    if (!match) {
+      respond(response, 404, { error: 'not found' });
+      return;
+    }
+    const [, sessionId, fileId] = match;
+    const registered = this.registeredFiles.get(`${sessionId}:${fileId}`);
+    const artifactPath = this.artifactFiles.get(`${sessionId}:${fileId}`);
+    const sourcePath = registered?.sourcePath ?? artifactPath;
+    if (!sourcePath) {
+      respond(response, 404, { error: 'file not found' });
+      return;
+    }
+    const body = await readFile(sourcePath);
+    respondBuffer(response, 200, body);
+  }
+
   async #injectFiles(sessionId, files) {
     for (const file of files) {
       const registered = this.registeredFiles.get(`${sessionId}:${file.file_id}`);
@@ -202,6 +333,10 @@ export class IsolatedCodeApiServer {
           file_id: `artifact-${sha256(`${sessionId}:${virtualPath}`).slice(0, 24)}`,
         },
       });
+      this.artifactFiles.set(
+        `${sessionId}:artifact-${sha256(`${sessionId}:${virtualPath}`).slice(0, 24)}`,
+        actualPath,
+      );
     }
     return artifacts;
   }

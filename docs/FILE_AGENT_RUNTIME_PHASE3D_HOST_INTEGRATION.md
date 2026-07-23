@@ -2,9 +2,9 @@
 
 Date: 2026-07-23
 
-Status: Phase 3D-A repository implementation and isolated real-Mongo acceptance
-passed. Full LibreChat build acceptance and one real external CodeAPI/model task
-remain separate non-production gates. Production was not changed.
+Status: Phase 3D-A isolated real-Mongo acceptance and Phase 3D-B pinned full
+LibreChat browser acceptance passed. One real external CodeAPI/model task remains
+a separate non-production gate. Production was not changed.
 
 ## 一、范围
 
@@ -39,6 +39,8 @@ LibreChat 仍负责聊天、会话、文件、下载卡、消息、计费与 SSE
    从 Mongo cursor 恢复。
 6. 上游 overlay 同时锁定 Controller 和 Agent route 两个 source blob。route 只读取
    `req.app.locals.fileAgentRuntimeBridge`；没有 app-local 时行为不变。
+7. 生成文件消息按 LibreChat 原生 `execute_code` 契约保存：每个 attachment 都有
+   同 ID 的 `tool_call` content part，当前会话可在 final SSE 后立即渲染下载卡。
 
 ## 三、Phase 3D-A 真实验收
 
@@ -83,20 +85,29 @@ runtimeCapacity=1 running=0 queued=0
 ## 四、验证结果
 
 ```text
-Connector tests: 49 passed
+Connector tests: 53 passed
 Connector syntax checks: passed
-Runtime tests: 28 passed
+Runtime tests: 30 passed
 Runtime syntax checks: passed
 Phase 3D-A isolated real-Mongo acceptance: passed
+Phase 3D-B pinned full LibreChat browser acceptance: passed
 Pinned upstream overlay apply/source checks: passed
 ```
 
-## 五、下一道非生产门禁
+## 五、Phase 3D-B 完整 LibreChat 验收
 
-Phase 3D-B 必须在锁定上游 commit 的完整 LibreChat build 中完成：
+验收器：
+
+```text
+services/librechat-file-agent-connector/
+  scripts/phase3db-librechat-acceptance.js
+```
+
+2026-07-24 在锁定上游 commit
+`60eba76375213dafc1874d943e41371201c300ab` 的完整 build 中通过：
 
 1. 安装 overlay 后启动真实 API build；
-2. 使用独立非生产 Mongo database 和测试账号；
+2. 使用临时 MongoDB、动态测试账号、隔离 model relay 与隔离 CodeAPI；
 3. 从 composition root 显式安装 app-local bridge、collections、native ports 和
    reconciler，不增加环境变量自动启用路径；
 4. 验证普通聊天零 Runtime 请求；
@@ -104,9 +115,28 @@ Phase 3D-B 必须在锁定上游 commit 的完整 LibreChat build 中完成：
 6. 分别重启 Runtime 与 LibreChat API，证明 cursor 恢复且不重复计费/文件；
 7. 卸载 app-local bridge 后，新请求完全回到原生 Agent。
 
+脱敏结果：
+
+```text
+status=passed
+ordinaryChatRuntimeTasks=0
+bridgedWorkbookUploads=2
+runtimeTaskSubmissions=2
+runtimeRestartRecovered=true
+apiRestartRecoveredFromMongo=true
+completionWithoutRefresh=true
+nativeDownloadCard=true
+nativeFallbackAfterBridgeRemoval=true
+deliveries=2 snapshots=2 transactions=8 generatedFiles=2 outputMessages=2
+```
+
+完整记录见 `docs/FILE_AGENT_RUNTIME_PHASE3DB_ACCEPTANCE.md`。
+
+## 六、下一道非生产门禁
+
 Phase 3D-C 再使用隔离测试 Key 执行一次有预算上限的真实外部 model relay 与真实
 非生产 CodeAPI 任务。验收报告只保留 endpoint contract、usage、延迟、文件 hash 和
 状态，不保存 URL、Key、客户文件或原始模型输出。
 
-Phase 3D-B/C 均通过前，不创建 production patch，不部署生产，不开放客户流量，也不
-扩展 Word、PPT、PDF worker。
+Phase 3D-C 通过并另行批准生产方案前，不创建 production patch，不部署生产，不开放
+客户流量，也不扩展 Word、PPT、PDF worker。

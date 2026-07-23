@@ -73,6 +73,14 @@ export class FileAgentReconciler {
     }
     this.allRun = Promise.resolve()
       .then(() => this.connector.reconcileAll())
+      .then((results) => {
+        for (const result of results ?? []) {
+          if (typeof result?.error === 'string' && result.error !== '') {
+            this.onError(new Error(result.error), { deliveryId: result.deliveryId, batch: true });
+          }
+        }
+        return results;
+      })
       .catch((error) => {
         this.onError(error, { all: true });
         throw error;

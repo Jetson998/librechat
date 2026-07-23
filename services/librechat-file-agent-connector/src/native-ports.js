@@ -13,7 +13,8 @@ function normalizeExistingIds(value) {
   if (value == null) {
     return new Set();
   }
-  return value instanceof Set ? value : new Set(value);
+  const values = value instanceof Set ? [...value] : value;
+  return new Set(values.map((id) => String(id)));
 }
 
 function requiredPrice(value, name) {
@@ -73,6 +74,7 @@ export class NativeLibreChatPorts {
     buildFinalEvent,
     buildRequestContext = ({ delivery }) => ({ userId: delivery.user }),
     updateProgress = async () => {},
+    createTransactionId = (stableId) => stableId,
   }) {
     if (!billingSnapshotStore || typeof billingSnapshotStore.get !== 'function') {
       throw new TypeError('billingSnapshotStore is required');
@@ -107,6 +109,7 @@ export class NativeLibreChatPorts {
     this.buildFinalEvent = requiredFunction(buildFinalEvent, 'buildFinalEvent');
     this.buildRequestContext = requiredFunction(buildRequestContext, 'buildRequestContext');
     this.updateNativeProgress = requiredFunction(updateProgress, 'updateProgress');
+    this.createTransactionId = requiredFunction(createTransactionId, 'createTransactionId');
     this.generationJobManager = generationJobManager;
   }
 
@@ -136,6 +139,7 @@ export class NativeLibreChatPorts {
     ).map((entry) => ({ ...entry, doc: { ...entry.doc } }));
 
     const idsByTokenType = {};
+    const nativeIdsByTokenType = {};
     for (const entry of prepared) {
       const tokenType = entry?.doc?.tokenType;
       if (tokenType !== 'prompt' && tokenType !== 'completion') {
@@ -144,18 +148,25 @@ export class NativeLibreChatPorts {
       if (idsByTokenType[tokenType]) {
         throw new Error(`Duplicate LibreChat transaction token type: ${tokenType}`);
       }
-      const transactionId = stableTransactionId(usageEventId, tokenType);
+      const transactionId = this.createTransactionId(
+        stableTransactionId(usageEventId, tokenType),
+      );
+      const serializedTransactionId = String(transactionId);
+      if (!serializedTransactionId || serializedTransactionId === '[object Object]') {
+        throw new TypeError('createTransactionId must return a serializable native identifier');
+      }
       entry.doc._id = transactionId;
-      idsByTokenType[tokenType] = transactionId;
+      idsByTokenType[tokenType] = serializedTransactionId;
+      nativeIdsByTokenType[tokenType] = transactionId;
     }
 
-    const transactionIds = Object.values(idsByTokenType);
+    const transactionIds = Object.values(nativeIdsByTokenType);
     const existingIds = normalizeExistingIds(await this.findExistingTransactionIds({
       ids: transactionIds,
       user: delivery.user,
       delivery,
     }));
-    const missing = prepared.filter((entry) => !existingIds.has(entry.doc._id));
+    const missing = prepared.filter((entry) => !existingIds.has(String(entry.doc._id)));
     if (missing.length > 0) {
       await this.bulkWriteTransactions(
         { user: delivery.user, docs: missing },

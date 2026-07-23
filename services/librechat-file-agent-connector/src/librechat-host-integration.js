@@ -23,10 +23,18 @@ function requiredCollection(value, name) {
   return value;
 }
 
+function identityString(value) {
+  if (value == null) {
+    return null;
+  }
+  const normalized = typeof value === 'string' ? value : value.toString?.();
+  return typeof normalized === 'string' && normalized !== '' ? normalized : null;
+}
+
 function isOwnedConversationFile(file, delivery) {
   return Boolean(
       file?.file_id &&
-      file.user === delivery.user &&
+      identityString(file.user) === identityString(delivery.user) &&
       file.conversationId === delivery.conversationId &&
       (file.tenantId ?? null) === (delivery.tenantId ?? null),
   );
@@ -102,12 +110,29 @@ export function createLibreChatMessageBuilder({
       if (!sanitized || sanitized.file_id !== fileId) {
         throw new Error(`sanitizeFileForTransmit removed or changed file_id: ${fileId}`);
       }
+      const toolCallId = artifact?.toolCallId ?? `file-agent:${fileId}`;
       attachments.push({
         ...sanitized,
         messageId: delivery.assistantMessageId,
-        ...(artifact?.toolCallId ? { toolCallId: artifact.toolCallId } : {}),
+        toolCallId,
       });
     }
+
+    const content = attachments.length === 0
+      ? undefined
+      : [
+          ...(text ? [{ type: 'text', text }] : []),
+          ...attachments.map((attachment) => ({
+            type: 'tool_call',
+            tool_call: {
+              id: attachment.toolCallId,
+              name: 'execute_code',
+              args: '{}',
+              output: `Generated file: ${attachment.filename ?? attachment.file_id}`,
+              progress: 1,
+            },
+          })),
+        ];
 
     const identity = validateMessageIdentity(
       await resolveMessageIdentity({ delivery, billingSnapshot, kind }),
@@ -121,6 +146,7 @@ export function createLibreChatMessageBuilder({
       isCreatedByUser: false,
       text,
       unfinished: kind === 'needs_input',
+      ...(content ? { content } : {}),
       ...(attachments.length > 0
         ? { attachments: clone(attachments), files: clone(attachments) }
         : {}),
@@ -236,7 +262,8 @@ export function createLibreChatHostIntegration({
     billingSnapshotStore,
     prepareStructuredTokenSpend: native.prepareStructuredTokenSpend,
     bulkWriteTransactions: native.bulkWriteTransactions,
-    findExistingTransactionIds: createMongoTransactionIdFinder(transactionCollection),
+    findExistingTransactionIds: native.findExistingTransactionIds ??
+      createMongoTransactionIdFinder(transactionCollection),
     transactionDbOps: native.transactionDbOps,
     processCodeOutput: native.processCodeOutput,
     saveMessage: native.saveMessage,
@@ -246,6 +273,7 @@ export function createLibreChatHostIntegration({
     buildFinalEvent,
     buildRequestContext: native.buildRequestContext,
     updateProgress: native.updateProgress,
+    createTransactionId: native.createTransactionId,
   });
   const connector = new LibreChatFileAgentConnector({
     store: deliveryStore,

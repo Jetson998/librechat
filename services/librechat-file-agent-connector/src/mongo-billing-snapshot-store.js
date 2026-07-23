@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { clone, digestJson, requiredString } from './stable.js';
 
 const PRICE_FIELDS = ['prompt', 'completion', 'cacheRead', 'cacheWrite'];
+const MESSAGE_IDENTITY_FIELDS = new Set(['sender', 'endpoint', 'model', 'iconURL']);
 const FORBIDDEN_KEYS = new Set([
   'apikey',
   'authorization',
@@ -38,6 +39,26 @@ function assertNoCredentials(value, path = 'snapshot') {
   }
 }
 
+function validateMessageIdentity(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError('messageIdentity must be an object');
+  }
+  for (const field of ['sender', 'endpoint', 'model']) {
+    if (typeof value[field] !== 'string' || value[field].trim() === '') {
+      throw new TypeError(`messageIdentity.${field} is required`);
+    }
+  }
+  for (const field of Object.keys(value)) {
+    if (!MESSAGE_IDENTITY_FIELDS.has(field)) {
+      throw new TypeError(`messageIdentity contains unsupported field: ${field}`);
+    }
+  }
+  if (value.iconURL != null && typeof value.iconURL !== 'string') {
+    throw new TypeError('messageIdentity.iconURL must be a string when supplied');
+  }
+  return clone(value);
+}
+
 export class MongoBillingSnapshotStore {
   constructor({ collection }) {
     if (!collection || typeof collection.findOne !== 'function') {
@@ -61,6 +82,7 @@ export class MongoBillingSnapshotStore {
     endpointTokenConfig,
     balance,
     transactions,
+    messageIdentity,
     pricingConfigDigest,
   }) {
     const normalizedPrices = Object.fromEntries(
@@ -80,6 +102,9 @@ export class MongoBillingSnapshotStore {
       endpointTokenConfig: clone(endpointTokenConfig ?? normalizedPrices),
       balance: clone(balance ?? { enabled: false }),
       transactions: clone(transactions ?? { enabled: true }),
+      messageIdentity: validateMessageIdentity(
+        messageIdentity ?? { sender: model, endpoint, model },
+      ),
       pricingConfigDigest: pricingConfigDigest ?? digestJson({
         endpoint,
         model,

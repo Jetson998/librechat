@@ -150,9 +150,10 @@ async function createMemoryDelivery(store, overrides = {}) {
   });
 }
 
-function nativeHarness({ snapshot, processCodeOutput } = {}) {
+function nativeHarness({ snapshot, processCodeOutput, createTransactionId } = {}) {
   const transactions = new Map();
   const transactionBatchSizes = [];
+  const nativeTransactionIds = [];
   const messages = new Map();
   const operations = [];
   let preparedArgs = null;
@@ -190,12 +191,17 @@ function nativeHarness({ snapshot, processCodeOutput } = {}) {
         { doc: { tokenType: 'completion' }, tokenValue: -2, balance: txData.balance },
       ];
     },
-    findExistingTransactionIds: async ({ ids }) => ids.filter((id) => transactions.has(id)),
+    findExistingTransactionIds: async ({ ids }) =>
+      ids.filter((id) => transactions.has(String(id))),
     bulkWriteTransactions: async ({ docs }) => {
       operations.push('transactions');
       transactionBatchSizes.push(docs.length);
       for (const entry of docs) {
-        transactions.set(entry.doc._id, clone(entry.doc));
+        nativeTransactionIds.push(entry.doc._id);
+        transactions.set(String(entry.doc._id), clone({
+          ...entry.doc,
+          _id: String(entry.doc._id),
+        }));
       }
     },
     transactionDbOps: { name: 'native-db-ops' },
@@ -236,11 +242,13 @@ function nativeHarness({ snapshot, processCodeOutput } = {}) {
       final: true,
       responseMessage: await getResponseMessage(),
     }),
+    createTransactionId,
   });
   return {
     ports,
     transactions,
     transactionBatchSizes,
+    nativeTransactionIds,
     messages,
     operations,
     getPreparedArgs: () => preparedArgs,
@@ -377,6 +385,32 @@ test('native usage replay preserves structured token granularity and does not re
   await harness.ports.writeUsageTransactions({ usageEventId: 'usage-1', usage, delivery });
   assert.equal(harness.transactions.size, 2);
   assert.deepEqual(harness.transactionBatchSizes, [2, 1]);
+});
+
+test('native usage replay supports deterministic host transaction identifiers', async () => {
+  const harness = nativeHarness({
+    createTransactionId: (stableId) => ({
+      value: stableId.slice(0, 24),
+      toString() {
+        return this.value;
+      },
+    }),
+  });
+  const delivery = deliveryRecord();
+  const usage = {
+    inputTokens: 100,
+    cacheReadTokens: 20,
+    cacheWriteTokens: 10,
+    outputTokens: 30,
+  };
+
+  await harness.ports.writeUsageTransactions({ usageEventId: 'native-id-usage', usage, delivery });
+  await harness.ports.writeUsageTransactions({ usageEventId: 'native-id-usage', usage, delivery });
+
+  assert.equal(harness.transactions.size, 2);
+  assert.deepEqual(harness.transactionBatchSizes, [2]);
+  assert.equal(harness.nativeTransactionIds.length, 2);
+  assert.ok(harness.nativeTransactionIds.every((id) => String(id).length === 24));
 });
 
 test('native artifact replay produces one LibreChat file receipt and awaits preview finalization', async () => {
@@ -611,12 +645,62 @@ test('host message builder rehydrates owned generated files in Runtime artifact 
     message.attachments.map((file) => file.toolCallId),
     ['file-agent:artifact-1', 'file-agent:artifact-2'],
   );
+  assert.deepEqual(message.content, [
+    { type: 'text', text: '文件已生成。' },
+    {
+      type: 'tool_call',
+      tool_call: {
+        id: 'file-agent:artifact-1',
+        name: 'execute_code',
+        args: '{}',
+        output: 'Generated file: first.xlsx',
+        progress: 1,
+      },
+    },
+    {
+      type: 'tool_call',
+      tool_call: {
+        id: 'file-agent:artifact-2',
+        name: 'execute_code',
+        args: '{}',
+        output: 'Generated file: second.xlsx',
+        progress: 1,
+      },
+    },
+  ]);
   assert.equal(message.messageId, 'assistant-message-1');
   assert.equal(message.user, 'user-1');
   assert.equal(message.text, '文件已生成。');
   assert.equal(message.parentMessageId, 'user-message-1');
   assert.equal(message.unfinished, false);
   assert.equal(JSON.stringify(message).includes('internal'), false);
+});
+
+test('host message builder accepts a native ObjectId-style file owner identity', async () => {
+  const builder = createLibreChatMessageBuilder({
+    getFilesByIds: async () => [{
+      file_id: 'file-1',
+      filename: 'result.xlsx',
+      user: { toString: () => 'user-1' },
+      tenantId: null,
+      conversationId: 'conversation-1',
+    }],
+    sanitizeFileForTransmit: (file) => ({ file_id: file.file_id, filename: file.filename }),
+    resolveMessageIdentity: async () => ({ sender: 'Assistant', endpoint: 'custom', model: 'm' }),
+  });
+
+  const message = await builder({
+    kind: 'completed',
+    delivery: deliveryRecord(),
+    text: '文件已生成。',
+    fileIds: ['file-1'],
+    artifacts: [{ fileId: 'file-1' }],
+    billingSnapshot: {},
+  });
+
+  assert.deepEqual(message.files.map((file) => file.file_id), ['file-1']);
+  assert.equal(message.attachments[0].toolCallId, 'file-agent:file-1');
+  assert.equal(message.content[1].tool_call.id, 'file-agent:file-1');
 });
 
 test('host message builder refuses missing or unauthorized generated file records', async () => {

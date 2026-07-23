@@ -49,11 +49,15 @@ production entry point.
 - an immediate and periodic reconciler with per-delivery wake deduplication;
 - one guarded Phase 3D acceptance command using a real loopback MongoDB,
   loopback Runtime HTTP, isolated CodeAPI, and isolated recorded model relay.
+- one guarded Phase 3D-B acceptance command using the pinned full LibreChat API
+  and client build, a real browser, temporary MongoDB, Runtime/API restart
+  recovery, native download-card verification, and native fallback verification;
+- generated assistant messages that pair every delivered file attachment with
+  a matching native `execute_code` tool-call content part.
 
 ## Not Implemented
 
 - a production wiring module or startup hook;
-- a completed full LibreChat build and browser test-account acceptance;
 - a production Runtime secret source, rotation policy, or network deployment;
 - a real non-production external CodeAPI and model-relay acceptance task;
 - production feature flags, customer files, or deployment;
@@ -85,3 +89,14 @@ npm run phase3d:accept
 `FILE_AGENT_PHASE3D_MONGO_MODE=uri` may instead use an explicitly supplied
 loopback `FILE_AGENT_PHASE3D_MONGO_URI`. The command refuses remote Mongo hosts,
 production scope, missing confirmation, or missing test dependencies.
+
+The Phase 3D-B command additionally requires a clean full LibreChat tree at the
+pinned upstream revision. It uses only temporary local services and refuses to
+run without the explicit non-production confirmation:
+
+```sh
+FILE_AGENT_PHASE3DB_SCOPE=non-production \
+FILE_AGENT_PHASE3DB_CONFIRM=FULL_ISOLATED_LIBRECHAT_ACCEPTANCE \
+FILE_AGENT_PHASE3DB_UPSTREAM_ROOT=/path/to/pinned/librechat \
+npm run phase3db:accept
+```

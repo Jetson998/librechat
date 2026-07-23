@@ -1,3 +1,24 @@
+diff --git a/api/server/index.js b/api/server/index.js
+index f88b2fd..48ce476 100644
+--- a/api/server/index.js
++++ b/api/server/index.js
+@@ -63,0 +64,3 @@ const app = express();
++const NON_PRODUCTION_FILE_AGENT_HOST_INSTALLER = Symbol.for(
++  '@jetson998/librechat-file-agent-host-installer/v1',
++);
+@@ -318,0 +322,12 @@ const startServer = async () => {
++  const installNonProductionFileAgentHost =
++    globalThis[NON_PRODUCTION_FILE_AGENT_HOST_INSTALLER];
++  if (installNonProductionFileAgentHost != null) {
++    if (typeof installNonProductionFileAgentHost !== 'function') {
++      throw new TypeError('Non-production File Agent host installer must be a function');
++    }
++    await installNonProductionFileAgentHost({
++      app,
++      appConfig,
++    });
++  }
++
 diff --git a/api/server/controllers/agents/request.js b/api/server/controllers/agents/request.js
 index 49d9329..81a5ca8 100644
 --- a/api/server/controllers/agents/request.js

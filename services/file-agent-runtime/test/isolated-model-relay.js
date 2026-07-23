@@ -43,6 +43,7 @@ export class IsolatedModelRelay {
   constructor({ responseFor } = {}) {
     this.responseFor = responseFor ?? (({ operation }) => defaultPlan(operation));
     this.responses = new Map();
+    this.inFlight = new Map();
     this.actualExecutions = new Map();
     this.requests = [];
     this.server = createServer((request, response) => this.#handle(request, response));
@@ -97,32 +98,47 @@ export class IsolatedModelRelay {
         return;
       }
 
-      this.actualExecutions.set(callId, this.executionCount(callId) + 1);
-      const plan = await this.responseFor({
-        callId,
-        operation: payload.operation,
-        context: payload.context,
-        requestIndex: this.requests.length - 1,
-      });
-      const bodyResponse = {
-        id: `chatcmpl-${sha256(callId).slice(0, 16)}`,
-        object: 'chat.completion',
-        model: 'recorded-office-planner',
-        choices: [
-          {
-            index: 0,
-            finish_reason: 'stop',
-            message: { role: 'assistant', content: JSON.stringify(plan) },
-          },
-        ],
-        usage: {
-          prompt_tokens: payload.operation === 'repair' ? 700 : 500,
-          completion_tokens: payload.operation === 'repair' ? 90 : 70,
-          prompt_tokens_details: { cached_tokens: payload.operation === 'repair' ? 120 : 0 },
-          cache_creation_input_tokens: 0,
-        },
-      };
-      this.responses.set(callId, bodyResponse);
+      let execution = this.inFlight.get(callId);
+      if (!execution) {
+        this.actualExecutions.set(callId, this.executionCount(callId) + 1);
+        execution = (async () => {
+          const plan = await this.responseFor({
+            callId,
+            operation: payload.operation,
+            context: payload.context,
+            requestIndex: this.requests.length - 1,
+          });
+          const bodyResponse = {
+            id: `chatcmpl-${sha256(callId).slice(0, 16)}`,
+            object: 'chat.completion',
+            model: 'recorded-office-planner',
+            choices: [
+              {
+                index: 0,
+                finish_reason: 'stop',
+                message: { role: 'assistant', content: JSON.stringify(plan) },
+              },
+            ],
+            usage: {
+              prompt_tokens: payload.operation === 'repair' ? 700 : 500,
+              completion_tokens: payload.operation === 'repair' ? 90 : 70,
+              prompt_tokens_details: { cached_tokens: payload.operation === 'repair' ? 120 : 0 },
+              cache_creation_input_tokens: 0,
+            },
+          };
+          this.responses.set(callId, bodyResponse);
+          return bodyResponse;
+        })();
+        this.inFlight.set(callId, execution);
+      }
+      let bodyResponse;
+      try {
+        bodyResponse = await execution;
+      } finally {
+        if (this.inFlight.get(callId) === execution) {
+          this.inFlight.delete(callId);
+        }
+      }
       respond(response, 200, bodyResponse);
     } catch (error) {
       respond(response, 500, { error: error?.message ?? String(error) });
