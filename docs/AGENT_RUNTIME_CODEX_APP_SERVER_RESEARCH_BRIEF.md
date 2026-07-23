@@ -5,8 +5,9 @@
 本文件记录 LibreChat 文件 Agent 当前已确认的问题、已否定的早期方案、
 Codex CLI / app-server 可参考的架构方向，以及进入开发前必须完成的研究工作。
 
-本阶段只形成诊断和研究门禁，不修改 LibreChat、CodeAPI、Office 文件链路或
-生产环境。
+研究门禁已于 2026-07-23 收口。批准方向为独立 File Agent Runtime；Codex
+app-server 只作为架构参考，不复用、不嵌入，也不增加为运行时依赖。详细设计见
+`docs/INDEPENDENT_FILE_AGENT_RUNTIME_ARCHITECTURE.md`。
 
 ## 二、问题样本与已确认事实
 
@@ -106,9 +107,10 @@ Codex 的公开长任务工作方式还包括：
 - https://developers.openai.com/cookbook/examples/skills_in_api
 - https://github.com/openai/codex/tree/main/codex-rs/app-server
 
-## 六、候选目标架构
+## 六、目标架构
 
-本阶段只记录候选方向，不视为已批准实现。
+已批准采用混合模式：LibreChat 保留聊天产品和交付边界，复杂文件任务委托给独立
+File Agent Runtime。
 
 ### 6.1 持久任务工作区
 
@@ -182,49 +184,26 @@ CLI，而不是每次由模型重新生成公共机械代码。
 不得将 Excel 专属业务代码直接堆入 LibreChat core，也不得让 CodeAPI 负责判断
 业务任务是否应该继续。CodeAPI 是执行环境，Agent Runtime 才是执行编排层。
 
-## 八、下一步研究门禁
+## 八、已批准路线与边界
 
-下一步必须先研究 Codex app-server 的开源实现并形成 LibreChat 映射设计，再决定
-采用哪条实现路线：
+采用混合模式，但 Runtime 不实现在 LibreChat API 进程内：
 
-### 路线 A：直接复用 Codex app-server 或 Codex SDK
+- LibreChat 保留普通聊天、轻量文件问答、用户、权限、价格、交易、附件和下载卡；
+- 独立 File Agent Runtime 负责复杂 Office、代码和长文件任务；
+- Runtime 通过版本化 Task API、事件游标、usage 和 CodeAPI artifact refs 与
+  LibreChat 交互；
+- Runtime 不导入 LibreChat 源码、不读 Mongo、不保存价格、不生成 LibreChat 消息；
+- Runtime 使用独立 OpenAI-compatible Provider Adapter 和独立受限中转密钥；
+- Codex app-server、SDK 和协议均不作为实现依赖。
 
-需要验证：
+详细协议、状态机、模型接入、计费、隔离、恢复和 POC 阶段见
+`docs/INDEPENDENT_FILE_AGENT_RUNTIME_ARCHITECTURE.md`。
 
-- 是否支持当前自定义模型端点及 `gpt-5.6-sol`、`claude-fable-5`；
-- 多用户和会话隔离方式；
-- 与 LibreChat 登录、权限、计费和附件系统的集成成本；
-- 与现有 CodeAPI、`/mnt/data` 和生成文件卡的兼容性；
-- 部署资源、授权、升级和回滚边界；
-- 是否可以只作为复杂文件任务的可选执行后端。
+## 九、下一步门禁
 
-### 路线 B：在 LibreChat Agent Runtime 中实现同类架构
+下一步只能从非生产 Phase 0 开始：实现独立任务状态机、幂等提交、事件游标和
+fake provider/executor。不得先接生产流量，不得开发新的静态工具次数限制，不得
+修改现有 Office 上传和 CodeAPI 文件挂载链路。
 
-需要映射：
-
-- Conversation / Message 到 Thread / Turn / Item；
-- LangGraph 运行和工具事件到 Item 生命周期；
-- GenerationJobManager 到权威 Turn 完成状态；
-- CodeAPI session 到持久任务工作区；
-- 当前消息上下文到可压缩的上下文投影；
-- 当前 Skills 到版本化任务程序和确定性 CLI。
-
-### 路线 C：混合模式
-
-LibreChat 保留普通聊天和轻量文件问答；复杂 Office、代码和长任务委托给具备
-持久工作区、上下文压缩和可恢复执行能力的专用 Agent Runtime。
-
-## 九、研究输出要求
-
-研究阶段至少产出：
-
-1. Codex app-server 源码模块图；
-2. Thread / Turn / Item 和上下文压缩机制说明；
-3. 命令执行、文件变更、恢复和完成事件链路说明；
-4. LibreChat 当前 Agent 链路的逐项映射；
-5. 直接复用、原生实现和混合模式的成本与风险比较；
-6. 一个不接生产流量的最小 POC 方案；
-7. 明确的采用或不采用结论。
-
-在上述研究和映射设计完成前，不开发新的静态工具次数限制，不进行生产热补，
-不修改现有 Office 上传和 CodeAPI 文件挂载链路。
+完成 Phase 0 至 Phase 3 的离线、CodeAPI、单模型和 LibreChat 非生产验收后，
+再单独提交生产试用方案。
