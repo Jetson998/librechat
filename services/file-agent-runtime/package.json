@@ -1,0 +1,14 @@
+{
+  "name": "@jetson998/file-agent-runtime",
+  "version": "0.0.1-phase0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test",
+    "check": "node --check src/*.js && node --check test/*.js"
+  }
+}

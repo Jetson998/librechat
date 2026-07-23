@@ -48,6 +48,9 @@ email/password login enabled.
 - [Independent File Agent Runtime architecture](docs/INDEPENDENT_FILE_AGENT_RUNTIME_ARCHITECTURE.md):
   approved low-coupling split for keeping chat in LibreChat while delegating
   complex Office and file tasks to an independently deployable runtime.
+- [File Agent Runtime Phase 0 implementation](docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md):
+  locally verified task state machine, idempotency, event cursor, cancel,
+  steer, restart recovery, and fake adapters with no production integration.
 - [Targeted Excel analysis plan](docs/OFFICE_TARGETED_EXCEL_ANALYSIS_PLAN.md):
   structure-first workbook review without unrequested full-text dump artifacts.
 - [Empty response and regeneration recovery plan](docs/EMPTY_RESPONSE_REGENERATION_PLAN.md):

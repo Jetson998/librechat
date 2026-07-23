@@ -2,8 +2,9 @@
 
 Date: 2026-07-23
 
-Status: architecture decision approved; design and POC gate only; no production
-traffic or production deployment.
+Status: architecture approved. Phase 0 is implemented and locally verified;
+there is no production traffic, integration, or deployment. Implementation
+record: `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`.
 
 ## 一、决策摘要
 
@@ -265,6 +266,7 @@ Runtime 在下一个安全检查点读取指令并生成新的 plan revision。
 ```text
 task.accepted
 task.phase_changed
+task.steered
 plan.updated
 item.started
 item.completed
