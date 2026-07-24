@@ -4,13 +4,8 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {
-      "algorithm": "sha256",
-      "artifact": ".release-state/20260724-agent-progress-ledger/artifacts/20260724-agent-progress-ledger-941b5f1ce50e.tar.gz",
-      "manifest": ".release-state/20260724-agent-progress-ledger/artifacts/manifest.json",
-      "value": "e32a505c6253b1ba53789533c5ff5e3370815d0843aa1c039f734663117809a2"
-    },
-    "status": "passed"
+    "details": {},
+    "status": "pending"
   },
   "backup_reference": {
     "details": {
@@ -20,44 +15,15 @@
   },
   "baseline_reference": {
     "details": {
-      "description": "Production API after the Fable public tool-contract release and before the Agent progress ledger",
-      "implementation_parent_revision": "27d40723a4a9956d0456617b2886c17689a3ca38",
-      "live_api_index_sha256": "615c030c56c62d9ce90f92d3591fb99d7fda29a058daa0b4076850bb6fc5f182"
+      "description": "Production API after the public code-tool contract release and before the Agent progress ledger",
+      "implementation_parent_revision": "fc288a3c6edd9a47dbf0a6d509af39fc0eb5f05e",
+      "live_api_index_sha256": "4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b"
     },
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "e32a505c6253b1ba53789533c5ff5e3370815d0843aa1c039f734663117809a2",
-    "build_environment": "independent-build",
-    "completed_requirements": [
-      "api-artifact",
-      "deployable-artifact",
-      "versioned-patch-artifact",
-      "api-tests",
-      "data-change-tests",
-      "patch-contract-tests",
-      "release-scope-tests"
-    ],
-    "details": {
-      "artifact": ".release-state/20260724-agent-progress-ledger/artifacts/20260724-agent-progress-ledger-941b5f1ce50e.tar.gz",
-      "checks": [
-        "Exact source revision 941b5f1ce50e005cf491f9bee89354de7fbf707d was exported into an independent temporary build directory",
-        "Agent progress ledger tests passed for repeated observations, artifact resets, strategy recovery, parallel bypass, TTL and LRU bounds, and diagnostic privacy",
-        "Mongo GPT and Fable unsupported-image prompt contract tests passed and remained idempotent",
-        "node --check passed for api-index.cjs, tool-call-normalizer.cjs, tool-progress-ledger.cjs, and mongo-config.js",
-        "bash -n passed for deploy.sh and remote-apply.sh",
-        "release governance configuration validation passed",
-        "release governance unittest discovery passed 32 tests",
-        "Python release adapter and gate compilation passed with an isolated temporary bytecode cache",
-        "git diff --check passed in the independent validation snapshot",
-        "Packaged artifact SHA-256 was independently rechecked as e32a505c6253b1ba53789533c5ff5e3370815d0843aa1c039f734663117809a2"
-      ]
-    },
-    "production_host": false,
-    "provider": "Codex local independent validation",
-    "release_plan_sha256": "9bcdcf9a75cf96445ea4285dda2d78b2ff675c37825d8857a2e12bddbb2ea9f9",
-    "source_revision": "941b5f1ce50e005cf491f9bee89354de7fbf707d",
-    "status": "passed"
+    "details": {},
+    "status": "pending"
   },
   "change_summary": {
     "expected_result": "Serial Agent tool loops stop after a repeated observable state, one strategy-change opportunity, and a second no-progress state instead of reaching recursionLimit=50. Warning, stop, and abort events produce bounded structured diagnostics. GPT and Fable state that image generation is unavailable and do not search for nonexistent image artifacts.",
@@ -69,7 +35,8 @@
       "Abort a later tool batch with a user-safe AgentNoProgressError before executing more tools",
       "Emit structured diagnostics only for warning, stop, and abort transitions",
       "Append an idempotent unsupported-image-generation contract to gpt-5.6-sol and claude-fable-5",
-      "Preserve the existing Bash, Read, and Skill compatibility normalizer"
+      "Preserve the existing Bash, Read, and Skill compatibility normalizer",
+      "Preserve and package the deployed public code-tool contract"
     ],
     "limitations": [
       "Parallel tool batches are recorded but do not trigger stop transitions in the first release",
@@ -104,7 +71,7 @@
   "rollback_reference": {
     "details": {
       "command": "Restore the timestamp-matched Compose override and agent-progress-ledger Mongo backup created by remote-apply.sh, recreate only LibreChat-API, then verify root, API config, CodeAPI health, normal GPT/Fable chat, and Office file reading",
-      "restore_revision": "27d40723a4a9956d0456617b2886c17689a3ca38"
+      "restore_revision": "fc288a3c6edd9a47dbf0a6d509af39fc0eb5f05e"
     },
     "status": "passed"
   },
@@ -113,13 +80,13 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "941b5f1ce50e005cf491f9bee89354de7fbf707d",
+  "source_revision": "e46b4b51064f4b636cbc290b9673d96f2eaa688c",
   "status": "planned",
   "unresolved_issues": [
     "Production read-only preflight and live API baseline verification have not run",
     "Production deployment and vip998 business acceptance are not approved or executed"
   ],
-  "updated_at": "2026-07-24T08:33:56Z",
+  "updated_at": "2026-07-24T08:40:00Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js plus node --check, bash -n, git diff --check, and release-governance unittest discovery",
