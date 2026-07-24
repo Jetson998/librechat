@@ -1,7 +1,16 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "billable_model_requests": 1,
+      "business_evidence": ".release-state/20260724-agent-progress-ledger/business-acceptance.json",
+      "conversation_id": "15b695dd-764c-4fae-b779-d59bea0dbc27",
+      "conversation_url": "https://152.32.172.162.sslip.io/c/15b695dd-764c-4fae-b779-d59bea0dbc27",
+      "evidence": ".release-state/20260724-agent-progress-ledger/acceptance-result.json",
+      "parallel_batch_behavior": "The model emitted two observations in one batch, so the documented parallel bypass allowed both and the assistant completed normally.",
+      "serial_runtime_probe": "continue -> warn -> stop -> AGENT_NO_PROGRESS"
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -14,9 +23,12 @@
   },
   "backup_reference": {
     "details": {
-      "planned": "remote-apply.sh creates a timestamped Compose override backup, a complete active base Mongo configuration backup, and a read-only release directory before API recreation"
+      "compose_override_backup": "/opt/librechat/compose.override.yaml.bak-20260724165803",
+      "mongo_backup_id": "agent-progress-ledger-e46b4b51064f-20260724165803",
+      "release_dir": "/opt/librechat/agent-progress-ledger/e46b4b51064f-20260724165803",
+      "restore_scope": "Restore the timestamp-matched Compose override and Mongo base-config backup, recreate only LibreChat-API, then verify root, API config, CodeAPI health, normal GPT/Fable chat, and the serial progress-ledger probe."
     },
-    "status": "pending"
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -100,8 +112,17 @@
   "project_id": "librechat-self-host",
   "release_id": "20260724-agent-progress-ledger",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "heavy",
+      "matched_rules": [
+        "api-runtime",
+        "persistent-data",
+        "production-patch"
+      ],
+      "minimum_mode": "enhanced",
+      "path": ".release-state/20260724-agent-progress-ledger/release-plan.json"
+    },
+    "sha256": "493bc276c80f03a57eb649d98d4c24a7ccd2351cb3882908384e229071ed9b95"
   },
   "rollback_reference": {
     "details": {
@@ -111,17 +132,62 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_captured_at": "2026-07-24T09:12:16Z",
+      "api_error_log_check": "No fatal, recursion-limit, or tool-not-found matches in the post-deploy acceptance window.",
+      "artifact_sha256": "47b7d6481ccf0ab76e219a53aec8f903a2814af6777445b801151e1ce3a6bf99",
+      "business_acceptance": {
+        "assistant_completed": true,
+        "billable_model_requests": 1,
+        "conversation_created": true,
+        "files_created": 0,
+        "tool_batch_size": 2
+      },
+      "codeapi": {
+        "container_id": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+        "health": "healthy",
+        "unchanged": true
+      },
+      "deployed_at": "2026-07-24T08:58:34Z",
+      "in_container_hashes": {
+        "/app/packages/api/dist/code-tool-contract.cjs": "5d5d098c47852d2e0f8f91e8420238b5341a3c6adce7d03abca6819c057f20fe",
+        "/app/packages/api/dist/index.cjs": "107678877c69dd3ccb7db53e160acad2326819d95e71ae289594140cc5eaa719",
+        "/app/packages/api/dist/tool-call-normalizer.cjs": "a5a1feca10545e1bba60b3a872101cc961526609c482aa5b7b049bdbaead7f7a",
+        "/app/packages/api/dist/tool-progress-ledger.cjs": "6dd81a83064c752255091309f00683727e78b9e325e7b39d0f2489f8e07bdde2"
+      },
+      "mongo_config_version": 68,
+      "public_checks": {
+        "api_config": 200,
+        "main_root": 200
+      },
+      "serial_runtime_probe": {
+        "abort": "AGENT_NO_PROGRESS",
+        "actions": [
+          "continue",
+          "warn",
+          "stop"
+        ],
+        "diagnostics": [
+          "NO_PROGRESS_WARNING",
+          "NO_PROGRESS_STOP",
+          "AGENT_NO_PROGRESS"
+        ]
+      },
+      "unchanged_services": [
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "Office Converter",
+        "Admin Panel",
+        "chat-mongodb"
+      ]
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "e46b4b51064f4b636cbc290b9673d96f2eaa688c",
-  "status": "planned",
-  "unresolved_issues": [
-    "Production read-only preflight and live API baseline verification have not run",
-    "Production deployment and vip998 business acceptance are not approved or executed"
-  ],
-  "updated_at": "2026-07-24T08:48:56Z",
+  "status": "deployed",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-24T09:12:16Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js plus node --check, bash -n, git diff --check, and release-governance unittest discovery",
