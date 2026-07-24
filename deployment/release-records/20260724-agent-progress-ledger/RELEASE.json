@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260724-agent-progress-ledger/artifacts/20260724-agent-progress-ledger-e46b4b51064f.tar.gz",
+      "manifest": ".release-state/20260724-agent-progress-ledger/artifacts/manifest.json",
+      "value": "47b7d6481ccf0ab76e219a53aec8f903a2814af6777445b801151e1ce3a6bf99"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {
@@ -22,8 +27,38 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "47b7d6481ccf0ab76e219a53aec8f903a2814af6777445b801151e1ce3a6bf99",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "data-change-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260724-agent-progress-ledger/artifacts/20260724-agent-progress-ledger-e46b4b51064f.tar.gz",
+      "checks": [
+        "Exact source revision e46b4b51064f4b636cbc290b9673d96f2eaa688c was exported into an independent temporary build directory",
+        "Agent progress ledger tests passed for repeated observations, artifact resets, strategy recovery, parallel bypass, TTL and LRU bounds, and diagnostic privacy",
+        "The deployed public code-tool contract remains integrated and its packaged module matches the prior released contract SHA-256",
+        "Mongo GPT and Fable unsupported-image prompt contract tests passed and remained idempotent",
+        "node --check passed for api-index.cjs, code-tool-contract.cjs, tool-call-normalizer.cjs, tool-progress-ledger.cjs, and mongo-config.js",
+        "bash -n passed for deploy.sh and remote-apply.sh",
+        "release governance configuration validation passed",
+        "release governance unittest discovery passed 32 tests",
+        "Python release adapter and gate compilation passed with an isolated temporary bytecode cache",
+        "git diff --check passed in the independent validation snapshot",
+        "Packaged artifact SHA-256 was independently rechecked as 47b7d6481ccf0ab76e219a53aec8f903a2814af6777445b801151e1ce3a6bf99"
+      ]
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "493bc276c80f03a57eb649d98d4c24a7ccd2351cb3882908384e229071ed9b95",
+    "source_revision": "e46b4b51064f4b636cbc290b9673d96f2eaa688c",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Serial Agent tool loops stop after a repeated observable state, one strategy-change opportunity, and a second no-progress state instead of reaching recursionLimit=50. Warning, stop, and abort events produce bounded structured diagnostics. GPT and Fable state that image generation is unavailable and do not search for nonexistent image artifacts.",
@@ -86,7 +121,7 @@
     "Production read-only preflight and live API baseline verification have not run",
     "Production deployment and vip998 business acceptance are not approved or executed"
   ],
-  "updated_at": "2026-07-24T08:40:00Z",
+  "updated_at": "2026-07-24T08:48:56Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js plus node --check, bash -n, git diff --check, and release-governance unittest discovery",
