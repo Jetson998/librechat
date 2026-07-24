@@ -9,18 +9,20 @@ compose_dir="/opt/librechat"
 compose_override="$compose_dir/compose.override.yaml"
 compose_backup="$compose_override.bak-$timestamp"
 backup_id="agent-progress-ledger-${source_revision:0:12}-$timestamp"
-expected_baseline="615c030c56c62d9ce90f92d3591fb99d7fda29a058daa0b4076850bb6fc5f182"
+expected_baseline="4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b"
 
 api_index_src="$stage_dir/api-index.cjs"
+contract_src="$stage_dir/code-tool-contract.cjs"
 normalizer_src="$stage_dir/tool-call-normalizer.cjs"
 progress_ledger_src="$stage_dir/tool-progress-ledger.cjs"
 mongo_config_src="$stage_dir/mongo-config.js"
 
-for file in "$api_index_src" "$normalizer_src" "$progress_ledger_src" "$mongo_config_src" "$compose_override"; do
+for file in "$api_index_src" "$contract_src" "$normalizer_src" "$progress_ledger_src" "$mongo_config_src" "$compose_override"; do
   test -f "$file"
 done
 
 node --check "$api_index_src"
+node --check "$contract_src"
 node --check "$normalizer_src"
 node --check "$progress_ledger_src"
 node --check "$mongo_config_src"
@@ -29,6 +31,7 @@ current_hash="$(docker exec LibreChat-API sha256sum /app/packages/api/dist/index
 test "$current_hash" = "$expected_baseline"
 
 api_index_hash="$(sha256sum "$api_index_src" | awk '{print $1}')"
+contract_hash="$(sha256sum "$contract_src" | awk '{print $1}')"
 normalizer_hash="$(sha256sum "$normalizer_src" | awk '{print $1}')"
 progress_ledger_hash="$(sha256sum "$progress_ledger_src" | awk '{print $1}')"
 codeapi_id_before="$(docker inspect LibreChat-CodeAPI --format '{{.Id}}')"
@@ -48,6 +51,7 @@ mongo_preflight="$(run_mongo_mode preflight | tail -n 1)"
 cp -a "$compose_override" "$compose_backup"
 mkdir -p "$release_dir"
 install -m 0444 "$api_index_src" "$release_dir/api-index.cjs"
+install -m 0444 "$contract_src" "$release_dir/code-tool-contract.cjs"
 install -m 0444 "$normalizer_src" "$release_dir/tool-call-normalizer.cjs"
 install -m 0444 "$progress_ledger_src" "$release_dir/tool-progress-ledger.cjs"
 install -m 0400 "$mongo_config_src" "$release_dir/mongo-config.js"
@@ -85,6 +89,7 @@ api = payload.setdefault('services', {}).setdefault('api', {})
 volumes = api.setdefault('volumes', [])
 destinations = {
     '/app/packages/api/dist/index.cjs',
+    '/app/packages/api/dist/code-tool-contract.cjs',
     '/app/packages/api/dist/tool-call-normalizer.cjs',
     '/app/packages/api/dist/tool-progress-ledger.cjs',
 }
@@ -100,6 +105,7 @@ def destination(entry):
 volumes = [entry for entry in volumes if destination(entry) not in destinations]
 volumes.extend([
     f'{release_dir}/api-index.cjs:/app/packages/api/dist/index.cjs:ro',
+    f'{release_dir}/code-tool-contract.cjs:/app/packages/api/dist/code-tool-contract.cjs:ro',
     f'{release_dir}/tool-call-normalizer.cjs:/app/packages/api/dist/tool-call-normalizer.cjs:ro',
     f'{release_dir}/tool-progress-ledger.cjs:/app/packages/api/dist/tool-progress-ledger.cjs:ro',
 ])
@@ -131,9 +137,11 @@ done
 test "$ready" = "1"
 
 docker exec LibreChat-API node --check /app/packages/api/dist/index.cjs
+docker exec LibreChat-API node --check /app/packages/api/dist/code-tool-contract.cjs
 docker exec LibreChat-API node --check /app/packages/api/dist/tool-call-normalizer.cjs
 docker exec LibreChat-API node --check /app/packages/api/dist/tool-progress-ledger.cjs
 test "$(docker exec LibreChat-API sha256sum /app/packages/api/dist/index.cjs | awk '{print $1}')" = "$api_index_hash"
+test "$(docker exec LibreChat-API sha256sum /app/packages/api/dist/code-tool-contract.cjs | awk '{print $1}')" = "$contract_hash"
 test "$(docker exec LibreChat-API sha256sum /app/packages/api/dist/tool-call-normalizer.cjs | awk '{print $1}')" = "$normalizer_hash"
 test "$(docker exec LibreChat-API sha256sum /app/packages/api/dist/tool-progress-ledger.cjs | awk '{print $1}')" = "$progress_ledger_hash"
 test "$(run_mongo_mode verify | tail -n 1 | cut -d' ' -f1)" = "verify=ok"
@@ -149,6 +157,7 @@ printf 'release_dir=%s\n' "$release_dir"
 printf 'compose_backup=%s\n' "$compose_backup"
 printf 'mongo_backup_id=%s\n' "$backup_id"
 printf 'api_index_sha256=%s\n' "$api_index_hash"
+printf 'code_tool_contract_sha256=%s\n' "$contract_hash"
 printf 'normalizer_sha256=%s\n' "$normalizer_hash"
 printf 'progress_ledger_sha256=%s\n' "$progress_ledger_hash"
 printf 'codeapi_unchanged=true\n'

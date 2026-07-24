@@ -252,6 +252,8 @@ for (const spec of configured.overrides.modelSpecs.list) {
 
 const apiSource = fs.readFileSync(path.join(releaseRoot, 'api-patch', 'api-index.cjs'), 'utf8');
 for (const contract of [
+  'require("./code-tool-contract.cjs")',
+  'buildCodeToolContract(toolDefinitions)',
   'require("./tool-progress-ledger.cjs")',
   'agentToolProgressLedger.assertCanExecute(ledgerContext)',
   'agentToolProgressLedger.observe({',
@@ -261,11 +263,18 @@ for (const contract of [
 ]) {
   assert(apiSource.includes(contract), `API integration missing: ${contract}`);
 }
+const codeToolContractSource = fs.readFileSync(
+  path.join(releaseRoot, 'api-patch', 'code-tool-contract.cjs'),
+  'utf8',
+);
+assert(codeToolContractSource.includes('function buildCodeToolContract'));
+assert(codeToolContractSource.includes('module.exports'));
 
 const baseline = fs.readFileSync(path.join(releaseRoot, 'BASELINE_SHA256'), 'utf8').trim();
-assert.equal(baseline, '615c030c56c62d9ce90f92d3591fb99d7fda29a058daa0b4076850bb6fc5f182');
+assert.equal(baseline, '4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b');
 const remoteApply = fs.readFileSync(path.join(releaseRoot, 'scripts', 'remote-apply.sh'), 'utf8');
 assert(remoteApply.includes(`expected_baseline="${baseline}"`));
+assert(remoteApply.includes('/app/packages/api/dist/code-tool-contract.cjs'));
 assert(remoteApply.includes('/app/packages/api/dist/tool-progress-ledger.cjs'));
 assert(remoteApply.includes('AGENT_PROGRESS_LEDGER_MODE'));
 

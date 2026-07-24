@@ -60,6 +60,8 @@ backed up before application.
 ## Preserved behavior
 
 - The existing `Bash`/`Read`/`Skill` compatibility normalizer remains mounted.
+- The deployed public code-tool contract remains active; the release packages
+  and verifies `code-tool-contract.cjs` instead of relying on an older mount.
 - Office upload, pre-parse, CodeAPI file injection, artifact persistence, and
   download cards are unchanged.
 - `recursionLimit=50` remains the final global safety limit.
@@ -71,6 +73,7 @@ backed up before application.
 ```sh
 node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/api-index.cjs
+node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/code-tool-contract.cjs
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-call-normalizer.cjs
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-progress-ledger.cjs
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/mongo-config.js
@@ -83,8 +86,9 @@ git diff --check
 
 The governed deployment refuses to run unless the current production API
 package hash equals `BASELINE_SHA256`. It mounts the candidate API package, the
-existing alias normalizer, and the new progress ledger, applies the versioned
-Mongo prompt contract, and recreates only `LibreChat-API`.
+public code-tool contract, the existing alias normalizer, and the new progress
+ledger, applies the versioned Mongo prompt contract, and recreates only
+`LibreChat-API`.
 
 Rollback restores the exact Compose override and complete Mongo base document,
 then recreates only the API service.

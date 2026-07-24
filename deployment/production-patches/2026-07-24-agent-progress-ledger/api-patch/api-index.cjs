@@ -34265,6 +34265,7 @@ function appendAdditionalInstructions(agent, text) {
 	if (text == null || text === "") return;
 	agent.additional_instructions = [agent.additional_instructions ?? "", text].filter(Boolean).join("\n\n");
 }
+const { buildCodeToolContract } = require("./code-tool-contract.cjs");
 function getMaxCatalogSkills(req) {
 	return (req.config?.endpoints)?.[librechat_data_provider.EModelEndpoint.agents]?.skills?.maxCatalogSkills;
 }
@@ -34810,6 +34811,8 @@ async function initializeAgent(params, db) {
 		executableSkillIds = skillResult.activeSkillIds;
 		activeSkillNames = skillResult.activeSkillNames;
 	}
+	const codeToolContract = buildCodeToolContract(toolDefinitions);
+	if (codeToolContract) appendAdditionalInstructions(agent, codeToolContract);
 	const hasFinalAgentTools = (structuredTools?.length ?? 0) > 0 || (toolDefinitions?.length ?? 0) > 0;
 	if (isGoogleToolCombinationProvider(agent.provider) && hasProviderTools && hasFinalAgentTools) {
 		assertGoogleToolCombinationSupport(llmConfig.model);

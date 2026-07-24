@@ -14,6 +14,7 @@ remote_stage="/tmp/librechat-agent-progress-ledger-${RELEASE_SOURCE_REVISION:0:1
 
 for file in \
   "$patch_root/api-patch/api-index.cjs" \
+  "$patch_root/api-patch/code-tool-contract.cjs" \
   "$patch_root/api-patch/tool-call-normalizer.cjs" \
   "$patch_root/api-patch/tool-progress-ledger.cjs" \
   "$patch_root/scripts/mongo-config.js" \
@@ -26,6 +27,7 @@ export LIBRECHAT_DEPLOY_USER="$user"
 export LIBRECHAT_DEPLOY_STAGE="$remote_stage"
 export LIBRECHAT_RELEASE_REVISION="$RELEASE_SOURCE_REVISION"
 export LIBRECHAT_API_INDEX_SRC="$patch_root/api-patch/api-index.cjs"
+export LIBRECHAT_CODE_TOOL_CONTRACT_SRC="$patch_root/api-patch/code-tool-contract.cjs"
 export LIBRECHAT_TOOL_NORMALIZER_SRC="$patch_root/api-patch/tool-call-normalizer.cjs"
 export LIBRECHAT_PROGRESS_LEDGER_SRC="$patch_root/api-patch/tool-progress-ledger.cjs"
 export LIBRECHAT_MONGO_CONFIG_SRC="$patch_root/scripts/mongo-config.js"
@@ -59,6 +61,7 @@ if {[authenticate $password] != 0} { exit 1 }
 
 spawn scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -- \
   $env(LIBRECHAT_API_INDEX_SRC) \
+  $env(LIBRECHAT_CODE_TOOL_CONTRACT_SRC) \
   $env(LIBRECHAT_TOOL_NORMALIZER_SRC) \
   $env(LIBRECHAT_PROGRESS_LEDGER_SRC) \
   $env(LIBRECHAT_MONGO_CONFIG_SRC) \
