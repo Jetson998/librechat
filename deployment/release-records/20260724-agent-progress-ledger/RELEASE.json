@@ -69,9 +69,10 @@
   },
   "rollback_reference": {
     "details": {
-      "planned": "Restore the timestamp-matched Compose override and agent-progress-ledger Mongo backup, recreate only LibreChat-API, then verify root, API config, CodeAPI health, normal GPT/Fable chat, and Office file reading"
+      "command": "Restore the timestamp-matched Compose override and agent-progress-ledger Mongo backup created by remote-apply.sh, recreate only LibreChat-API, then verify root, API config, CodeAPI health, normal GPT/Fable chat, and Office file reading",
+      "restore_revision": "27d40723a4a9956d0456617b2886c17689a3ca38"
     },
-    "status": "pending"
+    "status": "passed"
   },
   "runtime_snapshot": {
     "details": {},
