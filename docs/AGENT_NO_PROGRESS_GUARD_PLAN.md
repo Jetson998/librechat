@@ -33,7 +33,8 @@ https://152.32.172.162.sslip.io/c/435c96b0-4b32-4219-ac92-38755bda4cca
 
 ## 三、目标
 
-在原生 LibreChat Agent 的公共工具执行入口增加 run-scoped progress ledger，覆盖：
+在原生 LibreChat Agent 的公共工具执行入口增加简单的 run-scoped progress
+ledger，覆盖：
 
 - `bash_tool`、`read_file`、`skill`；
 - Office/PPT/Excel/Word 解析与生成；
@@ -88,19 +89,45 @@ Runtime 的结构化 plan、verification fingerprint 和 action signature 判断
 
 没有产物引用时，只能报告能力不可用或执行失败。
 
-## 六、通用进展账本
+## 六、简单运行级进展账本
 
 ### 6.1 作用域
 
 账本以 `run_id` 为主键，`thread_id` 和 `agentId` 只用于审计。不同用户、对话和
 回复不得共享进展状态。
 
-账本保存在 API 进程内，设置 TTL 和最大条目数。一次运行仍由同一 worker 执行；
-运行结束或 TTL 到期后清理，不写入用户消息和模型上下文。
+账本保存在 API 进程内。一次运行仍由同一 worker 执行；运行结束或 TTL 到期后
+清理，不写入数据库、用户消息或模型上下文。
 
-### 6.2 三类指纹
+第一阶段使用固定、保守的内部边界，不增加 Admin Panel 配置项：
 
-每个工具结果记录三类稳定指纹：
+```text
+每个 run 最多 64 个 observation hash
+账本 TTL 30 分钟
+最多 1000 个 active run，超出时先清理过期项，再按最久未使用淘汰
+```
+
+`64` 高于当前 `recursionLimit=50`，可以覆盖一次原生 Agent 运行内的全部观察，
+同时保证内存有明确上限。
+
+### 6.2 最小数据结构
+
+每个 run 只保留：
+
+```text
+runId
+threadId
+agentId
+artifactEpoch
+artifactHash
+observations: Map<hash, { firstSeenStep, lastSeenStep, repeatCount }>
+lastCallHash
+state: normal | warned | stop_requested
+step
+expiresAt
+```
+
+不保存完整工具参数、stdout、文件内容或模型思考。每个工具结果只计算三类稳定 hash：
 
 1. `callFingerprint`
    - 规范化后的工具名；
@@ -117,7 +144,8 @@ Runtime 的结构化 plan、verification fingerprint 和 action signature 判断
    - 可用时的内容 hash、size、version；
    - create/edit/write 工具返回的持久化结果。
 
-原始大段 stdout 不进入账本，只保存 hash、计数和最多一段有界诊断摘要。
+原始大段 stdout 不进入账本。hash 基于现有已经清洗、截断的工具结果计算，不额外
+读取文件、不扫描 `/mnt/data`、不调用模型。
 
 ### 6.3 进展定义
 
@@ -173,8 +201,26 @@ Runtime 的结构化 plan、verification fingerprint 和 action signature 判断
 检测到重复执行但没有产生新结果，系统已停止继续尝试。已生成文件仍然保留。
 ```
 
-技术详情保留 `run_id`、工具名、指纹和停机原因，只写服务日志，不把完整参数、
-用户文件内容或密钥写入错误消息。
+技术详情只在 warning、stop 和 terminal abort 三个节点写结构化服务日志。字段为：
+
+```text
+reasonCode
+runId
+threadId
+agentId
+toolName
+step
+state
+artifactEpoch
+callHash
+observationHash
+repeatCount
+firstSeenStep
+lastSeenStep
+```
+
+正常工具调用不新增逐步日志。日志不包含完整参数、stdout、用户文件内容、提示词或
+密钥，后续可按对话和回复定位为什么停止、重复了几次以及期间是否产生过文件变化。
 
 ## 八、轮询和长任务
 
@@ -193,8 +239,8 @@ Runtime 的结构化 plan、verification fingerprint 和 action signature 判断
 
 第一阶段只改原生 LibreChat Agent 公共路径：
 
-1. 在当前 API 包的 `ON_TOOL_EXECUTE` 公共入口接入独立
-   `tool-progress-guard` 模块；
+1. 在当前 API 包的 `ON_TOOL_EXECUTE` 公共入口接入独立、无外部依赖的
+   `tool-progress-ledger` 模块；
 2. 在工具调用规范化后、实际加载和执行前进行 terminal/preflight 检查；
 3. 在工具结果清洗和 artifact 归一化后更新账本；
 4. 通过现有 handler 返回 warning/stop，必要时由 `reject` 终止 graph；
@@ -214,6 +260,9 @@ Runtime 的结构化 plan、verification fingerprint 和 action signature 判断
 - 首次重复只警告并允许换策略；
 - 输出规范化只移除明确的运行时噪声，不做模糊语义猜测；
 - 无法可靠规范化的结果退化为 exact hash，不扩大拦截范围。
+- 账本不做数据库读写、不访问文件系统、不调用外部服务；
+- SHA-256 只处理现有有界工具结果，性能成本远低于一次工具或模型调用；
+- 正常路径只进行 Map 查询和 hash 比较，结构化日志仅在异常状态写入。
 
 ## 十一、测试矩阵
 
