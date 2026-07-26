@@ -17,12 +17,14 @@ export function CreateCustomEndpointDialog({
   onSave,
   fields,
   renderFields,
+  existingNames,
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (entry: Record<string, t.ConfigValue>) => void;
   fields: t.SchemaField[];
   renderFields: t.CollectionRenderFields;
+  existingNames: Set<string>;
 }) {
   const localize = useLocalize();
   const [draft, setDraft] = useState<Record<string, t.ConfigValue>>({});
@@ -39,6 +41,10 @@ export function CreateCustomEndpointDialog({
       setError(localize('com_config_endpoint_name_required'));
       return;
     }
+    if (existingNames.has(name)) {
+      setError(localize('com_config_endpoint_name_exists'));
+      return;
+    }
     const entry: Record<string, t.ConfigValue> = {};
     for (const [key, val] of Object.entries(draft)) {
       if (val === '' || val === undefined || val === null) continue;
@@ -49,7 +55,7 @@ export function CreateCustomEndpointDialog({
     setDraft({});
     setError(undefined);
     onClose();
-  }, [draft, localize, onSave, onClose]);
+  }, [draft, existingNames, localize, onSave, onClose]);
 
   const handleClose = useCallback(() => {
     setDraft({});

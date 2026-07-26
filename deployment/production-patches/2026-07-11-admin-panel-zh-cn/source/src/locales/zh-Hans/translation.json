@@ -78,6 +78,7 @@
   "com_config_no_custom_endpoints": "尚未配置自定义端点",
   "com_config_no_mcp_servers": "尚未配置 MCP 服务器",
   "com_config_endpoint_name_required": "端点名称为必填项",
+  "com_config_endpoint_name_exists": "已存在同名端点",
   "com_config_create_mcp_server": "创建 MCP 服务器",
   "com_config_server_name": "服务器名称",
   "com_config_server_name_required": "服务器名称为必填项",

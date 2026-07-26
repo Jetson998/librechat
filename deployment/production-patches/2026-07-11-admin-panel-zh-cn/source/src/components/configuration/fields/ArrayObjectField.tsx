@@ -25,6 +25,7 @@ export function ArrayObjectField({
   addTriggerRef,
   renderFields,
   entryIdPrefix,
+  isEntryRemoveDisabled,
 }: t.ArrayObjectFieldProps) {
   const localize = useLocalize();
   const items = Array.isArray(value) ? (value as t.ConfigValue[]) : [];
@@ -111,7 +112,9 @@ export function ArrayObjectField({
           fields={fields}
           value={item}
           onValueChange={(v) => handleEntryChange(index, v)}
-          onRemove={disabled ? undefined : () => handleRemove(index)}
+          onRemove={
+            disabled || isEntryRemoveDisabled?.(item, index) ? undefined : () => handleRemove(index)
+          }
           disabled={disabled}
           defaultExpanded={keys[index] === expandedKeyRef.current}
           renderFields={renderFields}

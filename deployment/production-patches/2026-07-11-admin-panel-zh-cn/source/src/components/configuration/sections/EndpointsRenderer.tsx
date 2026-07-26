@@ -14,7 +14,7 @@
  * relevant subset. New fields added to the schema surface automatically.
  */
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Icon, MultiAccordion } from '@clickhouse/click-ui';
 import type { ReactNode } from 'react';
 import type * as t from '@/types';
@@ -93,6 +93,7 @@ const FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
  * shows required indicators.
  */
 const REQUIRED_ENDPOINT_KEYS = new Set(['name', 'apiKey', 'baseURL']);
+const YAML_ENDPOINT_LOCKED_FIELDS = new Set(['name']);
 
 function withRequired(field: t.SchemaField): t.SchemaField {
   if (REQUIRED_ENDPOINT_KEYS.has(field.key)) {
@@ -128,6 +129,7 @@ function flattenGroupFields(
   localize: (key: string, interpolation?: Record<string, string | number>) => string,
   disabled?: boolean,
   collectionRenderOverrides?: Record<string, t.CollectionRenderFields>,
+  lockedKeys?: Set<string>,
 ): ReactNode[] {
   const values =
     typeof parentValue === 'object' && parentValue !== null && !Array.isArray(parentValue)
@@ -136,6 +138,7 @@ function flattenGroupFields(
 
   const nodes: ReactNode[] = [];
   for (const field of fields) {
+    const fieldDisabled = disabled || (lockedKeys?.has(field.key) ?? false);
     if (field.children && field.children.length > 0 && !field.isArray && field.type !== 'record') {
       const nested = values[field.key];
       const nestedObj =
@@ -152,7 +155,7 @@ function flattenGroupFields(
               onChange(field.key, { ...nestedObj, [childKey]: childValue });
             },
             localize,
-            disabled,
+            fieldDisabled,
             collectionRenderOverrides,
             true,
           ),
@@ -166,7 +169,7 @@ function flattenGroupFields(
           parentPath,
           onChange,
           localize,
-          disabled,
+          fieldDisabled,
           collectionRenderOverrides,
           true,
         ),
@@ -185,6 +188,7 @@ function FieldGroup({
   disabled,
   defaultExpanded,
   collectionRenderOverrides,
+  lockedKeys,
 }: {
   labelKey: string;
   fields: t.SchemaField[];
@@ -194,6 +198,7 @@ function FieldGroup({
   disabled?: boolean;
   defaultExpanded: boolean;
   collectionRenderOverrides?: Record<string, t.CollectionRenderFields>;
+  lockedKeys?: Set<string>;
 }) {
   const localize = useLocalize();
   const { isExpanded, hasEverExpanded, sectionRef, toggle } = useCollapsibleSection({
@@ -236,6 +241,7 @@ function FieldGroup({
             localize,
             disabled,
             collectionRenderOverrides,
+            lockedKeys,
           )}
         </div>,
       )}
@@ -251,6 +257,7 @@ function GroupedFieldRenderer({
   onChange,
   disabled,
   collectionRenderOverrides,
+  lockedKeys,
 }: {
   groupKey: string;
   fields: t.SchemaField[];
@@ -259,6 +266,7 @@ function GroupedFieldRenderer({
   onChange: (path: string, value: t.ConfigValue) => void;
   disabled?: boolean;
   collectionRenderOverrides?: Record<string, t.CollectionRenderFields>;
+  lockedKeys?: Set<string>;
 }) {
   const groups = FIELD_GROUPS[groupKey];
   if (!groups) return null;
@@ -284,6 +292,7 @@ function GroupedFieldRenderer({
             disabled={disabled}
             defaultExpanded={group.defaultExpanded}
             collectionRenderOverrides={collectionRenderOverrides}
+            lockedKeys={lockedKeys}
           />
         );
       })}
@@ -297,6 +306,7 @@ function GroupedFieldRenderer({
           disabled={disabled}
           defaultExpanded={false}
           collectionRenderOverrides={collectionRenderOverrides}
+          lockedKeys={lockedKeys}
         />
       )}
     </div>
@@ -456,7 +466,10 @@ const COLLECTION_RENDER_OVERRIDES: Record<string, t.CollectionRenderFields> = {
  * Matches the `CollectionRenderFields` signature so it can be injected
  * into `ArrayObjectField` and `ObjectEntryCard`.
  */
-function makeGroupedEndpointFields(disabled?: boolean): t.CollectionRenderFields {
+function makeGroupedEndpointFields(
+  disabled?: boolean,
+  lockedKeys?: Set<string>,
+): t.CollectionRenderFields {
   return (fields, parentValue, parentPath, onChange) => (
     <GroupedFieldRenderer
       groupKey="custom"
@@ -466,6 +479,7 @@ function makeGroupedEndpointFields(disabled?: boolean): t.CollectionRenderFields
       onChange={onChange}
       disabled={disabled}
       collectionRenderOverrides={COLLECTION_RENDER_OVERRIDES}
+      lockedKeys={lockedKeys}
     />
   );
 }
@@ -592,28 +606,94 @@ function ProviderSection({
 // ---------------------------------------------------------------------------
 
 export function CustomEndpointsRenderer(props: t.FieldRendererProps) {
-  const { fields, parentPath, parentValue, getValue, onChange, disabled } = props;
+  const {
+    fields,
+    parentPath,
+    parentValue,
+    getValue,
+    onChange,
+    disabled,
+    yamlBaseKeys,
+    isEditingScope,
+    onValidationError,
+  } = props;
   const localize = useLocalize();
   const [createOpen, setCreateOpen] = useState(false);
-  const renderGroupedEndpointFields = useMemo(
+
+  const isYamlEndpoint = useCallback((item: t.ConfigValue): boolean => {
+    if (!yamlBaseKeys || !item || typeof item !== 'object' || Array.isArray(item)) return false;
+    const name = (item as Record<string, t.ConfigValue>).name;
+    return typeof name === 'string' && yamlBaseKeys.has(name);
+  }, [yamlBaseKeys]);
+
+  const renderGroupedEndpointFields = useCallback<t.CollectionRenderFields>(
+    (entryFields, entryValue, entryPath, entryOnChange) => (
+      <GroupedFieldRenderer
+        groupKey="custom"
+        fields={entryFields}
+        parentValue={entryValue}
+        parentPath={entryPath}
+        onChange={entryOnChange}
+        disabled={disabled}
+        collectionRenderOverrides={COLLECTION_RENDER_OVERRIDES}
+        lockedKeys={
+          !isEditingScope && isYamlEndpoint(entryValue) ? YAML_ENDPOINT_LOCKED_FIELDS : undefined
+        }
+      />
+    ),
+    [disabled, isEditingScope, isYamlEndpoint],
+  );
+
+  const renderCreateEndpointFields = useMemo(
     () => makeGroupedEndpointFields(disabled),
     [disabled],
   );
 
-  const customField = fields.find((f) => f.key === 'custom');
-  if (!customField) return null;
+  const getEndpointName = useCallback((item: t.ConfigValue): string | null => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    const name = (item as Record<string, t.ConfigValue>).name;
+    return typeof name === 'string' && name ? name : null;
+  }, []);
 
-  const path = `${parentPath}.${customField.key}`;
+  const customField = fields.find((f) => f.key === 'custom');
+  const customKey = customField?.key ?? 'custom';
+  const path = `${parentPath}.${customKey}`;
   const parentObj =
     parentValue && typeof parentValue === 'object' && !Array.isArray(parentValue)
       ? (parentValue as Record<string, t.ConfigValue>)
       : {};
-  const value = getValue(path, parentObj[customField.key] ?? []);
+  const value = customField ? getValue(path, parentObj[customKey] ?? []) : [];
   const items = Array.isArray(value) ? value : [];
+  const existingNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const item of items) {
+      const name = getEndpointName(item);
+      if (name) names.add(name);
+    }
+    if (yamlBaseKeys) {
+      for (const name of yamlBaseKeys) names.add(name);
+    }
+    return names;
+  }, [getEndpointName, items, yamlBaseKeys]);
 
   const handleCreate = (entry: Record<string, t.ConfigValue>) => {
     onChange(path, [...items, entry]);
   };
+
+  const handleEntryChange = useCallback(
+    (index: number, nextValue: t.ConfigValue) => {
+      const currentName = getEndpointName(items[index]);
+      const nextName = getEndpointName(nextValue);
+      if (nextName && nextName !== currentName && existingNames.has(nextName)) {
+        onValidationError?.(localize('com_config_endpoint_name_exists'));
+        return;
+      }
+      onChange(`${path}.${index}`, nextValue);
+    },
+    [existingNames, getEndpointName, items, localize, onChange, onValidationError, path],
+  );
+
+  if (!customField) return null;
 
   const isEmpty = items.length === 0;
 
@@ -641,11 +721,12 @@ export function CustomEndpointsRenderer(props: t.FieldRendererProps) {
           value={value}
           fields={customField.children ?? []}
           onChange={(v) => onChange(path, v)}
-          onEntryChange={(index, v) => onChange(`${path}.${index}`, v)}
+          onEntryChange={handleEntryChange}
           disabled={disabled}
           hideAddButton
           renderFields={renderGroupedEndpointFields}
           entryIdPrefix={`section-${path.split('.')[0]}-custom`}
+          isEntryRemoveDisabled={(item) => !isEditingScope && isYamlEndpoint(item)}
         />
       )}
       <CreateCustomEndpointDialog
@@ -653,7 +734,8 @@ export function CustomEndpointsRenderer(props: t.FieldRendererProps) {
         onClose={() => setCreateOpen(false)}
         onSave={handleCreate}
         fields={customField.children ?? []}
-        renderFields={renderGroupedEndpointFields}
+        renderFields={renderCreateEndpointFields}
+        existingNames={existingNames}
       />
     </div>
   );

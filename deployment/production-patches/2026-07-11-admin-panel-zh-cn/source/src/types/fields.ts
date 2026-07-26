@@ -111,6 +111,8 @@ export interface ArrayObjectFieldProps {
   renderFields: CollectionRenderFields;
   /** When set, each entry card gets an id of `{entryIdPrefix}-{index}` for TOC scroll targets. */
   entryIdPrefix?: string;
+  /** Per-entry predicate for entries whose identity comes from a locked source. */
+  isEntryRemoveDisabled?: (item: ConfigValue, index: number) => boolean;
 }
 
 export interface RecordObjectFieldProps {

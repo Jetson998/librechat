@@ -551,7 +551,13 @@ export function resolveSubSchema(
     } else if (typeName === 'ZodArray') {
       const elementType = unwrapped._def.type;
       if (!elementType) return null;
-      current = elementType;
+      if (ARRAY_INDEX_KEY_RE.test(segment) || segment === '[]') {
+        current = elementType;
+      } else {
+        const resolved = resolveSubSchema(elementType, [segment]);
+        if (!resolved) return null;
+        current = resolved;
+      }
     } else if (typeName === 'ZodRecord') {
       const valueType = (unwrapped._def as t.ZodDef & { valueType?: t.ZodSchemaLike }).valueType;
       if (!valueType) return null;
@@ -642,6 +648,24 @@ export function toIndexedArrayObjectSource(value: unknown): unknown[] | undefine
     arrayValue[index] = entryValue;
   }
   return arrayValue;
+}
+
+export function extractCustomEndpointNamesFromConfig(
+  config: Record<string, t.ConfigValue>,
+): string[] {
+  const endpoints = config.endpoints;
+  const custom =
+    endpoints && typeof endpoints === 'object' && !Array.isArray(endpoints)
+      ? (endpoints as { custom?: unknown }).custom
+      : undefined;
+  if (!Array.isArray(custom)) return [];
+  return custom
+    .map((endpoint) =>
+      endpoint && typeof endpoint === 'object' && !Array.isArray(endpoint)
+        ? (endpoint as { name?: unknown }).name
+        : undefined,
+    )
+    .filter((name): name is string => typeof name === 'string' && name.length > 0);
 }
 
 function overlayArraySource(source: unknown[], overlay: unknown[]): unknown[] {
@@ -928,6 +952,7 @@ export const getBaseConfigFn = createServerFn({ method: 'GET' }).handler(async (
 
   let yamlMcpKeys: string[] | undefined;
   let yamlMcpServers: Record<string, t.ConfigValue> | undefined;
+  let yamlCustomEndpointNames: string[] | undefined;
   if (baseOnlyResponse.ok) {
     const { config: baseOnlyRaw } = (await baseOnlyResponse.json()) as {
       config: Record<string, t.ConfigValue>;
@@ -939,6 +964,7 @@ export const getBaseConfigFn = createServerFn({ method: 'GET' }).handler(async (
       yamlMcpServers = mcp as Record<string, t.ConfigValue>;
       yamlMcpKeys = Object.keys(yamlMcpServers);
     }
+    yamlCustomEndpointNames = extractCustomEndpointNamesFromConfig(baseOnly);
   }
 
   return {
@@ -948,6 +974,7 @@ export const getBaseConfigFn = createServerFn({ method: 'GET' }).handler(async (
     schemaDefaults: flatDefaults,
     yamlMcpKeys,
     yamlMcpServers,
+    yamlCustomEndpointNames,
   };
 });
 

@@ -20,6 +20,7 @@ import {
   mergeConfigArraySources,
   mergeIndexedArrayEntriesIntoBase,
   configValuesEqual,
+  extractCustomEndpointNamesFromConfig,
 } from './config';
 
 interface ZodV3Schema extends t.ZodSchemaLike {
@@ -990,6 +991,15 @@ describe('YAML-editor fallback audit', () => {
 const ldpEndpoint = (require3('librechat-data-provider') as { endpointSchema: ZodV3Schema })
   .endpointSchema;
 
+const validEndpoint = {
+  name: 'TestEndpoint',
+  apiKey: '${TEST_KEY}',
+  baseURL: 'https://api.test.com/v1',
+  models: { default: ['model-1'], fetch: true },
+  titleConvo: true,
+  titleModel: 'current_model',
+};
+
 describe('custom endpoint schema', () => {
   const endpointTree = extractSchemaTree(ldpEndpoint);
 
@@ -1045,6 +1055,10 @@ describe('resolveSubSchema for endpoints', () => {
   it('resolves endpoints.custom to an array schema', () => {
     const sub = resolveSubSchema(realConfigSchema, ['endpoints', 'custom']);
     expect(sub).not.toBeNull();
+    const result = (sub as { safeParse: (v: unknown) => { success: boolean } }).safeParse([
+      validEndpoint,
+    ]);
+    expect(result.success).toBe(true);
   });
 
   it('resolves endpoints.custom array element via numeric index', () => {
@@ -1085,6 +1099,31 @@ describe('toConfigArraySource', () => {
 
   it('rejects non-index object keys', () => {
     expect(toConfigArraySource({ 0: 'zero', current: 'not-array' })).toBeUndefined();
+  });
+});
+
+describe('extractCustomEndpointNamesFromConfig', () => {
+  it('extracts stable YAML custom endpoint names from base config', () => {
+    expect(
+      extractCustomEndpointNamesFromConfig({
+        endpoints: {
+          custom: [
+            { name: 'MuskAPI', baseURL: 'https://openai.example.com' },
+            { name: 'Muskapis-Anthropic', baseURL: 'https://anthropic.example.com' },
+          ],
+        },
+      }),
+    ).toEqual(['MuskAPI', 'Muskapis-Anthropic']);
+  });
+
+  it('ignores nameless or non-object custom endpoint entries', () => {
+    expect(
+      extractCustomEndpointNamesFromConfig({
+        endpoints: {
+          custom: [{ baseURL: 'https://missing-name.example.com' }, null, 'legacy'],
+        },
+      }),
+    ).toEqual([]);
   });
 });
 
@@ -1224,14 +1263,15 @@ describe('mergeIndexedArrayEntriesIntoBase', () => {
 });
 
 describe('validateFieldValue for endpoints', () => {
-  const validEndpoint = {
-    name: 'TestEndpoint',
-    apiKey: '${TEST_KEY}',
-    baseURL: 'https://api.test.com/v1',
-    models: { default: ['model-1'], fetch: true },
-    titleConvo: true,
-    titleModel: 'current_model',
-  };
+  it('validates a full custom endpoint array replacement', () => {
+    const result = validateFieldValue('endpoints.custom', [validEndpoint]);
+    expect(result).toEqual({ success: true });
+  });
+
+  it('validates an empty custom endpoint array replacement', () => {
+    const result = validateFieldValue('endpoints.custom', []);
+    expect(result).toEqual({ success: true });
+  });
 
   it('validates a single custom endpoint entry (object)', () => {
     const result = validateFieldValue('endpoints.custom.0', validEndpoint);

@@ -140,6 +140,10 @@ export function ConfigPage({ initialTab, highlightField, initialScope }: t.Confi
     if (yamlMcpKeys && Array.isArray(yamlMcpKeys)) {
       result.mcpServers = new Set(yamlMcpKeys);
     }
+    const yamlCustomEndpointNames = baseConfigData?.yamlCustomEndpointNames;
+    if (yamlCustomEndpointNames && Array.isArray(yamlCustomEndpointNames)) {
+      result.endpoints = new Set(yamlCustomEndpointNames);
+    }
     return result;
   }, [baseConfigData]);
 
