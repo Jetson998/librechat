@@ -98,12 +98,15 @@ jobs:
           mkdir -p artifacts
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
             -czf artifacts/client-dist.tar.gz -C candidate-client .
-          sha256sum artifacts/client-dist.tar.gz > artifacts/client-dist.tar.gz.sha256
           cp candidate-client/agent-platform-client-overlay.json artifacts/
           cp integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json artifacts/
 
+      - name: Write Client artifact checksum
+        working-directory: artifacts
+        run: sha256sum client-dist.tar.gz > client-dist.tar.gz.sha256
+
       - name: Upload Client candidate
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: librechat-agent-platform-client-8fcb77f
           path: artifacts/

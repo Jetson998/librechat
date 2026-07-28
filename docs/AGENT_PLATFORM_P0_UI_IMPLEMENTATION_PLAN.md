@@ -2,7 +2,8 @@
 
 Date: 2026-07-28
 
-Status: 设计门禁已确认；源码候选、本地验证和远程 CI 已完成；未部署生产
+Status: 设计门禁已确认；源码候选和本地验证已完成；首轮 CI artifact 已作废，修正版
+远程 CI 待执行；未部署生产
 
 Parent gate:
 `docs/AGENT_PLATFORM_COMPLETION_AND_MARKET_ENABLEMENT_PLAN.md`
@@ -492,7 +493,7 @@ manifest、验证脚本、受保护 Client 资产合成和 CI workflow，并通�
 该结果只允许提交并推送仓库源码、测试、构建定义和记录。生产发布仍必须使用成功的
 远程 CI、不可变 Client artifact 和独立生产 release record；本计划不批准生产写入。
 
-远程 CI 证据：
+首轮远程 CI 证据（已作废，不得部署）：
 
 - Source commit: `b30c733c2d9a0fd6932828bda0f2dd70e23448e0`
 - GitHub Actions run: `30325303899`
@@ -508,4 +509,6 @@ manifest、验证脚本、受保护 Client 资产合成和 CI workflow，并通�
 
 该 CI 完成固定上游验证、patch 应用、依赖安装、packages 构建、13 组聚焦回归、Client
 typecheck、生产构建、六项受保护资产契约、10 资产合成、不可变打包和 artifact 上传。
-这仍不是生产发布证据。
+下载后确认 ZIP 和 Client 内容有效，但 `client-dist.tar.gz.sha256` 错误保留了 CI 工作目录
+前缀 `artifacts/`，解压后的 artifact 无法直接执行 `sha256sum -c`。因此该 artifact 被
+判定为不可部署，workflow 必须生成 basename-only 校验文件并重新完成 CI。
