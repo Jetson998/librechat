@@ -4,13 +4,8 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {
-      "algorithm": "sha256",
-      "artifact": ".release-state/20260728-agent-platform-p0-ui/artifacts/20260728-agent-platform-p0-ui-ecf1835e2ca6.tar.gz",
-      "manifest": ".release-state/20260728-agent-platform-p0-ui/artifacts/manifest.json",
-      "value": "67348157f68ccbabc980124c23cc729b535701007fa6d0250f80d46c5401e19a"
-    },
-    "status": "passed"
+    "details": {},
+    "status": "pending"
   },
   "backup_reference": {
     "details": {},
@@ -30,48 +25,8 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "67348157f68ccbabc980124c23cc729b535701007fa6d0250f80d46c5401e19a",
-    "build_environment": "ci",
-    "completed_requirements": [
-      "client-bundle",
-      "deployable-artifact",
-      "versioned-patch-artifact",
-      "client-tests",
-      "patch-contract-tests",
-      "release-scope-tests"
-    ],
-    "details": {
-      "checks": [
-        "GitHub Actions completed successfully for source d826e12c523632c2f674da29cf7b767af9d49c71",
-        "13 targeted Client suites passed with 120 tests",
-        "Client typecheck and production build passed with 9307 modules",
-        "Six protected asset contract groups passed and ten assets were composed",
-        "Downloaded ZIP digest matched GitHub artifact digest",
-        "Portable basename-only client-dist.tar.gz checksum passed",
-        "Client tar contained 355 safe members and no links, devices, absolute paths, or parent traversal",
-        "Independent ecf1835 source export passed the artifact/release contract test",
-        "Independent source export passed all 32 release-governance tests",
-        "git diff-tree --check passed for ecf1835",
-        "Release package SHA-256 was independently rechecked as 67348157f68ccbabc980124c23cc729b535701007fa6d0250f80d46c5401e19a"
-      ],
-      "client_artifact": {
-        "artifact_id": 8675938396,
-        "client_tar_sha256": "1bae767735f53be05a9acbc5fceb7ec04b4bad7576f48f52d5a3ca73175f6c68",
-        "composed_index_sha256": "e50a1f4ba112abe37df27d5af4608bfa8b4b6c5cdcf06763960ba1b742f9f67e",
-        "run_id": 30326622161,
-        "zip_sha256": "015ab73f6e5ac4bbf84f5a19f48160e3072f7cf494669a18c5c45e84eb90410c"
-      },
-      "superseded_artifact": {
-        "artifact_id": 8675483264,
-        "reason": "The checksum file contained a nonportable artifacts/ path prefix and is not deployable.",
-        "run_id": 30325303899
-      }
-    },
-    "production_host": false,
-    "provider": "GitHub Actions run 30326622161 plus Codex independent source export",
-    "release_plan_sha256": "0d6bfdc8db4b97db4066c24b104a581ce872e9f900b131fe4f2e8fe9a94b651c",
-    "source_revision": "ecf1835e2ca62c9b66c48c622edf6f55c6129ec5",
-    "status": "passed"
+    "details": {},
+    "status": "pending"
   },
   "change_summary": {
     "expected_result": "The fixed-upstream Agent P0 Client UI is served through the existing LibreChat API without changing API, MongoDB, CodeAPI, RAG, NGINX, Admin Panel, Office Converter, files, Skills, conversations, or model configuration.",
@@ -108,16 +63,8 @@
   "project_id": "librechat-self-host",
   "release_id": "20260728-agent-platform-p0-ui",
   "release_plan": {
-    "details": {
-      "acceptance_level": "light",
-      "matched_rules": [
-        "client-ui",
-        "production-patch"
-      ],
-      "minimum_mode": "protected",
-      "path": ".release-state/20260728-agent-platform-p0-ui/release-plan.json"
-    },
-    "sha256": "0d6bfdc8db4b97db4066c24b104a581ce872e9f900b131fe4f2e8fe9a94b651c"
+    "details": {},
+    "sha256": ""
   },
   "rollback_reference": {
     "details": {
@@ -132,7 +79,7 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "ecf1835e2ca62c9b66c48c622edf6f55c6129ec5",
+  "source_revision": "549aeff662f5805e73273e6f4d13d873e2f7b935",
   "status": "planned",
   "unresolved_issues": [],
   "updated_at": "2026-07-28T04:30:31Z",
