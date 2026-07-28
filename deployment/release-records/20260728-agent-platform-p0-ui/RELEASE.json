@@ -1,0 +1,104 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Live LibreChat public Client before the Agent P0 UI release",
+      "public_root_status": 200,
+      "api_config_status": 200,
+      "office_status": 401,
+      "office_realm": "Office Converter",
+      "admin_root_status": 200,
+      "public_index_sha256": "7d0426d88b646e0177cff41326c1d867d75997427d69395f08689619f33771ed",
+      "live_build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The fixed-upstream Agent P0 Client UI is served through the existing LibreChat API without changing API, MongoDB, CodeAPI, RAG, NGINX, Admin Panel, Office Converter, files, Skills, conversations, or model configuration.",
+    "functions": [
+      "Deploy the immutable GitHub Actions Client artifact recorded in client/artifact.json",
+      "Provide one discoverable 智能助手 workspace with 推荐助手, 我的助手, 创建助手, and permission-checked edit navigation",
+      "Keep existing Agent marketplace search, categories, details, deep links, Skills, and admin controls",
+      "Keep current protected upload menu, login, usage/model market, search fallback, context safety, and generated-files assets in the composed Client",
+      "Capture exact pre-release Client mount, Compose, configuration, protected service, and Office Converter identities",
+      "Replace only /app/client/dist:ro and recreate only LibreChat-API with an automatic rollback on any failed post-apply check"
+    ],
+    "limitations": [
+      "The 7 planned Workflow Manifest templates and Runtime production execution are not part of this release",
+      "The CI ZIP is an external immutable input and must be downloaded and verified before deployment; it is not committed to Git",
+      "No billable model request is required or allowed for this UI release",
+      "USER/ADMIN persistence operations in browser acceptance use a temporary test Agent and must be deleted after verification"
+    ],
+    "reason": "Complete the approved Agent platform P0 UI batch and make the previously validated Client artifact deployable through a repeatable, rollback-first production gate.",
+    "risk": "Client-only replacement can expose stale or incomplete assets, lose existing custom overlays, or accidentally recreate a protected service. The release locks the upstream and CI artifact hashes, verifies every protected asset, snapshots the active mount and all protected identities, changes one Compose bind mount, recreates only LibreChat-API, and rolls back on drift or failed smoke checks.",
+    "scope": [
+      "deployment/production-patches/2026-07-28-agent-platform-p0-ui"
+    ]
+  },
+  "created_at": "2026-07-28T04:21:55Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-patches/2026-07-28-agent-platform-p0-ui/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260728-agent-platform-p0-ui",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "ecf1835e2ca62c9b66c48c622edf6f55c6129ec5",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-28T04:21:55Z",
+  "validation_plan": [
+    {
+      "type": "local",
+      "command": "python3 deployment/production-patches/2026-07-28-agent-platform-p0-ui/scripts/test-release.py <downloaded-client-artifact.zip>; scripts/validate-release-governance.sh; git diff --check",
+      "expected": "The CI ZIP, Client tar, ten protected assets, deploy runner, rollback runner, and release governance all pass without secrets or non-API targets."
+    },
+    {
+      "type": "preflight",
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260728-agent-platform-p0-ui --evidence .release-state/20260728-agent-platform-p0-ui/runtime-preflight.json",
+      "expected": "The public baseline, active Client mount, resource thresholds, API/dependency service identities, Office Converter identity, and rollback source pass with no application write."
+    },
+    {
+      "type": "deployment",
+      "command": "scripts/release-deploy.sh 20260728-agent-platform-p0-ui --confirm 20260728-agent-platform-p0-ui -- <client-artifact.zip> <runtime-preflight.json> <deployment-result.json>",
+      "expected": "Only LibreChat-API is recreated, the candidate index/assets are served, protected service identities remain unchanged, and a timestamped backup/result is recorded."
+    },
+    {
+      "type": "business",
+      "command": "USER and ADMIN browser acceptance at 1440x900 and 390x844",
+      "expected": "智能助手 navigation, recommended/my/create/edit, permission-safe states, personal Skills discovery, existing marketplace/admin controls, and protected Client regressions pass without a billable model request."
+    }
+  ]
+}
