@@ -1,0 +1,109 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "admin_root_status": 200,
+      "api_config_status": 200,
+      "description": "Live LibreChat public Client before the Agent sidebar menu state release",
+      "live_build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+      "office_realm": "Office Converter",
+      "office_status": 401,
+      "public_index_sha256": "e50a1f4ba112abe37df27d5af4608bfa8b4b6c5cdcf06763960ba1b742f9f67e",
+      "public_root_status": 200
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The Agent entry and workspace title display Agent, Agent routes show the selected background, and a second click collapses the sidebar without changing APIs, data, files, Skills, models, or protected services.",
+    "functions": [
+      "Deploy the immutable GitHub Actions Client artifact recorded in client/artifact.json",
+      "Show Agent as the English and Simplified Chinese workspace product name",
+      "Select the Agent icon on /agents, query views, and category deep links",
+      "Collapse the expanded sidebar when the selected Agent icon is clicked again",
+      "Keep valid side-panel content instead of persisting a route-only empty panel",
+      "Preserve the ten protected Client assets and every existing Agent, file, Skill, upload, generated-file, usage, login, search, and context-safety contract",
+      "Capture the exact active Client mount and protected service identities before replacing only /app/client/dist:ro and recreating only LibreChat-API"
+    ],
+    "limitations": [
+      "The seven planned Workflow Manifest Agent templates and Runtime production execution are outside this release",
+      "The CI ZIP is an external immutable input and is verified locally and remotely but is not committed to Git",
+      "No billable model request is required or allowed",
+      "Browser acceptance uses the existing vip998 account and does not create persistent Agent, file, Skill, or conversation fixtures"
+    ],
+    "reason": "Publish the approved Agent sidebar interaction and naming correction through a repeatable rollback-first production gate instead of a hot patch.",
+    "risk": "A Client replacement can expose stale assets, lose protected overlays, leave a blank sidebar, or recreate unrelated services. The release locks both source patches and the CI ZIP, verifies every archive member and protected asset, snapshots the active mount and service identities, changes one read-only bind mount, recreates only LibreChat-API, and automatically rolls back on drift or failed smoke checks.",
+    "scope": [
+      "deployment/production-patches/2026-07-28-agent-sidebar-menu-state"
+    ]
+  },
+  "created_at": "2026-07-28T07:13:03Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-patches/2026-07-28-agent-sidebar-menu-state/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260728-agent-sidebar-menu-state",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Run the versioned remote-rollback.sh with the timestamp-matched backup directory and runtime-preflight.json; restore compose.override.yaml, recreate only LibreChat-API, and verify the old Client hash plus every protected service identity.",
+      "restore_revision": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+      "restore_scope": "The active pre-release /app/client/dist mount and exact Compose override; no Agent, Skill, file, conversation, MongoDB, CodeAPI, RAG, NGINX, Admin Panel, Office Converter, or model data is changed."
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "c01eb7dca1b7513f7e278faac54c6dae07f3598c",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-28T07:14:22Z",
+  "validation_plan": [
+    {
+      "command": "python3 deployment/production-patches/2026-07-28-agent-sidebar-menu-state/scripts/test-release.py <downloaded-client-artifact.zip>; scripts/validate-release-governance.sh; git diff --check",
+      "expected": "The CI ZIP, Client tar, both source manifests, ten protected assets, deploy runner, rollback runner, and governance tests pass without secrets or non-API targets.",
+      "type": "local"
+    },
+    {
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260728-agent-sidebar-menu-state --evidence .release-state/20260728-agent-sidebar-menu-state/runtime-preflight.json",
+      "expected": "The public baseline, active Client mount, resource thresholds, API/dependency identities, Office Converter identity, and rollback source pass with no application write.",
+      "type": "preflight"
+    },
+    {
+      "command": "scripts/release-deploy.sh 20260728-agent-sidebar-menu-state --confirm 20260728-agent-sidebar-menu-state -- <client-artifact.zip> <runtime-preflight.json> <deployment-result.json>",
+      "expected": "Only LibreChat-API is recreated, the candidate index/assets are served, protected service identities remain unchanged, and timestamped backup/result files are recorded.",
+      "type": "deployment"
+    },
+    {
+      "command": "vip998 browser acceptance at 1440x900 and 390x844",
+      "expected": "Agent naming, route active state, second-click collapse, sidebar content continuity, and protected Client regressions pass without a billable model request or persistent test fixture.",
+      "type": "business"
+    }
+  ]
+}
