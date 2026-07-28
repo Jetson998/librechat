@@ -15,10 +15,9 @@ transport_prepare() {
     return
   fi
 
-  test -r /dev/tty
-  printf 'Production SSH password for %s@%s: ' "$user" "$host" >/dev/tty
-  IFS= read -r -s LIBRECHAT_SSH_PASSWORD </dev/tty
-  printf '\n' >/dev/tty
+  printf 'Production SSH password for %s@%s: ' "$user" "$host" >&2
+  IFS= read -r -s LIBRECHAT_SSH_PASSWORD
+  printf '\n' >&2
   test -n "$LIBRECHAT_SSH_PASSWORD"
   export LIBRECHAT_SSH_PASSWORD
   LIBRECHAT_SSH_MODE="password"

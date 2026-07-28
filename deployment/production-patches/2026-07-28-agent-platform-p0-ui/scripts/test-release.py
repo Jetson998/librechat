@@ -55,6 +55,7 @@ def main() -> None:
         'baseline["containers"]' in apply and "protected container changed" in apply,
         "protected container identities are not enforced",
     )
+    check("/dev/tty" not in transport, "SSH password input bypasses inherited stdin")
     check("Office Converter" in (ROOT / "README.md").read_text(encoding="utf-8"), "Office boundary is undocumented")
     token_prefix = "github_" + "pat_"
     check(token_prefix not in "\n".join((deploy, apply, rollback, transport)), "credential leaked into scripts")
