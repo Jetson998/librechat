@@ -40,6 +40,7 @@ def main() -> None:
     apply = (SCRIPTS / "remote-apply.sh").read_text(encoding="utf-8")
     rollback = (SCRIPTS / "remote-rollback.sh").read_text(encoding="utf-8")
     transport = (SCRIPTS / "ssh-transport.sh").read_text(encoding="utf-8")
+    collect = (SCRIPTS / "collect-preflight.sh").read_text(encoding="utf-8")
     preflight = (SCRIPTS / "remote-preflight.py").read_text(encoding="utf-8")
 
     check("release-governance:scoped-deployment" in deploy, "scoped marker missing")
@@ -56,6 +57,11 @@ def main() -> None:
         "protected container identities are not enforced",
     )
     check("/dev/tty" not in transport, "SSH password input bypasses inherited stdin")
+    check(
+        'librechat-agent-platform-p0-runtime.XXXXXX"' in collect
+        and "librechat-agent-platform-p0-runtime.XXXXXX." not in collect,
+        "preflight temp-file template is not portable across BSD and GNU mktemp",
+    )
     check("Office Converter" in (ROOT / "README.md").read_text(encoding="utf-8"), "Office boundary is undocumented")
     token_prefix = "github_" + "pat_"
     check(token_prefix not in "\n".join((deploy, apply, rollback, transport)), "credential leaked into scripts")

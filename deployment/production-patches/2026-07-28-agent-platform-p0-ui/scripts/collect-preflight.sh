@@ -34,7 +34,7 @@ python3 "$verify_script" "$artifact_zip" "$metadata_path"
 source_revision="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_revision"])' "$record_path")"
 remote_stage="/tmp/librechat-agent-platform-p0-preflight-${source_revision:0:12}"
 remote_raw="$remote_stage/runtime-raw.json"
-local_raw="$(mktemp "${TMPDIR:-/tmp}/librechat-agent-platform-p0-runtime.XXXXXX.json")"
+local_raw="$(mktemp "${TMPDIR:-/tmp}/librechat-agent-platform-p0-runtime.XXXXXX")"
 host="${LIBRECHAT_PRODUCTION_HOST:-152.32.172.162}"
 user="${LIBRECHAT_PRODUCTION_USER:-root}"
 

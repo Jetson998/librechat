@@ -61,6 +61,9 @@ The versioned preflight collector verifies and records:
 The apply script repeats the preflight immediately before changing production
 and rejects any drift from that signed snapshot.
 
+The local collector uses a BSD/GNU-compatible `mktemp` template so the same
+versioned preflight runs on macOS operator hosts and Linux build environments.
+
 ## Rollback
 
 Before apply, the remote script creates a timestamped backup containing:
