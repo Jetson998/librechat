@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "component": "agent-platform-p0-ui-client",
+  "source": {
+    "repository_commit": "d826e12c523632c2f674da29cf7b767af9d49c71",
+    "upstream_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "patch_sha256": "00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc"
+  },
+  "github_actions": {
+    "workflow": "LibreChat Agent Platform Client",
+    "run_id": 30326622161,
+    "artifact_id": 8675938396,
+    "artifact_name": "librechat-agent-platform-client-8fcb77f",
+    "completed_at": "2026-07-28T03:44:56Z",
+    "expires_at": "2026-08-11T03:44:49Z",
+    "url": "https://github.com/Jetson998/librechat/actions/runs/30326622161"
+  },
+  "artifact": {
+    "zip_size": 15293155,
+    "zip_sha256": "015ab73f6e5ac4bbf84f5a19f48160e3072f7cf494669a18c5c45e84eb90410c",
+    "members": {
+      "agent-platform-client-overlay.json": "27a3c30791fef775d77440838aaec46d2c3f00b7938b128c0ef3971138a3ecba",
+      "agent-platform-p0-ui.sources.json": "bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237",
+      "client-dist.tar.gz": "1bae767735f53be05a9acbc5fceb7ec04b4bad7576f48f52d5a3ca73175f6c68",
+      "client-dist.tar.gz.sha256": "7751678f7cd9a3cc71d8529b2641d399ccb8eadb97f17d149e7b9951d0c94011"
+    },
+    "checksum_line": "1bae767735f53be05a9acbc5fceb7ec04b4bad7576f48f52d5a3ca73175f6c68  client-dist.tar.gz",
+    "tar_members": 355,
+    "tar_files": 352,
+    "tar_directories": 3
+  },
+  "client": {
+    "composed_index_sha256": "e50a1f4ba112abe37df27d5af4608bfa8b4b6c5cdcf06763960ba1b742f9f67e",
+    "base_index_sha256": "cc8374ddef9eea40bcdb1c704c6bd1fde44c16d7fcc17af4fb98ec619226627a",
+    "overlay_id": "librechat-protected-client-assets",
+    "asset_count": 10
+  },
+  "production_baseline": {
+    "public_index_sha256": "7d0426d88b646e0177cff41326c1d867d75997427d69395f08689619f33771ed",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  }
+}
