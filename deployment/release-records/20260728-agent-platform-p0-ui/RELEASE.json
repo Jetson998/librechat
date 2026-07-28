@@ -67,8 +67,12 @@
     "sha256": ""
   },
   "rollback_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "command": "Run the versioned remote-rollback.sh with the timestamp-matched backup directory and runtime-preflight.json; restore compose.override.yaml, recreate only LibreChat-API, and verify the old Client hash plus every protected service identity.",
+      "restore_revision": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+      "restore_scope": "The active pre-release /app/client/dist mount and exact Compose override; no Agent, Skill, file, conversation, MongoDB, CodeAPI, RAG, NGINX, Admin Panel, or Office Converter data is changed."
+    },
+    "status": "passed"
   },
   "runtime_snapshot": {
     "details": {},
