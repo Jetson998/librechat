@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "component": "agent-sidebar-menu-state-client",
+  "source": {
+    "repository_commit": "e5f162c75e5bcb32be48c4ba28da0c84aa079491",
+    "upstream_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "base_patch_sha256": "00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc",
+    "follow_up_patch_sha256": "c37a97f87857bdcb2f9f877e27917774ef0f614718adf74e5b316f15716fc525"
+  },
+  "github_actions": {
+    "workflow": "LibreChat Agent Sidebar Menu Client",
+    "run_id": 30335517499,
+    "artifact_id": 8679020809,
+    "artifact_name": "librechat-agent-sidebar-menu-client-8fcb77f",
+    "completed_at": "2026-07-28T06:42:24Z",
+    "expires_at": "2026-08-11T06:42:20Z",
+    "url": "https://github.com/Jetson998/librechat/actions/runs/30335517499"
+  },
+  "artifact": {
+    "zip_size": 15294143,
+    "zip_sha256": "d4f1848acdacb5240fa46dedff65b09726a92ca99844f119be2ce44655a118c2",
+    "members": {
+      "agent-platform-client-overlay.json": "77e6c669a6f4ccffd2f1c5dbcd9194b7269b52c8ae957aa634c45a55ffa6e463",
+      "agent-platform-p0-ui.sources.json": "bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237",
+      "agent-sidebar-menu-state.sources.json": "f93a1f1cd7005fe2409a4b4e10f8cd49140cde9e2c0453ecd7278b47be60bad9",
+      "client-dist.tar.gz": "c32fd952eac54b90369043e50e050486a5ecb58291d051c9fdc5f67a6a00503e",
+      "client-dist.tar.gz.sha256": "4877ee7201568897f613cd46fb072447c6280e9e67b534ff1ff3f4104a5e3050"
+    },
+    "checksum_line": "c32fd952eac54b90369043e50e050486a5ecb58291d051c9fdc5f67a6a00503e  client-dist.tar.gz",
+    "tar_members": 355,
+    "tar_files": 352,
+    "tar_directories": 3
+  },
+  "client": {
+    "composed_index_sha256": "ef79e21b7d2b24998972f34a32db4dfd8700ff1898cf2caae6fbe6316756f6b9",
+    "base_index_sha256": "0aabe4296d01ec4598f9ea624e36a1691c059c2b34060d24816436fbc7706ba1",
+    "overlay_id": "librechat-protected-client-assets",
+    "asset_count": 10
+  },
+  "production_baseline": {
+    "public_index_sha256": "e50a1f4ba112abe37df27d5af4608bfa8b4b6c5cdcf06763960ba1b742f9f67e",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  }
+}
