@@ -1,0 +1,362 @@
+diff --git a/client/src/Providers/ActivePanelContext.tsx b/client/src/Providers/ActivePanelContext.tsx
+index 9db0a3242c60f4b74a8c9378a7c564e5a2b372cb..2a7f5ddbdcd513f5e5d6c528396739ea05784c1d 100644
+--- a/client/src/Providers/ActivePanelContext.tsx
++++ b/client/src/Providers/ActivePanelContext.tsx
+@@ -36,10 +36,17 @@ export function useActivePanel() {
+   return context;
+ }
+ 
+-/** Returns `active` when it matches a known link, otherwise the first link's id. */
+-export function resolveActivePanel(active: string, links: { id: string }[]): string {
+-  if (links.length > 0 && links.some((l) => l.id === active)) {
++/** Gives route-derived state priority, then falls back to the persisted panel. */
++export function resolveActivePanel(
++  active: string,
++  links: { id: string; isActive?: boolean }[],
++): string {
++  const routeActive = links.find((link) => link.isActive === true);
++  if (routeActive) {
++    return routeActive.id;
++  }
++  if (links.length > 0 && links.some((link) => link.id === active && link.isActive !== false)) {
+     return active;
+   }
+-  return links[0]?.id ?? active;
++  return links.find((link) => link.isActive !== false)?.id ?? links[0]?.id ?? active;
+ }
+diff --git a/client/src/Providers/__tests__/ActivePanelContext.spec.tsx b/client/src/Providers/__tests__/ActivePanelContext.spec.tsx
+index 0f2f89e8f7e597f5d34b4e519a5931773ecd6c90..1584783dc00f7ea4ba01d497935a36b6bdcfd540 100644
+--- a/client/src/Providers/__tests__/ActivePanelContext.spec.tsx
++++ b/client/src/Providers/__tests__/ActivePanelContext.spec.tsx
+@@ -81,4 +81,22 @@ describe('resolveActivePanel', () => {
+   it('falls back to the only link when active is stale', () => {
+     expect(resolveActivePanel('agents', [{ id: 'conversations' }])).toBe('conversations');
+   });
++
++  it('prefers a route-derived active link over persisted panel state', () => {
++    expect(
++      resolveActivePanel('conversations', [
++        { id: 'conversations' },
++        { id: 'agents-workspace', isActive: true },
++      ]),
++    ).toBe('agents-workspace');
++  });
++
++  it('ignores a stale route link after its route no longer matches', () => {
++    expect(
++      resolveActivePanel('agents-workspace', [
++        { id: 'conversations' },
++        { id: 'agents-workspace', isActive: false },
++      ]),
++    ).toBe('conversations');
++  });
+ });
+diff --git a/client/src/common/types.ts b/client/src/common/types.ts
+index 66e145fa617fcc69c8cc073fe6823acea5f09150..d372c891a751972cbedd85ec9848f0e82facfbac 100644
+--- a/client/src/common/types.ts
++++ b/client/src/common/types.ts
+@@ -130,6 +130,7 @@ export type NavLink = {
+   icon: LucideIcon | React.FC;
+   Component?: React.ComponentType;
+   onClick?: (e?: React.MouseEvent) => void;
++  isActive?: boolean;
+   variant?: 'default' | 'ghost';
+   id: string;
+ };
+diff --git a/client/src/components/SidePanel/Nav.spec.tsx b/client/src/components/SidePanel/Nav.spec.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f163fc803fcd07ca93ae6327b99fc8610d099b4
+--- /dev/null
++++ b/client/src/components/SidePanel/Nav.spec.tsx
+@@ -0,0 +1,43 @@
++import React from 'react';
++import { render, screen } from '@testing-library/react';
++import '@testing-library/jest-dom/extend-expect';
++import { Bot, MessagesSquare } from 'lucide-react';
++import type { NavLink } from '~/common';
++import { ActivePanelProvider } from '~/Providers/ActivePanelContext';
++import Nav from './Nav';
++
++function ConversationsPanel() {
++  return <div>conversation-panel</div>;
++}
++
++describe('SidePanel Nav', () => {
++  beforeEach(() => {
++    localStorage.clear();
++  });
++
++  it('keeps valid panel content when a route command is visually active', () => {
++    const links: NavLink[] = [
++      {
++        title: 'com_ui_chat_history',
++        icon: MessagesSquare,
++        id: 'conversations',
++        Component: ConversationsPanel,
++      },
++      {
++        title: 'com_agents_workspace',
++        icon: Bot,
++        id: 'agents-workspace',
++        isActive: true,
++        onClick: jest.fn(),
++      },
++    ];
++
++    render(
++      <ActivePanelProvider>
++        <Nav links={links} />
++      </ActivePanelProvider>,
++    );
++
++    expect(screen.getByText('conversation-panel')).toBeInTheDocument();
++  });
++});
+diff --git a/client/src/components/SidePanel/Nav.tsx b/client/src/components/SidePanel/Nav.tsx
+index 33e8b8345d068de74eb2fe67c0c4e7a4fa69dfb6..968bbee035d60955de59baa0a1f5351e1f8ad91a 100644
+--- a/client/src/components/SidePanel/Nav.tsx
++++ b/client/src/components/SidePanel/Nav.tsx
+@@ -3,10 +3,11 @@ import { useActivePanel, resolveActivePanel } from '~/Providers';
+ 
+ export default function Nav({ links }: { links: NavLink[] }) {
+   const { active } = useActivePanel();
+-  const effectiveActive = resolveActivePanel(active, links);
++  const panelLinks = links.filter((link) => link.Component != null);
++  const effectiveActive = resolveActivePanel(active, panelLinks);
+   return (
+     <div className="flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden text-text-primary">
+-      {links.map((link) =>
++      {panelLinks.map((link) =>
+         link.id === effectiveActive && link.Component ? <link.Component key={link.id} /> : null,
+       )}
+     </div>
+diff --git a/client/src/components/UnifiedSidebar/ExpandedPanel.tsx b/client/src/components/UnifiedSidebar/ExpandedPanel.tsx
+index 46aebd240edba3b2ae1d1861b13dc2185c225142..1b8faba4be73e9fcea526fca0bbb58774cfabe2e 100644
+--- a/client/src/components/UnifiedSidebar/ExpandedPanel.tsx
++++ b/client/src/components/UnifiedSidebar/ExpandedPanel.tsx
+@@ -81,20 +81,17 @@ const NavIconButton = memo(function NavIconButton({
+ 
+   const handleClick = useCallback(
+     (e: React.MouseEvent<HTMLButtonElement>) => {
+-      if (link.onClick) {
+-        link.onClick(e);
+-        return;
+-      }
+       if (isActive && expanded) {
+         onCollapse?.();
+         return;
+       }
+-      if (!isActive) {
++      if (!isActive && link.isActive === undefined) {
+         setActive(link.id);
+       }
+       if (!expanded) {
+         onExpand?.();
+       }
++      link.onClick?.(e);
+     },
+     [link, isActive, setActive, expanded, onExpand, onCollapse],
+   );
+diff --git a/client/src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx b/client/src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx
+index 73f17d350842d0ddb36765ce2fc6ba31589c9334..bed0fc4cc844d67301d7f1914d165e2b7f616aa1 100644
+--- a/client/src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx
++++ b/client/src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx
+@@ -1,10 +1,11 @@
+ import React from 'react';
+ import { RecoilRoot } from 'recoil';
+ import '@testing-library/jest-dom/extend-expect';
+-import { MessagesSquare, NotebookPen } from 'lucide-react';
++import { Bot, MessagesSquare, NotebookPen } from 'lucide-react';
+ import { render, fireEvent, screen } from '@testing-library/react';
+ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+ import type { MutableSnapshot } from 'recoil';
++import type { NavLink } from '~/common';
+ import { ActivePanelProvider, DEFAULT_PANEL } from '~/Providers/ActivePanelContext';
+ 
+ const mockNewConversation = jest.fn();
+@@ -54,7 +55,7 @@ jest.mock('~/components/Nav/AccountSettings', () => ({
+ import ExpandedPanel from '../ExpandedPanel';
+ import store from '~/store';
+ 
+-const createLinks = () => [
++const createLinks = (commandClick?: jest.Mock, routeActive?: boolean): NavLink[] => [
+   {
+     title: 'com_ui_chat_history' as const,
+     icon: MessagesSquare,
+@@ -65,6 +66,17 @@ const createLinks = () => [
+     icon: NotebookPen,
+     id: 'prompts',
+   },
++  ...(commandClick
++    ? [
++        {
++          title: 'com_agents_workspace' as const,
++          icon: Bot,
++          id: 'agents-workspace',
++          isActive: routeActive,
++          onClick: commandClick,
++        },
++      ]
++    : []),
+ ];
+ 
+ const createQueryClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+@@ -75,12 +87,14 @@ function renderPanel({
+   onExpand = jest.fn(),
+   initialPanel = DEFAULT_PANEL,
+   initializeState,
++  links = createLinks(),
+ }: {
+   expanded?: boolean;
+   onCollapse?: jest.Mock;
+   onExpand?: jest.Mock;
+   initialPanel?: string;
+   initializeState?: (snapshot: MutableSnapshot) => void;
++  links?: NavLink[];
+ } = {}) {
+   if (initialPanel !== DEFAULT_PANEL) {
+     localStorage.setItem('side:active-panel', initialPanel);
+@@ -91,7 +105,7 @@ function renderPanel({
+       <RecoilRoot initializeState={initializeState}>
+         <ActivePanelProvider>
+           <ExpandedPanel
+-            links={createLinks()}
++            links={links}
+             expanded={expanded}
+             onCollapse={onCollapse}
+             onExpand={onExpand}
+@@ -140,6 +154,45 @@ describe('ExpandedPanel', () => {
+       expect(onExpand).toHaveBeenCalledTimes(1);
+       expect(localStorage.getItem('side:active-panel')).toBe('prompts');
+     });
++
++    it('selects an inactive command before running its click handler', () => {
++      const commandClick = jest.fn();
++      const { onCollapse } = renderPanel({ links: createLinks(commandClick) });
++      const commandButton = screen.getByRole('button', { name: 'com_agents_workspace' });
++
++      fireEvent.click(commandButton);
++
++      expect(localStorage.getItem('side:active-panel')).toBe('agents-workspace');
++      expect(commandClick).toHaveBeenCalledTimes(1);
++      expect(onCollapse).not.toHaveBeenCalled();
++    });
++
++    it('keeps panel state unchanged for a route-controlled command', () => {
++      const commandClick = jest.fn();
++      const { onCollapse } = renderPanel({ links: createLinks(commandClick, false) });
++      const commandButton = screen.getByRole('button', { name: 'com_agents_workspace' });
++
++      fireEvent.click(commandButton);
++
++      expect(localStorage.getItem('side:active-panel')).toBeNull();
++      expect(commandClick).toHaveBeenCalledTimes(1);
++      expect(onCollapse).not.toHaveBeenCalled();
++    });
++
++    it('collapses an active command without running its click handler again', () => {
++      const commandClick = jest.fn();
++      const { onCollapse } = renderPanel({
++        links: createLinks(commandClick, true),
++      });
++      const commandButton = screen.getByRole('button', { name: 'com_agents_workspace' });
++
++      expect(commandButton).toHaveAttribute('aria-pressed', 'true');
++
++      fireEvent.click(commandButton);
++
++      expect(onCollapse).toHaveBeenCalledTimes(1);
++      expect(commandClick).not.toHaveBeenCalled();
++    });
+   });
+ 
+   describe('NewChatButton panel switch', () => {
+diff --git a/client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx b/client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx
+index 7c7fdd8b45f7e99c200711ba6e329b7595d4bf30..181a9666c16e7e70da26af4ec572b7f79c118b22 100644
+--- a/client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx
++++ b/client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx
+@@ -4,9 +4,11 @@ import useUnifiedSidebarLinks from './useUnifiedSidebarLinks';
+ 
+ const mockNavigate = jest.fn();
+ let mockMarketplaceAccess = true;
++let mockPathname = '/c/new';
+ 
+ jest.mock('react-router-dom', () => ({
+   useNavigate: () => mockNavigate,
++  useLocation: () => ({ pathname: mockPathname }),
+ }));
+ 
+ jest.mock('@librechat/client', () => ({
+@@ -74,6 +76,7 @@ describe('useUnifiedSidebarLinks', () => {
+   beforeEach(() => {
+     mockNavigate.mockReset();
+     mockMarketplaceAccess = true;
++    mockPathname = '/c/new';
+   });
+ 
+   test('replaces the legacy builder panel with one assistant workspace command', () => {
+@@ -83,10 +86,18 @@ describe('useUnifiedSidebarLinks', () => {
+     expect(ids).toEqual(['conversations', 'agents-workspace', 'files']);
+     expect(ids).not.toContain(EModelEndpoint.agents);
+ 
+-    result.current.find((link) => link.id === 'agents-workspace')?.onClick?.();
++    const workspaceLink = result.current.find((link) => link.id === 'agents-workspace');
++    expect(workspaceLink?.isActive).toBe(false);
++    workspaceLink?.onClick?.();
+     expect(mockNavigate).toHaveBeenCalledWith('/agents');
+   });
+ 
++  test.each(['/agents', '/agents/finance'])('marks the workspace active at %s', (pathname) => {
++    mockPathname = pathname;
++    const { result } = renderHook(() => useUnifiedSidebarLinks());
++    expect(result.current.find((link) => link.id === 'agents-workspace')?.isActive).toBe(true);
++  });
++
+   test('does not expose the workspace without marketplace access', () => {
+     mockMarketplaceAccess = false;
+     const { result } = renderHook(() => useUnifiedSidebarLinks());
+diff --git a/client/src/hooks/Nav/useUnifiedSidebarLinks.ts b/client/src/hooks/Nav/useUnifiedSidebarLinks.ts
+index 9633c43076147b1351b7c8edbb3ef240bb9b4d6f..af72ba9999853efbea0155f05ca2435c5be42191 100644
+--- a/client/src/hooks/Nav/useUnifiedSidebarLinks.ts
++++ b/client/src/hooks/Nav/useUnifiedSidebarLinks.ts
+@@ -1,6 +1,6 @@
+ import { useMemo } from 'react';
+ import { useRecoilValue } from 'recoil';
+-import { useNavigate } from 'react-router-dom';
++import { useLocation, useNavigate } from 'react-router-dom';
+ import { useMediaQuery } from '@librechat/client';
+ import { Bot, MessagesSquare } from 'lucide-react';
+ import { useUserKeyQuery } from 'librechat-data-provider/react-query';
+@@ -24,6 +24,7 @@ const defaultInterface = getConfigDefaults().interface;
+ 
+ export default function useUnifiedSidebarLinks() {
+   const navigate = useNavigate();
++  const location = useLocation();
+   const isSmallScreen = useMediaQuery('(max-width: 768px)');
+   const conversation = useRecoilValue(store.conversationByIndex(0));
+   const endpoint = conversation?.endpoint;
+@@ -69,6 +70,8 @@ export default function useUnifiedSidebarLinks() {
+     permissionType: PermissionTypes.MARKETPLACE,
+     permission: Permissions.USE,
+   });
++  const isAgentWorkspaceRoute =
++    location.pathname === '/agents' || location.pathname.startsWith('/agents/');
+ 
+   const links = useMemo(() => {
+     const conversationLink: NavLink = {
+@@ -87,6 +90,7 @@ export default function useUnifiedSidebarLinks() {
+             label: '',
+             icon: Bot,
+             id: 'agents-workspace',
++            isActive: isAgentWorkspaceRoute,
+             onClick: () => {
+               navigate('/agents');
+               if (isSmallScreen) {
+@@ -101,6 +105,7 @@ export default function useUnifiedSidebarLinks() {
+     endpointsConfig,
+     hasAccessToAgents,
+     hasAccessToMarketplace,
++    isAgentWorkspaceRoute,
+     isSmallScreen,
+     navigate,
+     sideNavLinks,

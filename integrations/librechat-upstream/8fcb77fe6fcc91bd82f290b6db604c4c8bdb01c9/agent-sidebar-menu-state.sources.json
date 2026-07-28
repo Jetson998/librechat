@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "integration_id": "agent-sidebar-menu-state",
+  "upstream": {
+    "repository": "https://github.com/danny-avila/LibreChat.git",
+    "commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "tree": "66d1547235bc3e0f61663778b386e0ec7ec72c58",
+    "archive_url": "https://codeload.github.com/danny-avila/LibreChat/tar.gz/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "archive_sha256": "0febede262457ec26413cb6b2bc9cec5411cb2e506105c369982efc214943bd2"
+  },
+  "base_overlay": {
+    "integration_id": "agent-platform-p0-ui",
+    "manifest": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json",
+    "manifest_sha256": "bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237",
+    "patch": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.patch",
+    "patch_sha256": "00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc"
+  },
+  "patch": {
+    "path": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.patch",
+    "sha256": "a15a4e61a2a0851f630f5ce7e819a04adc04cfb1d4304ad3fba92f425fc583a4"
+  },
+  "lockfile": {
+    "path": "package-lock.json",
+    "upstream_blob": "783b1f4ee01971d1daeba523293a6b7d69e68969",
+    "sha256": "dbf35a03491cf56fdffe3e69c123870b606ff304883847d81865f267f7e7c8bf"
+  },
+  "toolchain": {
+    "node": "24.14.1",
+    "npm": "11.11.0"
+  },
+  "commands": {
+    "install": "npm ci",
+    "build_packages": "npm run build:packages",
+    "client_typecheck": "npm run typecheck --workspace=@librechat/frontend",
+    "client_build": "npm run build --workspace=@librechat/frontend",
+    "targeted_tests": "npm run test:ci --workspace=@librechat/frontend -- --runInBand src/components/Agents/tests/MarketplaceWorkspace.spec.tsx src/components/Agents/tests/MyAgentsView.spec.tsx src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx src/locales/agentWorkspaceLocales.spec.ts src/components/Agents/tests/AgentGrid.integration.spec.tsx src/components/Agents/tests/Accessibility.spec.tsx src/components/SidePanel/Agents/Tools/__tests__/ToolsMarketplaceDialog.spec.tsx src/components/SidePanel/Agents/Tools/__tests__/ToolsSection.spec.tsx src/components/SidePanel/Agents/AgentPanel.test.tsx src/components/SidePanel/Agents/__tests__/AgentPanel.helpers.spec.ts src/components/SidePanel/Agents/__tests__/FileContext.spec.tsx src/components/Agents/tests/CategoryTabs.spec.tsx src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx src/Providers/__tests__/ActivePanelContext.spec.tsx src/components/SidePanel/Nav.spec.tsx"
+  },
+  "expected_output": "client/dist",
+  "files": [
+    {
+      "path": "client/src/Providers/ActivePanelContext.tsx",
+      "base_blob": "9db0a3242c60f4b74a8c9378a7c564e5a2b372cb",
+      "result_blob": "2a7f5ddbdcd513f5e5d6c528396739ea05784c1d",
+      "status": "modified"
+    },
+    {
+      "path": "client/src/Providers/__tests__/ActivePanelContext.spec.tsx",
+      "base_blob": "0f2f89e8f7e597f5d34b4e519a5931773ecd6c90",
+      "result_blob": "1584783dc00f7ea4ba01d497935a36b6bdcfd540",
+      "status": "modified"
+    },
+    {
+      "path": "client/src/common/types.ts",
+      "base_blob": "66e145fa617fcc69c8cc073fe6823acea5f09150",
+      "result_blob": "d372c891a751972cbedd85ec9848f0e82facfbac",
+      "status": "modified"
+    },
+    {
+      "path": "client/src/components/SidePanel/Nav.spec.tsx",
+      "base_blob": null,
+      "result_blob": "6f163fc803fcd07ca93ae6327b99fc8610d099b4",
+      "status": "added"
+    },
+    {
+      "path": "client/src/components/SidePanel/Nav.tsx",
+      "base_blob": "33e8b8345d068de74eb2fe67c0c4e7a4fa69dfb6",
+      "result_blob": "968bbee035d60955de59baa0a1f5351e1f8ad91a",
+      "status": "modified"
+    },
+    {
+      "path": "client/src/components/UnifiedSidebar/ExpandedPanel.tsx",
+      "base_blob": "46aebd240edba3b2ae1d1861b13dc2185c225142",
+      "result_blob": "1b8faba4be73e9fcea526fca0bbb58774cfabe2e",
+      "status": "modified"
+    },
+    {
+      "path": "client/src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx",
+      "base_blob": "73f17d350842d0ddb36765ce2fc6ba31589c9334",
+      "result_blob": "bed0fc4cc844d67301d7f1914d165e2b7f616aa1",
+      "status": "modified"
+    },
+    {
+      "path": "client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx",
+      "base_blob": "7c7fdd8b45f7e99c200711ba6e329b7595d4bf30",
+      "result_blob": "181a9666c16e7e70da26af4ec572b7f79c118b22",
+      "status": "modified"
+    },
+    {
+      "path": "client/src/hooks/Nav/useUnifiedSidebarLinks.ts",
+      "base_blob": "9633c43076147b1351b7c8edbb3ef240bb9b4d6f",
+      "result_blob": "af72ba9999853efbea0155f05ca2435c5be42191",
+      "status": "modified"
+    }
+  ],
+  "runtime_overlay_guard": {
+    "commit": "60eba76375213dafc1874d943e41371201c300ab",
+    "files": [
+      {
+        "path": "integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/controller-runtime-bridge.patch",
+        "sha256": "ca43626191379ab8fec889d8e19a7f0e9387e11c33d06a7e3edcc140a2be36c9"
+      },
+      {
+        "path": "integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/README.md",
+        "sha256": "2c5d5d0cc22e0f1b270e4d38f367b31b6469cb45090605a9c85366e675e8c193"
+      }
+    ]
+  }
+}

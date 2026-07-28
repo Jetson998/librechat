@@ -1,17 +1,19 @@
-name: LibreChat Agent Platform Client
+name: LibreChat Agent Sidebar Menu Client
 
 on:
   push:
     branches:
       - main
     paths:
-      - '.github/workflows/librechat-agent-platform-client-ci.yml'
-      - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/AGENT_PLATFORM_P0_UI.md'
+      - '.github/workflows/librechat-agent-sidebar-menu-client-ci.yml'
       - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.patch'
       - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json'
+      - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.patch'
+      - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.sources.json'
       - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/client-overlay-manifest.json'
       - 'integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/**'
       - 'scripts/verify-agent-platform-p0-ui-overlay.sh'
+      - 'scripts/verify-agent-sidebar-menu-state-overlay.sh'
       - 'scripts/compose-agent-platform-client.sh'
       - 'deployment/production-patches/*/client/**'
   workflow_dispatch:
@@ -42,13 +44,18 @@ jobs:
           cache: npm
           cache-dependency-path: upstream/package-lock.json
 
-      - name: Verify pinned Agent UI overlay
-        run: scripts/verify-agent-platform-p0-ui-overlay.sh upstream
+      - name: Verify Agent sidebar menu overlay
+        run: scripts/verify-agent-sidebar-menu-state-overlay.sh upstream
 
-      - name: Apply Agent UI patch
+      - name: Apply Agent P0 UI patch
         run: >-
           git -C upstream apply --whitespace=error-all
           "$GITHUB_WORKSPACE/integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.patch"
+
+      - name: Apply Agent sidebar menu patch
+        run: >-
+          git -C upstream apply --whitespace=error-all
+          "$GITHUB_WORKSPACE/integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.patch"
 
       - name: Install pinned dependencies
         working-directory: upstream
@@ -58,7 +65,7 @@ jobs:
         working-directory: upstream
         run: npm run build:packages
 
-      - name: Run focused Agent UI tests
+      - name: Run focused Agent sidebar tests
         working-directory: upstream/client
         run: >-
           npm run test:ci -- --runInBand
@@ -75,6 +82,8 @@ jobs:
           src/components/SidePanel/Agents/__tests__/FileContext.spec.tsx
           src/components/Agents/tests/CategoryTabs.spec.tsx
           src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx
+          src/Providers/__tests__/ActivePanelContext.spec.tsx
+          src/components/SidePanel/Nav.spec.tsx
 
       - name: Typecheck Client
         working-directory: upstream/client
@@ -103,6 +112,7 @@ jobs:
             -czf artifacts/client-dist.tar.gz -C candidate-client .
           cp candidate-client/agent-platform-client-overlay.json artifacts/
           cp integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json artifacts/
+          cp integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.sources.json artifacts/
 
       - name: Write Client artifact checksum
         working-directory: artifacts
@@ -111,7 +121,7 @@ jobs:
       - name: Upload Client candidate
         uses: actions/upload-artifact@v7
         with:
-          name: librechat-agent-platform-client-8fcb77f
+          name: librechat-agent-sidebar-menu-client-8fcb77f
           path: artifacts/
           if-no-files-found: error
           retention-days: 14
