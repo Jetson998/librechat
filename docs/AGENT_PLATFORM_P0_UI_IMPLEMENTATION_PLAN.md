@@ -2,8 +2,8 @@
 
 Date: 2026-07-28
 
-Status: 设计门禁已确认；源码候选和本地验证已完成；首轮 CI artifact 已作废，修正版
-远程 CI 待执行；未部署生产
+Status: 设计门禁已确认；源码候选、本地验证和修正版远程 CI artifact 验签已完成；
+未部署生产
 
 Parent gate:
 `docs/AGENT_PLATFORM_COMPLETION_AND_MARKET_ENABLEMENT_PLAN.md`
@@ -512,3 +512,37 @@ typecheck、生产构建、六项受保护资产契约、10 资产合成、不�
 下载后确认 ZIP 和 Client 内容有效，但 `client-dist.tar.gz.sha256` 错误保留了 CI 工作目录
 前缀 `artifacts/`，解压后的 artifact 无法直接执行 `sha256sum -c`。因此该 artifact 被
 判定为不可部署，workflow 必须生成 basename-only 校验文件并重新完成 CI。
+
+修正版远程 CI 证据（已验签，可进入生产发布门禁）：
+
+- Source commit: `d826e12c523632c2f674da29cf7b767af9d49c71`
+- GitHub Actions run: `30326622161`
+- Workflow: `LibreChat Agent Platform Client`
+- Conclusion: `success`
+- Completed at: `2026-07-28T03:44:56Z`
+- Artifact: `librechat-agent-platform-client-8fcb77f`
+- Artifact ID: `8675938396`
+- Artifact size: `15293155` bytes
+- Artifact ZIP digest:
+  `sha256:015ab73f6e5ac4bbf84f5a19f48160e3072f7cf494669a18c5c45e84eb90410c`
+- Artifact expiry: `2026-08-11T03:44:49Z`
+- Client tar digest:
+  `sha256:1bae767735f53be05a9acbc5fceb7ec04b4bad7576f48f52d5a3ca73175f6c68`
+- Composed Client index digest:
+  `sha256:e50a1f4ba112abe37df27d5af4608bfa8b4b6c5cdcf06763960ba1b742f9f67e`
+
+独立下载验签结果：
+
+- 下载 ZIP SHA-256 与 GitHub artifact digest 完全一致；
+- `client-dist.tar.gz.sha256` 只包含 `client-dist.tar.gz`，不再包含 CI 工作目录前缀；
+- 解压后执行 `sha256sum -c client-dist.tar.gz.sha256` 成功；
+- Client tar 共 `355` 个成员，其中 `352` 个文件、`3` 个目录；
+- tar 内不存在绝对路径、`..` 路径、符号链接、硬链接或设备文件；
+- artifact 中的 source manifest 与仓库固定 manifest 字节一致；
+- 10 个受保护 Client 资产 SHA-256 全部匹配；
+- artifact 内 overlay manifest 与外层 manifest 字节一致；
+- `index.html` SHA-256 与 composed index digest 完全一致。
+
+该 artifact 只证明固定源码和 Client 构建结果可部署，不代表生产已经修改。下一步仍需
+创建独立 production patch、精确备份和回滚脚本，通过 release governance、生产只读
+预检和受控部署后，才能进行 USER/ADMIN 浏览器验收。
