@@ -2,7 +2,7 @@
 
 Date: 2026-07-28
 
-Status: 设计门禁已确认；源码候选和本地验证已完成，远程 CI 待本批推送后执行；未部署生产
+Status: 设计门禁已确认；源码候选、本地验证和远程 CI 已完成；未部署生产
 
 Parent gate:
 `docs/AGENT_PLATFORM_COMPLETION_AND_MARKET_ENABLEMENT_PLAN.md`
@@ -489,5 +489,23 @@ CI 失败时只修复源码或构建脚本后重新执行，不允许绕过测�
 用户已确认本计划。首个源码批次已按固定上游 commit 完成 Agent UI overlay、source
 manifest、验证脚本、受保护 Client 资产合成和 CI workflow，并通过本地测试与构建。
 
-该结果只允许提交并推送仓库源码、测试、构建定义和记录。生产发布仍必须等待远程 CI
-成功、不可变 Client artifact 和独立生产 release record；本计划不批准生产写入。
+该结果只允许提交并推送仓库源码、测试、构建定义和记录。生产发布仍必须使用成功的
+远程 CI、不可变 Client artifact 和独立生产 release record；本计划不批准生产写入。
+
+远程 CI 证据：
+
+- Source commit: `b30c733c2d9a0fd6932828bda0f2dd70e23448e0`
+- GitHub Actions run: `30325303899`
+- Workflow: `LibreChat Agent Platform Client`
+- Conclusion: `success`
+- Completed at: `2026-07-28T03:16:15Z`
+- Artifact: `librechat-agent-platform-client-8fcb77f`
+- Artifact ID: `8675483264`
+- Artifact size: `15293161` bytes
+- Artifact digest:
+  `sha256:aef0a5e23224db21a346006ea08ddcdc45a54b114a81cd9d7a9fa9918edc895f`
+- Artifact expiry: `2026-08-11T03:16:06Z`
+
+该 CI 完成固定上游验证、patch 应用、依赖安装、packages 构建、13 组聚焦回归、Client
+typecheck、生产构建、六项受保护资产契约、10 资产合成、不可变打包和 artifact 上传。
+这仍不是生产发布证据。
