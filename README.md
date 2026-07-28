@@ -51,6 +51,12 @@ email/password login enabled.
 - [Agent platform completion and marketplace enablement plan](docs/AGENT_PLATFORM_COMPLETION_AND_MARKET_ENABLEMENT_PLAN.md):
   verified current Agent permissions and UX blockers, the two-layer Workflow
   Manifest contract, launch criteria, test scope, release split, and rollback.
+- [Agent platform P0 UI implementation plan](docs/AGENT_PLATFORM_P0_UI_IMPLEMENTATION_PLAN.md):
+  confirmed scope for the unified assistant workspace, basic/advanced builder,
+  protected Client assets, tests, CI artifact, and future production rollback.
+- [Pinned Agent platform P0 UI source overlay](integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/AGENT_PLATFORM_P0_UI.md):
+  repository-owned Client patch, source hashes, protected-asset composition,
+  validation results, and explicit non-production status.
 - [File Agent Runtime Phase 0 implementation](docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md):
   locally verified task state machine, idempotency, event cursor, cancel,
   steer, restart recovery, and fake adapters with no production integration.

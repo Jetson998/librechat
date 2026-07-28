@@ -2,7 +2,7 @@
 
 Date: 2026-07-28
 
-Status: 计划门禁，尚未开发、尚未构建、尚未部署
+Status: 设计门禁已确认；源码候选和本地验证已完成，远程 CI 待本批推送后执行；未部署生产
 
 Parent gate:
 `docs/AGENT_PLATFORM_COMPLETION_AND_MARKET_ENABLEMENT_PLAN.md`
@@ -484,7 +484,10 @@ CI 失败时只修复源码或构建脚本后重新执行，不允许绕过测�
 7. 已验收模板入市和自动化工作流市场正式开通；
 8. 两个 P1 模板。
 
-## 十五、本轮门禁
+## 十五、门禁结果
 
-本轮只允许提交并推送本计划文档。用户确认本计划后，下一轮才能进入第一个源码提交：
-固定生产上游源码、记录 blob hash、建立 Agent UI overlay verifier。
+用户已确认本计划。首个源码批次已按固定上游 commit 完成 Agent UI overlay、source
+manifest、验证脚本、受保护 Client 资产合成和 CI workflow，并通过本地测试与构建。
+
+该结果只允许提交并推送仓库源码、测试、构建定义和记录。生产发布仍必须等待远程 CI
+成功、不可变 Client artifact 和独立生产 release record；本计划不批准生产写入。

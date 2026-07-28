@@ -1,0 +1,111 @@
+name: LibreChat Agent Platform Client
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/librechat-agent-platform-client-ci.yml'
+      - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/**'
+      - 'integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/**'
+      - 'scripts/verify-agent-platform-p0-ui-overlay.sh'
+      - 'scripts/compose-agent-platform-client.sh'
+      - 'deployment/production-patches/*/client/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout integration repository
+        uses: actions/checkout@v5
+
+      - name: Checkout pinned LibreChat upstream
+        uses: actions/checkout@v5
+        with:
+          repository: danny-avila/LibreChat
+          ref: 8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9
+          path: upstream
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: upstream/package-lock.json
+
+      - name: Verify pinned Agent UI overlay
+        run: scripts/verify-agent-platform-p0-ui-overlay.sh upstream
+
+      - name: Apply Agent UI patch
+        run: >-
+          git -C upstream apply --whitespace=error-all
+          "$GITHUB_WORKSPACE/integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.patch"
+
+      - name: Install pinned dependencies
+        working-directory: upstream
+        run: npm ci
+
+      - name: Build internal packages
+        working-directory: upstream
+        run: npm run build:packages
+
+      - name: Run focused Agent UI tests
+        working-directory: upstream/client
+        run: >-
+          npm run test:ci -- --runInBand
+          src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
+          src/components/Agents/tests/MyAgentsView.spec.tsx
+          src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx
+          src/locales/agentWorkspaceLocales.spec.ts
+          src/components/Agents/tests/AgentGrid.integration.spec.tsx
+          src/components/Agents/tests/Accessibility.spec.tsx
+          src/components/SidePanel/Agents/Tools/__tests__/ToolsMarketplaceDialog.spec.tsx
+          src/components/SidePanel/Agents/Tools/__tests__/ToolsSection.spec.tsx
+          src/components/SidePanel/Agents/AgentPanel.test.tsx
+          src/components/SidePanel/Agents/__tests__/AgentPanel.helpers.spec.ts
+          src/components/SidePanel/Agents/__tests__/FileContext.spec.tsx
+          src/components/Agents/tests/CategoryTabs.spec.tsx
+          src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx
+
+      - name: Typecheck Client
+        working-directory: upstream/client
+        run: npm run typecheck
+
+      - name: Build production Client
+        working-directory: upstream/client
+        run: npm run build
+
+      - name: Run protected asset source contracts
+        run: |
+          python3 deployment/production-patches/2026-07-12-upload-menu-persistence/scripts/test-upload-menu-release.py
+          python3 deployment/production-patches/2026-07-17-odysseia-login-page/scripts/test-odysseia-login-release.py
+          python3 deployment/production-patches/2026-07-17-user-usage-dashboard/scripts/test-client-release.py
+          python3 deployment/production-patches/2026-07-18-search-favicon-fallback/scripts/test-release.py
+          python3 deployment/production-patches/2026-07-18-context-safety-stage-b/scripts/test-release.py
+          python3 deployment/production-patches/2026-07-22-generated-files-tab/scripts/test-client-release.py
+
+      - name: Compose protected Client overlay
+        run: scripts/compose-agent-platform-client.sh upstream/client/dist candidate-client
+
+      - name: Package immutable Client artifact
+        run: |
+          mkdir -p artifacts
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -czf artifacts/client-dist.tar.gz -C candidate-client .
+          sha256sum artifacts/client-dist.tar.gz > artifacts/client-dist.tar.gz.sha256
+          cp candidate-client/agent-platform-client-overlay.json artifacts/
+          cp integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json artifacts/
+
+      - name: Upload Client candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: librechat-agent-platform-client-8fcb77f
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14

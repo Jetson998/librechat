@@ -1,0 +1,3574 @@
+diff --git a/client/src/components/Agents/AgentGrid.tsx b/client/src/components/Agents/AgentGrid.tsx
+index 285df3dc7479bce6fba93baf66cc0c4381c94551..1b5b6e15e96e47c519057209935188a755f723ed 100644
+--- a/client/src/components/Agents/AgentGrid.tsx
++++ b/client/src/components/Agents/AgentGrid.tsx
+@@ -1,5 +1,5 @@
+ import React, { useMemo, useEffect } from 'react';
+-import { Spinner } from '@librechat/client';
++import { Button, Spinner } from '@librechat/client';
+ import { PermissionBits } from 'librechat-data-provider';
+ import type t from 'librechat-data-provider';
+ import { useMarketplaceAgentsInfiniteQuery } from '~/data-provider/Agents';
+@@ -14,6 +14,10 @@ interface AgentGridProps {
+   searchQuery: string;
+   onSelectAgent: (agent: t.Agent) => void;
+   scrollElementRef?: React.RefObject<HTMLElement>;
++  canCreate?: boolean;
++  onCreate?: () => void;
++  onClearSearch?: () => void;
++  onViewAll?: () => void;
+ }
+ 
+ /**
+@@ -24,6 +28,10 @@ const AgentGrid: React.FC<AgentGridProps> = ({
+   searchQuery,
+   onSelectAgent,
+   scrollElementRef,
++  canCreate = false,
++  onCreate,
++  onClearSearch,
++  onViewAll,
+ }) => {
+   const localize = useLocalize();
+ 
+@@ -126,6 +134,34 @@ const AgentGrid: React.FC<AgentGridProps> = ({
+     return categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
+   };
+ 
++  const emptyState = useMemo(() => {
++    if (searchQuery) {
++      return {
++        heading: localize('com_agents_search_empty_heading'),
++        description: localize('com_agents_search_no_results', { query: searchQuery }),
++        actionLabel: localize('com_agents_clear_search'),
++        onAction: onClearSearch,
++      };
++    }
++
++    if (category !== 'all' && category !== 'promoted') {
++      const categoryName = getCategoryDisplayName(category);
++      return {
++        heading: localize('com_agents_category_empty', { category: categoryName }),
++        description: localize('com_agents_category_empty_description'),
++        actionLabel: localize('com_agents_workspace_view_all'),
++        onAction: onViewAll,
++      };
++    }
++
++    return {
++      heading: localize('com_agents_workspace_market_empty'),
++      description: localize('com_agents_workspace_market_empty_description'),
++      actionLabel: localize('com_agents_workspace_create'),
++      onAction: canCreate ? onCreate : undefined,
++    };
++  }, [canCreate, categories, category, localize, onClearSearch, onCreate, onViewAll, searchQuery]);
++
+   // Simple loading spinner
+   const loadingSpinner = (
+     <div className="flex justify-center py-12">
+@@ -152,7 +188,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
+     <div
+       className="space-y-6"
+       role="tabpanel"
+-      id={`category-panel-${category}`}
++      id={`tabpanel-${category}`}
+       aria-labelledby={`category-tab-${category}`}
+       aria-live="polite"
+       aria-busy={isLoading && !hasData}
+@@ -160,16 +196,18 @@ const AgentGrid: React.FC<AgentGridProps> = ({
+       {/* Handle empty results with enhanced accessibility */}
+       {(!currentAgents || currentAgents.length === 0) && !isLoading && !isFetching ? (
+         <div
+-          className="py-12 text-center text-text-secondary"
++          className="flex flex-col items-center px-4 py-14 text-center"
+           role="status"
+           aria-live="polite"
+-          aria-label={
+-            searchQuery
+-              ? localize('com_agents_search_empty_heading')
+-              : localize('com_agents_empty_state_heading')
+-          }
++          aria-label={emptyState.heading}
+         >
+-          <h3 className="mb-2 text-lg font-medium">{localize('com_agents_empty_state_heading')}</h3>
++          <h3 className="text-lg font-semibold text-text-primary">{emptyState.heading}</h3>
++          <p className="mt-2 max-w-md text-sm text-text-secondary">{emptyState.description}</p>
++          {emptyState.onAction && (
++            <Button type="button" variant="outline" className="mt-5" onClick={emptyState.onAction}>
++              {emptyState.actionLabel}
++            </Button>
++          )}
+         </div>
+       ) : (
+         <>
+diff --git a/client/src/components/Agents/AgentWorkspaceHeader.tsx b/client/src/components/Agents/AgentWorkspaceHeader.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa6548f22abefea8de3d82c8a05121269fa6c24e
+--- /dev/null
++++ b/client/src/components/Agents/AgentWorkspaceHeader.tsx
+@@ -0,0 +1,131 @@
++import { useRef, type KeyboardEvent } from 'react';
++import { ArrowLeft, Plus, Store, UserRound } from 'lucide-react';
++import { useMediaQuery } from '@librechat/client';
++import OpenSidebar from '~/components/Chat/Menus/OpenSidebar';
++import { useLocalize } from '~/hooks';
++import { cn } from '~/utils';
++
++export type AgentWorkspaceView = 'recommended' | 'mine' | 'create';
++
++interface AgentWorkspaceHeaderProps {
++  view: AgentWorkspaceView;
++  canCreate: boolean;
++  isBuilderOpen: boolean;
++  onBack: () => void;
++  onChange: (view: AgentWorkspaceView) => void;
++}
++
++export default function AgentWorkspaceHeader({
++  view,
++  canCreate,
++  isBuilderOpen,
++  onBack,
++  onChange,
++}: AgentWorkspaceHeaderProps) {
++  const localize = useLocalize();
++  const isSmallScreen = useMediaQuery('(max-width: 768px)');
++  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
++  const items = [
++    {
++      value: 'recommended' as const,
++      label: localize('com_agents_workspace_recommended'),
++      icon: Store,
++    },
++    {
++      value: 'mine' as const,
++      label: localize('com_agents_workspace_mine'),
++      icon: UserRound,
++    },
++    ...(canCreate
++      ? [
++          {
++            value: 'create' as const,
++            label: localize('com_agents_workspace_create'),
++            icon: Plus,
++          },
++        ]
++      : []),
++  ];
++
++  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
++    let nextIndex: number | null = null;
++
++    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
++      nextIndex = (index + 1) % items.length;
++    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
++      nextIndex = (index - 1 + items.length) % items.length;
++    } else if (event.key === 'Home') {
++      nextIndex = 0;
++    } else if (event.key === 'End') {
++      nextIndex = items.length - 1;
++    }
++
++    if (nextIndex == null) {
++      return;
++    }
++
++    event.preventDefault();
++    tabRefs.current[nextIndex]?.focus();
++    onChange(items[nextIndex].value);
++  };
++
++  return (
++    <header className="border-b border-border-light bg-presentation">
++      <div className="container mx-auto flex max-w-4xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
++        <div className="flex min-w-0 items-center gap-2">
++          {isSmallScreen && <OpenSidebar />}
++          {isBuilderOpen && (
++            <button
++              type="button"
++              onClick={onBack}
++              title={localize('com_agents_workspace_back')}
++              aria-label={localize('com_agents_workspace_back')}
++              className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
++            >
++              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
++            </button>
++          )}
++          <h1 className="truncate text-xl font-semibold text-text-primary">
++            {localize('com_agents_workspace')}
++          </h1>
++        </div>
++
++        <div
++          className="scrollbar-hide flex w-full min-w-0 gap-1 overflow-x-auto rounded-lg bg-surface-secondary p-1 md:w-auto"
++          role="tablist"
++          aria-label={localize('com_agents_workspace_navigation')}
++        >
++          {items.map((item, index) => {
++            const active = item.value === view;
++            const Icon = item.icon;
++            return (
++              <button
++                key={item.value}
++                ref={(element) => {
++                  tabRefs.current[index] = element;
++                }}
++                type="button"
++                role="tab"
++                id={`agent-workspace-tab-${item.value}`}
++                aria-controls={`agent-workspace-panel-${item.value}`}
++                aria-selected={active}
++                tabIndex={active ? 0 : -1}
++                onClick={() => onChange(item.value)}
++                onKeyDown={(event) => handleTabKeyDown(event, index)}
++                className={cn(
++                  'inline-flex h-9 flex-shrink-0 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary',
++                  active
++                    ? 'bg-surface-primary text-text-primary shadow-sm'
++                    : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
++                )}
++              >
++                <Icon className="h-4 w-4" aria-hidden="true" />
++                <span>{item.label}</span>
++              </button>
++            );
++          })}
++        </div>
++      </div>
++    </header>
++  );
++}
+diff --git a/client/src/components/Agents/Marketplace.tsx b/client/src/components/Agents/Marketplace.tsx
+index 1e534dbf85bb088e8391ef5d7176000bb7bb465c..14beb534fcfe9ee5de115db32ed2efa6047013e5 100644
+--- a/client/src/components/Agents/Marketplace.tsx
++++ b/client/src/components/Agents/Marketplace.tsx
+@@ -1,13 +1,16 @@
+-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
++import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+ import { useMediaQuery } from '@librechat/client';
+-import { PermissionTypes, Permissions } from 'librechat-data-provider';
+-import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
++import { EModelEndpoint, PermissionTypes, Permissions } from 'librechat-data-provider';
++import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+ import type t from 'librechat-data-provider';
+ import { useDocumentTitle, useHasAccess, useLocalize, TranslationKeys } from '~/hooks';
+-import { useGetEndpointsQuery, useGetAgentCategoriesQuery } from '~/data-provider';
+-import MarketplaceAdminSettings from './MarketplaceAdminSettings';
+-import OpenSidebar from '~/components/Chat/Menus/OpenSidebar';
++import { useGetAgentCategoriesQuery, useGetEndpointsQuery } from '~/data-provider';
++import AgentPanelSwitch from '~/components/SidePanel/Agents/AgentPanelSwitch';
+ import { SidePanelGroup } from '~/components/SidePanel';
++import MarketplaceAdminSettings from './MarketplaceAdminSettings';
++import AgentWorkspaceHeader from './AgentWorkspaceHeader';
++import type { AgentWorkspaceView } from './AgentWorkspaceHeader';
++import MyAgentsView from './MyAgentsView';
+ import CategoryTabs from './CategoryTabs';
+ import SearchBar from './SearchBar';
+ import AgentGrid from './AgentGrid';
+@@ -17,393 +20,376 @@ interface AgentMarketplaceProps {
+   className?: string;
+ }
+ 
+-/**
+- * AgentMarketplace - Main component for browsing and discovering agents
+- *
+- * Provides tabbed navigation for different agent categories,
+- * search functionality, and detailed agent view through a modal dialog.
+- * Uses URL parameters for state persistence and deep linking.
+- */
++type Direction = 'left' | 'right';
++
++function normalizeWorkspaceView(value: string | null): AgentWorkspaceView {
++  if (value === 'mine' || value === 'create') {
++    return value;
++  }
++  return 'recommended';
++}
++
+ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) => {
+   const localize = useLocalize();
+   const navigate = useNavigate();
++  const location = useLocation();
+   const { category } = useParams();
+   const [searchParams, setSearchParams] = useSearchParams();
+-
+   const isSmallScreen = useMediaQuery('(max-width: 768px)');
+ 
+-  // Get URL parameters
++  const view = normalizeWorkspaceView(searchParams.get('view'));
++  const workspaceAgentId = searchParams.get('agent') || undefined;
+   const searchQuery = searchParams.get('q') || '';
+ 
+-  // Animation state
+-  type Direction = 'left' | 'right';
+-  // Initialize with a default value to prevent rendering issues
++  const hasAccessToAgents = useHasAccess({
++    permissionType: PermissionTypes.AGENTS,
++    permission: Permissions.USE,
++  });
++  const hasAccessToCreateAgents = useHasAccess({
++    permissionType: PermissionTypes.AGENTS,
++    permission: Permissions.CREATE,
++  });
++  const hasAccessToMarketplace = useHasAccess({
++    permissionType: PermissionTypes.MARKETPLACE,
++    permission: Permissions.USE,
++  });
++
++  const endpointsQuery = useGetEndpointsQuery();
++  const agentsEndpoint = endpointsQuery.data?.[EModelEndpoint.agents];
++  const workspaceAvailable = agentsEndpoint != null && hasAccessToAgents && hasAccessToMarketplace;
++  const canCreate =
++    workspaceAvailable && hasAccessToCreateAgents && agentsEndpoint.disableBuilder !== true;
++  const effectiveView: AgentWorkspaceView =
++    view === 'create' && endpointsQuery.isSuccess && !canCreate ? 'mine' : view;
++  const isBuilderOpen =
++    effectiveView === 'create' || (effectiveView === 'mine' && workspaceAgentId != null);
++
+   const [displayCategory, setDisplayCategory] = useState<string>(category || 'all');
+   const [nextCategory, setNextCategory] = useState<string | null>(null);
+-  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
++  const [isTransitioning, setIsTransitioning] = useState(false);
+   const [animationDirection, setAnimationDirection] = useState<Direction>('right');
+-
+-  // Ref for the scrollable container to enable infinite scroll
+   const scrollContainerRef = useRef<HTMLDivElement>(null);
++  const transitionTimeoutRef = useRef<number | null>(null);
++  const recommendedLocationRef = useRef('/agents');
+ 
+-  // Set page title
+-  useDocumentTitle(`${localize('com_agents_marketplace')} | LibreChat`);
+-
+-  // Ensure endpoints config is loaded first (required for agent queries)
+-  useGetEndpointsQuery();
++  useDocumentTitle(`${localize('com_agents_workspace')} | LibreChat`);
+ 
+-  // Fetch categories using existing query pattern
+   const categoriesQuery = useGetAgentCategoriesQuery({
+-    staleTime: 1000 * 60 * 15, // 15 minutes - categories rarely change
++    enabled: effectiveView === 'recommended' && workspaceAvailable,
++    staleTime: 1000 * 60 * 15,
+     refetchOnWindowFocus: false,
+     refetchOnReconnect: false,
+     refetchOnMount: false,
+   });
+ 
+-  // Handle initial category when on /agents without a category
++  useEffect(() => {
++    if (effectiveView === 'recommended') {
++      recommendedLocationRef.current = `${location.pathname}${location.search}`;
++    }
++  }, [effectiveView, location.pathname, location.search]);
++
+   useEffect(() => {
+     if (
++      effectiveView === 'recommended' &&
+       !category &&
+-      window.location.pathname === '/agents' &&
++      location.pathname === '/agents' &&
+       categoriesQuery.data &&
+       displayCategory === 'all'
+     ) {
+-      const hasPromoted = categoriesQuery.data.some((cat) => cat.value === 'promoted');
++      const hasPromoted = categoriesQuery.data.some((item) => item.value === 'promoted');
+       if (hasPromoted) {
+-        // If promoted exists, update display to show it
+         setDisplayCategory('promoted');
+       }
+     }
+-  }, [category, categoriesQuery.data, displayCategory]);
+-
+-  /**
+-   * Handle agent card selection - updates URL for deep linking
+-   */
+-  const handleAgentSelect = (agent: t.Agent) => {
+-    const newParams = new URLSearchParams(searchParams);
+-    newParams.set('agent_id', agent.id);
+-    setSearchParams(newParams);
+-  };
++  }, [category, categoriesQuery.data, displayCategory, effectiveView, location.pathname]);
+ 
+-  /**
+-   * Determine ordered tabs to compute indices for direction
+-   */
+-  const orderedTabs = useMemo<string[]>(() => {
+-    const dynamic = (categoriesQuery.data || []).map((c) => c.value);
+-    // Only include values that actually exist in the categories
+-    const set = new Set<string>(dynamic);
+-    return Array.from(set);
++  useEffect(() => {
++    if (category && category !== displayCategory && !isTransitioning) {
++      setDisplayCategory(category);
++    }
++  }, [category, displayCategory, isTransitioning]);
++
++  useEffect(
++    () => () => {
++      if (transitionTimeoutRef.current != null) {
++        window.clearTimeout(transitionTimeoutRef.current);
++      }
++    },
++    [],
++  );
++
++  useEffect(() => {
++    if (view === 'create' && !canCreate && workspaceAvailable) {
++      navigate('/agents?view=mine', { replace: true });
++    }
++  }, [canCreate, navigate, view, workspaceAvailable]);
++
++  useEffect(() => {
++    if (endpointsQuery.isSuccess && !workspaceAvailable) {
++      navigate('/c/new', { replace: true });
++    }
++  }, [endpointsQuery.isSuccess, navigate, workspaceAvailable]);
++
++  const orderedTabs = useMemo(() => {
++    const dynamic = (categoriesQuery.data || []).map((item) => item.value);
++    return Array.from(new Set(dynamic));
+   }, [categoriesQuery.data]);
+ 
+   const getTabIndex = useCallback(
+-    (tab: string): number => {
+-      const idx = orderedTabs.indexOf(tab);
+-      return idx >= 0 ? idx : 0;
++    (tab: string) => {
++      const index = orderedTabs.indexOf(tab);
++      return index >= 0 ? index : 0;
+     },
+     [orderedTabs],
+   );
+ 
+-  /**
+-   * Handle category tab selection changes with directional animation
+-   */
+-  const handleTabChange = (tabValue: string) => {
+-    if (tabValue === displayCategory || isTransitioning) {
+-      // Ignore redundant or rapid clicks during transition
++  const getCategoryData = useCallback(
++    (categoryValue: string) => {
++      if (categoryValue === 'promoted') {
++        return {
++          name: localize('com_agents_top_picks'),
++          description: localize('com_agents_recommended'),
++        };
++      }
++      if (categoryValue === 'all') {
++        return {
++          name: localize('com_agents_all'),
++          description: localize('com_agents_all_description'),
++        };
++      }
++
++      const categoryData = categoriesQuery.data?.find((item) => item.value === categoryValue);
++      if (categoryData) {
++        return {
++          name: categoryData.label?.startsWith('com_')
++            ? localize(categoryData.label as TranslationKeys)
++            : categoryData.label,
++          description: categoryData.description?.startsWith('com_')
++            ? localize(categoryData.description as TranslationKeys)
++            : categoryData.description || '',
++        };
++      }
++
++      return {
++        name: categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1),
++        description: '',
++      };
++    },
++    [categoriesQuery.data, localize],
++  );
++
++  const handleWorkspaceViewChange = useCallback(
++    (nextView: AgentWorkspaceView) => {
++      if (nextView === 'recommended') {
++        navigate(recommendedLocationRef.current);
++        return;
++      }
++      if (nextView === 'create' && !canCreate) {
++        return;
++      }
++      navigate(`/agents?view=${nextView}`);
++    },
++    [canCreate, navigate],
++  );
++
++  const handleBack = useCallback(() => {
++    if (effectiveView === 'mine') {
++      navigate('/agents?view=mine');
+       return;
+     }
++    navigate(recommendedLocationRef.current);
++  }, [effectiveView, navigate]);
++
++  const handleWorkspaceAgentIdChange = useCallback(
++    (agentId?: string) => {
++      if (agentId) {
++        navigate(`/agents?view=mine&agent=${encodeURIComponent(agentId)}`, { replace: true });
++        return;
++      }
++      if (effectiveView === 'mine') {
++        navigate('/agents?view=mine', { replace: true });
++      }
++    },
++    [effectiveView, navigate],
++  );
+ 
+-    const currentIndex = getTabIndex(displayCategory);
+-    const newIndex = getTabIndex(tabValue);
+-    const direction: Direction = newIndex > currentIndex ? 'right' : 'left';
+-
+-    setAnimationDirection(direction);
+-    setNextCategory(tabValue);
+-    setIsTransitioning(true);
+-
+-    // Update URL immediately, preserving current search params
+-    const currentSearchParams = searchParams.toString();
+-    const searchParamsStr = currentSearchParams ? `?${currentSearchParams}` : '';
+-    if (tabValue === 'promoted') {
+-      navigate(`/agents${searchParamsStr}`);
+-    } else {
+-      navigate(`/agents/${tabValue}${searchParamsStr}`);
+-    }
++  const handleAgentSelect = useCallback(
++    (agent: t.Agent) => {
++      const newParams = new URLSearchParams(searchParams);
++      newParams.set('agent_id', agent.id);
++      setSearchParams(newParams);
++    },
++    [searchParams, setSearchParams],
++  );
+ 
+-    // Complete transition after 300ms
+-    window.setTimeout(() => {
+-      setDisplayCategory(tabValue);
+-      setNextCategory(null);
+-      setIsTransitioning(false);
+-    }, 300);
+-  };
++  const handleEditAgent = useCallback(
++    (agent: t.Agent) => {
++      navigate(`/agents?view=mine&agent=${encodeURIComponent(agent.id)}`);
++    },
++    [navigate],
++  );
+ 
+-  /**
+-   * Sync display when URL changes externally (back/forward)
+-   */
+-  useEffect(() => {
+-    if (category && category !== displayCategory && !isTransitioning) {
+-      // URL changed externally, update display without animation
+-      setDisplayCategory(category);
+-    }
+-  }, [category, displayCategory, isTransitioning]);
++  const handleTabChange = useCallback(
++    (tabValue: string) => {
++      if (tabValue === displayCategory || isTransitioning) {
++        return;
++      }
+ 
+-  // No longer needed with keyframes
+-
+-  /**
+-   * Handle search query changes
+-   *
+-   * @param query - The search query string
+-   */
+-  const handleSearch = (query: string) => {
+-    const newParams = new URLSearchParams(searchParams);
+-    const currentCategory = displayCategory;
+-
+-    if (query.trim()) {
+-      newParams.set('q', query.trim());
+-    } else {
+-      newParams.delete('q');
+-    }
++      const direction: Direction =
++        getTabIndex(tabValue) > getTabIndex(displayCategory) ? 'right' : 'left';
++      setAnimationDirection(direction);
++      setNextCategory(tabValue);
++      setIsTransitioning(true);
+ 
+-    // Always preserve current category when searching or clearing search
+-    if (currentCategory === 'promoted') {
+-      navigate(`/agents${newParams.toString() ? `?${newParams.toString()}` : ''}`);
+-    } else {
++      const currentSearchParams = searchParams.toString();
++      const searchParamsString = currentSearchParams ? `?${currentSearchParams}` : '';
+       navigate(
+-        `/agents/${currentCategory}${newParams.toString() ? `?${newParams.toString()}` : ''}`,
++        tabValue === 'promoted'
++          ? `/agents${searchParamsString}`
++          : `/agents/${tabValue}${searchParamsString}`,
+       );
+-    }
+-  };
+ 
+-  const hasAccessToMarketplace = useHasAccess({
+-    permissionType: PermissionTypes.MARKETPLACE,
+-    permission: Permissions.USE,
+-  });
+-  useEffect(() => {
+-    let timeoutId: ReturnType<typeof setTimeout>;
+-    if (!hasAccessToMarketplace) {
+-      timeoutId = setTimeout(() => {
+-        navigate('/c/new');
+-      }, 1000);
+-    }
+-    return () => {
+-      clearTimeout(timeoutId);
+-    };
+-  }, [hasAccessToMarketplace, navigate]);
++      if (transitionTimeoutRef.current != null) {
++        window.clearTimeout(transitionTimeoutRef.current);
++      }
++      transitionTimeoutRef.current = window.setTimeout(() => {
++        setDisplayCategory(tabValue);
++        setNextCategory(null);
++        setIsTransitioning(false);
++      }, 300);
++    },
++    [displayCategory, getTabIndex, isTransitioning, navigate, searchParams],
++  );
+ 
+-  if (!hasAccessToMarketplace) {
++  const handleSearch = useCallback(
++    (query: string) => {
++      const newParams = new URLSearchParams(searchParams);
++      if (query.trim()) {
++        newParams.set('q', query.trim());
++      } else {
++        newParams.delete('q');
++      }
++
++      const suffix = newParams.toString() ? `?${newParams.toString()}` : '';
++      navigate(
++        displayCategory === 'promoted' ? `/agents${suffix}` : `/agents/${displayCategory}${suffix}`,
++      );
++    },
++    [displayCategory, navigate, searchParams],
++  );
++
++  const renderCategoryPane = (categoryValue: string, isNext = false) => {
++    const { name, description } = getCategoryData(categoryValue);
++    return (
++      <div
++        className={cn(
++          isNext && 'absolute inset-0',
++          isNext &&
++            (animationDirection === 'right'
++              ? 'motion-safe:animate-slide-in-right'
++              : 'motion-safe:animate-slide-in-left'),
++          !isNext &&
++            isTransitioning &&
++            (animationDirection === 'right'
++              ? 'motion-safe:animate-slide-out-left'
++              : 'motion-safe:animate-slide-out-right'),
++        )}
++        key={`${isNext ? 'next' : 'current'}-${categoryValue}`}
++      >
++        {!searchQuery && (
++          <div className="mb-5 mt-5 text-left">
++            <h2 className="text-xl font-semibold text-text-primary">{name}</h2>
++            {description && <p className="mt-1 text-sm text-text-secondary">{description}</p>}
++          </div>
++        )}
++        <AgentGrid
++          category={categoryValue}
++          searchQuery={searchQuery}
++          onSelectAgent={handleAgentSelect}
++          scrollElementRef={scrollContainerRef}
++          canCreate={canCreate}
++          onCreate={() => handleWorkspaceViewChange('create')}
++          onClearSearch={() => handleSearch('')}
++          onViewAll={() => handleTabChange('all')}
++        />
++      </div>
++    );
++  };
++
++  if (!endpointsQuery.isLoading && !workspaceAvailable) {
+     return null;
+   }
++
+   return (
+-    <div className={`relative flex w-full grow overflow-hidden bg-presentation ${className}`}>
++    <div
++      className={`relative flex w-full grow flex-col overflow-hidden bg-presentation ${className}`}
++    >
++      <AgentWorkspaceHeader
++        view={effectiveView}
++        canCreate={canCreate}
++        isBuilderOpen={isBuilderOpen}
++        onBack={handleBack}
++        onChange={handleWorkspaceViewChange}
++      />
+       <SidePanelGroup>
+         <main className="flex h-full flex-col overflow-hidden" role="main">
+-          {/* Scrollable container */}
+           <div
+-            ref={scrollContainerRef}
+-            className="scrollbar-gutter-stable relative flex h-full flex-col overflow-y-auto overflow-x-hidden"
++            id={`agent-workspace-panel-${effectiveView}`}
++            role="tabpanel"
++            aria-labelledby={`agent-workspace-tab-${effectiveView}`}
++            className="h-full min-h-0"
+           >
+-            {/* Hero Section - scrolls away */}
+-            {!isSmallScreen && (
+-              <div className="container mx-auto max-w-4xl">
+-                <div className={cn('mb-8 text-center', 'mt-12')}>
+-                  <h1 className="mb-3 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+-                    {localize('com_agents_marketplace')}
+-                  </h1>
+-                  <p className="mx-auto mb-6 max-w-2xl text-lg text-text-secondary">
+-                    {localize('com_agents_marketplace_subtitle')}
+-                  </p>
+-                </div>
+-              </div>
+-            )}
+-            {/* Sticky wrapper for search bar and categories */}
+-            <div className="sticky top-0 z-10 mt-4 bg-presentation pb-4 md:mt-0">
+-              <div className="container mx-auto max-w-4xl px-4">
+-                {isSmallScreen ? (
+-                  <div className="mx-auto mb-3 flex max-w-2xl items-center justify-between gap-2">
+-                    <OpenSidebar />
+-                    <MarketplaceAdminSettings compact />
+-                  </div>
+-                ) : null}
+-                {/* Search bar */}
+-                <div className="mx-auto flex max-w-2xl gap-2 pb-6">
+-                  <SearchBar value={searchQuery} onSearch={handleSearch} />
+-                  {/* TODO: Remove this once we have a better way to handle admin settings */}
+-                  {!isSmallScreen && <MarketplaceAdminSettings />}
+-                </div>
+-
+-                {/* Category tabs */}
+-                <CategoryTabs
+-                  categories={categoriesQuery.data || []}
+-                  activeTab={displayCategory}
+-                  isLoading={categoriesQuery.isLoading}
+-                  onChange={handleTabChange}
++            {isBuilderOpen ? (
++              <div className="scrollbar-gutter-stable h-full overflow-y-auto">
++                <AgentPanelSwitch
++                  workspaceMode
++                  workspaceAgentId={effectiveView === 'mine' ? workspaceAgentId : undefined}
++                  onAgentIdChange={handleWorkspaceAgentIdChange}
+                 />
+               </div>
+-            </div>
+-            {/* Scrollable content area */}
+-            <div className="container mx-auto max-w-4xl px-4 pb-8">
+-              {/* Two-pane animated container wrapping category header + grid */}
+-              <div className="relative overflow-hidden">
+-                {/* Current content pane */}
+-                <div
+-                  className={cn(
+-                    isTransitioning &&
+-                      (animationDirection === 'right'
+-                        ? 'motion-safe:animate-slide-out-left'
+-                        : 'motion-safe:animate-slide-out-right'),
+-                  )}
+-                  key={`pane-current-${displayCategory}`}
+-                >
+-                  {/* Category header - only show when not searching */}
+-                  {!searchQuery && (
+-                    <div className="mb-6 mt-6">
+-                      {(() => {
+-                        // Get category data for display
+-                        const getCategoryData = () => {
+-                          if (displayCategory === 'promoted') {
+-                            return {
+-                              name: localize('com_agents_top_picks'),
+-                              description: localize('com_agents_recommended'),
+-                            };
+-                          }
+-                          if (displayCategory === 'all') {
+-                            return {
+-                              name: localize('com_agents_all'),
+-                              description: localize('com_agents_all_description'),
+-                            };
+-                          }
+-
+-                          // Find the category in the API data
+-                          const categoryData = categoriesQuery.data?.find(
+-                            (cat) => cat.value === displayCategory,
+-                          );
+-                          if (categoryData) {
+-                            return {
+-                              name: categoryData.label?.startsWith('com_')
+-                                ? localize(categoryData.label as TranslationKeys)
+-                                : categoryData.label,
+-                              description: categoryData.description?.startsWith('com_')
+-                                ? localize(categoryData.description as TranslationKeys)
+-                                : categoryData.description || '',
+-                            };
+-                          }
+-
+-                          // Fallback for unknown categories
+-                          return {
+-                            name:
+-                              displayCategory.charAt(0).toUpperCase() + displayCategory.slice(1),
+-                            description: '',
+-                          };
+-                        };
+-
+-                        const { name, description } = getCategoryData();
+-
+-                        return (
+-                          <div className="text-left">
+-                            <h2 className="text-2xl font-bold text-text-primary">{name}</h2>
+-                            {description && (
+-                              <p className="mt-2 text-text-secondary">{description}</p>
+-                            )}
+-                          </div>
+-                        );
+-                      })()}
+-                    </div>
+-                  )}
+-
+-                  {/* Agent grid */}
+-                  <AgentGrid
+-                    key={`grid-${displayCategory}`}
+-                    category={displayCategory}
+-                    searchQuery={searchQuery}
+-                    onSelectAgent={handleAgentSelect}
+-                    scrollElementRef={scrollContainerRef}
++            ) : effectiveView === 'mine' ? (
++              <div className="scrollbar-gutter-stable h-full overflow-y-auto">
++                <div className="container mx-auto max-w-4xl">
++                  <MyAgentsView
++                    canCreate={canCreate}
++                    onCreate={() => handleWorkspaceViewChange('create')}
++                    onEdit={handleEditAgent}
+                   />
+                 </div>
+-
+-                {/* Next content pane, only during transition */}
+-                {isTransitioning && nextCategory && (
+-                  <div
+-                    className={cn(
+-                      'absolute inset-0',
+-                      animationDirection === 'right'
+-                        ? 'motion-safe:animate-slide-in-right'
+-                        : 'motion-safe:animate-slide-in-left',
+-                    )}
+-                    key={`pane-next-${nextCategory}-${animationDirection}`}
+-                  >
+-                    {/* Category header - only show when not searching */}
+-                    {!searchQuery && (
+-                      <div className="mb-6 mt-6">
+-                        {(() => {
+-                          // Get category data for display
+-                          const getCategoryData = () => {
+-                            if (nextCategory === 'promoted') {
+-                              return {
+-                                name: localize('com_agents_top_picks'),
+-                                description: localize('com_agents_recommended'),
+-                              };
+-                            }
+-                            if (nextCategory === 'all') {
+-                              return {
+-                                name: localize('com_agents_all'),
+-                                description: localize('com_agents_all_description'),
+-                              };
+-                            }
+-
+-                            // Find the category in the API data
+-                            const categoryData = categoriesQuery.data?.find(
+-                              (cat) => cat.value === nextCategory,
+-                            );
+-                            if (categoryData) {
+-                              return {
+-                                name: categoryData.label?.startsWith('com_')
+-                                  ? localize(categoryData.label as TranslationKeys)
+-                                  : categoryData.label,
+-                                description: categoryData.description?.startsWith('com_')
+-                                  ? localize(
+-                                      categoryData.description as Parameters<typeof localize>[0],
+-                                    )
+-                                  : categoryData.description || '',
+-                              };
+-                            }
+-
+-                            // Fallback for unknown categories
+-                            return {
+-                              name:
+-                                (nextCategory || '').charAt(0).toUpperCase() +
+-                                (nextCategory || '').slice(1),
+-                              description: '',
+-                            };
+-                          };
+-
+-                          const { name, description } = getCategoryData();
+-
+-                          return (
+-                            <div className="text-left">
+-                              <h2 className="text-2xl font-bold text-text-primary">{name}</h2>
+-                              {description && (
+-                                <p className="mt-2 text-text-secondary">{description}</p>
+-                              )}
+-                            </div>
+-                          );
+-                        })()}
++              </div>
++            ) : (
++              <div
++                ref={scrollContainerRef}
++                className="scrollbar-gutter-stable relative flex h-full flex-col overflow-y-auto overflow-x-hidden"
++              >
++                <div className="sticky top-0 z-10 bg-presentation pb-3 pt-4">
++                  <div className="container mx-auto max-w-4xl px-4">
++                    {isSmallScreen && (
++                      <div className="mb-3 flex justify-end">
++                        <MarketplaceAdminSettings compact />
+                       </div>
+                     )}
+-
+-                    {/* Agent grid */}
+-                    <AgentGrid
+-                      key={`grid-${nextCategory}`}
+-                      category={nextCategory}
+-                      searchQuery={searchQuery}
+-                      onSelectAgent={handleAgentSelect}
+-                      scrollElementRef={scrollContainerRef}
++                    <div className="mx-auto flex max-w-2xl gap-2 pb-4">
++                      <SearchBar value={searchQuery} onSearch={handleSearch} />
++                      {!isSmallScreen && <MarketplaceAdminSettings />}
++                    </div>
++                    <CategoryTabs
++                      categories={categoriesQuery.data || []}
++                      activeTab={displayCategory}
++                      isLoading={categoriesQuery.isLoading}
++                      onChange={handleTabChange}
+                     />
+                   </div>
+-                )}
++                </div>
+ 
+-                {/* Note: Using Tailwind keyframes for slide in/out animations */}
++                <div className="container mx-auto max-w-4xl px-4 pb-8">
++                  <div className="relative overflow-hidden">
++                    {renderCategoryPane(displayCategory)}
++                    {isTransitioning && nextCategory && renderCategoryPane(nextCategory, true)}
++                  </div>
++                </div>
+               </div>
+-            </div>
++            )}
+           </div>
+         </main>
+       </SidePanelGroup>
+diff --git a/client/src/components/Agents/MyAgentsView.tsx b/client/src/components/Agents/MyAgentsView.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..7af6425117a0799bc64bf524b87ac31e4fae56ea
+--- /dev/null
++++ b/client/src/components/Agents/MyAgentsView.tsx
+@@ -0,0 +1,96 @@
++import { Pencil, Plus } from 'lucide-react';
++import { Button, Spinner } from '@librechat/client';
++import { PermissionBits } from 'librechat-data-provider';
++import type t from 'librechat-data-provider';
++import { useListAgentsQuery } from '~/data-provider';
++import { useLocalize } from '~/hooks';
++import { renderAgentAvatar } from '~/utils';
++import ErrorDisplay from './ErrorDisplay';
++
++interface MyAgentsViewProps {
++  canCreate: boolean;
++  onCreate: () => void;
++  onEdit: (agent: t.Agent) => void;
++}
++
++export default function MyAgentsView({ canCreate, onCreate, onEdit }: MyAgentsViewProps) {
++  const localize = useLocalize();
++  const agentsQuery = useListAgentsQuery({
++    requiredPermission: PermissionBits.EDIT,
++  });
++  const agents = agentsQuery.data?.data ?? [];
++
++  if (agentsQuery.isLoading) {
++    return (
++      <div
++        className="flex justify-center py-16"
++        role="status"
++        aria-label={localize('com_agents_loading')}
++      >
++        <Spinner className="h-8 w-8 text-primary" />
++      </div>
++    );
++  }
++
++  if (agentsQuery.error) {
++    return (
++      <ErrorDisplay
++        error={agentsQuery.error}
++        onRetry={() => agentsQuery.refetch()}
++        context={{ category: 'mine' }}
++      />
++    );
++  }
++
++  if (agents.length === 0) {
++    return (
++      <div className="flex flex-col items-center px-4 py-16 text-center" role="status">
++        <h2 className="text-lg font-semibold text-text-primary">
++          {localize('com_agents_workspace_mine_empty')}
++        </h2>
++        <p className="mt-2 max-w-md text-sm text-text-secondary">
++          {localize('com_agents_workspace_mine_empty_description')}
++        </p>
++        {canCreate && (
++          <Button type="button" className="mt-5 gap-2" onClick={onCreate}>
++            <Plus className="h-4 w-4" aria-hidden="true" />
++            {localize('com_agents_workspace_create')}
++          </Button>
++        )}
++      </div>
++    );
++  }
++
++  return (
++    <ul
++      className="grid grid-cols-1 gap-3 px-4 pb-8 pt-6 md:grid-cols-2"
++      aria-label={localize('com_agents_workspace_mine')}
++    >
++      {agents.map((agent) => (
++        <li key={agent.id}>
++          <button
++            type="button"
++            onClick={() => onEdit(agent)}
++            aria-label={localize('com_agents_workspace_edit_named', {
++              name: agent.name || localize('com_ui_agent'),
++            })}
++            className="flex h-28 w-full items-center gap-4 rounded-lg border border-border-light bg-surface-primary px-4 py-3 text-left transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
++          >
++            <div className="flex-shrink-0 overflow-hidden rounded-full">
++              {renderAgentAvatar(agent, { size: 'sm', showBorder: false })}
++            </div>
++            <div className="min-w-0 flex-1">
++              <h2 className="truncate text-base font-semibold text-text-primary">
++                {agent.name || localize('com_ui_agent')}
++              </h2>
++              <p className="mt-1 line-clamp-2 text-sm text-text-secondary">
++                {agent.description || localize('com_agents_workspace_no_description')}
++              </p>
++            </div>
++            <Pencil className="h-4 w-4 flex-shrink-0 text-text-secondary" aria-hidden="true" />
++          </button>
++        </li>
++      ))}
++    </ul>
++  );
++}
+diff --git a/client/src/components/Agents/tests/Accessibility.spec.tsx b/client/src/components/Agents/tests/Accessibility.spec.tsx
+index 8d9a02a98254bd55cd40cc5b13ea12f7a06033b2..cf3182d8d28d082d20bcf58eebba6b65da47eb3d 100644
+--- a/client/src/components/Agents/tests/Accessibility.spec.tsx
++++ b/client/src/components/Agents/tests/Accessibility.spec.tsx
+@@ -59,6 +59,11 @@ const mockLocalize = jest.fn((key: string, options?: any) => {
+     com_agents_loading: 'Loading...',
+     com_agents_empty_state_heading: 'No agents found',
+     com_agents_search_empty_heading: 'No search results',
++    com_agents_workspace_market_empty: 'No recommended assistants yet',
++    com_agents_workspace_market_empty_description: 'No assistants have been published yet',
++    com_agents_workspace_create: 'Create Assistant',
++    com_agents_category_empty_description: 'This category is empty',
++    com_agents_workspace_view_all: 'View all',
+     com_agents_created_by: 'by',
+     com_agents_top_picks: 'Top Picks',
+     com_agents_all_category: 'All',
+@@ -385,7 +390,7 @@ describe('Accessibility Improvements', () => {
+ 
+       // Check tabpanel role
+       const tabpanel = screen.getByRole('tabpanel');
+-      expect(tabpanel).toHaveAttribute('id', 'category-panel-all');
++      expect(tabpanel).toHaveAttribute('id', 'tabpanel-all');
+       expect(tabpanel).toHaveAttribute('aria-labelledby', 'category-tab-all');
+       expect(tabpanel).toHaveAttribute('aria-live', 'polite');
+     });
+@@ -458,7 +463,7 @@ describe('Accessibility Improvements', () => {
+       // Check empty state accessibility
+       const emptyState = screen.getByRole('status');
+       expect(emptyState).toHaveAttribute('aria-live', 'polite');
+-      expect(emptyState).toHaveAttribute('aria-label', 'No agents found');
++      expect(emptyState).toHaveAttribute('aria-label', 'No recommended assistants yet');
+     });
+   });
+ 
+diff --git a/client/src/components/Agents/tests/AgentGrid.integration.spec.tsx b/client/src/components/Agents/tests/AgentGrid.integration.spec.tsx
+index 87a96acb878ca43db3527c4aaedc87229ac2de2c..098748436f801b27e278673225e3266d60ff5b73 100644
+--- a/client/src/components/Agents/tests/AgentGrid.integration.spec.tsx
++++ b/client/src/components/Agents/tests/AgentGrid.integration.spec.tsx
+@@ -36,6 +36,14 @@ jest.mock('~/hooks/useLocalize', () => () => (key: string, options?: any) => {
+     com_agents_error_searching: 'Error searching agents',
+     com_agents_search_empty_heading: 'No results found',
+     com_agents_empty_state_heading: 'No agents available',
++    com_agents_search_no_results: 'No assistants found for "{{query}}"',
++    com_agents_clear_search: 'Clear search',
++    com_agents_category_empty: 'No assistants found in {{category}}',
++    com_agents_category_empty_description: 'This category is empty.',
++    com_agents_workspace_view_all: 'View all',
++    com_agents_workspace_market_empty: 'No recommended assistants yet',
++    com_agents_workspace_market_empty_description: 'No assistants have been published yet.',
++    com_agents_workspace_create: 'Create Assistant',
+     com_agents_loading: 'Loading...',
+     com_agents_grid_announcement: '{{count}} agents in {{category}}',
+     com_agents_no_more_results: "You've reached the end of the results",
+@@ -382,7 +390,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
+         </Wrapper>,
+       );
+ 
+-      expect(screen.getByText('No agents available')).toBeInTheDocument();
++      expect(screen.getByText('No assistants found in Finance')).toBeInTheDocument();
+     });
+   });
+ 
+@@ -448,7 +456,79 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
+         </Wrapper>,
+       );
+ 
+-      expect(screen.getByText('No agents available')).toBeInTheDocument();
++      expect(screen.getByText('No results found')).toBeInTheDocument();
++      expect(screen.getByText('No assistants found for "nonexistent"')).toBeInTheDocument();
++    });
++
++    it('clears an empty search through the actionable CTA', () => {
++      const onClearSearch = jest.fn();
++      mockUseMarketplaceAgentsInfiniteQuery.mockReturnValue({
++        ...defaultMockQueryResult,
++        data: { pages: [{ data: [] }] },
++      });
++
++      render(
++        <AgentGrid
++          category="all"
++          searchQuery="missing"
++          onSelectAgent={mockOnSelectAgent}
++          onClearSearch={onClearSearch}
++        />,
++      );
++
++      fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
++      expect(onClearSearch).toHaveBeenCalledTimes(1);
++    });
++  });
++
++  describe('Actionable Empty States', () => {
++    beforeEach(() => {
++      mockUseMarketplaceAgentsInfiniteQuery.mockReturnValue({
++        ...defaultMockQueryResult,
++        data: { pages: [{ data: [] }] },
++      });
++    });
++
++    it('shows the create action only when creation is allowed', () => {
++      const onCreate = jest.fn();
++      const { rerender } = render(
++        <AgentGrid
++          category="promoted"
++          searchQuery=""
++          onSelectAgent={mockOnSelectAgent}
++          canCreate={false}
++          onCreate={onCreate}
++        />,
++      );
++
++      expect(screen.queryByRole('button', { name: 'Create Assistant' })).not.toBeInTheDocument();
++
++      rerender(
++        <AgentGrid
++          category="promoted"
++          searchQuery=""
++          onSelectAgent={mockOnSelectAgent}
++          canCreate
++          onCreate={onCreate}
++        />,
++      );
++      fireEvent.click(screen.getByRole('button', { name: 'Create Assistant' }));
++      expect(onCreate).toHaveBeenCalledTimes(1);
++    });
++
++    it('offers a view-all action for an empty category', () => {
++      const onViewAll = jest.fn();
++      render(
++        <AgentGrid
++          category="finance"
++          searchQuery=""
++          onSelectAgent={mockOnSelectAgent}
++          onViewAll={onViewAll}
++        />,
++      );
++
++      fireEvent.click(screen.getByRole('button', { name: 'View all' }));
++      expect(onViewAll).toHaveBeenCalledTimes(1);
+     });
+   });
+ 
+diff --git a/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx b/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..9738ea8ed61ca873f6d26fc501df3829e17c0f38
+--- /dev/null
++++ b/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
+@@ -0,0 +1,201 @@
++import React from 'react';
++import '@testing-library/jest-dom';
++import { fireEvent, render, screen, waitFor } from '@testing-library/react';
++import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
++import Marketplace from '../Marketplace';
++
++let mockCanCreate = true;
++
++jest.mock('@librechat/client', () => ({
++  useMediaQuery: () => false,
++}));
++
++jest.mock('~/hooks', () => ({
++  useDocumentTitle: jest.fn(),
++  useHasAccess: ({ permission }: { permission: string }) =>
++    permission === 'CREATE' ? mockCanCreate : true,
++  useLocalize: () => (key: string) => {
++    const translations: Record<string, string> = {
++      com_agents_workspace: 'AI Assistants',
++      com_agents_workspace_recommended: 'Recommended',
++      com_agents_workspace_mine: 'My Assistants',
++      com_agents_workspace_create: 'Create Assistant',
++      com_agents_workspace_back: 'Back to assistants',
++      com_agents_workspace_navigation: 'Assistant workspace',
++      com_agents_top_picks: 'Top Picks',
++      com_agents_recommended: 'Recommended assistants',
++      com_agents_all: 'All Assistants',
++      com_agents_all_description: 'All shared assistants',
++    };
++    return translations[key] ?? key;
++  },
++}));
++
++jest.mock('~/data-provider', () => ({
++  useGetEndpointsQuery: () => ({
++    data: { agents: { disableBuilder: false } },
++    isLoading: false,
++    isSuccess: true,
++  }),
++  useGetAgentCategoriesQuery: () => ({
++    data: [
++      { value: 'promoted', label: 'Top Picks' },
++      { value: 'all', label: 'All' },
++    ],
++    isLoading: false,
++  }),
++}));
++
++jest.mock('~/components/Chat/Menus/OpenSidebar', () => ({
++  __esModule: true,
++  default: () => <button type="button">Open sidebar</button>,
++}));
++
++jest.mock('~/components/SidePanel', () => ({
++  SidePanelGroup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
++}));
++
++jest.mock('~/components/SidePanel/Agents/AgentPanelSwitch', () => ({
++  __esModule: true,
++  default: ({ onAgentIdChange }: { onAgentIdChange?: (agentId?: string) => void }) => (
++    <div data-testid="workspace-builder">
++      <button type="button" onClick={() => onAgentIdChange?.('agent_new')}>
++        Persist assistant
++      </button>
++    </div>
++  ),
++}));
++
++jest.mock('../MarketplaceAdminSettings', () => ({
++  __esModule: true,
++  default: () => null,
++}));
++
++jest.mock('../SearchBar', () => ({
++  __esModule: true,
++  default: () => <div data-testid="search-bar" />,
++}));
++
++jest.mock('../CategoryTabs', () => ({
++  __esModule: true,
++  default: ({ activeTab }: { activeTab: string }) => (
++    <div data-testid="category-tabs">{activeTab}</div>
++  ),
++}));
++
++jest.mock('../AgentGrid', () => ({
++  __esModule: true,
++  default: () => <div data-testid="agent-grid" />,
++}));
++
++jest.mock('../MyAgentsView', () => ({
++  __esModule: true,
++  default: ({ onEdit }: { onEdit: (agent: { id: string }) => void }) => (
++    <div data-testid="my-agents-view">
++      <button type="button" onClick={() => onEdit({ id: 'agent_owned' })}>
++        Edit owned
++      </button>
++    </div>
++  ),
++}));
++
++function LocationProbe() {
++  const location = useLocation();
++  return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;
++}
++
++function renderMarketplace(initialEntry = '/agents') {
++  return render(
++    <MemoryRouter initialEntries={[initialEntry]}>
++      <Routes>
++        <Route
++          path="/agents"
++          element={
++            <>
++              <Marketplace />
++              <LocationProbe />
++            </>
++          }
++        />
++        <Route
++          path="/agents/:category"
++          element={
++            <>
++              <Marketplace />
++              <LocationProbe />
++            </>
++          }
++        />
++      </Routes>
++    </MemoryRouter>,
++  );
++}
++
++describe('Agent workspace navigation', () => {
++  beforeEach(() => {
++    mockCanCreate = true;
++  });
++
++  test('opens Recommended by default and preserves category deep links', () => {
++    renderMarketplace('/agents/finance');
++    expect(screen.getByRole('tab', { name: 'Recommended' })).toHaveAttribute(
++      'aria-selected',
++      'true',
++    );
++    expect(screen.getByTestId('category-tabs')).toHaveTextContent('finance');
++    expect(screen.getByTestId('location')).toHaveTextContent('/agents/finance');
++  });
++
++  test('switches between My Assistants and Create Assistant through URL state', () => {
++    renderMarketplace();
++
++    fireEvent.click(screen.getByRole('tab', { name: 'My Assistants' }));
++    expect(screen.getByTestId('location')).toHaveTextContent('/agents?view=mine');
++    expect(screen.getByTestId('my-agents-view')).toBeInTheDocument();
++
++    fireEvent.click(screen.getByRole('tab', { name: 'Create Assistant' }));
++    expect(screen.getByTestId('location')).toHaveTextContent('/agents?view=create');
++    expect(screen.getByTestId('workspace-builder')).toBeInTheDocument();
++  });
++
++  test('supports keyboard navigation and links the active tab to its panel', () => {
++    renderMarketplace();
++
++    const recommendedTab = screen.getByRole('tab', { name: 'Recommended' });
++    expect(recommendedTab).toHaveAttribute('tabindex', '0');
++    expect(recommendedTab).toHaveAttribute('aria-controls', 'agent-workspace-panel-recommended');
++    expect(screen.getByRole('tabpanel')).toHaveAttribute(
++      'aria-labelledby',
++      'agent-workspace-tab-recommended',
++    );
++
++    fireEvent.keyDown(recommendedTab, { key: 'ArrowRight' });
++
++    const mineTab = screen.getByRole('tab', { name: 'My Assistants' });
++    expect(mineTab).toHaveFocus();
++    expect(mineTab).toHaveAttribute('tabindex', '0');
++    expect(screen.getByTestId('location')).toHaveTextContent('/agents?view=mine');
++  });
++
++  test('synchronizes created and selected assistant IDs with the edit URL', () => {
++    renderMarketplace('/agents?view=create');
++    fireEvent.click(screen.getByRole('button', { name: 'Persist assistant' }));
++    expect(screen.getByTestId('location')).toHaveTextContent('/agents?view=mine&agent=agent_new');
++
++    fireEvent.click(screen.getByRole('button', { name: 'Back to assistants' }));
++    fireEvent.click(screen.getByRole('button', { name: 'Edit owned' }));
++    expect(screen.getByTestId('location')).toHaveTextContent('/agents?view=mine&agent=agent_owned');
++  });
++
++  test('redirects a forbidden create URL without rendering the builder', async () => {
++    mockCanCreate = false;
++    renderMarketplace('/agents?view=create');
++
++    expect(screen.queryByRole('tab', { name: 'Create Assistant' })).not.toBeInTheDocument();
++    expect(screen.queryByTestId('workspace-builder')).not.toBeInTheDocument();
++    expect(screen.getByTestId('my-agents-view')).toBeInTheDocument();
++    await waitFor(() => {
++      expect(screen.getByTestId('location')).toHaveTextContent('/agents?view=mine');
++    });
++  });
++});
+diff --git a/client/src/components/Agents/tests/MyAgentsView.spec.tsx b/client/src/components/Agents/tests/MyAgentsView.spec.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..a0f4033035b4169070ca2fb43091435e7679277b
+--- /dev/null
++++ b/client/src/components/Agents/tests/MyAgentsView.spec.tsx
+@@ -0,0 +1,96 @@
++import '@testing-library/jest-dom';
++import { fireEvent, render, screen } from '@testing-library/react';
++import { PermissionBits } from 'librechat-data-provider';
++import type t from 'librechat-data-provider';
++import MyAgentsView from '../MyAgentsView';
++
++const mockUseListAgentsQuery = jest.fn();
++
++jest.mock('~/data-provider', () => ({
++  useListAgentsQuery: (...args: unknown[]) => mockUseListAgentsQuery(...args),
++}));
++
++jest.mock('~/hooks', () => ({
++  useLocalize: () => (key: string, values?: Record<string, string>) => {
++    const translations: Record<string, string> = {
++      com_agents_loading: 'Loading',
++      com_agents_workspace_mine: 'My Assistants',
++      com_agents_workspace_mine_empty: 'No assistants yet',
++      com_agents_workspace_mine_empty_description: 'Create your first assistant.',
++      com_agents_workspace_create: 'Create Assistant',
++      com_agents_workspace_no_description: 'No description',
++      com_agents_workspace_edit_named: `Edit ${values?.name ?? ''}`,
++      com_ui_agent: 'Assistant',
++    };
++    return translations[key] ?? key;
++  },
++}));
++
++jest.mock('~/utils', () => ({
++  renderAgentAvatar: () => <div data-testid="agent-avatar" />,
++}));
++
++jest.mock('@librechat/client', () => ({
++  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
++    <button {...props}>{children}</button>
++  ),
++  Spinner: () => <div data-testid="spinner" />,
++}));
++
++jest.mock('../ErrorDisplay', () => ({
++  __esModule: true,
++  default: () => <div data-testid="error-display" />,
++}));
++
++const agent = {
++  id: 'agent_owned',
++  name: 'Owned Assistant',
++  description: 'Editable',
++  provider: 'openAI',
++  model: 'gpt-4o',
++} as t.Agent;
++
++describe('MyAgentsView', () => {
++  beforeEach(() => {
++    mockUseListAgentsQuery.mockReset();
++    mockUseListAgentsQuery.mockReturnValue({
++      data: { data: [] },
++      isLoading: false,
++      error: null,
++      refetch: jest.fn(),
++    });
++  });
++
++  test('requests only assistants the current user can edit', () => {
++    render(<MyAgentsView canCreate={false} onCreate={jest.fn()} onEdit={jest.fn()} />);
++    expect(mockUseListAgentsQuery).toHaveBeenCalledWith({
++      requiredPermission: PermissionBits.EDIT,
++    });
++  });
++
++  test('shows the create CTA only when creation is allowed', () => {
++    const onCreate = jest.fn();
++    const { rerender } = render(
++      <MyAgentsView canCreate={false} onCreate={onCreate} onEdit={jest.fn()} />,
++    );
++    expect(screen.queryByRole('button', { name: 'Create Assistant' })).not.toBeInTheDocument();
++
++    rerender(<MyAgentsView canCreate onCreate={onCreate} onEdit={jest.fn()} />);
++    fireEvent.click(screen.getByRole('button', { name: 'Create Assistant' }));
++    expect(onCreate).toHaveBeenCalledTimes(1);
++  });
++
++  test('opens an editable assistant from the owned list', () => {
++    const onEdit = jest.fn();
++    mockUseListAgentsQuery.mockReturnValue({
++      data: { data: [agent] },
++      isLoading: false,
++      error: null,
++      refetch: jest.fn(),
++    });
++
++    render(<MyAgentsView canCreate onCreate={jest.fn()} onEdit={onEdit} />);
++    fireEvent.click(screen.getByRole('button', { name: 'Edit Owned Assistant' }));
++    expect(onEdit).toHaveBeenCalledWith(agent);
++  });
++});
+diff --git a/client/src/components/SidePanel/Agents/Advanced/AdvancedPanel.tsx b/client/src/components/SidePanel/Agents/Advanced/AdvancedPanel.tsx
+index ba3abe1afa00af53dec04cca1f0ac79c076f63b0..c9863f043f8fe4c6b06a880d7797280ff670b1eb 100644
+--- a/client/src/components/SidePanel/Agents/Advanced/AdvancedPanel.tsx
++++ b/client/src/components/SidePanel/Agents/Advanced/AdvancedPanel.tsx
+@@ -1,15 +1,15 @@
+-import { useMemo, useState } from 'react';
++import { useState } from 'react';
+ import { useFormContext } from 'react-hook-form';
+ import { useToastContext } from '@librechat/client';
+ import { ChevronLeft, Check, Copy } from 'lucide-react';
+-import { AgentCapabilities, PermissionTypes, Permissions } from 'librechat-data-provider';
+ import type { AgentForm } from '~/common';
+ import { sectionLabelClass, groupHeadingClass } from './ui';
+-import { useLocalize, useHasAccess } from '~/hooks';
++import { useLocalize } from '~/hooks';
+ import { useAgentPanelContext } from '~/Providers';
++import ToolsSection from '../Tools/ToolsSection';
+ import OrchestrationHub from './OrchestrationHub';
++import PublishingSettings from './PublishingSettings';
+ import MaxAgentSteps from './MaxAgentSteps';
+-import SkillsToggle from './SkillsToggle';
+ import { Panel } from '~/common';
+ 
+ export default function AdvancedPanel() {
+@@ -19,7 +19,7 @@ export default function AdvancedPanel() {
+   const currentAgentId = watch('id');
+   const [copied, setCopied] = useState(false);
+ 
+-  const { agentsConfig, setActivePanel } = useAgentPanelContext();
++  const { setActivePanel } = useAgentPanelContext();
+ 
+   const handleCopyAgentId = async () => {
+     if (!currentAgentId) return;
+@@ -33,16 +33,6 @@ export default function AdvancedPanel() {
+     }
+   };
+ 
+-  const skillsEnabled = useMemo(
+-    () => agentsConfig?.capabilities.includes(AgentCapabilities.skills) ?? false,
+-    [agentsConfig],
+-  );
+-  const hasSkillsAccess = useHasAccess({
+-    permissionType: PermissionTypes.SKILLS,
+-    permission: Permissions.USE,
+-  });
+-  const showSkillsKillSwitch = skillsEnabled && hasSkillsAccess;
+-
+   return (
+     <div className="mb-1 flex w-full flex-col gap-4 text-sm">
+       <header className="grid grid-cols-[auto_1fr_auto] items-center gap-2 pt-1">
+@@ -61,10 +51,19 @@ export default function AdvancedPanel() {
+       </header>
+ 
+       <div className="flex flex-col gap-5 px-2 pb-2">
++        <section className="flex flex-col gap-3">
++          <span className={groupHeadingClass}>{localize('com_agents_advanced_publishing')}</span>
++          <PublishingSettings />
++        </section>
++
+         <section className="flex flex-col gap-3">
+           <span className={groupHeadingClass}>{localize('com_ui_essentials')}</span>
+           <MaxAgentSteps />
+-          {showSkillsKillSwitch && <SkillsToggle />}
++        </section>
++
++        <section className="flex flex-col gap-3">
++          <span className={groupHeadingClass}>{localize('com_agents_advanced_integrations')}</span>
++          <ToolsSection agentId={currentAgentId ?? ''} variant="advanced" />
+         </section>
+ 
+         <OrchestrationHub currentAgentId={currentAgentId} />
+diff --git a/client/src/components/SidePanel/Agents/Advanced/PublishingSettings.tsx b/client/src/components/SidePanel/Agents/Advanced/PublishingSettings.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..4b37bcd00e28632d2f8ddfe6c4f42fdf44370d67
+--- /dev/null
++++ b/client/src/components/SidePanel/Agents/Advanced/PublishingSettings.tsx
+@@ -0,0 +1,104 @@
++import { Input } from '@librechat/client';
++import { Controller, useFormContext } from 'react-hook-form';
++import type { AgentForm } from '~/common';
++import AgentCategorySelector from '../AgentCategorySelector';
++import { useLocalize } from '~/hooks';
++import { cn, validateEmail } from '~/utils';
++
++const fieldClass = 'h-9';
++
++export default function PublishingSettings() {
++  const localize = useLocalize();
++  const {
++    control,
++    formState: { errors },
++  } = useFormContext<AgentForm>();
++
++  return (
++    <div className="flex flex-col gap-4">
++      <div className="flex flex-col">
++        <label
++          className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-text-secondary"
++          htmlFor="category-selector"
++        >
++          {localize('com_ui_category')}
++        </label>
++        <AgentCategorySelector className="w-full rounded-lg" />
++      </div>
++
++      <div className="flex flex-col">
++        <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-text-secondary">
++          {localize('com_ui_support_contact')}
++        </label>
++        <div className="space-y-2">
++          <Controller
++            name="support_contact.name"
++            control={control}
++            rules={{
++              minLength: {
++                value: 3,
++                message: localize('com_ui_support_contact_name_min_length', { minLength: 3 }),
++              },
++            }}
++            render={({ field, fieldState: { error } }) => (
++              <div className="flex flex-col">
++                <Input
++                  {...field}
++                  value={field.value ?? ''}
++                  className={cn(fieldClass, error && 'border-2 border-red-500')}
++                  id="support-contact-name"
++                  type="text"
++                  placeholder={localize('com_ui_support_contact_name_placeholder')}
++                  aria-label={localize('com_ui_support_contact_name')}
++                  aria-invalid={error ? 'true' : 'false'}
++                  aria-describedby={error ? 'support-contact-name-error' : undefined}
++                />
++                {error && (
++                  <span
++                    id="support-contact-name-error"
++                    className="mt-1 text-xs text-red-500"
++                    role="alert"
++                  >
++                    {errors.support_contact?.name?.message}
++                  </span>
++                )}
++              </div>
++            )}
++          />
++          <Controller
++            name="support_contact.email"
++            control={control}
++            rules={{
++              validate: (value) =>
++                validateEmail(value ?? '', localize('com_ui_support_contact_email_invalid')),
++            }}
++            render={({ field, fieldState: { error } }) => (
++              <div className="flex flex-col">
++                <Input
++                  {...field}
++                  value={field.value ?? ''}
++                  className={cn(fieldClass, error && 'border-2 border-red-500')}
++                  id="support-contact-email"
++                  type="email"
++                  placeholder={localize('com_ui_support_contact_email_placeholder')}
++                  aria-label={localize('com_ui_support_contact_email')}
++                  aria-invalid={error ? 'true' : 'false'}
++                  aria-describedby={error ? 'support-contact-email-error' : undefined}
++                />
++                {error && (
++                  <span
++                    id="support-contact-email-error"
++                    className="mt-1 text-xs text-red-500"
++                    role="alert"
++                  >
++                    {errors.support_contact?.email?.message}
++                  </span>
++                )}
++              </div>
++            )}
++          />
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/client/src/components/SidePanel/Agents/AgentConfig.tsx b/client/src/components/SidePanel/Agents/AgentConfig.tsx
+index 927fc1a5bdf590a31f68cd17d3c411538783359f..7c3eb68be2df8bba119f87c749fd2da458a65dfd 100644
+--- a/client/src/components/SidePanel/Agents/AgentConfig.tsx
++++ b/client/src/components/SidePanel/Agents/AgentConfig.tsx
+@@ -2,9 +2,8 @@ import { Input } from '@librechat/client';
+ import { Controller, useWatch, useFormContext } from 'react-hook-form';
+ import { EModelEndpoint, getEndpointField } from 'librechat-data-provider';
+ import type { AgentForm, IconComponentTypes } from '~/common';
+-import AgentCategorySelector from './AgentCategorySelector';
+ import { useLocalize, useAgentCapabilities } from '~/hooks';
+-import { validateEmail, getIconKey, cn } from '~/utils';
++import { getIconKey, cn } from '~/utils';
+ import { useAgentFileEntries } from './Tools/hooks';
+ import { useAgentPanelContext } from '~/Providers';
+ import ToolsSection from './Tools/ToolsSection';
+@@ -52,7 +51,7 @@ export default function AgentConfig() {
+ 
+   return (
+     <div className="h-auto pt-1">
+-      {/* IDENTITY — flat header, always visible, avatar inline */}
++      {/* Identity: flat header, always visible, avatar inline. */}
+       <div className="mb-3 mt-1 flex items-center gap-3">
+         <div className="flex-shrink-0">
+           <AgentAvatar avatar={agent?.['avatar'] ?? null} />
+@@ -103,8 +102,8 @@ export default function AgentConfig() {
+         </div>
+       </div>
+ 
+-      {/* MODEL + CATEGORY — balanced 2-column grid */}
+-      <div className="mb-3 grid grid-cols-2 gap-2">
++      {/* MODEL */}
++      <div className="mb-3">
+         <div className="flex min-w-0 flex-col">
+           <label
+             className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-text-secondary"
+@@ -138,106 +137,20 @@ export default function AgentConfig() {
+             </div>
+           </button>
+         </div>
+-        <div className="flex flex-col">
+-          <label
+-            className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-text-secondary"
+-            htmlFor="category-selector"
+-          >
+-            {localize('com_ui_category')} <span className="text-red-500">*</span>
+-          </label>
+-          <AgentCategorySelector className="w-full rounded-lg" />
+-        </div>
+       </div>
+ 
+       {/* INSTRUCTIONS */}
+       <Instructions />
+ 
+-      {/* TOOLS — unified built-ins / tools / actions / mcp / skills */}
+-      <ToolsSection agentId={agent_id} />
++      {/* Platform capabilities and personal Skills only. */}
++      <ToolsSection agentId={agent_id} variant="basic" />
+ 
+-      {/* FILE CONTEXT — standalone section, separate from the tool library */}
++      {/* File context stays separate from the tool library. */}
+       {contextEnabled && (
+         <div className="mb-3">
+           <FileContext agent_id={agent_id} files={contextFiles} />
+         </div>
+       )}
+-
+-      {/* SUPPORT CONTACT */}
+-      <div className="mb-3 flex flex-col">
+-        <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-text-secondary">
+-          {localize('com_ui_support_contact')}
+-        </label>
+-        <div className="space-y-2">
+-          <Controller
+-            name="support_contact.name"
+-            control={control}
+-            rules={{
+-              minLength: {
+-                value: 3,
+-                message: localize('com_ui_support_contact_name_min_length', { minLength: 3 }),
+-              },
+-            }}
+-            render={({ field, fieldState: { error } }) => (
+-              <div className="flex flex-col">
+-                <Input
+-                  {...field}
+-                  value={field.value ?? ''}
+-                  className={cn(fieldClass, error && 'border-2 border-red-500')}
+-                  id="support-contact-name"
+-                  type="text"
+-                  placeholder={localize('com_ui_support_contact_name_placeholder')}
+-                  aria-label={localize('com_ui_support_contact_name')}
+-                  aria-invalid={error ? 'true' : 'false'}
+-                  aria-describedby={error ? 'support-contact-name-error' : undefined}
+-                />
+-                {error && (
+-                  <span
+-                    id="support-contact-name-error"
+-                    className="mt-1 text-xs text-red-500"
+-                    role="alert"
+-                    aria-live="polite"
+-                  >
+-                    {error.message}
+-                  </span>
+-                )}
+-              </div>
+-            )}
+-          />
+-          <Controller
+-            name="support_contact.email"
+-            control={control}
+-            rules={{
+-              validate: (value) =>
+-                validateEmail(value ?? '', localize('com_ui_support_contact_email_invalid')),
+-            }}
+-            render={({ field, fieldState: { error } }) => (
+-              <div className="flex flex-col">
+-                <Input
+-                  {...field}
+-                  value={field.value ?? ''}
+-                  className={cn(fieldClass, error && 'border-2 border-red-500')}
+-                  id="support-contact-email"
+-                  type="email"
+-                  placeholder={localize('com_ui_support_contact_email_placeholder')}
+-                  aria-label={localize('com_ui_support_contact_email')}
+-                  aria-invalid={error ? 'true' : 'false'}
+-                  aria-describedby={error ? 'support-contact-email-error' : undefined}
+-                />
+-                {error && (
+-                  <span
+-                    id="support-contact-email-error"
+-                    className="mt-1 text-xs text-red-500"
+-                    role="alert"
+-                    aria-live="polite"
+-                  >
+-                    {error.message}
+-                  </span>
+-                )}
+-              </div>
+-            )}
+-          />
+-        </div>
+-      </div>
+     </div>
+   );
+ }
+diff --git a/client/src/components/SidePanel/Agents/AgentFooter.tsx b/client/src/components/SidePanel/Agents/AgentFooter.tsx
+index 806ea36048f2bb803769e923502e72f836f2da1e..f4b62b58d6690d6df04c4f68ed7dd454b4f1b035 100644
+--- a/client/src/components/SidePanel/Agents/AgentFooter.tsx
++++ b/client/src/components/SidePanel/Agents/AgentFooter.tsx
+@@ -26,12 +26,14 @@ export default function AgentFooter({
+   setActivePanel,
+   setCurrentAgentId,
+   isAvatarUploading = false,
++  onAgentDeleted,
+ }: Pick<
+   AgentPanelProps,
+   'setCurrentAgentId' | 'createMutation' | 'activePanel' | 'setActivePanel'
+ > & {
+   updateMutation: ReturnType<typeof useUpdateAgentMutation>;
+   isAvatarUploading?: boolean;
++  onAgentDeleted?: () => void;
+ }) {
+   const localize = useLocalize();
+   const { user } = useAuthContext();
+@@ -92,6 +94,7 @@ export default function AgentFooter({
+               agent_id={agent_id}
+               setCurrentAgentId={setCurrentAgentId}
+               createMutation={createMutation}
++              onDeleted={onAgentDeleted}
+             />
+           )}
+         {(agent?.author === user?.id || user?.role === SystemRoles.ADMIN || canShareThisAgent) &&
+diff --git a/client/src/components/SidePanel/Agents/AgentPanel.test.tsx b/client/src/components/SidePanel/Agents/AgentPanel.test.tsx
+index e2899bf1e602b6df6dafa93fd45e56b30e9a56ea..e6e91c9adc7fb0ed41c0134d2c860557dd45ac56 100644
+--- a/client/src/components/SidePanel/Agents/AgentPanel.test.tsx
++++ b/client/src/components/SidePanel/Agents/AgentPanel.test.tsx
+@@ -84,6 +84,7 @@ jest.mock('librechat-data-provider/react-query', () => ({
+ }));
+ 
+ jest.mock('~/utils', () => ({
++  cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
+   createProviderOption: jest.fn((provider: string) => ({ value: provider, label: provider })),
+   getDefaultAgentFormValues: jest.fn(() => ({
+     id: '',
+diff --git a/client/src/components/SidePanel/Agents/AgentPanel.tsx b/client/src/components/SidePanel/Agents/AgentPanel.tsx
+index c57593979458fad7d55616821ec67ca24a4b7a65..17f6fff819ccd6bbb945084df7b9a3080f35b3f8 100644
+--- a/client/src/components/SidePanel/Agents/AgentPanel.tsx
++++ b/client/src/components/SidePanel/Agents/AgentPanel.tsx
+@@ -1,4 +1,4 @@
+-import React, { useMemo, useCallback, useRef, useState } from 'react';
++import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
+ import { Plus } from 'lucide-react';
+ import { Button, useToastContext } from '@librechat/client';
+ import { useWatch, useForm, FormProvider } from 'react-hook-form';
+@@ -22,7 +22,7 @@ import {
+   useGetExpandedAgentByIdQuery,
+   useUploadAgentAvatarMutation,
+ } from '~/data-provider';
+-import { createProviderOption, getDefaultAgentFormValues } from '~/utils';
++import { cn, createProviderOption, getDefaultAgentFormValues } from '~/utils';
+ import { useResourcePermissions } from '~/hooks/useResourcePermissions';
+ import { useSelectAgent, useLocalize, useAuthContext } from '~/hooks';
+ import { useAgentPanelContext } from '~/Providers/AgentPanelContext';
+@@ -30,7 +30,7 @@ import AgentPanelSkeleton from './AgentPanelSkeleton';
+ import AdvancedPanel from './Advanced/AdvancedPanel';
+ import { Panel, isEphemeralAgent } from '~/common';
+ import AgentConfig from './AgentConfig';
+-import AgentSelect from './AgentSelect';
++import AgentSelect, { getAgentFormValues } from './AgentSelect';
+ import AgentFooter from './AgentFooter';
+ import ModelPanel from './ModelPanel';
+ 
+@@ -212,7 +212,15 @@ export const isAvatarUploadOnlyDirty = (
+   return result.sawDirty && result.onlyAvatarDirty;
+ };
+ 
+-export default function AgentPanel() {
++interface AgentPanelProps {
++  workspaceMode?: boolean;
++  onAgentIdChange?: (agentId?: string) => void;
++}
++
++export default function AgentPanel({
++  workspaceMode = false,
++  onAgentIdChange,
++}: AgentPanelProps = {}) {
+   const localize = useLocalize();
+   const { user } = useAuthContext();
+   const { showToast } = useToastContext();
+@@ -225,6 +233,17 @@ export default function AgentPanel() {
+     agent_id: current_agent_id,
+   } = useAgentPanelContext();
+ 
++  const handleCurrentAgentIdChange = useCallback(
++    (value: React.SetStateAction<string | undefined>) => {
++      const nextValue = typeof value === 'function' ? value(current_agent_id) : value;
++      setCurrentAgentId(nextValue);
++      if (workspaceMode) {
++        onAgentIdChange?.(nextValue);
++      }
++    },
++    [current_agent_id, onAgentIdChange, setCurrentAgentId, workspaceMode],
++  );
++
+   const { onSelect: onSelectAgent } = useSelectAgent();
+ 
+   const modelsQuery = useGetModelsQuery({ refetchOnMount: 'always' });
+@@ -257,6 +276,19 @@ export default function AgentPanel() {
+     setValue,
+     formState: { dirtyFields },
+   } = methods;
++
++  useEffect(() => {
++    if (!workspaceMode) {
++      return;
++    }
++    if (!current_agent_id) {
++      reset(getDefaultAgentFormValues());
++      return;
++    }
++    if (agentQuery.data && agentQuery.isSuccess) {
++      reset(getAgentFormValues(agentQuery.data));
++    }
++  }, [agentQuery.data, agentQuery.isSuccess, current_agent_id, reset, workspaceMode]);
+   const [isAvatarUploadInFlight, setIsAvatarUploadInFlight] = useState(false);
+   const uploadAvatarMutation = useUploadAgentAvatarMutation({
+     onSuccess: (updatedAgent) => {
+@@ -379,7 +411,7 @@ export default function AgentPanel() {
+ 
+   const create = useCreateAgentMutation({
+     onSuccess: async (data) => {
+-      setCurrentAgentId(data.id);
++      handleCurrentAgentIdChange(data.id);
+       showToast({
+         message: `${localize('com_assistants_create_success')} ${
+           data.name ?? localize('com_ui_agent')
+@@ -474,6 +506,15 @@ export default function AgentPanel() {
+   }, [agent_id, onSelectAgent]);
+ 
+   const canEditAgent = useMemo(() => {
++    if (
++      workspaceMode &&
++      current_agent_id &&
++      !agentQuery.isInitialLoading &&
++      (agentQuery.isError || !agentQuery.data)
++    ) {
++      return false;
++    }
++
+     if (!agentQuery.data?.id) {
+       return true;
+     }
+@@ -483,55 +524,68 @@ export default function AgentPanel() {
+     }
+ 
+     return canEdit;
+-  }, [agentQuery.data?.id, user?.role, canEdit]);
++  }, [
++    agentQuery.data,
++    agentQuery.isError,
++    agentQuery.isInitialLoading,
++    canEdit,
++    current_agent_id,
++    user?.role,
++    workspaceMode,
++  ]);
+ 
+   return (
+     <FormProvider {...methods}>
+       <form
+         onSubmit={handleSubmit(onSubmit)}
+-        className="scrollbar-gutter-stable flex flex-1 flex-col px-3 pb-3 pt-2"
++        className={cn(
++          'scrollbar-gutter-stable flex flex-1 flex-col px-3 pb-3 pt-2',
++          workspaceMode && 'mx-auto w-full max-w-3xl px-4 py-5',
++        )}
+         aria-label="Agent configuration form"
+       >
+         <div className="flex-1">
+-          <div className="flex w-full flex-wrap gap-2">
+-            <div className="w-full">
+-              <AgentSelect
+-                createMutation={create}
+-                agentQuery={agentQuery}
+-                setCurrentAgentId={setCurrentAgentId}
+-                selectedAgentId={agentQuery.isInitialLoading ? null : (current_agent_id ?? null)}
+-              />
+-            </div>
+-            {agent_id && (
+-              <div className="flex w-full gap-2">
+-                <Button
+-                  type="button"
+-                  variant="outline"
+-                  className="w-full justify-center"
+-                  onClick={() => {
+-                    reset(getDefaultAgentFormValues());
+-                    setCurrentAgentId(undefined);
+-                  }}
+-                  disabled={agentQuery.isInitialLoading}
+-                  aria-label={localize('com_ui_create_new_agent')}
+-                >
+-                  <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+-                  {localize('com_ui_create_new_agent')}
+-                </Button>
+-                <Button
+-                  variant="submit"
+-                  disabled={isEphemeralAgent(agent_id) || agentQuery.isInitialLoading}
+-                  onClick={(e) => {
+-                    e.preventDefault();
+-                    handleSelectAgent();
+-                  }}
+-                  aria-label={localize('com_ui_select_agent')}
+-                >
+-                  {localize('com_ui_select')}
+-                </Button>
++          {!workspaceMode && (
++            <div className="flex w-full flex-wrap gap-2">
++              <div className="w-full">
++                <AgentSelect
++                  createMutation={create}
++                  agentQuery={agentQuery}
++                  setCurrentAgentId={handleCurrentAgentIdChange}
++                  selectedAgentId={agentQuery.isInitialLoading ? null : (current_agent_id ?? null)}
++                />
+               </div>
+-            )}
+-          </div>
++              {agent_id && (
++                <div className="flex w-full gap-2">
++                  <Button
++                    type="button"
++                    variant="outline"
++                    className="w-full justify-center"
++                    onClick={() => {
++                      reset(getDefaultAgentFormValues());
++                      handleCurrentAgentIdChange(undefined);
++                    }}
++                    disabled={agentQuery.isInitialLoading}
++                    aria-label={localize('com_ui_create_new_agent')}
++                  >
++                    <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
++                    {localize('com_ui_create_new_agent')}
++                  </Button>
++                  <Button
++                    variant="submit"
++                    disabled={isEphemeralAgent(agent_id) || agentQuery.isInitialLoading}
++                    onClick={(e) => {
++                      e.preventDefault();
++                      handleSelectAgent();
++                    }}
++                    aria-label={localize('com_ui_select_agent')}
++                  >
++                    {localize('com_ui_select')}
++                  </Button>
++                </div>
++              )}
++            </div>
++          )}
+           {agentQuery.isInitialLoading && <AgentPanelSkeleton />}
+           {!canEditAgent && !agentQuery.isInitialLoading && (
+             <div className="flex h-[30vh] w-full items-center justify-center">
+@@ -560,7 +614,8 @@ export default function AgentPanel() {
+             isAvatarUploading={isAvatarUploadInFlight || uploadAvatarMutation.isLoading}
+             activePanel={activePanel}
+             setActivePanel={setActivePanel}
+-            setCurrentAgentId={setCurrentAgentId}
++            setCurrentAgentId={handleCurrentAgentIdChange}
++            onAgentDeleted={workspaceMode ? () => handleCurrentAgentIdChange(undefined) : undefined}
+           />
+         )}
+       </form>
+diff --git a/client/src/components/SidePanel/Agents/AgentPanelSwitch.tsx b/client/src/components/SidePanel/Agents/AgentPanelSwitch.tsx
+index dfb2a27996e51b861889a10ea1f9f0e670e21057..36b38b27045f337fe81c886077b0b9e5f2ffc4ea 100644
+--- a/client/src/components/SidePanel/Agents/AgentPanelSwitch.tsx
++++ b/client/src/components/SidePanel/Agents/AgentPanelSwitch.tsx
+@@ -6,27 +6,45 @@ import VersionPanel from './Version/VersionPanel';
+ import AgentPanel from './AgentPanel';
+ import store from '~/store';
+ 
+-export default function AgentPanelSwitch() {
++interface AgentPanelSwitchProps {
++  workspaceMode?: boolean;
++  workspaceAgentId?: string;
++  onAgentIdChange?: (agentId?: string) => void;
++}
++
++export default function AgentPanelSwitch(props: AgentPanelSwitchProps = {}) {
+   return (
+     <AgentPanelProvider>
+-      <AgentPanelSwitchWithContext />
++      <AgentPanelSwitchWithContext {...props} />
+     </AgentPanelProvider>
+   );
+ }
+ 
+-function AgentPanelSwitchWithContext() {
+-  const { activePanel, setCurrentAgentId } = useAgentPanelContext();
++function AgentPanelSwitchWithContext({
++  workspaceMode = false,
++  workspaceAgentId,
++  onAgentIdChange,
++}: AgentPanelSwitchProps) {
++  const { activePanel, setActivePanel, setCurrentAgentId } = useAgentPanelContext();
+   const agentId = useRecoilValue(store.conversationAgentIdByIndex(0));
+ 
+   useEffect(() => {
++    if (workspaceMode) {
++      setCurrentAgentId(
++        workspaceAgentId && !isEphemeralAgent(workspaceAgentId) ? workspaceAgentId : undefined,
++      );
++      setActivePanel(Panel.builder);
++      return;
++    }
++
+     const agent_id = agentId ?? '';
+     if (!isEphemeralAgent(agent_id)) {
+       setCurrentAgentId(agent_id);
+     }
+-  }, [setCurrentAgentId, agentId]);
++  }, [agentId, setActivePanel, setCurrentAgentId, workspaceAgentId, workspaceMode]);
+ 
+   if (activePanel === Panel.version) {
+     return <VersionPanel />;
+   }
+-  return <AgentPanel />;
++  return <AgentPanel workspaceMode={workspaceMode} onAgentIdChange={onAgentIdChange} />;
+ }
+diff --git a/client/src/components/SidePanel/Agents/AgentSelect.tsx b/client/src/components/SidePanel/Agents/AgentSelect.tsx
+index 3e18fb4d7c52cb539c27edef52a2c05b9e9dc453..fc8e726007fa842a6253e17d076ef886177b2d39 100644
+--- a/client/src/components/SidePanel/Agents/AgentSelect.tsx
++++ b/client/src/components/SidePanel/Agents/AgentSelect.tsx
+@@ -12,6 +12,113 @@ import { useListAgentsQuery } from '~/data-provider';
+ 
+ const keys = new Set(Object.keys(defaultAgentFormValues));
+ 
++export function getAgentFormValues(fullAgent: Agent): Partial<AgentForm & TAgentCapabilities> {
++  const isGlobal = fullAgent.isPublic ?? false;
++  const update = {
++    ...fullAgent,
++    provider: createProviderOption(fullAgent.provider),
++    label: fullAgent.name ?? '',
++    value: fullAgent.id || '',
++    icon: isGlobal ? <EarthIcon className="icon-lg text-green-400" /> : null,
++  };
++
++  const capabilities: TAgentCapabilities = {
++    [AgentCapabilities.web_search]: false,
++    [AgentCapabilities.file_search]: false,
++    [AgentCapabilities.execute_code]: false,
++    [AgentCapabilities.memory]: false,
++    [AgentCapabilities.end_after_tools]: false,
++    [AgentCapabilities.hide_sequential_outputs]: false,
++  };
++
++  const agentTools: string[] = [];
++  (fullAgent.tools ?? []).forEach((tool) => {
++    if (capabilities[tool] !== undefined) {
++      capabilities[tool] = true;
++      return;
++    }
++
++    agentTools.push(tool);
++  });
++
++  const formValues: Partial<AgentForm & TAgentCapabilities> = {
++    ...capabilities,
++    agent: update,
++    model: update.model,
++    tools: agentTools,
++    category: fullAgent.category || 'general',
++    support_contact: fullAgent.support_contact,
++    avatar_file: null,
++    avatar_preview: fullAgent.avatar?.filepath ?? '',
++    avatar_action: null,
++  };
++
++  Object.entries(fullAgent).forEach(([name, value]) => {
++    if (name === 'model_parameters') {
++      formValues[name] = value;
++      return;
++    }
++
++    if (capabilities[name] !== undefined) {
++      formValues[name] = value;
++      return;
++    }
++
++    if (
++      name === 'agent_ids' &&
++      Array.isArray(value) &&
++      value.every((item) => typeof item === 'string')
++    ) {
++      formValues[name] = value;
++      return;
++    }
++
++    if (
++      name === 'skills' &&
++      Array.isArray(value) &&
++      value.every((item) => typeof item === 'string')
++    ) {
++      formValues[name] = value;
++      return;
++    }
++
++    if (name === 'skills_enabled' && typeof value === 'boolean') {
++      formValues[name] = value;
++      return;
++    }
++
++    if (name === 'edges' && Array.isArray(value)) {
++      formValues[name] = value;
++      return;
++    }
++
++    if (name === 'subagents' && typeof value === 'object' && value !== null) {
++      formValues[name] = value;
++      return;
++    }
++
++    if (name === 'tool_options' && typeof value === 'object' && value !== null) {
++      formValues[name] = value;
++      return;
++    }
++
++    if (!keys.has(name)) {
++      return;
++    }
++
++    if (name === 'recursion_limit' && typeof value === 'number') {
++      formValues[name] = value;
++      return;
++    }
++
++    if (typeof value !== 'number' && typeof value !== 'object') {
++      formValues[name] = value;
++    }
++  });
++
++  return formValues;
++}
++
+ function AgentSelect({
+   agentQuery,
+   selectedAgentId = null,
+@@ -45,112 +152,7 @@ function AgentSelect({
+ 
+   const resetAgentForm = useCallback(
+     (fullAgent: Agent) => {
+-      const isGlobal = fullAgent.isPublic ?? false;
+-      const update = {
+-        ...fullAgent,
+-        provider: createProviderOption(fullAgent.provider),
+-        label: fullAgent.name ?? '',
+-        value: fullAgent.id || '',
+-        icon: isGlobal ? <EarthIcon className={'icon-lg text-green-400'} /> : null,
+-      };
+-
+-      const capabilities: TAgentCapabilities = {
+-        [AgentCapabilities.web_search]: false,
+-        [AgentCapabilities.file_search]: false,
+-        [AgentCapabilities.execute_code]: false,
+-        [AgentCapabilities.memory]: false,
+-        [AgentCapabilities.end_after_tools]: false,
+-        [AgentCapabilities.hide_sequential_outputs]: false,
+-      };
+-
+-      const agentTools: string[] = [];
+-      (fullAgent.tools ?? []).forEach((tool) => {
+-        if (capabilities[tool] !== undefined) {
+-          capabilities[tool] = true;
+-          return;
+-        }
+-
+-        agentTools.push(tool);
+-      });
+-
+-      const formValues: Partial<AgentForm & TAgentCapabilities> = {
+-        ...capabilities,
+-        agent: update,
+-        model: update.model,
+-        tools: agentTools,
+-        // Ensure the category is properly set for the form
+-        category: fullAgent.category || 'general',
+-        // Make sure support_contact is properly loaded
+-        support_contact: fullAgent.support_contact,
+-        avatar_file: null,
+-        avatar_preview: fullAgent.avatar?.filepath ?? '',
+-        avatar_action: null,
+-      };
+-
+-      Object.entries(fullAgent).forEach(([name, value]) => {
+-        if (name === 'model_parameters') {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (capabilities[name] !== undefined) {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (
+-          name === 'agent_ids' &&
+-          Array.isArray(value) &&
+-          value.every((item) => typeof item === 'string')
+-        ) {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (
+-          name === 'skills' &&
+-          Array.isArray(value) &&
+-          value.every((item) => typeof item === 'string')
+-        ) {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (name === 'skills_enabled' && typeof value === 'boolean') {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (name === 'edges' && Array.isArray(value)) {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (name === 'subagents' && typeof value === 'object' && value !== null) {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (name === 'tool_options' && typeof value === 'object' && value !== null) {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (!keys.has(name)) {
+-          return;
+-        }
+-
+-        if (name === 'recursion_limit' && typeof value === 'number') {
+-          formValues[name] = value;
+-          return;
+-        }
+-
+-        if (typeof value !== 'number' && typeof value !== 'object') {
+-          formValues[name] = value;
+-        }
+-      });
+-
+-      reset(formValues);
++      reset(getAgentFormValues(fullAgent));
+     },
+     [reset],
+   );
+diff --git a/client/src/components/SidePanel/Agents/DeleteButton.tsx b/client/src/components/SidePanel/Agents/DeleteButton.tsx
+index a738e382b35ef17709f16df2de5453826d70e9cc..053a5321162e81fb98228572bdd885d117b0f7c4 100644
+--- a/client/src/components/SidePanel/Agents/DeleteButton.tsx
++++ b/client/src/components/SidePanel/Agents/DeleteButton.tsx
+@@ -22,10 +22,12 @@ function DeleteButton({
+   agent_id,
+   setCurrentAgentId,
+   createMutation,
++  onDeleted,
+ }: {
+   agent_id: string;
+   setCurrentAgentId: React.Dispatch<React.SetStateAction<string | undefined>>;
+   createMutation: UseMutationResult<Agent, Error, AgentCreateParams>;
++  onDeleted?: () => void;
+ }) {
+   const localize = useLocalize();
+   const { reset } = useFormContext();
+@@ -36,10 +38,6 @@ function DeleteButton({
+   const deleteAgent = useDeleteAgentMutation({
+     onSuccess: (_, vars, context) => {
+       const updatedList = context as Agent[] | undefined;
+-      if (!updatedList) {
+-        return;
+-      }
+-
+       showToast({
+         message: localize('com_ui_agent_deleted'),
+         status: 'success',
+@@ -50,6 +48,16 @@ function DeleteButton({
+         createMutation.reset();
+       }
+ 
++      if (onDeleted) {
++        onDeleted();
++        reset(getDefaultAgentFormValues());
++        return;
++      }
++
++      if (!updatedList) {
++        return;
++      }
++
+       const firstAgent = updatedList[0] as Agent | undefined;
+       if (!firstAgent) {
+         setCurrentAgentId(undefined);
+@@ -128,6 +136,7 @@ const MemoizedDeleteButton = memo(
+   (prevProps, nextProps) =>
+     prevProps.agent_id === nextProps.agent_id &&
+     prevProps.setCurrentAgentId === nextProps.setCurrentAgentId &&
++    prevProps.onDeleted === nextProps.onDeleted &&
+     prevProps.createMutation.data?.id === nextProps.createMutation.data?.id &&
+     prevProps.createMutation.isLoading === nextProps.createMutation.isLoading,
+ );
+diff --git a/client/src/components/SidePanel/Agents/Tools/MarketplaceSidebar.tsx b/client/src/components/SidePanel/Agents/Tools/MarketplaceSidebar.tsx
+index e4f3f8f338767294433bfd25667a05f92613baf0..ed56a1c264a6bde987a6c744fdfaac4032f61ee0 100644
+--- a/client/src/components/SidePanel/Agents/Tools/MarketplaceSidebar.tsx
++++ b/client/src/components/SidePanel/Agents/Tools/MarketplaceSidebar.tsx
+@@ -20,6 +20,7 @@ interface MarketplaceSidebarProps {
+   counts: Record<AgentItemKind, number>;
+   totalCount: number;
+   onCreateNew?: (kind: 'mcp' | 'action') => void;
++  allowedKinds?: AgentItemKind[];
+ }
+ 
+ interface SidebarItemProps {
+@@ -60,6 +61,7 @@ export default function MarketplaceSidebar({
+   counts,
+   totalCount,
+   onCreateNew,
++  allowedKinds,
+ }: MarketplaceSidebarProps) {
+   const localize = useLocalize();
+   const [createOpen, setCreateOpen] = useState(false);
+@@ -72,17 +74,21 @@ export default function MarketplaceSidebar({
+     () => agentsConfig?.capabilities?.includes(AgentCapabilities.actions) ?? false,
+     [agentsConfig],
+   );
++  const allowedKindSet = useMemo(
++    () => new Set<AgentItemKind>(allowedKinds ?? ['builtin', 'tool', 'mcp', 'action']),
++    [allowedKinds],
++  );
+ 
+   const createItems = useMemo(() => {
+     const items: Array<{ label: string; icon: ReactNode; onClick: () => void }> = [];
+-    if (hasMcpCreateAccess) {
++    if (hasMcpCreateAccess && allowedKindSet.has('mcp')) {
+       items.push({
+         label: localize('com_ui_tools_kind_mcp'),
+         icon: <Server className="size-4" aria-hidden="true" />,
+         onClick: () => onCreateNew?.('mcp'),
+       });
+     }
+-    if (actionsEnabled) {
++    if (actionsEnabled && allowedKindSet.has('action')) {
+       items.push({
+         label: localize('com_ui_tools_kind_actions'),
+         icon: <Workflow className="size-4" aria-hidden="true" />,
+@@ -90,7 +96,7 @@ export default function MarketplaceSidebar({
+       });
+     }
+     return items;
+-  }, [localize, onCreateNew, hasMcpCreateAccess, actionsEnabled]);
++  }, [actionsEnabled, allowedKindSet, hasMcpCreateAccess, localize, onCreateNew]);
+ 
+   return (
+     <aside className="flex w-56 shrink-0 flex-col gap-0.5 border-r border-border-light bg-surface-primary-alt p-3">
+@@ -135,46 +141,54 @@ export default function MarketplaceSidebar({
+         }}
+         count={totalCount}
+       />
+-      <SidebarItem
+-        icon={<ListFilter className="size-4" />}
+-        label={localize('com_ui_tools_kind_official')}
+-        active={activeKind === 'builtin' && activeView === 'marketplace'}
+-        onClick={() => {
+-          onSelectView('marketplace');
+-          onSelectKind('builtin');
+-        }}
+-        count={counts.builtin}
+-      />
+-      <SidebarItem
+-        icon={<Wrench className="size-4" />}
+-        label={localize('com_ui_tools_kind_tools')}
+-        active={activeKind === 'tool' && activeView === 'marketplace'}
+-        onClick={() => {
+-          onSelectView('marketplace');
+-          onSelectKind('tool');
+-        }}
+-        count={counts.tool}
+-      />
+-      <SidebarItem
+-        icon={<Server className="size-4" />}
+-        label={localize('com_ui_tools_kind_mcp')}
+-        active={activeKind === 'mcp' && activeView === 'marketplace'}
+-        onClick={() => {
+-          onSelectView('marketplace');
+-          onSelectKind('mcp');
+-        }}
+-        count={counts.mcp}
+-      />
+-      <SidebarItem
+-        icon={<Workflow className="size-4" />}
+-        label={localize('com_ui_tools_kind_actions')}
+-        active={activeKind === 'action' && activeView === 'marketplace'}
+-        onClick={() => {
+-          onSelectView('marketplace');
+-          onSelectKind('action');
+-        }}
+-        count={counts.action}
+-      />
++      {allowedKindSet.has('builtin') && (
++        <SidebarItem
++          icon={<ListFilter className="size-4" />}
++          label={localize('com_ui_tools_kind_official')}
++          active={activeKind === 'builtin' && activeView === 'marketplace'}
++          onClick={() => {
++            onSelectView('marketplace');
++            onSelectKind('builtin');
++          }}
++          count={counts.builtin}
++        />
++      )}
++      {allowedKindSet.has('tool') && (
++        <SidebarItem
++          icon={<Wrench className="size-4" />}
++          label={localize('com_ui_tools_kind_tools')}
++          active={activeKind === 'tool' && activeView === 'marketplace'}
++          onClick={() => {
++            onSelectView('marketplace');
++            onSelectKind('tool');
++          }}
++          count={counts.tool}
++        />
++      )}
++      {allowedKindSet.has('mcp') && (
++        <SidebarItem
++          icon={<Server className="size-4" />}
++          label={localize('com_ui_tools_kind_mcp')}
++          active={activeKind === 'mcp' && activeView === 'marketplace'}
++          onClick={() => {
++            onSelectView('marketplace');
++            onSelectKind('mcp');
++          }}
++          count={counts.mcp}
++        />
++      )}
++      {allowedKindSet.has('action') && (
++        <SidebarItem
++          icon={<Workflow className="size-4" />}
++          label={localize('com_ui_tools_kind_actions')}
++          active={activeKind === 'action' && activeView === 'marketplace'}
++          onClick={() => {
++            onSelectView('marketplace');
++            onSelectKind('action');
++          }}
++          count={counts.action}
++        />
++      )}
+ 
+       <div className="mx-2 my-3 h-px bg-border-light" />
+ 
+diff --git a/client/src/components/SidePanel/Agents/Tools/ToolsMarketplaceDialog.tsx b/client/src/components/SidePanel/Agents/Tools/ToolsMarketplaceDialog.tsx
+index a1427b10f0a71785e20ba2196947ef30109d118e..c519ddc332462dd1ea01b334f2f24ffbf8f1a4cc 100644
+--- a/client/src/components/SidePanel/Agents/Tools/ToolsMarketplaceDialog.tsx
++++ b/client/src/components/SidePanel/Agents/Tools/ToolsMarketplaceDialog.tsx
+@@ -27,6 +27,7 @@ interface ToolsMarketplaceDialogProps {
+   open: boolean;
+   onOpenChange: (open: boolean) => void;
+   agentId: string;
++  allowedKinds?: AgentItemKind[];
+ }
+ 
+ type View = NonNullable<ItemFilter['view']>;
+@@ -36,6 +37,7 @@ export default function ToolsMarketplaceDialog({
+   open,
+   onOpenChange,
+   agentId,
++  allowedKinds,
+ }: ToolsMarketplaceDialogProps) {
+   const localize = useLocalize();
+   const { showToast } = useToastContext();
+@@ -53,6 +55,15 @@ export default function ToolsMarketplaceDialog({
+   const [detailItem, setDetailItem] = useState<AgentItem | null>(null);
+   const [addMcpOpen, setAddMcpOpen] = useState(false);
+ 
++  const allowedKindSet = useMemo(
++    () => new Set<AgentItemKind>(allowedKinds ?? ['builtin', 'tool', 'mcp', 'action']),
++    [allowedKinds],
++  );
++  const visibleCatalog = useMemo(
++    () => catalog.filter((item) => allowedKindSet.has(item.kind)),
++    [allowedKindSet, catalog],
++  );
++
+   const handleCreateNew = useCallback(
+     (createKind: 'mcp' | 'action') => {
+       if (createKind === 'mcp') {
+@@ -82,19 +93,23 @@ export default function ToolsMarketplaceDialog({
+ 
+   const counts = useMemo(
+     () => ({
+-      builtin: catalog.filter((i) => i.kind === 'builtin').length,
+-      tool: catalog.filter((i) => i.kind === 'tool').length,
+-      mcp: catalog.filter((i) => i.kind === 'mcp').length,
++      builtin: visibleCatalog.filter((i) => i.kind === 'builtin').length,
++      tool: visibleCatalog.filter((i) => i.kind === 'tool').length,
++      mcp: visibleCatalog.filter((i) => i.kind === 'mcp').length,
+       skill: 0,
+-      action: catalog.filter((i) => i.kind === 'action').length,
++      action: visibleCatalog.filter((i) => i.kind === 'action').length,
+     }),
+-    [catalog],
++    [visibleCatalog],
+   );
+ 
+   const filtered = useMemo(
+     () =>
+-      applyFilter(catalog, { search, kind, category: 'all', view }, { favoritedIds: favoriteKeys }),
+-    [catalog, search, kind, view, favoriteKeys],
++      applyFilter(
++        visibleCatalog,
++        { search, kind, category: 'all', view },
++        { favoritedIds: favoriteKeys },
++      ),
++    [visibleCatalog, search, kind, view, favoriteKeys],
+   );
+ 
+   const handleToggle = useCallback(
+@@ -193,8 +208,9 @@ export default function ToolsMarketplaceDialog({
+             onSelectView={setView}
+             onSelectKind={setKind}
+             counts={counts}
+-            totalCount={catalog.length}
++            totalCount={visibleCatalog.length}
+             onCreateNew={handleCreateNew}
++            allowedKinds={allowedKinds}
+           />
+           <div className="flex min-w-0 flex-1 flex-col">
+             <div className="flex items-center gap-2 px-6 py-4 pr-12">
+diff --git a/client/src/components/SidePanel/Agents/Tools/ToolsSection.tsx b/client/src/components/SidePanel/Agents/Tools/ToolsSection.tsx
+index 901953f855d7c35dec36e4c1f98201217f441dc9..2830c39aede8dac099ac44ecbe78bbc3311ef560 100644
+--- a/client/src/components/SidePanel/Agents/Tools/ToolsSection.tsx
++++ b/client/src/components/SidePanel/Agents/Tools/ToolsSection.tsx
+@@ -4,7 +4,7 @@ import { useFormContext } from 'react-hook-form';
+ import { Label, OGDialog, OGDialogTemplate, useToastContext } from '@librechat/client';
+ import { PermissionTypes, Permissions, AgentCapabilities } from 'librechat-data-provider';
+ import type { TPlugin } from 'librechat-data-provider';
+-import type { AgentItem } from './items/types';
++import type { AgentItem, AgentItemKind } from './items/types';
+ import type { AgentForm } from '~/common';
+ import {
+   useAgentItems,
+@@ -25,9 +25,14 @@ import ToolRow from './ToolRow';
+ 
+ interface Props {
+   agentId: string;
++  variant?: 'all' | 'basic' | 'advanced';
+ }
+ 
+-export default function ToolsSection({ agentId }: Props) {
++const BASIC_KINDS: AgentItemKind[] = ['builtin'];
++const ADVANCED_KINDS: AgentItemKind[] = ['tool', 'mcp', 'action'];
++const ALL_TOOL_KINDS: AgentItemKind[] = ['builtin', 'tool', 'mcp', 'action'];
++
++export default function ToolsSection({ agentId, variant = 'all' }: Props) {
+   const localize = useLocalize();
+   const { showToast } = useToastContext();
+   const [open, setOpen] = useState(false);
+@@ -62,7 +67,7 @@ export default function ToolsSection({ agentId }: Props) {
+     () => agentsConfig?.capabilities?.includes(AgentCapabilities.skills) ?? false,
+     [agentsConfig],
+   );
+-  const showSkills = hasSkillsAccess && skillsEnabled;
++  const showSkills = variant !== 'advanced' && hasSkillsAccess && skillsEnabled;
+   const { data: skillsData } = useListSkillsQuery({ limit: 100 }, { enabled: showSkills });
+   const resolvedSkills = useResolvedSkills(skillsData?.skills);
+ 
+@@ -200,12 +205,19 @@ export default function ToolsSection({ agentId }: Props) {
+     [attachedMcpServers, mcpServersMap],
+   );
+ 
++  const visibleToolKinds = useMemo(
++    () =>
++      variant === 'basic' ? BASIC_KINDS : variant === 'advanced' ? ADVANCED_KINDS : ALL_TOOL_KINDS,
++    [variant],
++  );
++  const visibleToolKindSet = useMemo(() => new Set(visibleToolKinds), [visibleToolKinds]);
++
+   /** MCP rows show how many of the server's tools are enabled for this agent, not
+    * the total the server exposes, so the count reflects what the agent can use. */
+   const toolItems = useMemo(() => {
+     const enabled = new Set(tools);
+     const withCounts = selected
+-      .filter((item) => item.kind !== 'skill')
++      .filter((item) => item.kind !== 'skill' && visibleToolKindSet.has(item.kind))
+       .map((item) =>
+         item.kind === 'mcp'
+           ? {
+@@ -214,17 +226,42 @@ export default function ToolsSection({ agentId }: Props) {
+             }
+           : item,
+       );
+-    return [...withCounts, ...orphanedMcpItems];
+-  }, [selected, orphanedMcpItems, tools]);
++    return [...withCounts, ...(visibleToolKindSet.has('mcp') ? orphanedMcpItems : [])];
++  }, [selected, orphanedMcpItems, tools, visibleToolKindSet]);
+   const skillItems = useMemo(() => selected.filter((item) => item.kind === 'skill'), [selected]);
+ 
++  const sectionCopy = useMemo(() => {
++    if (variant === 'basic') {
++      return {
++        title: localize('com_agents_platform_capabilities'),
++        addLabel: localize('com_agents_add_platform_capabilities'),
++        emptyLabel: localize('com_agents_platform_capabilities_empty'),
++        emptyHint: localize('com_agents_platform_capabilities_empty_hint'),
++      };
++    }
++    if (variant === 'advanced') {
++      return {
++        title: localize('com_agents_advanced_integrations'),
++        addLabel: localize('com_agents_add_advanced_integrations'),
++        emptyLabel: localize('com_agents_advanced_integrations_empty'),
++        emptyHint: localize('com_agents_advanced_integrations_empty_hint'),
++      };
++    }
++    return {
++      title: localize('com_ui_tools_section_title'),
++      addLabel: localize('com_ui_add_tools'),
++      emptyLabel: localize('com_ui_tools_empty'),
++      emptyHint: localize('com_ui_tools_empty_hint'),
++    };
++  }, [localize, variant]);
++
+   return (
+     <>
+       <SelectedSection
+-        title={localize('com_ui_tools_section_title')}
+-        addLabel={localize('com_ui_add_tools')}
+-        emptyLabel={localize('com_ui_tools_empty')}
+-        emptyHint={localize('com_ui_tools_empty_hint')}
++        title={sectionCopy.title}
++        addLabel={sectionCopy.addLabel}
++        emptyLabel={sectionCopy.emptyLabel}
++        emptyHint={sectionCopy.emptyHint}
+         items={toolItems}
+         onAdd={() => setOpen(true)}
+         onInfo={setDialogItem}
+@@ -242,7 +279,14 @@ export default function ToolsSection({ agentId }: Props) {
+           onRemove={handleQuickRemove}
+         />
+       )}
+-      {open && <ToolsMarketplaceDialog open={open} onOpenChange={setOpen} agentId={agentId} />}
++      {open && (
++        <ToolsMarketplaceDialog
++          open={open}
++          onOpenChange={setOpen}
++          agentId={agentId}
++          allowedKinds={visibleToolKinds}
++        />
++      )}
+       {skillsOpen && (
+         <SkillsDialog open={skillsOpen} onOpenChange={setSkillsOpen} agentId={agentId} />
+       )}
+diff --git a/client/src/components/SidePanel/Agents/Tools/__tests__/ToolsMarketplaceDialog.spec.tsx b/client/src/components/SidePanel/Agents/Tools/__tests__/ToolsMarketplaceDialog.spec.tsx
+index 404963505e6a4ffcb67f0b19f487b0977b9edfc4..f2686ae62556d3e4168dac600ddc4d71641e056e 100644
+--- a/client/src/components/SidePanel/Agents/Tools/__tests__/ToolsMarketplaceDialog.spec.tsx
++++ b/client/src/components/SidePanel/Agents/Tools/__tests__/ToolsMarketplaceDialog.spec.tsx
+@@ -218,4 +218,21 @@ describe('ToolsMarketplaceDialog', () => {
+     fireEvent.click(screen.getByRole('button', { name: /com_ui_tools_view_favorites/ }));
+     expect(screen.getByText('com_ui_tools_view_favorites_empty')).toBeInTheDocument();
+   });
++
++  test('filters the catalog and sidebar to the allowed item kinds', () => {
++    render(
++      <ToolsMarketplaceDialog
++        open
++        onOpenChange={jest.fn()}
++        agentId="a1"
++        allowedKinds={['builtin']}
++      />,
++    );
++
++    expect(screen.getByText('com_ui_run_code')).toBeInTheDocument();
++    expect(screen.queryByText('DALL-E')).not.toBeInTheDocument();
++    expect(
++      screen.queryByRole('button', { name: /com_ui_tools_kind_tools/ }),
++    ).not.toBeInTheDocument();
++  });
+ });
+diff --git a/client/src/components/SidePanel/Agents/Tools/__tests__/ToolsSection.spec.tsx b/client/src/components/SidePanel/Agents/Tools/__tests__/ToolsSection.spec.tsx
+index 87f4d3242e1498c98e50ba8467dcd021d10ee56c..70c3abb0802b568e71a725acd283054621d8a32c 100644
+--- a/client/src/components/SidePanel/Agents/Tools/__tests__/ToolsSection.spec.tsx
++++ b/client/src/components/SidePanel/Agents/Tools/__tests__/ToolsSection.spec.tsx
+@@ -77,7 +77,10 @@ jest.mock('@librechat/client', () => ({
+ 
+ jest.mock('../ToolsMarketplaceDialog', () => ({
+   __esModule: true,
+-  default: ({ open }: { open: boolean }) => (open ? <div data-testid="marketplace-open" /> : null),
++  default: ({ open, allowedKinds }: { open: boolean; allowedKinds?: string[] }) =>
++    open ? (
++      <div data-testid="marketplace-open" data-allowed-kinds={allowedKinds?.join(',')} />
++    ) : null,
+ }));
+ 
+ const fileSearchItem: AgentItem = {
+@@ -88,6 +91,15 @@ const fileSearchItem: AgentItem = {
+   iconKey: 'file_search',
+ };
+ 
++const regularToolItem: AgentItem = {
++  kind: 'tool',
++  id: 'calculator',
++  name: 'Calculator',
++  description: '',
++  iconKey: 'tool',
++  plugin: { pluginKey: 'calculator' } as any,
++};
++
+ beforeEach(() => {
+   mockSelected = [];
+   mockFileEntries = { contextFiles: [], knowledgeFiles: [], codeFiles: [] };
+@@ -136,4 +148,25 @@ describe('ToolsSection', () => {
+     expect(screen.queryByTestId('item-dialog')).not.toBeInTheDocument();
+     expect(mockSetValue).toHaveBeenCalledWith('file_search', false, { shouldDirty: true });
+   });
++
++  test('basic mode shows platform capabilities and Skills but hides advanced tools', () => {
++    mockSelected = [fileSearchItem, regularToolItem];
++    render(<ToolsSection agentId="a" variant="basic" />);
++
++    expect(screen.getByText('file_search')).toBeInTheDocument();
++    expect(screen.queryByText('calculator')).not.toBeInTheDocument();
++    expect(screen.getByText('com_ui_skills')).toBeInTheDocument();
++
++    fireEvent.click(screen.getByRole('button', { name: 'com_agents_add_platform_capabilities' }));
++    expect(screen.getByTestId('marketplace-open')).toHaveAttribute('data-allowed-kinds', 'builtin');
++  });
++
++  test('advanced mode shows integrations without duplicating Skills', () => {
++    mockSelected = [fileSearchItem, regularToolItem];
++    render(<ToolsSection agentId="a" variant="advanced" />);
++
++    expect(screen.queryByText('file_search')).not.toBeInTheDocument();
++    expect(screen.getByText('calculator')).toBeInTheDocument();
++    expect(screen.queryByText('com_ui_skills')).not.toBeInTheDocument();
++  });
+ });
+diff --git a/client/src/components/SidePanel/Agents/__tests__/AgentPanel.helpers.spec.ts b/client/src/components/SidePanel/Agents/__tests__/AgentPanel.helpers.spec.ts
+index 394fcac5d8cb13e5f75d2316ba5b8add8ce84e3d..1497766824da6f7e8d84d15b28a8f9864d24d5ad 100644
+--- a/client/src/components/SidePanel/Agents/__tests__/AgentPanel.helpers.spec.ts
++++ b/client/src/components/SidePanel/Agents/__tests__/AgentPanel.helpers.spec.ts
+@@ -45,6 +45,29 @@ const createForm = (): AgentForm => ({
+ });
+ 
+ describe('composeAgentUpdatePayload', () => {
++  it('preserves advanced fields when the basic builder submits', () => {
++    const form = createForm();
++    form.category = 'finance';
++    form.support_contact = { name: 'Support Team', email: 'support@example.com' };
++    form.recursion_limit = 42;
++    form.agent_ids = ['agent_child'];
++    form.edges = [{ from: 'agent_123', to: 'agent_child', edgeType: 'handoff' }];
++    form.end_after_tools = true;
++    form.hide_sequential_outputs = true;
++
++    const { payload } = composeAgentUpdatePayload(form, 'agent_123');
++
++    expect(payload).toMatchObject({
++      category: 'finance',
++      support_contact: { name: 'Support Team', email: 'support@example.com' },
++      recursion_limit: 42,
++      agent_ids: ['agent_child'],
++      edges: [{ from: 'agent_123', to: 'agent_child', edgeType: 'handoff' }],
++      end_after_tools: true,
++      hide_sequential_outputs: true,
++    });
++  });
++
+   it('includes avatar: null when resetting a persistent agent', () => {
+     const form = createForm();
+     form.avatar_action = 'reset';
+diff --git a/client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx b/client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..7c7fdd8b45f7e99c200711ba6e329b7595d4bf30
+--- /dev/null
++++ b/client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx
+@@ -0,0 +1,95 @@
++import { renderHook } from '@testing-library/react';
++import { EModelEndpoint } from 'librechat-data-provider';
++import useUnifiedSidebarLinks from './useUnifiedSidebarLinks';
++
++const mockNavigate = jest.fn();
++let mockMarketplaceAccess = true;
++
++jest.mock('react-router-dom', () => ({
++  useNavigate: () => mockNavigate,
++}));
++
++jest.mock('@librechat/client', () => ({
++  useMediaQuery: () => false,
++}));
++
++jest.mock('~/components/Chat/Menus/OpenSidebar', () => ({
++  CLOSE_SIDEBAR_ID: 'close-sidebar-button',
++}));
++
++jest.mock('recoil', () => ({
++  useRecoilValue: () => ({ endpoint: 'openAI' }),
++}));
++
++jest.mock('librechat-data-provider/react-query', () => ({
++  useUserKeyQuery: () => ({ data: { expiresAt: undefined } }),
++}));
++
++jest.mock('~/data-provider', () => ({
++  useGetStartupConfig: () => ({ data: { interface: {} } }),
++  useGetEndpointsQuery: () => ({
++    data: {
++      agents: {},
++      openAI: {},
++    },
++  }),
++}));
++
++jest.mock('~/hooks/Nav/useSideNavLinks', () => ({
++  __esModule: true,
++  default: () => [
++    {
++      title: 'legacy builder',
++      label: '',
++      icon: () => null,
++      id: 'agents',
++      Component: () => null,
++    },
++    {
++      title: 'files',
++      label: '',
++      icon: () => null,
++      id: 'files',
++      Component: () => null,
++    },
++  ],
++}));
++
++jest.mock('~/hooks', () => ({
++  useHasAccess: ({ permissionType }: { permissionType: string }) =>
++    permissionType === 'MARKETPLACE' ? mockMarketplaceAccess : true,
++}));
++
++jest.mock('~/store', () => ({
++  __esModule: true,
++  default: { conversationByIndex: () => ({}) },
++}));
++
++jest.mock('~/components/UnifiedSidebar/ConversationsSection', () => ({
++  __esModule: true,
++  default: () => null,
++}));
++
++describe('useUnifiedSidebarLinks', () => {
++  beforeEach(() => {
++    mockNavigate.mockReset();
++    mockMarketplaceAccess = true;
++  });
++
++  test('replaces the legacy builder panel with one assistant workspace command', () => {
++    const { result } = renderHook(() => useUnifiedSidebarLinks());
++    const ids = result.current.map((link) => link.id);
++
++    expect(ids).toEqual(['conversations', 'agents-workspace', 'files']);
++    expect(ids).not.toContain(EModelEndpoint.agents);
++
++    result.current.find((link) => link.id === 'agents-workspace')?.onClick?.();
++    expect(mockNavigate).toHaveBeenCalledWith('/agents');
++  });
++
++  test('does not expose the workspace without marketplace access', () => {
++    mockMarketplaceAccess = false;
++    const { result } = renderHook(() => useUnifiedSidebarLinks());
++    expect(result.current.map((link) => link.id)).toEqual(['conversations', 'files']);
++  });
++});
+diff --git a/client/src/hooks/Nav/useUnifiedSidebarLinks.ts b/client/src/hooks/Nav/useUnifiedSidebarLinks.ts
+index e4ad4b090afb3edf52d17be487778f99b4fa86fb..9633c43076147b1351b7c8edbb3ef240bb9b4d6f 100644
+--- a/client/src/hooks/Nav/useUnifiedSidebarLinks.ts
++++ b/client/src/hooks/Nav/useUnifiedSidebarLinks.ts
+@@ -1,18 +1,30 @@
+ import { useMemo } from 'react';
+ import { useRecoilValue } from 'recoil';
+-import { MessagesSquare } from 'lucide-react';
++import { useNavigate } from 'react-router-dom';
++import { useMediaQuery } from '@librechat/client';
++import { Bot, MessagesSquare } from 'lucide-react';
+ import { useUserKeyQuery } from 'librechat-data-provider/react-query';
+-import { getConfigDefaults, getEndpointField } from 'librechat-data-provider';
++import {
++  Permissions,
++  EModelEndpoint,
++  PermissionTypes,
++  getConfigDefaults,
++  getEndpointField,
++} from 'librechat-data-provider';
+ import type { TEndpointsConfig } from 'librechat-data-provider';
+ import type { NavLink } from '~/common';
+ import ConversationsSection from '~/components/UnifiedSidebar/ConversationsSection';
++import { CLOSE_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
+ import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
+ import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
++import { useHasAccess } from '~/hooks';
+ import store from '~/store';
+ 
+ const defaultInterface = getConfigDefaults().interface;
+ 
+ export default function useUnifiedSidebarLinks() {
++  const navigate = useNavigate();
++  const isSmallScreen = useMediaQuery('(max-width: 768px)');
+   const conversation = useRecoilValue(store.conversationByIndex(0));
+   const endpoint = conversation?.endpoint;
+   const { data: startupConfig } = useGetStartupConfig();
+@@ -49,6 +61,15 @@ export default function useUnifiedSidebarLinks() {
+     includeHidePanel: false,
+   });
+ 
++  const hasAccessToAgents = useHasAccess({
++    permissionType: PermissionTypes.AGENTS,
++    permission: Permissions.USE,
++  });
++  const hasAccessToMarketplace = useHasAccess({
++    permissionType: PermissionTypes.MARKETPLACE,
++    permission: Permissions.USE,
++  });
++
+   const links = useMemo(() => {
+     const conversationLink: NavLink = {
+       title: 'com_ui_chat_history',
+@@ -58,8 +79,32 @@ export default function useUnifiedSidebarLinks() {
+       Component: ConversationsSection,
+     };
+ 
+-    return [conversationLink, ...sideNavLinks];
+-  }, [sideNavLinks]);
++    const filteredLinks = sideNavLinks.filter((link) => link.id !== EModelEndpoint.agents);
++    const workspaceLink: NavLink | null =
++      endpointsConfig?.[EModelEndpoint.agents] && hasAccessToAgents && hasAccessToMarketplace
++        ? {
++            title: 'com_agents_workspace',
++            label: '',
++            icon: Bot,
++            id: 'agents-workspace',
++            onClick: () => {
++              navigate('/agents');
++              if (isSmallScreen) {
++                document.getElementById(CLOSE_SIDEBAR_ID)?.click();
++              }
++            },
++          }
++        : null;
++
++    return [conversationLink, ...(workspaceLink ? [workspaceLink] : []), ...filteredLinks];
++  }, [
++    endpointsConfig,
++    hasAccessToAgents,
++    hasAccessToMarketplace,
++    isSmallScreen,
++    navigate,
++    sideNavLinks,
++  ]);
+ 
+   return links;
+ }
+diff --git a/client/src/locales/agentWorkspaceLocales.spec.ts b/client/src/locales/agentWorkspaceLocales.spec.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2cc04267f280a4bc35229cfdc8b4b569dffb2ae0
+--- /dev/null
++++ b/client/src/locales/agentWorkspaceLocales.spec.ts
+@@ -0,0 +1,31 @@
++import en from './en/translation.json';
++import zhHans from './zh-Hans/translation.json';
++
++const workspaceKeys = [
++  'com_agents_workspace',
++  'com_agents_workspace_recommended',
++  'com_agents_workspace_mine',
++  'com_agents_workspace_create',
++  'com_agents_workspace_back',
++  'com_agents_workspace_navigation',
++  'com_agents_workspace_market_empty',
++  'com_agents_workspace_market_empty_description',
++  'com_agents_workspace_mine_empty',
++  'com_agents_workspace_mine_empty_description',
++  'com_agents_platform_capabilities',
++  'com_agents_advanced_integrations',
++  'com_agents_advanced_publishing',
++] as const;
++
++describe('Agent workspace locale contract', () => {
++  test.each(workspaceKeys)('defines %s in English and Simplified Chinese', (key) => {
++    expect(en[key]).toEqual(expect.any(String));
++    expect(en[key].trim()).not.toBe('');
++    expect(zhHans[key]).toEqual(expect.any(String));
++    expect(zhHans[key].trim()).not.toBe('');
++  });
++
++  test('uses assistant terminology throughout the Simplified Chinese client', () => {
++    expect(Object.values(zhHans).filter((value) => value.includes('智能体'))).toEqual([]);
++  });
++});
+diff --git a/client/src/locales/en/translation.json b/client/src/locales/en/translation.json
+index 6f68d343d983835b2f64f69f539138ad72665f0d..d4ad1161a95e1c12005ca2b1f82490f8d165b36e 100644
+--- a/client/src/locales/en/translation.json
++++ b/client/src/locales/en/translation.json
+@@ -17,6 +17,7 @@
+   "com_agents_category_aftersales": "After Sales",
+   "com_agents_category_aftersales_description": "Agents specialized in post-sale support, maintenance, and customer service",
+   "com_agents_category_empty": "No agents found in the {{category}} category",
++  "com_agents_category_empty_description": "There are no published assistants in this category yet.",
+   "com_agents_category_finance": "Finance",
+   "com_agents_category_finance_description": "Agents specialized in financial analysis, budgeting, and accounting",
+   "com_agents_category_general": "General",
+@@ -105,6 +106,28 @@
+   "com_agents_start_chat": "Start Chat",
+   "com_agents_top_picks": "Top Picks",
+   "com_agents_update_error": "There was an error updating your agent.",
++  "com_agents_add_advanced_integrations": "Add advanced integrations",
++  "com_agents_add_platform_capabilities": "Add platform capabilities",
++  "com_agents_advanced_integrations": "Advanced integrations",
++  "com_agents_advanced_integrations_empty": "No advanced integrations selected",
++  "com_agents_advanced_integrations_empty_hint": "Add tools, MCP servers, or actions when needed.",
++  "com_agents_advanced_publishing": "Publishing information",
++  "com_agents_platform_capabilities": "Platform capabilities",
++  "com_agents_platform_capabilities_empty": "No platform capabilities selected",
++  "com_agents_platform_capabilities_empty_hint": "Add capabilities available in this environment.",
++  "com_agents_workspace": "AI Assistants",
++  "com_agents_workspace_back": "Back to assistants",
++  "com_agents_workspace_create": "Create Assistant",
++  "com_agents_workspace_edit_named": "Edit {{name}}",
++  "com_agents_workspace_market_empty": "No recommended assistants yet",
++  "com_agents_workspace_market_empty_description": "No assistants have been published yet. You can still create your own assistant.",
++  "com_agents_workspace_mine": "My Assistants",
++  "com_agents_workspace_mine_empty": "You have not created any assistants",
++  "com_agents_workspace_mine_empty_description": "Create an assistant to save instructions, capabilities, and long-term reference files.",
++  "com_agents_workspace_navigation": "Assistant workspace",
++  "com_agents_workspace_no_description": "No description",
++  "com_agents_workspace_recommended": "Recommended",
++  "com_agents_workspace_view_all": "View all",
+   "com_assistants_actions": "Actions",
+   "com_assistants_actions_disabled": "You need to create an assistant before adding actions.",
+   "com_assistants_actions_info": "Let your Assistant retrieve information or take actions via API's",
+diff --git a/client/src/locales/zh-Hans/translation.json b/client/src/locales/zh-Hans/translation.json
+index 3efb27a28abd6b79be14157318ff04607ae4a02b..29ffa6f94b1e2aff9ca1c448fe67435fc14aa9d0 100644
+--- a/client/src/locales/zh-Hans/translation.json
++++ b/client/src/locales/zh-Hans/translation.json
+@@ -9,44 +9,45 @@
+   "com_a11y_summarize_completed": "上下文已总结。",
+   "com_a11y_summarize_failed": "摘要生成失败，将继续使用现有上下文。",
+   "com_a11y_summarize_started": "正在总结上下文。",
+-  "com_agents_agent_card_label": "智能体 {{name}}：{{description}}",
+-  "com_agents_all": "全部智能体",
++  "com_agents_agent_card_label": "助手 {{name}}：{{description}}",
++  "com_agents_all": "全部智能助手",
+   "com_agents_all_category": "全部",
+-  "com_agents_all_description": "浏览所有类别中的全部共享智能体",
+-  "com_agents_avatar_upload_error": "智能体头像上传失败",
++  "com_agents_all_description": "浏览所有类别中的共享智能助手",
++  "com_agents_avatar_upload_error": "助手头像上传失败",
+   "com_agents_category_aftersales": "售后",
+-  "com_agents_category_aftersales_description": "专注于售后支持、维护与客户服务的专用智能体",
+-  "com_agents_category_empty": "在 {{category}} 类别中未找到智能体",
++  "com_agents_category_aftersales_description": "专注于售后支持、维护与客户服务的专用助手",
++  "com_agents_category_empty": "{{category}} 分类暂无智能助手",
++  "com_agents_category_empty_description": "该分类目前还没有已发布的智能助手。",
+   "com_agents_category_finance": "财务",
+-  "com_agents_category_finance_description": "专注于财务分析、预算编制和会计的专用智能体",
++  "com_agents_category_finance_description": "专注于财务分析、预算编制和会计的专用助手",
+   "com_agents_category_general": "通用",
+-  "com_agents_category_general_description": "用于处理常见任务和咨询的通用智能体",
++  "com_agents_category_general_description": "用于处理常见任务和咨询的通用助手",
+   "com_agents_category_hr": "人事",
+-  "com_agents_category_hr_description": "专注于人事流程、政策及员工支持的专用智能体",
++  "com_agents_category_hr_description": "专注于人事流程、政策及员工支持的专用助手",
+   "com_agents_category_it": "IT",
+-  "com_agents_category_it_description": "专注于 IT 支持、技术排障及系统管理的专用智能体",
++  "com_agents_category_it_description": "专注于 IT 支持、技术排障及系统管理的专用助手",
+   "com_agents_category_rd": "研发",
+-  "com_agents_category_rd_description": "专注于研发流程、创新及技术研究的专用智能体",
++  "com_agents_category_rd_description": "专注于研发流程、创新及技术研究的专用助手",
+   "com_agents_category_sales": "销售",
+-  "com_agents_category_sales_description": "专注于销售流程和客户关系的专用智能体",
++  "com_agents_category_sales_description": "专注于销售流程和客户关系的专用助手",
+   "com_agents_category_tab_label": "分类 {{category}}，{{position}} / {{total}}",
+-  "com_agents_category_tabs_label": "智能体类别",
++  "com_agents_category_tabs_label": "助手类别",
+   "com_agents_chat_with": "与 {{name}} 对话",
+   "com_agents_clear_search": "清除搜索",
+   "com_agents_contact": "联系",
+   "com_agents_copy_link": "复制链接",
+-  "com_agents_create_error": "创建智能体时出现错误。",
++  "com_agents_create_error": "创建智能助手时出现错误。",
+   "com_agents_created_by": "来自",
+   "com_agents_description_card": "描述：{{description}}",
+-  "com_agents_description_placeholder": "可选：在此描述您的智能体",
+-  "com_agents_empty_state_heading": "未找到智能体",
++  "com_agents_description_placeholder": "这个智能助手能做什么",
++  "com_agents_empty_state_heading": "未找到智能助手",
+   "com_agents_enable_file_search": "启用文件搜索",
+   "com_agents_error_bad_request_message": "无法处理该请求。",
+   "com_agents_error_bad_request_suggestion": "请检查您的输入并重试。",
+   "com_agents_error_category_title": "类别错误",
+   "com_agents_error_generic": "我们在加载内容时遇到问题。",
+   "com_agents_error_invalid_request": "无效请求",
+-  "com_agents_error_loading": "加载智能体时发生错误",
++  "com_agents_error_loading": "加载助手时发生错误",
+   "com_agents_error_network_message": "无法连接到服务器。",
+   "com_agents_error_network_suggestion": "检查您的互联网连接并重试。",
+   "com_agents_error_network_title": "连接问题",
+@@ -55,7 +56,7 @@
+   "com_agents_error_not_found_title": "未找到",
+   "com_agents_error_retry": "重试",
+   "com_agents_error_search_title": "搜索错误",
+-  "com_agents_error_searching": "搜索智能体时发生错误",
++  "com_agents_error_searching": "搜索助手时发生错误",
+   "com_agents_error_server_message": "服务器暂时不可用。",
+   "com_agents_error_server_suggestion": "请在片刻后重试。",
+   "com_agents_error_server_title": "服务器错误",
+@@ -64,45 +65,67 @@
+   "com_agents_error_timeout_suggestion": "请检查您的互联网连接并重试。",
+   "com_agents_error_timeout_title": "连接超时",
+   "com_agents_error_title": "出了点问题",
+-  "com_agents_file_context_description": "作为“上下文”上传的文件将被解析为文本，以补充智能体的指令。如果 OCR 可用，或已针对上传的文件类型进行配置，将会使用 OCR 功能提取文本。这非常适合文档、含有文字的图片或 PDF 等需要文件中完整文本内容的场景。",
+-  "com_agents_file_context_disabled": "必须先创建智能体，才能上传文件用于文件上下文。",
++  "com_agents_file_context_description": "作为“上下文”上传的文件将被解析为文本，以补充助手的指令。如果 OCR 可用，或已针对上传的文件类型进行配置，将会使用 OCR 功能提取文本。这非常适合文档、含有文字的图片或 PDF 等需要文件中完整文本内容的场景。",
++  "com_agents_file_context_disabled": "保存智能助手后可添加长期参考文件。",
+   "com_agents_file_context_label": "文件上下文",
+-  "com_agents_file_search_disabled": "必须先创建智能体，才能上传文件用于文件搜索。",
++  "com_agents_file_search_disabled": "保存智能助手后可添加文件搜索资料。",
+   "com_agents_file_search_info": "启用后，系统会告知代理以下列出的具体文件名，使其能够从这些文件中检索相关内容。",
+-  "com_agents_grid_announcement": "显示 {{category}} 类别中的 {{count}} 个智能体",
+-  "com_agents_instructions_placeholder": "智能体使用的系统指令",
++  "com_agents_grid_announcement": "显示 {{category}} 类别中的 {{count}} 个助手",
++  "com_agents_instructions_placeholder": "助手使用的系统指令",
+   "com_agents_link_copied": "链接已复制",
+   "com_agents_link_copy_failed": "复制链接失败",
+-  "com_agents_load_more_label": "从 {{category}} 类别中加载更多智能体",
++  "com_agents_load_more_label": "从 {{category}} 类别中加载更多助手",
+   "com_agents_loading": "加载中...",
+-  "com_agents_marketplace": "智能体市场",
+-  "com_agents_marketplace_subtitle": "探索并利用强大的 AI 智能体，提升您的工作流与生产力",
++  "com_agents_marketplace": "智能助手市场",
++  "com_agents_marketplace_subtitle": "发现并使用适合当前任务的智能助手",
+   "com_agents_mcp_description_placeholder": "简要解释它的作用",
+   "com_agents_mcp_icon_size": "最小尺寸 128 × 128 像素",
+   "com_agents_mcp_name_placeholder": "自定义工具",
+   "com_agents_mcp_trust_subtext": "自定义连接器未经 LibreChat 验证",
+-  "com_agents_missing_name": "请在创建智能体前输入名称。",
+-  "com_agents_missing_provider_model": "请在创建智能体前选择提供商和模型",
+-  "com_agents_name_placeholder": "可选：智能体名称",
+-  "com_agents_no_access": "您没有权限编辑此智能体。",
+-  "com_agents_no_agent_id_error": "未找到智能体 ID，请首先确保智能体已创建。",
++  "com_agents_missing_name": "请在创建助手前输入名称。",
++  "com_agents_missing_provider_model": "请在创建助手前选择提供商和模型",
++  "com_agents_name_placeholder": "智能助手名称",
++  "com_agents_no_access": "您没有权限编辑此智能助手。",
++  "com_agents_no_agent_id_error": "未找到助手 ID，请首先确保助手已创建。",
+   "com_agents_no_more_results": "您已到达结果末尾",
+-  "com_agents_not_available": "智能体不可用",
+-  "com_agents_recommended": "我们推荐的智能体",
++  "com_agents_not_available": "智能助手不可用",
++  "com_agents_recommended": "我们推荐的助手",
+   "com_agents_results_for": "'{{query}}' 的结果",
+   "com_agents_run_code_files": "以下文件仅供代码环境使用：",
+-  "com_agents_run_code_info": "启用后，允许您的智能体安全地运行生成的代码，包括文件处理。",
+-  "com_agents_search_aria": "搜索智能体",
+-  "com_agents_search_empty_heading": "无搜索结果",
+-  "com_agents_search_info": "启用后，允许您的智能体搜索网络以获取最新信息。需要有效的 API 密钥。",
+-  "com_agents_search_instructions": "输入名称或描述以搜索智能体",
+-  "com_agents_search_name": "根据名称搜索智能体",
+-  "com_agents_search_no_results": "未找到 \"{{query}}\" 智能体",
+-  "com_agents_search_placeholder": "搜索智能体...",
++  "com_agents_run_code_info": "启用后，允许您的助手安全地运行生成的代码，包括文件处理。",
++  "com_agents_search_aria": "搜索助手",
++  "com_agents_search_empty_heading": "没有匹配的智能助手",
++  "com_agents_search_info": "启用后，允许您的助手搜索网络以获取最新信息。需要有效的 API 密钥。",
++  "com_agents_search_instructions": "输入名称或描述以搜索助手",
++  "com_agents_search_name": "根据名称搜索助手",
++  "com_agents_search_no_results": "没有找到与“{{query}}”匹配的智能助手",
++  "com_agents_search_placeholder": "搜索智能助手...",
+   "com_agents_see_more": "查看更多",
+   "com_agents_start_chat": "开始对话",
+   "com_agents_top_picks": "精选",
+-  "com_agents_update_error": "更新智能体时出现错误。",
++  "com_agents_update_error": "更新智能助手时出现错误。",
++  "com_agents_add_advanced_integrations": "添加高级集成",
++  "com_agents_add_platform_capabilities": "添加平台能力",
++  "com_agents_advanced_integrations": "高级集成",
++  "com_agents_advanced_integrations_empty": "尚未选择高级集成",
++  "com_agents_advanced_integrations_empty_hint": "按需添加工具、MCP 服务或 Actions。",
++  "com_agents_advanced_publishing": "发布信息",
++  "com_agents_platform_capabilities": "平台能力",
++  "com_agents_platform_capabilities_empty": "尚未选择平台能力",
++  "com_agents_platform_capabilities_empty_hint": "添加当前环境已经提供的能力。",
++  "com_agents_workspace": "智能助手",
++  "com_agents_workspace_back": "返回智能助手列表",
++  "com_agents_workspace_create": "创建助手",
++  "com_agents_workspace_edit_named": "编辑 {{name}}",
++  "com_agents_workspace_market_empty": "暂无可用的推荐助手",
++  "com_agents_workspace_market_empty_description": "当前还没有已发布的助手，你仍可创建自己的助手。",
++  "com_agents_workspace_mine": "我的助手",
++  "com_agents_workspace_mine_empty": "你还没有创建智能助手",
++  "com_agents_workspace_mine_empty_description": "创建后可以保存指令、能力和长期参考文件。",
++  "com_agents_workspace_navigation": "智能助手工作区",
++  "com_agents_workspace_no_description": "暂无描述",
++  "com_agents_workspace_recommended": "推荐助手",
++  "com_agents_workspace_view_all": "查看全部",
+   "com_assistants_actions": "操作",
+   "com_assistants_actions_disabled": "您需要先创建助手，然后才能添加操作。",
+   "com_assistants_actions_info": "让您的助手通过 API 检索信息或执行操作",
+@@ -220,8 +243,8 @@
+   "com_click_to_download": "（点击此处下载）",
+   "com_download_expired": "下载已过期",
+   "com_endpoint": "端点",
+-  "com_endpoint_agent": "智能体",
+-  "com_endpoint_agent_placeholder": "请选择智能体",
++  "com_endpoint_agent": "助手",
++  "com_endpoint_agent_placeholder": "请选择助手",
+   "com_endpoint_ai": "人工智能",
+   "com_endpoint_anthropic_maxoutputtokens": "响应中可以生成的最大词元数。指定较低的值以获得较短的响应，指定较高的值以获得较长的响应。注意：模型可能会在达到此最大值之前停止。",
+   "com_endpoint_anthropic_prompt_cache": "提示词缓存允许在 API 调用中复用大型上下文或指令，从而降低成本和延迟",
+@@ -371,7 +394,7 @@
+   "com_error_heic_conversion": "将 HEIC 图片转换为 JPEG 失败。请尝试手动转换图像或使用其他格式。",
+   "com_error_illegal_model_request": "模型 “{{0}}” 不可用于 {{1}}，请选择其他模型。",
+   "com_error_input_length": "最新消息的令牌数过长，超出了令牌限制，或者您的令牌限制参数配置错误，对上下文窗口产生不利影响。更多信息：{{0}}。请缩短您的消息、调整对话参数中的最大上下文大小，或分叉对话以继续。",
+-  "com_error_invalid_agent_provider": "提供商 ”{{0}}“ 不适用于智能体。请转到智能体设置并选择当前可用的提供商。",
++  "com_error_invalid_agent_provider": "提供商 ”{{0}}“ 不适用于助手。请转到助手设置并选择当前可用的提供商。",
+   "com_error_invalid_base_url": "您提供的基准网址 URL 指向的是一个受限地址。请使用有效的外部 URL 并重试。",
+   "com_error_invalid_user_key": "提供的密钥无效，请提供有效的密钥后重试。",
+   "com_error_missing_model": "未选择 {{0}} 模型，请选择一个模型并重试。",
+@@ -496,7 +519,7 @@
+   "com_nav_help_faq": "帮助",
+   "com_nav_info_balance": "余额显示您剩余的词元额度。词元额度对应一定的货币价值（例如：1000 额度 = 0.001 美元）。",
+   "com_nav_info_code_artifacts": "启用在对话旁显示实验性代码工件",
+-  "com_nav_info_code_artifacts_agent": "使该智能体能够使用代码工件。默认情况下，除非启用“自定义提示词模式”，否则会添加与 Artifacts 使用相关的额外说明。",
++  "com_nav_info_code_artifacts_agent": "使该助手能够使用代码工件。默认情况下，除非启用“自定义提示词模式”，否则会添加与 Artifacts 使用相关的额外说明。",
+   "com_nav_info_custom_prompt_mode": "启用后，默认的 Artifacts 系统提示词将不会包含在内。在此模式下，必须手动提供所有生成工件的指令。",
+   "com_nav_info_default_temporary_chat": "启用后，新聊天将默认以激活的临时聊天模式开始。临时对话不会保存到您的历史记录中。",
+   "com_nav_info_enter_to_send": "启用后，按下 `ENTER` 将发送您的消息。禁用后，按下 `ENTER` 将添加新行，您需要按下 `CTRL + ENTER` / `⌘ + ENTER` 来发送消息。",
+@@ -603,7 +626,7 @@
+   "com_nav_theme_light": "亮色主题",
+   "com_nav_theme_system": "系统设置",
+   "com_nav_tool_dialog": "助手工具",
+-  "com_nav_tool_dialog_agents": "智能体工具",
++  "com_nav_tool_dialog_agents": "助手工具",
+   "com_nav_tool_dialog_description": "必须保存助手才能保留工具选择。",
+   "com_nav_tool_dialog_mcp_server_tools": "MCP 服务器工具",
+   "com_nav_tool_remove": "移除",
+@@ -613,7 +636,7 @@
+   "com_nav_user_name_display": "在消息中显示用户名",
+   "com_nav_voice_select": "语音",
+   "com_show_examples": "显示示例",
+-  "com_sidepanel_agent_builder": "智能体构建器",
++  "com_sidepanel_agent_builder": "助手构建器",
+   "com_sidepanel_assistant_builder": "助手生成器",
+   "com_sidepanel_attach_files": "附加文件",
+   "com_sidepanel_conversation_tags": "书签",
+@@ -621,7 +644,7 @@
+   "com_sidepanel_manage_files": "管理文件",
+   "com_sidepanel_parameters": "参数",
+   "com_sources_agent_file": "源文件",
+-  "com_sources_agent_files": "智能体文件",
++  "com_sources_agent_files": "助手文件",
+   "com_sources_download_aria_label": "下载 {{filename}} {{status}}",
+   "com_sources_download_failed": "下载失败",
+   "com_sources_download_local_unavailable": "无法下载：文件未保存",
+@@ -671,8 +694,8 @@
+   "com_ui_admin_settings_section": "管理员设置 - {{section}}",
+   "com_ui_advanced": "进阶",
+   "com_ui_advanced_settings": "进阶设置",
+-  "com_ui_agent": "智能体",
+-  "com_ui_agent_api_keys": "智能体API密钥",
++  "com_ui_agent": "助手",
++  "com_ui_agent_api_keys": "助手API密钥",
+   "com_ui_agent_category_aftersales": "售后",
+   "com_ui_agent_category_finance": "财务",
+   "com_ui_agent_category_general": "通用",
+@@ -680,42 +703,42 @@
+   "com_ui_agent_category_it": "IT",
+   "com_ui_agent_category_rd": "研发",
+   "com_ui_agent_category_sales": "销售",
+-  "com_ui_agent_category_selector_aria": "智能体类别选择器",
+-  "com_ui_agent_chain": "智能体链（Mixture-of-Agents）",
+-  "com_ui_agent_chain_info": "启用创建智能体序列。每个智能体都可以访问智能体链中先前智能体的输出。基于 “Mixture-of-Agents” 架构，智能体使用先前的输出作为辅助信息。",
+-  "com_ui_agent_chain_max": "您已达到 {{0}} 个智能体的最大值",
+-  "com_ui_agent_delete_error": "删除智能体时出现错误",
+-  "com_ui_agent_deleted": "智能体已成功删除",
+-  "com_ui_agent_duplicate_error": "复制智能体时发生错误",
+-  "com_ui_agent_duplicated": "智能体复制成功",
+-  "com_ui_agent_handoff_add": "添加接力智能体",
++  "com_ui_agent_category_selector_aria": "助手类别选择器",
++  "com_ui_agent_chain": "助手链（Mixture-of-Agents）",
++  "com_ui_agent_chain_info": "启用创建助手序列。每个助手都可以访问助手链中先前助手的输出。基于 “Mixture-of-Agents” 架构，助手使用先前的输出作为辅助信息。",
++  "com_ui_agent_chain_max": "您已达到 {{0}} 个助手的最大值",
++  "com_ui_agent_delete_error": "删除助手时出现错误",
++  "com_ui_agent_deleted": "助手已成功删除",
++  "com_ui_agent_duplicate_error": "复制助手时发生错误",
++  "com_ui_agent_duplicated": "助手复制成功",
++  "com_ui_agent_handoff_add": "添加接力助手",
+   "com_ui_agent_handoff_description": "接力说明",
+   "com_ui_agent_handoff_description_placeholder": "例如：转交给数据分析师进行统计分析",
+-  "com_ui_agent_handoff_info": "配置接力智能体，以便在需要特定专业知识时，可以将对话转移至接力智能体。",
+-  "com_ui_agent_handoff_info_2": "每次接力都会创建一个传输工具，将上下文无缝路由到专用智能体。",
+-  "com_ui_agent_handoff_max": "以达到 {{0}} 个接力智能体的最大值",
++  "com_ui_agent_handoff_info": "配置接力助手，以便在需要特定专业知识时，可以将对话转移至接力助手。",
++  "com_ui_agent_handoff_info_2": "每次接力都会创建一个传输工具，将上下文无缝路由到专用助手。",
++  "com_ui_agent_handoff_max": "以达到 {{0}} 个接力助手的最大值",
+   "com_ui_agent_handoff_prompt": "传递内容",
+   "com_ui_agent_handoff_prompt_key": "内容参数名称（默认值：“指令”）",
+   "com_ui_agent_handoff_prompt_key_placeholder": "标记传递的内容（默认值：“指令”）",
+-  "com_ui_agent_handoff_prompt_placeholder": "告诉智能体要生成什么内容，并将其传递给接力智能体。您需要在这里添加一些内容以启用此功能",
+-  "com_ui_agent_handoffs": "智能体接力",
+-  "com_ui_agent_name_is_required": "智能体名称为必填项",
+-  "com_ui_agent_recursion_limit": "最大智能体步骤数",
+-  "com_ui_agent_recursion_limit_info": "限制智能体在给出最终响应之前可执行的步骤数。默认为 25 个步骤。步骤可以是一次 AI API 请求或一次工具使用。例如，一个基本的工具交互需要 3 个步骤：初始请求、工具使用和后续请求。",
+-  "com_ui_agent_subagents": "子智能体",
+-  "com_ui_agent_subagents_add": "添加子智能体",
+-  "com_ui_agent_subagents_agents": "其他子智能体",
++  "com_ui_agent_handoff_prompt_placeholder": "告诉助手要生成什么内容，并将其传递给接力助手。您需要在这里添加一些内容以启用此功能",
++  "com_ui_agent_handoffs": "助手接力",
++  "com_ui_agent_name_is_required": "助手名称为必填项",
++  "com_ui_agent_recursion_limit": "最大助手步骤数",
++  "com_ui_agent_recursion_limit_info": "限制助手在给出最终响应之前可执行的步骤数。默认为 25 个步骤。步骤可以是一次 AI API 请求或一次工具使用。例如，一个基本的工具交互需要 3 个步骤：初始请求、工具使用和后续请求。",
++  "com_ui_agent_subagents": "子助手",
++  "com_ui_agent_subagents_add": "添加子助手",
++  "com_ui_agent_subagents_agents": "其他子助手",
+   "com_ui_agent_subagents_allow_self": "允许自我生成",
+-  "com_ui_agent_subagents_empty": "无子智能体可用：启用自我生成或添加至少一个智能体。",
+-  "com_ui_agent_subagents_enable": "启用子智能体",
+-  "com_ui_agent_url_copied": "智能体 URL 已复制到剪贴板",
+-  "com_ui_agent_var": "{{0}} 智能体",
++  "com_ui_agent_subagents_empty": "无子助手可用：启用自我生成或添加至少一个助手。",
++  "com_ui_agent_subagents_enable": "启用子助手",
++  "com_ui_agent_url_copied": "助手 URL 已复制到剪贴板",
++  "com_ui_agent_var": "{{0}} 助手",
+   "com_ui_agent_version": "版本",
+   "com_ui_agent_version_active": "活动版本",
+   "com_ui_agent_version_empty": "无可用版本",
+   "com_ui_agent_version_error": "获取版本时发生错误",
+   "com_ui_agent_version_history": "版本历史",
+-  "com_ui_agent_version_no_agent": "未选择智能体，请选择智能体以查看版本历史。",
++  "com_ui_agent_version_no_agent": "未选择助手，请选择助手以查看版本历史。",
+   "com_ui_agent_version_no_date": "日期不可用",
+   "com_ui_agent_version_restore": "还原",
+   "com_ui_agent_version_restore_confirm": "您确定要还原此版本吗？",
+@@ -723,11 +746,11 @@
+   "com_ui_agent_version_restore_success": "版本还原成功",
+   "com_ui_agent_version_title": "版本 {{versionNumber}}",
+   "com_ui_agent_version_unknown_date": "未知日期",
+-  "com_ui_agents": "智能体",
+-  "com_ui_agents_allow_create": "允许创建智能体",
+-  "com_ui_agents_allow_share": "允许共享智能体",
+-  "com_ui_agents_allow_share_public": "允许将智能体公开共享",
+-  "com_ui_agents_allow_use": "允许使用智能体",
++  "com_ui_agents": "助手",
++  "com_ui_agents_allow_create": "允许创建助手",
++  "com_ui_agents_allow_share": "允许共享助手",
++  "com_ui_agents_allow_share_public": "允许将助手公开共享",
++  "com_ui_agents_allow_use": "允许使用助手",
+   "com_ui_all": "所有",
+   "com_ui_all_proper": "所有",
+   "com_ui_analyzing": "正在分析",
+@@ -904,8 +927,8 @@
+   "com_ui_delete": "删除",
+   "com_ui_delete_action": "删除操作",
+   "com_ui_delete_action_confirm": "您确定要删除此操作吗？",
+-  "com_ui_delete_agent": "删除智能体",
+-  "com_ui_delete_agent_confirm": "您确定要删除此智能体吗？",
++  "com_ui_delete_agent": "删除助手",
++  "com_ui_delete_agent_confirm": "您确定要删除此助手吗？",
+   "com_ui_delete_assistant": "删除助手",
+   "com_ui_delete_assistant_confirm": "您确定要删除此助手吗？该操作无法撤销。",
+   "com_ui_delete_confirm": "这将删除",
+@@ -922,7 +945,7 @@
+   "com_ui_delete_success": "已成功删除",
+   "com_ui_delete_tool": "删除工具",
+   "com_ui_delete_tool_confirm": "您确定要删除此工具吗？",
+-  "com_ui_delete_tool_save_reminder": "工具已删除，保存智能体以应用更改。",
++  "com_ui_delete_tool_save_reminder": "工具已删除，保存助手以应用更改。",
+   "com_ui_deleted": "已删除",
+   "com_ui_deleting": "删除中...",
+   "com_ui_deleting_file": "删除文件中...",
+@@ -1126,7 +1149,7 @@
+   "com_ui_no_categories": "无可用类别",
+   "com_ui_no_category": "无类别",
+   "com_ui_no_changes": "未做任何修改",
+-  "com_ui_no_individual_access": "任何个人用户或群组都无法访问该智能体",
++  "com_ui_no_individual_access": "任何个人用户或群组都无法访问该助手",
+   "com_ui_no_memories": "暂无记忆，请手动创建或提示 AI 记住一些内容",
+   "com_ui_no_memories_match": "没有与您的搜索匹配的记忆",
+   "com_ui_no_memories_title": "还没有记忆",
+@@ -1224,14 +1247,14 @@
+   "com_ui_revoke_keys_confirm": "您确定要撤销所有密钥吗？",
+   "com_ui_role": "角色",
+   "com_ui_role_editor": "编辑者",
+-  "com_ui_role_editor_desc": "可以查看和修改智能体",
++  "com_ui_role_editor_desc": "可以查看和修改助手",
+   "com_ui_role_manager": "管理员",
+-  "com_ui_role_manager_desc": "可以查看、修改和删除智能体",
++  "com_ui_role_manager_desc": "可以查看、修改和删除助手",
+   "com_ui_role_owner": "所有者",
+-  "com_ui_role_owner_desc": "对智能体拥有完全控制权，包括共享智能体",
++  "com_ui_role_owner_desc": "对助手拥有完全控制权，包括共享助手",
+   "com_ui_role_select": "角色",
+   "com_ui_role_viewer": "查看者",
+-  "com_ui_role_viewer_desc": "可以查看和使用智能体，但无法修改智能体",
++  "com_ui_role_viewer_desc": "可以查看和使用助手，但无法修改助手",
+   "com_ui_roleplay": "角色扮演",
+   "com_ui_rotate": "旋转",
+   "com_ui_rotate_90": "旋转 90 度",
+@@ -1257,7 +1280,7 @@
+   "com_ui_seconds": "秒",
+   "com_ui_secret_key": "Secret Key",
+   "com_ui_select": "选择",
+-  "com_ui_select_agent": "选择智能体",
++  "com_ui_select_agent": "选择助手",
+   "com_ui_select_all": "全选",
+   "com_ui_select_file": "选择文件",
+   "com_ui_select_model": "模型选择",
+@@ -1334,8 +1357,8 @@
+   "com_ui_update": "更新",
+   "com_ui_updating": "更新中...",
+   "com_ui_upload": "上传",
+-  "com_ui_upload_agent_avatar": "成功更新智能体头像",
+-  "com_ui_upload_agent_avatar_label": "上传智能体头像图片",
++  "com_ui_upload_agent_avatar": "成功更新助手头像",
++  "com_ui_upload_agent_avatar_label": "上传助手头像图片",
+   "com_ui_upload_avatar_label": "上传头像图片",
+   "com_ui_upload_delay": "上传 “{{0}}” 时比预期花了更长时间。文件正在进行检索索引，请稍候。",
+   "com_ui_upload_error": "上传文件错误",

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import hashlib
+import json
 import re
 import shutil
 import subprocess
@@ -13,6 +15,10 @@ import yaml
 PATCH_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[4]
 MOUNT = "/opt/librechat/ui-label-patch/client-dist:/app/client/dist:ro"
+OVERLAY_MANIFEST = (
+    REPO_ROOT
+    / "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/client-overlay-manifest.json"
+)
 
 
 def require(condition, message):
@@ -26,6 +32,10 @@ def read(path):
 
 def load_yaml(path):
     return yaml.safe_load(read(path))
+
+
+def sha256(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_builder():
@@ -108,15 +118,33 @@ def test_script_contract():
 
 
 def test_compose_and_release_guards():
-    override_paths = (
-        REPO_ROOT / "deployment/production-patches/2026-07-11-admin-panel/compose.override.yaml",
-        REPO_ROOT
-        / "deployment/production-patches/2026-07-11-admin-panel-zh-cn/compose.override.yaml",
+    legacy_override = (
+        REPO_ROOT / "deployment/production-patches/2026-07-11-admin-panel/compose.override.yaml"
     )
-    for path in override_paths:
-        document = load_yaml(path)
-        volumes = document["services"]["api"]["volumes"]
-        require(MOUNT in volumes, f"upload-menu mount missing from {path}")
+    document = load_yaml(legacy_override)
+    volumes = document["services"]["api"]["volumes"]
+    require(MOUNT in volumes, f"upload-menu mount missing from {legacy_override}")
+
+    overlay = json.loads(read(OVERLAY_MANIFEST))
+    assets = {asset["id"]: asset for asset in overlay["assets"]}
+    upload_asset = assets.get("business-upload-label-patch")
+    require(upload_asset is not None, "upload-menu asset missing from Client overlay")
+    require(
+        upload_asset["source"]
+        == "deployment/production-patches/2026-07-12-upload-menu-persistence/client/business-upload-menu.js",
+        "upload-menu Client overlay source drifted",
+    )
+    require(upload_asset["output"] == "business-upload-menu.js", "upload-menu output drifted")
+    require(upload_asset["kind"] == "script", "upload-menu asset kind drifted")
+    require(upload_asset["injection"] == "external-body", "upload-menu injection drifted")
+    require(
+        upload_asset["sha256"] == sha256(PATCH_ROOT / "client/business-upload-menu.js"),
+        "upload-menu Client overlay hash drifted",
+    )
+    require(
+        "business-upload-label-patch" in overlay["body_order"],
+        "upload-menu asset missing from Client overlay order",
+    )
 
     guarded_deploys = (
         REPO_ROOT
@@ -130,7 +158,7 @@ def test_compose_and_release_guards():
             "business-upload-label-patch",
             "business-upload-menu.js",
             "Office文件上传",
-            "/opt/librechat/ui-label-patch/client-dist",
+            "client-dist:/app/client/dist:ro",
         ):
             require(marker in deploy, f"release guard {marker!r} missing from {path}")
 

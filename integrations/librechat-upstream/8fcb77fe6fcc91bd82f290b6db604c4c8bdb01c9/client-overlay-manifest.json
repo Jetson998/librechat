@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "overlay_id": "librechat-protected-client-assets",
+  "upstream_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+  "base_index_markers": [
+    "__lcRumRecoveryGuardInstalled",
+    "__lcRecoverStaleAssets",
+    "lc-rum-queue",
+    "lc-asset-recovery-at"
+  ],
+  "head_order": [
+    "user-usage-dashboard-style",
+    "context-safety-stage-b-style",
+    "generated-files-tab-style"
+  ],
+  "body_order": [
+    "business-upload-label-patch",
+    "odysseia-login-page-patch",
+    "user-usage-dashboard",
+    "search-favicon-fallback",
+    "context-safety-stage-b",
+    "generated-files-tab"
+  ],
+  "assets": [
+    {
+      "id": "business-upload-label-patch",
+      "source": "deployment/production-patches/2026-07-12-upload-menu-persistence/client/business-upload-menu.js",
+      "output": "business-upload-menu.js",
+      "sha256": "a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9",
+      "kind": "script",
+      "injection": "external-body",
+      "required_markers": [
+        "__businessUploadMenuPatchInstalled",
+        "图片上传",
+        "Office文件上传",
+        "文件提取文字上传",
+        "Word/Excel/PPT 原文件；可读写并返回文件"
+      ]
+    },
+    {
+      "id": "odysseia-login-page-patch",
+      "source": "deployment/production-patches/2026-07-17-odysseia-login-page/client/odysseia-login.js",
+      "output": "odysseia-login.js",
+      "sha256": "aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27",
+      "kind": "script",
+      "injection": "external-body",
+      "required_markers": [
+        "__odysseiaLoginPatchInstalled",
+        "Odýsseia",
+        "Start your Agent Studio."
+      ]
+    },
+    {
+      "id": "user-usage-dashboard",
+      "source": "deployment/production-patches/2026-07-17-user-usage-dashboard/client/user-usage-dashboard.js",
+      "output": "user-usage-dashboard.js",
+      "sha256": "a9b4d6a45956e8fc2ae9211cd82f6bc77d98a6e2e28e7a1dc5d7e47989dad41e",
+      "kind": "script",
+      "injection": "external-body",
+      "required_markers": [
+        "用量统计",
+        "data-view=\"market\"",
+        "模型市场",
+        "当前可用余额",
+        "/api/auth/refresh",
+        "Authorization: `Bearer ${token}`"
+      ]
+    },
+    {
+      "id": "user-usage-dashboard-style",
+      "source": "deployment/production-patches/2026-07-17-user-usage-dashboard/client/user-usage-dashboard.css",
+      "output": "user-usage-dashboard.css",
+      "sha256": "5124d07cd5582909ade54a172851bd63cff25c150c715975ee2508635ca78fa3",
+      "kind": "style",
+      "injection": "external-head",
+      "required_markers": [
+        ".lc-usage-dashboard-root",
+        ".lc-usage-market-col-model",
+        ".lc-usage-balance-hero",
+        "@media (max-width: 680px)"
+      ]
+    },
+    {
+      "id": "anthropic-mark",
+      "source": "deployment/production-patches/2026-07-17-user-usage-dashboard/client/anthropic-mark.svg",
+      "output": "anthropic-mark.svg",
+      "sha256": "0b90523ce496faea037552b339689e812010747ac1d30107ddd203b28fb4cf94",
+      "kind": "asset",
+      "injection": "copy-only",
+      "required_markers": [
+        "<svg"
+      ]
+    },
+    {
+      "id": "search-favicon-fallback",
+      "source": "deployment/production-patches/2026-07-18-search-favicon-fallback/client/search-favicon-fallback.js",
+      "output": "search-favicon-fallback.js",
+      "sha256": "6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade",
+      "kind": "script",
+      "injection": "inline-body",
+      "required_markers": [
+        "__lcSearchFaviconFallbackInstalled",
+        "__lcSearchFaviconFallbackContract",
+        "data-lc-search-favicon-fallback"
+      ]
+    },
+    {
+      "id": "context-safety-stage-b",
+      "source": "deployment/production-patches/2026-07-18-context-safety-stage-b/client/context-safety-ui.js",
+      "output": "context-safety-ui.js",
+      "sha256": "7be394908eadb381fa40078d8f64a05c283ada8841998462ba92b4024a74be39",
+      "kind": "script",
+      "injection": "inline-body",
+      "required_markers": [
+        "__contextSafetyUIInstalled",
+        "__contextSafetyUIContract",
+        "context-safety-ui-banner"
+      ]
+    },
+    {
+      "id": "context-safety-stage-b-style",
+      "source": "deployment/production-patches/2026-07-18-context-safety-stage-b/client/context-safety-ui.css",
+      "output": "context-safety-ui.css",
+      "sha256": "a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d",
+      "kind": "style",
+      "injection": "inline-head",
+      "required_markers": [
+        "#context-safety-ui-banner",
+        ".context-safety-action"
+      ]
+    },
+    {
+      "id": "generated-files-tab",
+      "source": "deployment/production-patches/2026-07-22-generated-files-tab/client/generated-files-tab.js",
+      "output": "generated-files-tab.js",
+      "sha256": "ff8e49bef0646866f7e90dfa6c9fc33c836f94300a54aa4c36fffa250987253f",
+      "kind": "script",
+      "injection": "external-body",
+      "required_markers": [
+        "__librechatGeneratedFilesTabInstalled",
+        "/api/user/generated-files",
+        "authenticatedFetch",
+        "Authorization: `Bearer ${token}`",
+        "response.blob()"
+      ]
+    },
+    {
+      "id": "generated-files-tab-style",
+      "source": "deployment/production-patches/2026-07-22-generated-files-tab/client/generated-files-tab.css",
+      "output": "generated-files-tab.css",
+      "sha256": "69dd664962ada42ea8910fa53baf9fe688362cedc1cdf5302a8024e3b12d5672",
+      "kind": "style",
+      "injection": "external-head",
+      "required_markers": [
+        ".lc-generated-files-tabs",
+        ".lc-generated-files-table",
+        "@media (max-width: 720px)"
+      ]
+    }
+  ]
+}

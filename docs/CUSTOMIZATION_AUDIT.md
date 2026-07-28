@@ -6,7 +6,9 @@ Target deployment:
 https://152.32.172.162.sslip.io/
 ```
 
-Audit date: 2026-07-09
+Live audit date: 2026-07-09
+
+Repository source addendum: 2026-07-28
 
 Baseline used for this pass:
 
@@ -17,8 +19,10 @@ Baseline used for this pass:
 - Upstream baseline inferred from production `buildInfo.commit`:
   `8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9`.
 
-This is not yet a full source-level diff. The local repository currently stores
-operations documentation, not the modified LibreChat source tree.
+This is not yet a full source-level diff of the running production containers.
+The repository now also owns a version-pinned LibreChat Client source overlay,
+but that Agent UI candidate has not been deployed and is not evidence of current
+production behavior.
 
 ## Official Comparison Summary
 
@@ -41,17 +45,64 @@ Comparison result:
 | Asset recovery / RUM bootstrap | Yes | No confirmed custom change | Detect stale frontend assets, dynamic import failures, and service worker issues, then recover/reload |
 | Code Environment / Skills frontend | Yes | No confirmed core change | Official agent file/code sandbox UI and wording exists in the bundle |
 | Upload menu Chinese business wording and guards | No | Yes | Re-label upload choices as `图片上传`, `Office文件上传`, `文件提取文字上传` and add client-side file-type guards |
+| Agent platform P0 UI candidate | Official Client baseline plus repository patch | Yes, repository only; not deployed | Unify the assistant workspace, add permission-filtered My Assistants, separate basic/advanced settings, and preserve marketplace behavior |
 | Auth policy | Configurable official feature | Yes, deployment config | Close registration, keep email/password login, disable social login/password reset |
 | Public domain / noindex headers | Deployment concern | Yes, deployment config | Expose LibreChat on `sslip.io` HTTPS and discourage indexing |
 | `/office/` Office/Excel reader backend | Not LibreChat core | Yes, LibreChat-host backend capability | Protected Office document extraction service for Excel/XLSX reading and DOCX/PPTX-style preprocessing |
 
-Net: the only confirmed LibreChat frontend customization visible from public
-assets is the upload-label business patch. Other visible differences are
-deployment configuration or deployment-level backend helpers that support the
-LibreChat workflow.
+Net: the only confirmed LibreChat frontend customization visible from the live
+public assets in this audit is the upload-label business patch. The Agent
+platform P0 UI is a verified repository candidate, not a live-site claim.
+Other visible differences are deployment configuration or deployment-level
+backend helpers that support the LibreChat workflow.
 
 Open WebUI / WebAI customizations on other hostnames are intentionally excluded
 from this audit.
+
+## Repository Candidate Not Yet Deployed
+
+### Agent platform P0 UI source overlay
+
+The repository owns a Client-only patch against the exact official baseline:
+
+```text
+LibreChat upstream commit: 8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9
+Upstream tree: 66d1547235bc3e0f61663778b386e0ec7ec72c58
+Patch SHA-256: 00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc
+Changed Client files: 28
+```
+
+Repository artifacts:
+
+- `integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.patch`
+- `integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json`
+- `integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/client-overlay-manifest.json`
+- `scripts/verify-agent-platform-p0-ui-overlay.sh`
+- `scripts/compose-agent-platform-client.sh`
+- `.github/workflows/librechat-agent-platform-client-ci.yml`
+
+Functions implemented in the candidate:
+
+- one user-facing `智能助手` workspace with Recommended, My, Create, and Edit
+  URL modes;
+- My Assistants constrained by existing `EDIT` permission;
+- forbidden Create and invalid/unauthorized Edit states handled without loading
+  an unsafe builder;
+- basic and advanced builder sections without changing Agent API payloads;
+- Skills shown once, with platform capabilities separated from MCP, Actions,
+  and other advanced integrations;
+- marketplace search, categories, deep links, details, and admin controls
+  preserved;
+- keyboard tab navigation and Simplified Chinese assistant terminology.
+
+The Client candidate deterministically composes ten protected repository assets,
+including the upload menu, login page, usage/model market UI, search fallback,
+context safety UI, generated-files tab, authenticated downloads, and upstream
+stale-asset recovery markers.
+
+Status: source overlay and local validation complete; production deployment is
+not part of this record. Workflow Manifest, Runtime production execution, and
+the seven planned workflow templates remain separate future batches.
 
 ## Confirmed LibreChat Changes
 
