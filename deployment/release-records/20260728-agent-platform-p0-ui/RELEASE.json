@@ -1,7 +1,36 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "accepted_at": "2026-07-28T05:25:00Z",
+      "billable_model_requests": 0,
+      "business_evidence": ".release-state/20260728-agent-platform-p0-ui/business-acceptance.json",
+      "conversation_created": false,
+      "evidence": ".release-state/20260728-agent-platform-p0-ui/acceptance-result.json",
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "skills": {
+        "discovery_opened": true,
+        "office_document_parser_visible": true,
+        "shared_by": "Deployment"
+      },
+      "temporary_agent": {
+        "created": true,
+        "deleted": true,
+        "edit_form_opened": true,
+        "name": "发布验收助手-20260728"
+      },
+      "user_account": "vip998@example.local",
+      "user_role": "USER",
+      "viewports": {
+        "desktop": "1440x900",
+        "mobile": "390x844"
+      }
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +42,14 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/agent-platform-p0-ui-93a7b9d58eb2-20260728131059",
+      "client_mount_before": "/opt/librechat/user-balance-credits/918b2228b667-20260723011842/client-dist",
+      "compose_override_sha256_before": "5aa39f5d757c5961d3c8eac0bf299023e45b1492b9660a8bb70a328734a2ff39",
+      "release_dir": "/opt/librechat/agent-platform-p0-ui/93a7b9d58eb2-20260728131059",
+      "restore_scope": "Restore the timestamp-matched Compose override from the backup directory, recreate only LibreChat-API, and verify the previous Client index hash plus every protected service identity."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -129,14 +164,49 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "affected_services": [
+        "LibreChat-API"
+      ],
+      "api_container_after": "75c1f62842aaf924de06f4155cbb9428daa87b85e89f73426338eba7a1d5fae6",
+      "api_container_before": "b1bedf6e3424afe36deb9a1df54c771fa06eb11f3f788d18a941509dbe3cc6d9",
+      "artifact_sha256": "5a4ff21aa944776bf3b5a4489d77290a186e3ffa6e8016a70e622f070bc896e7",
+      "client_index_sha256": "e50a1f4ba112abe37df27d5af4608bfa8b4b6c5cdcf06763960ba1b742f9f67e",
+      "client_mount": "/opt/librechat/agent-platform-p0-ui/93a7b9d58eb2-20260728131059/client-dist",
+      "compose_sha256_after": "9b20fe6b4b8d2e9063e2ed43776eeededb7339a9fdabdd9103e2cf68b81ec117",
+      "compose_sha256_before": "5aa39f5d757c5961d3c8eac0bf299023e45b1492b9660a8bb70a328734a2ff39",
+      "deployed_at": "2026-07-28T05:11:21Z",
+      "host_resources": {
+        "disk_free_mb": 15820,
+        "memory_available_mb": 1319
+      },
+      "preflight_captured_at": "2026-07-28T05:00:21Z",
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "release_root": "/opt/librechat/agent-platform-p0-ui/93a7b9d58eb2-20260728131059",
+      "unchanged_services": [
+        "LibreChat-NGINX",
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "LibreChat-Admin-Panel",
+        "chat-mongodb",
+        "Office Converter"
+      ]
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "93a7b9d58eb2a7f129b3025c9e0673afe93f965f",
-  "status": "planned",
-  "unresolved_issues": [],
-  "updated_at": "2026-07-28T04:56:22Z",
+  "status": "deployed",
+  "unresolved_issues": [
+    "No separate authenticated ADMIN session was available on the main LibreChat host, so the ADMIN-role /agents workspace was not independently reauthenticated. The deployed Client bundle, USER /agents workflow, authenticated Admin Panel, and ADMIN/USER role records were verified."
+  ],
+  "updated_at": "2026-07-28T05:29:07Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-07-28-agent-platform-p0-ui/scripts/test-release.py <downloaded-client-artifact.zip>; scripts/validate-release-governance.sh; git diff --check",
@@ -149,7 +219,7 @@
       "type": "preflight"
     },
     {
-      "command": "scripts/release-deploy.sh 20260728-agent-platform-p0-ui --confirm 20260728-agent-platform-p0-ui -- <client-artifact.zip> <runtime-preflight.json> <deployment-result.json>",
+      "command": "scripts/release-deploy.sh --confirm 20260728-agent-platform-p0-ui 20260728-agent-platform-p0-ui /absolute/path/to/client-artifact.zip /absolute/path/to/runtime-preflight.json /absolute/path/to/remote-deployment-result.json",
       "expected": "Only LibreChat-API is recreated, the candidate index/assets are served, protected service identities remain unchanged, and a timestamped backup/result is recorded.",
       "type": "deployment"
     },
