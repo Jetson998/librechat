@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260728-agent-platform-p0-ui/artifacts/20260728-agent-platform-p0-ui-ecf1835e2ca6.tar.gz",
+      "manifest": ".release-state/20260728-agent-platform-p0-ui/artifacts/manifest.json",
+      "value": "67348157f68ccbabc980124c23cc729b535701007fa6d0250f80d46c5401e19a"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -13,20 +18,60 @@
   },
   "baseline_reference": {
     "details": {
-      "description": "Live LibreChat public Client before the Agent P0 UI release",
-      "public_root_status": 200,
-      "api_config_status": 200,
-      "office_status": 401,
-      "office_realm": "Office Converter",
       "admin_root_status": 200,
+      "api_config_status": 200,
+      "description": "Live LibreChat public Client before the Agent P0 UI release",
+      "live_build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+      "office_realm": "Office Converter",
+      "office_status": 401,
       "public_index_sha256": "7d0426d88b646e0177cff41326c1d867d75997427d69395f08689619f33771ed",
-      "live_build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+      "public_root_status": 200
     },
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "67348157f68ccbabc980124c23cc729b535701007fa6d0250f80d46c5401e19a",
+    "build_environment": "ci",
+    "completed_requirements": [
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "client-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "checks": [
+        "GitHub Actions completed successfully for source d826e12c523632c2f674da29cf7b767af9d49c71",
+        "13 targeted Client suites passed with 120 tests",
+        "Client typecheck and production build passed with 9307 modules",
+        "Six protected asset contract groups passed and ten assets were composed",
+        "Downloaded ZIP digest matched GitHub artifact digest",
+        "Portable basename-only client-dist.tar.gz checksum passed",
+        "Client tar contained 355 safe members and no links, devices, absolute paths, or parent traversal",
+        "Independent ecf1835 source export passed the artifact/release contract test",
+        "Independent source export passed all 32 release-governance tests",
+        "git diff-tree --check passed for ecf1835",
+        "Release package SHA-256 was independently rechecked as 67348157f68ccbabc980124c23cc729b535701007fa6d0250f80d46c5401e19a"
+      ],
+      "client_artifact": {
+        "artifact_id": 8675938396,
+        "client_tar_sha256": "1bae767735f53be05a9acbc5fceb7ec04b4bad7576f48f52d5a3ca73175f6c68",
+        "composed_index_sha256": "e50a1f4ba112abe37df27d5af4608bfa8b4b6c5cdcf06763960ba1b742f9f67e",
+        "run_id": 30326622161,
+        "zip_sha256": "015ab73f6e5ac4bbf84f5a19f48160e3072f7cf494669a18c5c45e84eb90410c"
+      },
+      "superseded_artifact": {
+        "artifact_id": 8675483264,
+        "reason": "The checksum file contained a nonportable artifacts/ path prefix and is not deployable.",
+        "run_id": 30325303899
+      }
+    },
+    "production_host": false,
+    "provider": "GitHub Actions run 30326622161 plus Codex independent source export",
+    "release_plan_sha256": "0d6bfdc8db4b97db4066c24b104a581ce872e9f900b131fe4f2e8fe9a94b651c",
+    "source_revision": "ecf1835e2ca62c9b66c48c622edf6f55c6129ec5",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The fixed-upstream Agent P0 Client UI is served through the existing LibreChat API without changing API, MongoDB, CodeAPI, RAG, NGINX, Admin Panel, Office Converter, files, Skills, conversations, or model configuration.",
@@ -63,8 +108,16 @@
   "project_id": "librechat-self-host",
   "release_id": "20260728-agent-platform-p0-ui",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "light",
+      "matched_rules": [
+        "client-ui",
+        "production-patch"
+      ],
+      "minimum_mode": "protected",
+      "path": ".release-state/20260728-agent-platform-p0-ui/release-plan.json"
+    },
+    "sha256": "0d6bfdc8db4b97db4066c24b104a581ce872e9f900b131fe4f2e8fe9a94b651c"
   },
   "rollback_reference": {
     "details": {
@@ -82,27 +135,27 @@
   "source_revision": "ecf1835e2ca62c9b66c48c622edf6f55c6129ec5",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-28T04:21:55Z",
+  "updated_at": "2026-07-28T04:30:31Z",
   "validation_plan": [
     {
-      "type": "local",
       "command": "python3 deployment/production-patches/2026-07-28-agent-platform-p0-ui/scripts/test-release.py <downloaded-client-artifact.zip>; scripts/validate-release-governance.sh; git diff --check",
-      "expected": "The CI ZIP, Client tar, ten protected assets, deploy runner, rollback runner, and release governance all pass without secrets or non-API targets."
+      "expected": "The CI ZIP, Client tar, ten protected assets, deploy runner, rollback runner, and release governance all pass without secrets or non-API targets.",
+      "type": "local"
     },
     {
-      "type": "preflight",
       "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260728-agent-platform-p0-ui --evidence .release-state/20260728-agent-platform-p0-ui/runtime-preflight.json",
-      "expected": "The public baseline, active Client mount, resource thresholds, API/dependency service identities, Office Converter identity, and rollback source pass with no application write."
+      "expected": "The public baseline, active Client mount, resource thresholds, API/dependency service identities, Office Converter identity, and rollback source pass with no application write.",
+      "type": "preflight"
     },
     {
-      "type": "deployment",
       "command": "scripts/release-deploy.sh 20260728-agent-platform-p0-ui --confirm 20260728-agent-platform-p0-ui -- <client-artifact.zip> <runtime-preflight.json> <deployment-result.json>",
-      "expected": "Only LibreChat-API is recreated, the candidate index/assets are served, protected service identities remain unchanged, and a timestamped backup/result is recorded."
+      "expected": "Only LibreChat-API is recreated, the candidate index/assets are served, protected service identities remain unchanged, and a timestamped backup/result is recorded.",
+      "type": "deployment"
     },
     {
-      "type": "business",
       "command": "USER and ADMIN browser acceptance at 1440x900 and 390x844",
-      "expected": "智能助手 navigation, recommended/my/create/edit, permission-safe states, personal Skills discovery, existing marketplace/admin controls, and protected Client regressions pass without a billable model request."
+      "expected": "智能助手 navigation, recommended/my/create/edit, permission-safe states, personal Skills discovery, existing marketplace/admin controls, and protected Client regressions pass without a billable model request.",
+      "type": "business"
     }
   ]
 }
