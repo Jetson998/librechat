@@ -360,3 +360,43 @@ index 9633c43076147b1351b7c8edbb3ef240bb9b4d6f..af72ba9999853efbea0155f05ca2435c
      isSmallScreen,
      navigate,
      sideNavLinks,
+diff --git a/client/src/locales/agentWorkspaceLocales.spec.ts b/client/src/locales/agentWorkspaceLocales.spec.ts
+index 2cc04267f280a4bc35229cfdc8b4b569dffb2ae0..5212569ec1db57633e1f9c8128d4894c891b28f5 100644
+--- a/client/src/locales/agentWorkspaceLocales.spec.ts
++++ b/client/src/locales/agentWorkspaceLocales.spec.ts
+@@ -28,4 +28,9 @@ describe('Agent workspace locale contract', () => {
+   test('uses assistant terminology throughout the Simplified Chinese client', () => {
+     expect(Object.values(zhHans).filter((value) => value.includes('智能体'))).toEqual([]);
+   });
++
++  test('uses Agent as the workspace product name in both locales', () => {
++    expect(en.com_agents_workspace).toBe('Agent');
++    expect(zhHans.com_agents_workspace).toBe('Agent');
++  });
+ });
+diff --git a/client/src/locales/en/translation.json b/client/src/locales/en/translation.json
+index d4ad1161a95e1c12005ca2b1f82490f8d165b36e..9dfef7cb4eba75e54dcd13c0881a53a98a5f93aa 100644
+--- a/client/src/locales/en/translation.json
++++ b/client/src/locales/en/translation.json
+@@ -115,7 +115,7 @@
+   "com_agents_platform_capabilities": "Platform capabilities",
+   "com_agents_platform_capabilities_empty": "No platform capabilities selected",
+   "com_agents_platform_capabilities_empty_hint": "Add capabilities available in this environment.",
+-  "com_agents_workspace": "AI Assistants",
++  "com_agents_workspace": "Agent",
+   "com_agents_workspace_back": "Back to assistants",
+   "com_agents_workspace_create": "Create Assistant",
+   "com_agents_workspace_edit_named": "Edit {{name}}",
+diff --git a/client/src/locales/zh-Hans/translation.json b/client/src/locales/zh-Hans/translation.json
+index 29ffa6f94b1e2aff9ca1c448fe67435fc14aa9d0..72a034b85f4af91138a6817efe18a4461f8827ce 100644
+--- a/client/src/locales/zh-Hans/translation.json
++++ b/client/src/locales/zh-Hans/translation.json
+@@ -113,7 +113,7 @@
+   "com_agents_platform_capabilities": "平台能力",
+   "com_agents_platform_capabilities_empty": "尚未选择平台能力",
+   "com_agents_platform_capabilities_empty_hint": "添加当前环境已经提供的能力。",
+-  "com_agents_workspace": "智能助手",
++  "com_agents_workspace": "Agent",
+   "com_agents_workspace_back": "返回智能助手列表",
+   "com_agents_workspace_create": "创建助手",
+   "com_agents_workspace_edit_named": "编辑 {{name}}",

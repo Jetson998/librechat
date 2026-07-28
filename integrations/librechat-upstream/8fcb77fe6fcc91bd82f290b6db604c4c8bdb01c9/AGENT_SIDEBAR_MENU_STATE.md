@@ -13,7 +13,7 @@ the immutable Agent P0 UI overlay already used by production release
 - base source manifest SHA-256:
   `bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237`;
 - follow-up patch SHA-256:
-  `a15a4e61a2a0851f630f5ce7e819a04adc04cfb1d4304ad3fba92f425fc583a4`.
+  `c37a97f87857bdcb2f9f877e27917774ef0f614718adf74e5b316f15716fc525`.
 
 The build order is deterministic:
 
@@ -21,10 +21,20 @@ The build order is deterministic:
 pinned upstream -> Agent P0 UI patch -> sidebar menu state patch
 ```
 
+## Candidate History
+
+- repository commit `46e4086530425147a8109aaaac5da2534a23d139` introduced the
+  state-only candidate with patch SHA-256
+  `a15a4e61a2a0851f630f5ce7e819a04adc04cfb1d4304ad3fba92f425fc583a4`;
+- that candidate was never deployed and was superseded before release by the
+  current patch, which also fixes the workspace product name to `Agent`.
+
 ## User-Facing Behavior
 
 - `/agents`, `/agents?view=...`, and `/agents/:category` visibly select the
-  `智能助手` sidebar icon;
+  `Agent` sidebar icon;
+- the sidebar entry, workspace heading, and document title use `Agent` in both
+  English and Simplified Chinese;
 - the first click from another route opens the workspace without clearing the
   current side-panel content;
 - clicking the selected icon again collapses the sidebar and does not repeat
@@ -35,7 +45,7 @@ pinned upstream -> Agent P0 UI patch -> sidebar menu state patch
 ## Local Validation
 
 - Prettier check passed for all changed files.
-- Focused Agent/Sidebar regression: `15/15` suites and `136/136` tests passed.
+- Focused Agent/Sidebar regression: `15/15` suites and `137/137` tests passed.
 - Client TypeScript typecheck passed.
 - Production Client build passed with `9307` transformed modules.
 - `git diff --check` passed for the follow-up source patch.

@@ -7,15 +7,15 @@ Status: implementation validated locally; production unchanged
 ## Problem
 
 On the deployed `/agents` workspace, the unified sidebar still marks
-`对话历史` as pressed while `智能助手` has no active background. Clicking
-`智能助手` once or twice keeps `aria-pressed=false`, leaves the sidebar expanded,
-and repeats navigation to the same route.
+`对话历史` as pressed while the Agent entry has no active background. Clicking
+the Agent entry once or twice keeps `aria-pressed=false`, leaves the sidebar
+expanded, and repeats navigation to the same route.
 
 The live reproduction confirmed:
 
 - URL remained `https://152.32.172.162.sslip.io/agents`;
 - `对话历史` remained the active panel;
-- `智能助手` remained unpressed after two clicks;
+- the Agent entry remained unpressed after two clicks;
 - the close-sidebar control remained `aria-expanded=true`.
 
 ## Root Cause
@@ -41,7 +41,7 @@ command as the active content panel.
 
 ## Source Scope
 
-The follow-up overlay changes only nine Client source/test files:
+The follow-up overlay changes only twelve Client source/test files:
 
 ```text
 client/src/common/types.ts
@@ -53,6 +53,9 @@ client/src/components/UnifiedSidebar/ExpandedPanel.tsx
 client/src/components/UnifiedSidebar/__tests__/ExpandedPanel.spec.tsx
 client/src/hooks/Nav/useUnifiedSidebarLinks.ts
 client/src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx
+client/src/locales/agentWorkspaceLocales.spec.ts
+client/src/locales/en/translation.json
+client/src/locales/zh-Hans/translation.json
 ```
 
 It does not modify Agent APIs, MongoDB, Runtime, CodeAPI, Office, files, Skills,
@@ -60,8 +63,9 @@ permissions, billing, conversations, or the seven planned workflow templates.
 
 ## Validation Gate
 
-- Prettier check for all nine files;
-- 15 focused Agent/Sidebar suites, 136 tests;
+- Prettier check for all twelve files;
+- locale product-name assertion for English and Simplified Chinese;
+- 15 focused Agent/Sidebar suites, 137 tests;
 - Client TypeScript typecheck;
 - production Client build;
 - fixed-upstream base overlay and follow-up blob verification;

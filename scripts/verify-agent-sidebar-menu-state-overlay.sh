@@ -192,6 +192,11 @@ contracts = {
         "isActive: isAgentWorkspaceRoute",
         "location.pathname.startsWith('/agents/')",
     ),
+    "client/src/locales/agentWorkspaceLocales.spec.ts": (
+        "uses Agent as the workspace product name in both locales",
+    ),
+    "client/src/locales/en/translation.json": ('"com_agents_workspace": "Agent"',),
+    "client/src/locales/zh-Hans/translation.json": ('"com_agents_workspace": "Agent"',),
 }
 for relative, markers in contracts.items():
     text = (verify_dir / relative).read_text(encoding="utf-8")
