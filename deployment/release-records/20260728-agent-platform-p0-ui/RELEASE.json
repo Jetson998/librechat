@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260728-agent-platform-p0-ui/artifacts/20260728-agent-platform-p0-ui-93a7b9d58eb2.tar.gz",
+      "manifest": ".release-state/20260728-agent-platform-p0-ui/artifacts/manifest.json",
+      "value": "5a4ff21aa944776bf3b5a4489d77290a186e3ffa6e8016a70e622f070bc896e7"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -25,8 +30,49 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "5a4ff21aa944776bf3b5a4489d77290a186e3ffa6e8016a70e622f070bc896e7",
+    "build_environment": "ci",
+    "completed_requirements": [
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "client-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "checks": [
+        "GitHub Actions completed successfully for source d826e12c523632c2f674da29cf7b767af9d49c71",
+        "13 targeted Client suites passed with 120 tests",
+        "Client typecheck and production build passed with 9307 modules",
+        "Six protected asset contract groups passed and ten assets were composed",
+        "Downloaded ZIP digest matched GitHub artifact digest",
+        "Portable basename-only client-dist.tar.gz checksum passed",
+        "Client tar contained 355 safe members and no links, devices, absolute paths, or parent traversal",
+        "BSD/GNU portable preflight temp-file contract passed",
+        "Independent 93a7b9d source export passed the artifact/release contract test",
+        "Independent source export passed all 32 release-governance tests",
+        "git diff-tree --check passed for 93a7b9d",
+        "Release package SHA-256 was independently rechecked as 5a4ff21aa944776bf3b5a4489d77290a186e3ffa6e8016a70e622f070bc896e7"
+      ],
+      "client_artifact": {
+        "artifact_id": 8675938396,
+        "client_tar_sha256": "1bae767735f53be05a9acbc5fceb7ec04b4bad7576f48f52d5a3ca73175f6c68",
+        "composed_index_sha256": "e50a1f4ba112abe37df27d5af4608bfa8b4b6c5cdcf06763960ba1b742f9f67e",
+        "run_id": 30326622161,
+        "zip_sha256": "015ab73f6e5ac4bbf84f5a19f48160e3072f7cf494669a18c5c45e84eb90410c"
+      },
+      "superseded_artifact": {
+        "artifact_id": 8675483264,
+        "reason": "The checksum file contained a nonportable artifacts/ path prefix and is not deployable.",
+        "run_id": 30325303899
+      }
+    },
+    "production_host": false,
+    "provider": "GitHub Actions run 30326622161 plus Codex independent source export",
+    "release_plan_sha256": "262c8e93ab67dfe23cc5aa7631f70d3091c91c0016ab980b90faa89a54339a72",
+    "source_revision": "93a7b9d58eb2a7f129b3025c9e0673afe93f965f",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The fixed-upstream Agent P0 Client UI is served through the existing LibreChat API without changing API, MongoDB, CodeAPI, RAG, NGINX, Admin Panel, Office Converter, files, Skills, conversations, or model configuration.",
@@ -63,8 +109,16 @@
   "project_id": "librechat-self-host",
   "release_id": "20260728-agent-platform-p0-ui",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "light",
+      "matched_rules": [
+        "client-ui",
+        "production-patch"
+      ],
+      "minimum_mode": "protected",
+      "path": ".release-state/20260728-agent-platform-p0-ui/release-plan.json"
+    },
+    "sha256": "262c8e93ab67dfe23cc5aa7631f70d3091c91c0016ab980b90faa89a54339a72"
   },
   "rollback_reference": {
     "details": {
@@ -82,7 +136,7 @@
   "source_revision": "93a7b9d58eb2a7f129b3025c9e0673afe93f965f",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-28T04:51:14Z",
+  "updated_at": "2026-07-28T04:56:22Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-07-28-agent-platform-p0-ui/scripts/test-release.py <downloaded-client-artifact.zip>; scripts/validate-release-governance.sh; git diff --check",
