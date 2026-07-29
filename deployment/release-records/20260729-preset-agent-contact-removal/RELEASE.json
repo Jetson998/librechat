@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260729-preset-agent-contact-removal/artifacts/20260729-preset-agent-contact-removal-6fc1737e3aae.tar.gz",
+      "manifest": ".release-state/20260729-preset-agent-contact-removal/artifacts/manifest.json",
+      "value": "ee11a0a87af4637a2cffe7160ec49e76cb06f398dc676b03ce3bc76cdeb2e3b3"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -14,23 +19,47 @@
   "baseline_reference": {
     "details": {
       "description": "The accepted 20260729-preset-workflow-agents release is the current production baseline; target preflight must revalidate the live seven-Agent snapshot before any write.",
+      "expected_legacy_contact": {
+        "email": "",
+        "name": "LibreChat Workflow Agent"
+      },
+      "expected_target_agents": 7,
+      "office_realm": "Office Converter",
+      "office_status": 401,
       "previous_release": "20260729-preset-workflow-agents",
       "previous_source_revision": "8b629a7b6924f91333a9768d4dd57f8063b50cbb",
-      "expected_target_agents": 7,
-      "expected_legacy_contact": {
-        "name": "LibreChat Workflow Agent",
-        "email": ""
-      },
-      "public_root_status": 200,
       "public_api_config_status": 200,
-      "office_status": 401,
-      "office_realm": "Office Converter"
+      "public_root_status": 200
     },
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "ee11a0a87af4637a2cffe7160ec49e76cb06f398dc676b03ce3bc76cdeb2e3b3",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "deployable-artifact",
+      "versioned-operation-artifact",
+      "data-change-tests",
+      "operation-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "build_root": "/private/tmp/librechat-contact-build.hgjvFm/repo",
+      "checks": [
+        "Detached exact source revision 6fc1737e3aae9cb9fa3745ec3113e45e411d87e4 in an independent local clone.",
+        "Contact migration fixture passed: seven legacy records updated, a second run left all seven unchanged, and rollback restored the exact original documents.",
+        "Preset Agent contact removal tests passed eight groups.",
+        "Original preset Workflow Agent operation tests passed seven groups against the updated compiled catalog.",
+        "Release governance validation passed all 32 tests and both governance Skills validated.",
+        "git diff --check passed and the detached validation tree remained clean.",
+        "Packaged artifact SHA-256 independently rechecked as ee11a0a87af4637a2cffe7160ec49e76cb06f398dc676b03ce3bc76cdeb2e3b3."
+      ]
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "1f912b0666e230b681f17dfdb11641044ff0e447b5b3da9f56f2d714cce1e693",
+    "source_revision": "6fc1737e3aae9cb9fa3745ec3113e45e411d87e4",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The seven managed preset Workflow Agents no longer expose a top-level support_contact, so Agent details do not show 联系: LibreChat Workflow Agent. Names, descriptions, tools, models, category, promotion, ACLs, conversation starters, personal Agents, Skills, files, conversations, and services remain unchanged.",
@@ -91,7 +120,7 @@
   "source_revision": "6fc1737e3aae9cb9fa3745ec3113e45e411d87e4",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-29T05:02:55Z",
+  "updated_at": "2026-07-29T05:15:02Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-operations/2026-07-29-preset-agent-contact-removal/scripts/test-release.py; python3 deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/test-release.py; scripts/validate-release-governance.sh; git diff --check",
