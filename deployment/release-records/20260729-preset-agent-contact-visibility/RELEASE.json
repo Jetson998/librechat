@@ -1,0 +1,110 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "active_client_mount": "/opt/librechat/agent-sidebar-menu-state/c01eb7dca1b7-20260729103015/client-dist",
+      "admin_root_status": 200,
+      "api_config_status": 200,
+      "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+      "description": "Accepted Agent sidebar Client before the preset contact visibility release.",
+      "office_realm": "Office Converter",
+      "office_status": 401,
+      "public_index_sha256": "ef79e21b7d2b24998972f34a32db4dfd8700ff1898cf2caae6fbe6316756f6b9",
+      "public_root_status": 200,
+      "previous_release": "20260728-agent-sidebar-menu-state"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Exactly seven system-managed preset Workflow Agents omit the entire contact row on market cards, Agent detail, and new-conversation welcome. Contact rendering for personal Agents and every Agent outside the exact stable-ID list remains unchanged.",
+    "functions": [
+      "Deploy the verified preset-agent-contact-visibility Client artifact",
+      "Return null from the shared AgentContact component for exactly seven stable preset Agent IDs",
+      "Preserve support contact, owner fallback, plain-name, and no-contact rendering for all other Agents",
+      "Preserve the accepted Agent market, sidebar, category, starter, model, tool, ACL, file, Skill, upload, generated-file, usage, login, search, and context-safety behavior",
+      "Capture the exact active Client mount and protected service identities before replacing only /app/client/dist:ro",
+      "Recreate only LibreChat-API and automatically restore the previous Client mount on deployment failure"
+    ],
+    "limitations": [
+      "The stable-ID list is intentionally exact; future preset Agent IDs require a reviewed source change",
+      "No Agent or user document is changed and the prior data-only contact-removal release remains rolled back",
+      "No billable model request is required or allowed",
+      "The binary Client ZIP is immutable and verified but is not committed to Git"
+    ],
+    "reason": "Remove the non-actionable Contact: LibreChat Workflow Agent line from the seven preset Agents without activating LibreChat's owner-contact fallback and without weakening contact support for user-created Agents.",
+    "risk": "A broad Client change could hide contact information from personal Agents, lose protected overlays, serve stale assets, or recreate unrelated services. The release locks the upstream archive, three source patches, seven exact IDs, successful CI run, independently reproduced ZIP, protected assets, active mount, service identities, and API-only Compose target.",
+    "scope": [
+      "deployment/production-patches/2026-07-29-preset-agent-contact-visibility"
+    ]
+  },
+  "created_at": "2026-07-29T15:37:31Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-patches/2026-07-29-preset-agent-contact-visibility/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260729-preset-agent-contact-visibility",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Run the versioned remote-rollback.sh with the timestamp-matched backup directory and runtime-preflight.json.",
+      "restore_scope": "Restore the exact pre-release compose.override.yaml and active /app/client/dist mount, then recreate only LibreChat-API.",
+      "unchanged_data": "Agents, users, ACLs, categories, files, Skills, conversations, models, MongoDB, CodeAPI, RAG, Admin Panel, NGINX, Office Converter, and Runtime Connector are outside the write scope."
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "a2091e91150518bb991b711d8e4174473d0ff424",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-29T15:39:00Z",
+  "validation_plan": [
+    {
+      "command": "scripts/verify-preset-agent-contact-visibility-overlay.sh <official-unpatched-source> <official-archive>; Client AgentContact Jest; Client typecheck; Client production build; protected asset contracts; python3 deployment/production-patches/2026-07-29-preset-agent-contact-visibility/scripts/test-release.py <release.zip>; scripts/validate-release-governance.sh; git diff --check",
+      "expected": "The three source overlays, twelve AgentContact tests, Client build, seven exact IDs, ten protected assets, immutable ZIP, API-only runner, and governance contracts pass.",
+      "type": "local"
+    },
+    {
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260729-preset-agent-contact-visibility --evidence <runtime-preflight.json>",
+      "expected": "The current Client hash and mount, exact artifact, public boundaries, protected service identities, resources, and rollback source pass with write_operations empty.",
+      "type": "preflight"
+    },
+    {
+      "command": "scripts/release-deploy.sh 20260729-preset-agent-contact-visibility --confirm 20260729-preset-agent-contact-visibility -- <release.zip> <runtime-preflight.json> <deployment-result.json>",
+      "expected": "Only LibreChat-API is recreated; the candidate Client is served; the old Client and Compose override are backed up; all protected services and application data remain unchanged.",
+      "type": "deployment"
+    },
+    {
+      "command": "Authenticated vip998 browser acceptance on Agent market, a preset Agent detail, a preset Agent new conversation, and a non-preset personal Agent contact control",
+      "expected": "The seven preset Agent contact rows are absent on all shared surfaces, while a non-preset Agent contact remains visible and protected Client features remain usable.",
+      "type": "business"
+    }
+  ]
+}
