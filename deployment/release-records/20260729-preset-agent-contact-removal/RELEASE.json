@@ -1,7 +1,15 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "data_integrity": "passed",
+      "evidence": ".release-state/20260729-preset-agent-contact-removal/acceptance-evidence-failed.json",
+      "observed_contact": "Admin",
+      "observed_contact_url": "mailto:admin@example.local",
+      "reason": "Removing support_contact activated LibreChat's author-contact fallback, so the contact row remained visible.",
+      "url": "https://152.32.172.162.sslip.io/agents"
+    },
+    "status": "failed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +21,15 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_created_before_write": true,
+      "backup_dir": "/opt/librechat/backups/preset-agent-contact-removal-6fc1737e3aae-20260729052919",
+      "before_snapshot_sha256": "d70496c2b1afbd70d99d0d1368787ae76cd30e70b80b75e4041b5fdec66f1e4a",
+      "restore_scope": "Restore only the seven stable managed Agent documents.",
+      "rollback_evidence": "/private/tmp/librechat-preset-agent-contact-removal-rollback-result.json",
+      "rollback_status": "passed"
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -101,8 +116,12 @@
   "project_id": "librechat-self-host",
   "release_id": "20260729-preset-agent-contact-removal",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "heavy",
+      "mode": "enhanced",
+      "path": ".release-state/20260729-preset-agent-contact-removal/release-plan.json"
+    },
+    "sha256": "1f912b0666e230b681f17dfdb11641044ff0e447b5b3da9f56f2d714cce1e693"
   },
   "rollback_reference": {
     "details": {
@@ -113,14 +132,33 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "after_snapshot_sha256": "ba15a3457c3b713a1bc205ff869bf0082ba7b558283c3fcc671458c11756d20a",
+      "before_snapshot_sha256": "d70496c2b1afbd70d99d0d1368787ae76cd30e70b80b75e4041b5fdec66f1e4a",
+      "catalog_digest": "64aa816ecd88f8c6382c7f13af93ee7f84da09a803c5d2cc4359327ebca72ce1",
+      "changed_services": [
+        "chat-mongodb:data"
+      ],
+      "containers_unchanged": true,
+      "deployed_at": "2026-07-29T05:29:22Z",
+      "deployment_evidence": "/private/tmp/librechat-preset-agent-contact-removal-deploy-result.json",
+      "restarted_services": [],
+      "restored_snapshot_sha256": "d70496c2b1afbd70d99d0d1368787ae76cd30e70b80b75e4041b5fdec66f1e4a",
+      "rollback_at": "2026-07-29T05:41:37Z",
+      "updated_agents": 7,
+      "write_scope": [
+        "agents"
+      ]
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "6fc1737e3aae9cb9fa3745ec3113e45e411d87e4",
-  "status": "planned",
-  "unresolved_issues": [],
-  "updated_at": "2026-07-29T05:15:02Z",
+  "status": "rolled_back",
+  "unresolved_issues": [
+    "The LibreChat client falls back to the Agent author contact when support_contact is absent. A separate frontend fix must suppress the contact row for managed preset Workflow Agents without removing contact support from personal Agents."
+  ],
+  "updated_at": "2026-07-29T05:42:00Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-operations/2026-07-29-preset-agent-contact-removal/scripts/test-release.py; python3 deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/test-release.py; scripts/validate-release-governance.sh; git diff --check",
