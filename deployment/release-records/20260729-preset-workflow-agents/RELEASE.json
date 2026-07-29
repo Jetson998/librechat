@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260729-preset-workflow-agents/artifacts/20260729-preset-workflow-agents-c3d121bcc85b.tar.gz",
+      "manifest": ".release-state/20260729-preset-workflow-agents/artifacts/manifest.json",
+      "value": "264571476ced9b97c9988551b2bb95b426af19345c06aae3baca0eb49c7c3366"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -34,8 +39,33 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "264571476ced9b97c9988551b2bb95b426af19345c06aae3baca0eb49c7c3366",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "deployable-artifact",
+      "versioned-operation-artifact",
+      "data-change-tests",
+      "operation-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact": ".release-state/20260729-preset-workflow-agents/artifacts/20260729-preset-workflow-agents-c3d121bcc85b.tar.gz",
+      "checks": [
+        "Exact source revision c3d121bcc85b95bb4f40aa9e01b39944b788a6a7 was exported into an independent temporary build directory",
+        "Seven versioned Workflow Manifests compiled deterministically and the compiled catalog digest remained 1d201b4a32d3d7cea3a1bee7d7f073d5fca660ae3d00df700c0f422189bf4e18",
+        "Preset Workflow Agent release tests passed 6 groups covering catalog identity, compiler freshness, script syntax, targeted data scope, secret scanning, and executable entry points",
+        "Release governance validation passed 32 tests after initializing isolated Git metadata for the exported source snapshot",
+        "The operation is limited to seven stable Agent IDs, their owner and PUBLIC viewer ACL entries, and eight related Agent category values",
+        "Shell, JavaScript, and Python operation entry points passed syntax validation and the deployment contract declares only chat-mongodb without container restart commands",
+        "git diff --check passed in the independent validation snapshot",
+        "Packaged artifact SHA-256 was independently rechecked as 264571476ced9b97c9988551b2bb95b426af19345c06aae3baca0eb49c7c3366"
+      ]
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "b171afc06795cc11f446d77874a22210b8a3dcbe12c4b65402cac89583bd7d77",
+    "source_revision": "c3d121bcc85b95bb4f40aa9e01b39944b788a6a7",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The Agent workspace shows seven public preset Workflow Agents on first open, all seven are promoted and grouped under the single automation-workflow category, the unused upstream HR/R&D/Finance/IT/Sales/After-sales categories are inactive, and normal users can use but cannot edit or delete the system Agents.",
@@ -97,7 +127,7 @@
   "source_revision": "c3d121bcc85b95bb4f40aa9e01b39944b788a6a7",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-29T03:50:33Z",
+  "updated_at": "2026-07-29T04:02:58Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/test-release.py; scripts/validate-release-governance.sh; git diff --check",
