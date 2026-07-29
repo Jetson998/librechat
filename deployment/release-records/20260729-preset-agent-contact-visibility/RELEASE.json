@@ -1,7 +1,32 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "billable_model_requests": 0,
+      "browser_acceptance": {
+        "desktop_overflow": false,
+        "market_contact_count": 0,
+        "preset_agent_count": 7,
+        "preset_detail_contact_count": 0,
+        "preset_welcome_contact_count": 0,
+        "verified_agent_id": "workflow_meeting-to-action"
+      },
+      "business_evidence": ".release-state/20260729-preset-agent-contact-visibility/business-acceptance.json",
+      "business_evidence_sha256": "15a94701416d087115abe9033c0ca1f52b0a3e9d4d4e846ef2c4fdb15be47c72",
+      "captured_at": "2026-07-29T19:45:13Z",
+      "evidence": ".release-state/20260729-preset-agent-contact-visibility/acceptance-result.json",
+      "evidence_sha256": "cb8eb8a03e7e6550844df2743f578aea778ab89a0b11c25c9b499451153d8e20",
+      "outside_allowlist_regression": "AgentContact 12/12 passed for the same source revision and artifact, including workflow_custom-agent with Visible Support contact.",
+      "public_checks": {
+        "api_config": 200,
+        "main_root": 200
+      },
+      "remaining_acceptance_limits": [
+        "vip998 had no existing non-preset or personal Agent live fixture; no production test Agent was created.",
+        "The Chrome viewport override did not change the claimed user tab viewport, so mobile layout was not recorded as verified."
+      ]
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +38,15 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_directory": "/opt/librechat/backups/preset-agent-contact-visibility-1e8c61efcb11-20260730032211",
+      "deployment_evidence": ".release-state/20260729-preset-agent-contact-visibility/deployment/deployment-result.json",
+      "deployment_evidence_sha256": "a89866fba1774be80d7a50d63c81f6c1fe6eb7f7e6f84a4c1157df02d90fa300",
+      "pre_release_client_mount": "/opt/librechat/agent-sidebar-menu-state/c01eb7dca1b7-20260729103015/client-dist",
+      "release_directory": "/opt/librechat/preset-agent-contact-visibility/1e8c61efcb11-20260730032211",
+      "restore_scope": "Restore the timestamp-matched Compose override and previous /app/client/dist mount, then recreate only LibreChat-API."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -114,8 +146,16 @@
   "project_id": "librechat-self-host",
   "release_id": "20260729-preset-agent-contact-visibility",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "light",
+      "matched_rules": [
+        "client-ui",
+        "production-patch"
+      ],
+      "minimum_mode": "protected",
+      "path": ".release-state/20260729-preset-agent-contact-visibility/release-plan.json"
+    },
+    "sha256": "ddc62c40799340bef81dcc605b89c1a8d623b1707e7f01524788352a1b39e6f9"
   },
   "rollback_reference": {
     "details": {
@@ -126,14 +166,49 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "api_container_after": "8ce9f2ee532a81018cc5b0c288a4789b06847ec8c9373b0f50eeb936b702cc66",
+      "api_container_before": "a783cccda70edc241cf2f686551571930b0883dc88e816031eaa78a096c09675",
+      "apply_evidence": ".release-state/20260729-preset-agent-contact-visibility/deployment/apply-result.json",
+      "apply_evidence_sha256": "097aeb7839aed2fa1da0097fb53b7f8a22c679d70af8e7da7e62327228cb001f",
+      "artifact_sha256": "9bc3c2fe8560465c0335c082843e68ff775ca99789b2223abccb7fc0f246581b",
+      "client_index_sha256": "d54e0ff4a0e5b839858e260693ee632b8b4018b21198fa68e906f46d053a4375",
+      "client_mount_after": "/opt/librechat/preset-agent-contact-visibility/1e8c61efcb11-20260730032211/client-dist",
+      "client_mount_before": "/opt/librechat/agent-sidebar-menu-state/c01eb7dca1b7-20260729103015/client-dist",
+      "compose_sha256_after": "a71f1999072ef4eed2d90364e5eb6ead2023e1928bbaf87d18ed7fa37d6ba8fb",
+      "compose_sha256_before": "8dd57eb7b6f8ce06a1b244d6b2411fb357febc623c93e8af411d3d9bc8f5d0d3",
+      "deployed_at": "2026-07-29T19:22:31Z",
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "recreated_services": [
+        "LibreChat-API"
+      ],
+      "runtime_evidence": ".release-state/20260729-preset-agent-contact-visibility/runtime-preflight.json",
+      "runtime_evidence_sha256": "aafda954e8ad92e592f4614d9c95a521e8af1a8547566856be201e80a685d0b5",
+      "unchanged_services": [
+        "LibreChat-NGINX",
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "LibreChat-Admin-Panel",
+        "chat-mongodb",
+        "office-converter.service"
+      ]
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "1e8c61efcb1139c31b28e4f8e3b084b17ccc7263",
-  "status": "planned",
-  "unresolved_issues": [],
-  "updated_at": "2026-07-29T18:44:47Z",
+  "status": "deployed",
+  "unresolved_issues": [
+    "Live outside-allowlist contact rendering was not observed because vip998 had no existing non-preset or personal Agent fixture; the same artifact's workflow_custom-agent component regression passed.",
+    "Mobile layout was not verified because the Chrome viewport override did not change the claimed user tab viewport."
+  ],
+  "updated_at": "2026-07-29T19:45:42Z",
   "validation_plan": [
     {
       "command": "scripts/verify-preset-agent-contact-visibility-overlay.sh <official-unpatched-source> <official-archive>; Client AgentContact Jest; Client typecheck; Client production build; protected asset contracts; python3 deployment/production-patches/2026-07-29-preset-agent-contact-visibility/scripts/test-release.py <release.zip>; scripts/validate-release-governance.sh; git diff --check",
