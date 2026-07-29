@@ -77,6 +77,10 @@
         "按订单号和金额对账这两份表，并生成差异明细",
         "保留原数据，生成一份可追溯的审计工作簿"
       ],
+      "support_contact": {
+        "name": "LibreChat Workflow Agent",
+        "email": ""
+      },
       "limits": {
         "maxInputFiles": 5,
         "maxVisibleArtifacts": 2
@@ -131,7 +135,7 @@
       "manifestDigest": "3bf99a86cfefb828e7a18904983a853f4edf9917face3fa73d8af62ff4bc7d37",
       "domain": "general",
       "priority": "P0",
-      "agentDigest": "88463a09ba9af14d39fe3f358cecd73a84fbefd832d7b379568e1dfcad904b1d"
+      "agentDigest": "0082a106f7ac8727132256f31097067e32f1908fbf468ffc19b69243538e5855"
     },
     {
       "id": "workflow_feedback-root-cause-analysis",
@@ -156,6 +160,10 @@
         "把工单按主题、影响和优先级分类",
         "生成一份客户问题整改清单 Excel"
       ],
+      "support_contact": {
+        "name": "LibreChat Workflow Agent",
+        "email": ""
+      },
       "limits": {
         "maxInputFiles": 5,
         "maxVisibleArtifacts": 2
@@ -212,7 +220,7 @@
       "manifestDigest": "d1521de48d88d5d7b5fd5aecfdd1d141b58202cd2481495cba75dccebe42399a",
       "domain": "general",
       "priority": "P1",
-      "agentDigest": "6ba9295e3657f7c106f7140be332aeaa100b8a76ea96702e57b8436c67066267"
+      "agentDigest": "d8f87c202f64bb98a1ff43277fb2a727ab6cbfbeefd073058a20021ee360aa37"
     },
     {
       "id": "workflow_journal-entry-audit",
@@ -237,6 +245,10 @@
         "检查期末手工分录、大额整数和罕见科目组合",
         "按我提供的审计规则生成可追溯的 Excel 结果"
       ],
+      "support_contact": {
+        "name": "LibreChat Workflow Agent",
+        "email": ""
+      },
       "limits": {
         "maxInputFiles": 5,
         "maxVisibleArtifacts": 2
@@ -293,7 +305,7 @@
       "manifestDigest": "290ec5a845c8b802cd3f617450a4ec20f50147f352f6445933ae2b576fb3e9c8",
       "domain": "financial",
       "priority": "P0",
-      "agentDigest": "3888d80c003356620190e971feaed756d5f772f118b3e43f257708b167f9f9a2"
+      "agentDigest": "daa29925f7941c847c1c04f230705f68ccd66946e886f05cfca018dea75f4a04"
     },
     {
       "id": "workflow_knowledge-base-curator",
@@ -318,6 +330,10 @@
         "找出上传文档中的重复、冲突和过期内容",
         "把资料整理成可导入知识库的 Excel"
       ],
+      "support_contact": {
+        "name": "LibreChat Workflow Agent",
+        "email": ""
+      },
       "limits": {
         "maxInputFiles": 5,
         "maxVisibleArtifacts": 3
@@ -374,7 +390,7 @@
       "manifestDigest": "da2605ebeca69eeee3fdf55851c6c07da65594f0ada2a5b5de67bbb5583a2b25",
       "domain": "general",
       "priority": "P0",
-      "agentDigest": "745f3151c4a4265dfb74b467fc1a67b419483d82447931714e4f6235e891a16b"
+      "agentDigest": "eee0396e0aa49f8ac46453499f055082e3c30306d12e1c652dd64b49bc5e8438"
     },
     {
       "id": "workflow_kyc-periodic-review",
@@ -400,6 +416,10 @@
         "核对客户档案完整性，并列出需要人工复核的风险信号",
         "汇总获准公开来源中的负面信息并保留证据链接"
       ],
+      "support_contact": {
+        "name": "LibreChat Workflow Agent",
+        "email": ""
+      },
       "limits": {
         "maxInputFiles": 5,
         "maxVisibleArtifacts": 2
@@ -455,7 +475,7 @@
       "manifestDigest": "e53524ff65f848c711cd53b0f71c5b81bf9a20063828717c6945c1ed2c13424e",
       "domain": "financial",
       "priority": "P0",
-      "agentDigest": "d57b5f9eb893f97d071c3b3e69f32b79c3c8abc3138638ca8d8f51e041a5f9ee"
+      "agentDigest": "1724fcefe8f454831782d0daa412a4fb03867f3fc6c73a1c14172879780e4f06"
     },
     {
       "id": "workflow_meeting-to-action",
@@ -480,6 +500,10 @@
         "从上传的会议转写中提取决策、风险和待确认事项",
         "生成一份可下载的会议执行台账 Excel"
       ],
+      "support_contact": {
+        "name": "LibreChat Workflow Agent",
+        "email": ""
+      },
       "limits": {
         "maxInputFiles": 5,
         "maxVisibleArtifacts": 2
@@ -534,7 +558,7 @@
       "manifestDigest": "fa67561b30e27d19187685ef9f4f6f5311d45c92dbcc335b6e65556e185f85a9",
       "domain": "general",
       "priority": "P0",
-      "agentDigest": "806f58681c27bb5c747ce573a11c27548ce928a4e2590fc31d204c7b00b7a389"
+      "agentDigest": "58d8c703b1460c470cb4c3763f49776e00abbe0f2fe45e9ed62cb6145adeba0f"
     },
     {
       "id": "workflow_policy-change-impact",
@@ -559,6 +583,10 @@
         "找出新制度对现有流程、系统和岗位的影响",
         "生成一份整改行动清单 Excel"
       ],
+      "support_contact": {
+        "name": "LibreChat Workflow Agent",
+        "email": ""
+      },
       "limits": {
         "maxInputFiles": 5,
         "maxVisibleArtifacts": 2
@@ -614,8 +642,8 @@
       "manifestDigest": "fa756b817436906a1cfca4d85e3eaa0a75ce7653f0f9ddc23fdda58b7edb0664",
       "domain": "general",
       "priority": "P1",
-      "agentDigest": "79ce064913e7400c2dc772141ad80144b7f4f519ba45a79eeeb10f7a107505f7"
+      "agentDigest": "34a42c0c7ee71dcfe5bfb3a3479f9d220b6ab327dd7bd3266f4209c84b46fe96"
     }
   ],
-  "compiledDigest": "64aa816ecd88f8c6382c7f13af93ee7f84da09a803c5d2cc4359327ebca72ce1"
+  "compiledDigest": "1d201b4a32d3d7cea3a1bee7d7f073d5fca660ae3d00df700c0f422189bf4e18"
 }

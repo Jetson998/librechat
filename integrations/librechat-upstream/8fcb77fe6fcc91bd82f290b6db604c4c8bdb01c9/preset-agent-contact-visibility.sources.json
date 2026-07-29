@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "integration_id": "preset-agent-contact-visibility",
+  "upstream": {
+    "repository": "https://github.com/danny-avila/LibreChat.git",
+    "commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "tree": "66d1547235bc3e0f61663778b386e0ec7ec72c58",
+    "archive_url": "https://codeload.github.com/danny-avila/LibreChat/tar.gz/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "archive_sha256": "0febede262457ec26413cb6b2bc9cec5411cb2e506105c369982efc214943bd2"
+  },
+  "base_overlays": [
+    {
+      "integration_id": "agent-platform-p0-ui",
+      "manifest": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json",
+      "manifest_sha256": "bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237",
+      "patch": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.patch",
+      "patch_sha256": "00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc"
+    },
+    {
+      "integration_id": "agent-sidebar-menu-state",
+      "manifest": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.sources.json",
+      "manifest_sha256": "f93a1f1cd7005fe2409a4b4e10f8cd49140cde9e2c0453ecd7278b47be60bad9",
+      "patch": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.patch",
+      "patch_sha256": "c37a97f87857bdcb2f9f877e27917774ef0f614718adf74e5b316f15716fc525"
+    }
+  ],
+  "patch": {
+    "path": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-contact-visibility.patch",
+    "sha256": "6699946b4662daec1005403aadc42a96d55ba27e70436ba8b74d148bc5c6f5d8"
+  },
+  "lockfile": {
+    "path": "package-lock.json",
+    "upstream_blob": "783b1f4ee01971d1daeba523293a6b7d69e68969",
+    "sha256": "dbf35a03491cf56fdffe3e69c123870b606ff304883847d81865f267f7e7c8bf"
+  },
+  "toolchain": {
+    "node": "24.14.1",
+    "npm": "11.11.0"
+  },
+  "commands": {
+    "install": "npm ci",
+    "build_packages": "npm run build:packages",
+    "client_typecheck": "npm run typecheck --workspace=@librechat/frontend",
+    "client_build": "npm run build --workspace=@librechat/frontend",
+    "targeted_tests": "npm run test:ci --workspace=@librechat/frontend -- --runInBand src/components/Agents/tests/AgentContact.spec.tsx"
+  },
+  "expected_output": "client/dist",
+  "files": [
+    {
+      "path": "client/src/components/Agents/AgentContact.tsx",
+      "base_blob": "73f85241656398d777ed56c191096338d6dd7ec4",
+      "result_blob": "080d5d122626482cf883a0d521279e50bce88a2b",
+      "status": "modified"
+    },
+    {
+      "path": "client/src/components/Agents/tests/AgentContact.spec.tsx",
+      "base_blob": "5225f6c85cfcf55b9237af4c78dacdeca8559a99",
+      "result_blob": "6297d87b437fa0057f24ec5651db2d6ecaed4b63",
+      "status": "modified"
+    }
+  ],
+  "runtime_overlay_guard": {
+    "commit": "60eba76375213dafc1874d943e41371201c300ab",
+    "files": [
+      {
+        "path": "integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/controller-runtime-bridge.patch",
+        "sha256": "ca43626191379ab8fec889d8e19a7f0e9387e11c33d06a7e3edcc140a2be36c9"
+      },
+      {
+        "path": "integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/README.md",
+        "sha256": "2c5d5d0cc22e0f1b270e4d38f367b31b6469cb45090605a9c85366e675e8c193"
+      }
+    ]
+  }
+}

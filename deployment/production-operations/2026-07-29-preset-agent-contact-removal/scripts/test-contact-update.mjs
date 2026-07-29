@@ -9,7 +9,7 @@ import vm from 'node:vm';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, '../../../..');
-const compiled = JSON.parse(
+const compiledSource = JSON.parse(
   await readFile(resolve(root, 'workflow-templates/preset-agents/compiled-agents.json'), 'utf8'),
 );
 const updateSource = await readFile(resolve(scriptDir, 'remove-support-contact.js'), 'utf8');
@@ -32,6 +32,23 @@ function canonicalize(value) {
 function digest(value) {
   return createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex');
 }
+
+const contactlessAgents = compiledSource.agents.map((agent) => {
+  const candidate = structuredClone(agent);
+  delete candidate.support_contact;
+  delete candidate.agentDigest;
+  candidate.agentDigest = digest(candidate);
+  return candidate;
+});
+const contactlessPayload = {
+  ...compiledSource,
+  agents: contactlessAgents,
+};
+delete contactlessPayload.compiledDigest;
+const compiled = {
+  ...contactlessPayload,
+  compiledDigest: digest(contactlessPayload),
+};
 
 function clone(value) {
   return structuredClone(value);

@@ -203,6 +203,10 @@ function buildAgent(manifest, profileText, manifestDigest) {
     hide_sequential_outputs: false,
     end_after_tools: false,
     conversation_starters: manifest.conversationStarters,
+    support_contact: {
+      name: 'LibreChat Workflow Agent',
+      email: '',
+    },
     limits: manifest.limits,
     inputContract: manifest.inputContract,
     outputContract: manifest.outputContract,

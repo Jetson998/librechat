@@ -18,6 +18,7 @@ SCRIPTS = OPERATION / "scripts"
 TEMPLATES = ROOT / "workflow-templates/preset-agents"
 SHARED = ROOT / "deployment/production-operations/2026-07-29-preset-workflow-agents/scripts"
 COMPILED = TEMPLATES / "compiled-agents.json"
+RECORD = ROOT / "deployment/release-records/20260729-preset-agent-contact-removal/RELEASE.json"
 EXPECTED_IDS = {
     "workflow_meeting-to-action",
     "workflow_knowledge-base-curator",
@@ -67,12 +68,17 @@ def test_compiled_catalog():
     assert {agent["id"] for agent in agents} == EXPECTED_IDS
     assert len({starter for agent in agents for starter in agent["conversation_starters"]}) == 21
     for agent in agents:
-        assert "support_contact" not in agent
+        assert agent["support_contact"] == {
+            "name": "LibreChat Workflow Agent",
+            "email": "",
+        }
         assert agent["provider"] == "anthropic"
         assert agent["model"] == "claude-fable-5"
         assert agent["category"] == "automation-workflow"
         assert agent["is_promoted"] is True
         assert "/mnt/data" in agent["instructions"]
+    record = json.loads(RECORD.read_text(encoding="utf-8"))
+    assert record["status"] == "rolled_back"
 
 
 def test_manifest_compiler_is_current():

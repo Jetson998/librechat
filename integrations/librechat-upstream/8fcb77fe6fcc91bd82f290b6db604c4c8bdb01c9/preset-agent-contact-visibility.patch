@@ -1,0 +1,87 @@
+diff --git a/client/src/components/Agents/AgentContact.tsx b/client/src/components/Agents/AgentContact.tsx
+index 73f8524..080d5d1 100644
+--- a/client/src/components/Agents/AgentContact.tsx
++++ b/client/src/components/Agents/AgentContact.tsx
+@@ -3,11 +3,25 @@ import { useLocalize } from '~/hooks';
+ import { cn } from '~/utils';
+ 
+ type AgentContactProps = {
+-  agent?: Pick<t.Agent, 'support_contact' | 'owner_contact'> | null;
++  agent?: Pick<t.Agent, 'id' | 'support_contact' | 'owner_contact'> | null;
+   className?: string;
+ };
+ 
++const HIDDEN_CONTACT_AGENT_IDS = new Set([
++  'workflow_meeting-to-action',
++  'workflow_knowledge-base-curator',
++  'workflow_excel-audit-reconciliation',
++  'workflow_policy-change-impact',
++  'workflow_feedback-root-cause-analysis',
++  'workflow_kyc-periodic-review',
++  'workflow_journal-entry-audit',
++]);
++
+ export default function AgentContact({ agent, className = '' }: AgentContactProps) {
++  if (agent?.id && HIDDEN_CONTACT_AGENT_IDS.has(agent.id)) {
++    return null;
++  }
++
+   const localize = useLocalize();
+   const supportName = agent?.support_contact?.name?.trim() ?? '';
+   const supportEmail = agent?.support_contact?.email?.trim() ?? '';
+diff --git a/client/src/components/Agents/tests/AgentContact.spec.tsx b/client/src/components/Agents/tests/AgentContact.spec.tsx
+index 5225f6c..6297d87 100644
+--- a/client/src/components/Agents/tests/AgentContact.spec.tsx
++++ b/client/src/components/Agents/tests/AgentContact.spec.tsx
+@@ -18,6 +18,51 @@ jest.mock('~/utils', () => ({
+ }));
+ 
+ describe('AgentContact', () => {
++  it.each([
++    'workflow_meeting-to-action',
++    'workflow_knowledge-base-curator',
++    'workflow_excel-audit-reconciliation',
++    'workflow_policy-change-impact',
++    'workflow_feedback-root-cause-analysis',
++    'workflow_kyc-periodic-review',
++    'workflow_journal-entry-audit',
++  ])('hides contact for managed preset Agent %s', (id) => {
++    const { container } = render(
++      <AgentContact
++        agent={
++          {
++            id,
++            support_contact: { name: 'LibreChat Workflow Agent' },
++            owner_contact: { name: 'Owner User', email: 'owner@example.com' },
++          } as any
++        }
++      />,
++    );
++
++    expect(container).toBeEmptyDOMElement();
++    expect(screen.queryByText('Contact:')).not.toBeInTheDocument();
++    expect(screen.queryByText('LibreChat Workflow Agent')).not.toBeInTheDocument();
++    expect(screen.queryByText('Owner User')).not.toBeInTheDocument();
++  });
++
++  it('keeps contact visible for an Agent outside the exact preset ID list', () => {
++    render(
++      <AgentContact
++        agent={
++          {
++            id: 'workflow_custom-agent',
++            support_contact: { name: 'Visible Support', email: 'support@example.com' },
++          } as any
++        }
++      />,
++    );
++
++    expect(screen.getByRole('link', { name: 'Visible Support' })).toHaveAttribute(
++      'href',
++      'mailto:support@example.com',
++    );
++  });
++
+   it('uses support contact before owner contact', () => {
+     render(
+       <AgentContact
