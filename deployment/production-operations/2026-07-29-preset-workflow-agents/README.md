@@ -52,7 +52,10 @@ workflow_journal-entry-audit
 ## Read-only Preflight
 
 `scripts/collect-preflight.sh` copies only the catalog and read-only inspection
-code to a temporary server directory. The remote preflight:
+code to a temporary server directory. It requires the exact source revision,
+release plan digest, and packaged artifact digest, then normalizes the remote
+snapshot into the repository release-governance evidence contract. The remote
+preflight:
 
 - verifies the compiled catalog digest;
 - snapshots the exact target Agent, ACL, and category documents as canonical
@@ -62,6 +65,14 @@ code to a temporary server directory. The remote preflight:
 - verifies the configured provider, model, and Agent capabilities;
 - records all protected container identities, host resources, and public health;
 - reports `write_operations: []`.
+
+Required environment values:
+
+```text
+RELEASE_SOURCE_REVISION
+RELEASE_PLAN_SHA256
+RELEASE_ARTIFACT_SHA256
+```
 
 The target snapshot is the rollback source and the apply drift lock.
 

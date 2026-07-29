@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -123,6 +124,79 @@ def test_script_syntax_and_modes():
     assert "docker restart" not in deploy_text
 
 
+def test_preflight_normalizer_contract():
+    source_revision = "c" * 40
+    release_plan_sha256 = "a" * 64
+    artifact_sha256 = "b" * 64
+    raw = {
+        "schema_version": 1,
+        "status": "passed",
+        "source_revision": source_revision,
+        "catalog": {"compiled_digest": "d" * 64, "agent_count": 7},
+        "data_snapshot_sha256": "e" * 64,
+        "data_snapshot": {},
+        "containers": {
+            "LibreChat-API": {"status": "running"},
+            "chat-mongodb": {"status": "running"},
+        },
+        "host_resources": {"memoryAvailableMb": 2048, "diskFreeMb": 16384},
+        "public_checks": {"mainRoot": {"status": 200}},
+        "write_operations": [],
+    }
+    with tempfile.TemporaryDirectory() as directory:
+        raw_path = Path(directory) / "raw.json"
+        output_path = Path(directory) / "normalized.json"
+        raw_path.write_text(json.dumps(raw), encoding="utf-8")
+        run(
+            [
+                "python3",
+                str(SCRIPTS / "normalize-preflight.py"),
+                str(raw_path),
+                str(output_path),
+                source_revision,
+                release_plan_sha256,
+                artifact_sha256,
+            ]
+        )
+        normalized = json.loads(output_path.read_text(encoding="utf-8"))
+        assert normalized["release_plan_sha256"] == release_plan_sha256
+        assert normalized["artifact_sha256"] == artifact_sha256
+        assert normalized["checked_services"] == ["LibreChat-API", "chat-mongodb"]
+        assert {item["id"] for item in normalized["checks"]} == {
+            "data-backup",
+            "dependency-interface",
+            "host-disk",
+            "host-memory",
+            "rollback-available",
+            "service-state",
+        }
+        assert normalized["host_resources"] == {
+            "memory_available_mb": 2048,
+            "disk_free_mb": 16384,
+        }
+        assert normalized["rollback_available"] is True
+        assert normalized["backup_reference"]["source_snapshot_sha256"] == "e" * 64
+
+        raw["write_operations"] = ["unexpected-write"]
+        raw_path.write_text(json.dumps(raw), encoding="utf-8")
+        failed = subprocess.run(
+            [
+                "python3",
+                str(SCRIPTS / "normalize-preflight.py"),
+                str(raw_path),
+                str(output_path),
+                source_revision,
+                release_plan_sha256,
+                artifact_sha256,
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert failed.returncode != 0
+
+
 def test_data_scope_is_targeted():
     seed = (SCRIPTS / "seed-agents.js").read_text(encoding="utf-8")
     rollback = (SCRIPTS / "rollback-agents.js").read_text(encoding="utf-8")
@@ -159,6 +233,7 @@ def test_executable_entrypoints():
         SCRIPTS / "collect-preflight.sh",
         SCRIPTS / "deploy.sh",
         SCRIPTS / "rollback.sh",
+        SCRIPTS / "normalize-preflight.py",
         SCRIPTS / "remote-preflight.py",
         SCRIPTS / "remote-apply.py",
         SCRIPTS / "remote-rollback.py",
@@ -171,6 +246,7 @@ def main():
         test_compiled_catalog,
         test_manifest_compiler_is_current,
         test_script_syntax_and_modes,
+        test_preflight_normalizer_contract,
         test_data_scope_is_targeted,
         test_no_embedded_secrets,
         test_executable_entrypoints,

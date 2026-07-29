@@ -3,6 +3,8 @@ set -Eeuo pipefail
 
 output_path="${1:?local runtime preflight output path is required}"
 test -n "${RELEASE_SOURCE_REVISION:-}"
+test -n "${RELEASE_PLAN_SHA256:-}"
+test -n "${RELEASE_ARTIFACT_SHA256:-}"
 
 operation_root="deployment/production-operations/2026-07-29-preset-workflow-agents"
 template_root="workflow-templates/preset-agents"
@@ -14,6 +16,7 @@ for path in \
   "$compiled_path" \
   "$script_dir/runtime_common.py" \
   "$script_dir/remote-preflight.py" \
+  "$script_dir/normalize-preflight.py" \
   "$script_dir/snapshot-targets.js" \
   "$transport_script"; do
   test -f "$path"
@@ -40,4 +43,10 @@ transport_exec "chmod 700 '$remote_stage/remote-preflight.py' && cd '$remote_sta
 
 mkdir -p "$(dirname "$output_path")"
 transport_copy_from "$remote_stage/runtime-preflight.json" "$output_path"
-python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); assert data["status"] == "passed"; assert data["write_operations"] == []; print(data["data_snapshot_sha256"])' "$output_path"
+python3 "$script_dir/normalize-preflight.py" \
+  "$output_path" \
+  "$output_path" \
+  "$RELEASE_SOURCE_REVISION" \
+  "$RELEASE_PLAN_SHA256" \
+  "$RELEASE_ARTIFACT_SHA256"
+python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); assert data["status"] == "passed"; assert data["write_operations"] == []; assert data["rollback_available"] is True' "$output_path"
