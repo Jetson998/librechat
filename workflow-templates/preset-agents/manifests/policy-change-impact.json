@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "templateId": "policy-change-impact",
+  "templateVersion": "1.0.0",
+  "engine": "librechat-native-agent-v1",
+  "display": {
+    "name": "制度版本差异与影响分析",
+    "description": "逐条比较新旧制度，识别新增、删除和修改内容，并形成影响对象与整改行动清单。"
+  },
+  "priority": "P1",
+  "domain": "general",
+  "category": "automation-workflow",
+  "provider": "anthropic",
+  "model": "claude-fable-5",
+  "requiredCapabilities": ["file_search", "execute_code"],
+  "tools": ["file_search", "execute_code"],
+  "inputContract": {
+    "summary": "同一制度的新旧版本，或一份新制度与现行业务流程说明。",
+    "acceptedFormats": ["text", ".docx", ".pdf", ".md", ".txt", ".xlsx", ".pptx"],
+    "missingInputBehavior": "无法区分新旧版本或缺少比较基准时，先要求用户标明版本和生效日期。"
+  },
+  "outputContract": {
+    "summary": "形成条款级差异、业务影响、责任部门和整改优先级。",
+    "artifactExtensions": [".docx", ".xlsx", ".md"],
+    "requiredSections": ["版本范围", "条款差异", "影响对象", "风险等级", "行动清单"]
+  },
+  "instructionProfile": "office-safe-v1",
+  "instructions": "先确认文件版本、发布日期、生效日期和适用范围，再按章节与条款建立对应关系。每条差异必须标记新增、删除、修改或仅格式变化，并引用新旧文件位置。影响分析要区分直接要求、合理推断和需要业务确认的影响，不把制度文字之外的判断写成确定结论。默认输出条款差异表；用户需要正式汇报时再生成 DOCX。",
+  "conversationStarters": [
+    "比较这两版制度，输出条款级差异和影响分析",
+    "找出新制度对现有流程、系统和岗位的影响",
+    "生成一份整改行动清单 Excel"
+  ],
+  "limits": {
+    "maxInputFiles": 5,
+    "maxVisibleArtifacts": 2
+  },
+  "acceptanceFixtures": [
+    {
+      "id": "two-policy-versions",
+      "prompt": "比较两份含新增、删除和修改条款的脱敏制度版本。",
+      "expectedSignals": ["新增", "删除", "修改", "来源位置", "行动清单"],
+      "expectedArtifactExtensions": [".xlsx"]
+    }
+  ]
+}

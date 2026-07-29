@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetson998.example/librechat/preset-workflow-agent.schema.json",
+  "title": "LibreChat preset workflow agent manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "templateId",
+    "templateVersion",
+    "engine",
+    "display",
+    "priority",
+    "domain",
+    "category",
+    "provider",
+    "model",
+    "requiredCapabilities",
+    "tools",
+    "inputContract",
+    "outputContract",
+    "instructionProfile",
+    "instructions",
+    "conversationStarters",
+    "limits",
+    "acceptanceFixtures"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "templateId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "templateVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "engine": { "const": "librechat-native-agent-v1" },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description"],
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "description": { "type": "string", "minLength": 10, "maxLength": 240 }
+      }
+    },
+    "priority": { "enum": ["P0", "P1"] },
+    "domain": { "enum": ["general", "financial"] },
+    "category": { "const": "automation-workflow" },
+    "provider": { "const": "anthropic" },
+    "model": { "const": "claude-fable-5" },
+    "requiredCapabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["execute_code", "file_search", "web_search"] }
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["execute_code", "file_search", "web_search"] }
+    },
+    "inputContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "acceptedFormats", "missingInputBehavior"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 5 },
+        "acceptedFormats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "missingInputBehavior": { "type": "string", "minLength": 10 }
+      }
+    },
+    "outputContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "artifactExtensions", "requiredSections"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 5 },
+        "artifactExtensions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^\\.[a-z0-9]+$" }
+        },
+        "requiredSections": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 2 }
+        }
+      }
+    },
+    "instructionProfile": { "const": "office-safe-v1" },
+    "instructions": { "type": "string", "minLength": 80 },
+    "conversationStarters": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 8, "maxLength": 120 }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxInputFiles", "maxVisibleArtifacts"],
+      "properties": {
+        "maxInputFiles": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "maxVisibleArtifacts": { "type": "integer", "minimum": 1, "maximum": 3 }
+      }
+    },
+    "acceptanceFixtures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "prompt", "expectedSignals", "expectedArtifactExtensions"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "prompt": { "type": "string", "minLength": 10 },
+          "expectedSignals": {
+            "type": "array",
+            "minItems": 2,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 2 }
+          },
+          "expectedArtifactExtensions": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^\\.[a-z0-9]+$" }
+          }
+        }
+      }
+    }
+  }
+}

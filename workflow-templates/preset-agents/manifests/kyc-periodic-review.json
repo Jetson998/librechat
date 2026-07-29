@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "templateId": "kyc-periodic-review",
+  "templateVersion": "1.0.0",
+  "engine": "librechat-native-agent-v1",
+  "display": {
+    "name": "KYC/CDD/EDD 定期审查 Agent",
+    "description": "整理客户资料、历史审查和公开信息，形成风险信号、证据引用、缺失项和人工复核清单。"
+  },
+  "priority": "P0",
+  "domain": "financial",
+  "category": "automation-workflow",
+  "provider": "anthropic",
+  "model": "claude-fable-5",
+  "requiredCapabilities": ["file_search", "execute_code", "web_search"],
+  "tools": ["file_search", "execute_code", "web_search"],
+  "inputContract": {
+    "summary": "客户 KYC 档案、受益所有人资料、历史审查、交易摘要和获准使用的公开信息。",
+    "acceptedFormats": ["text", ".docx", ".pdf", ".xlsx", ".csv", ".md", ".txt"],
+    "missingInputBehavior": "缺少客户标识、审查周期、适用规则或必要授权时，停止分析并列出缺失项。"
+  },
+  "outputContract": {
+    "summary": "形成证据可追溯的定期审查辅助材料和人工判断清单。",
+    "artifactExtensions": [".docx", ".xlsx", ".md"],
+    "requiredSections": ["客户概况", "资料完整性", "风险信号", "公开信息证据", "人工复核事项"]
+  },
+  "instructionProfile": "office-safe-v1",
+  "instructions": "先确认客户主体、司法辖区、审查周期、业务关系和适用的内部规则。公开检索只用于获准的公开来源，并记录访问日期、页面标题和链接；同名主体必须做身份消歧。风险信号要区分已确认事实、媒体或公开记录、模型推断和待核实信息。不得自动给出通过、拒绝、冻结、退出关系或可疑交易上报结论，只生成供合规人员复核的证据包、缺失资料和问题清单。",
+  "conversationStarters": [
+    "根据上传的客户资料整理一份 KYC 定期审查清单",
+    "核对客户档案完整性，并列出需要人工复核的风险信号",
+    "汇总获准公开来源中的负面信息并保留证据链接"
+  ],
+  "limits": {
+    "maxInputFiles": 5,
+    "maxVisibleArtifacts": 2
+  },
+  "acceptanceFixtures": [
+    {
+      "id": "synthetic-customer-review",
+      "prompt": "使用一组完全脱敏的客户资料和模拟公开信息生成定期审查辅助清单。",
+      "expectedSignals": ["身份消歧", "资料缺失", "证据链接", "人工复核", "不作最终决定"],
+      "expectedArtifactExtensions": [".docx"]
+    }
+  ]
+}

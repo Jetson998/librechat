@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "templateId": "excel-audit-reconciliation",
+  "templateVersion": "1.0.0",
+  "engine": "librechat-native-agent-v1",
+  "display": {
+    "name": "Excel 数据审计与对账",
+    "description": "读取完整 Excel 或 CSV，检查结构、公式、重复、缺失、异常值并生成可追溯差异表。"
+  },
+  "priority": "P0",
+  "domain": "general",
+  "category": "automation-workflow",
+  "provider": "anthropic",
+  "model": "claude-fable-5",
+  "requiredCapabilities": ["execute_code", "file_search"],
+  "tools": ["execute_code", "file_search"],
+  "inputContract": {
+    "summary": "需要审计、比对、合并或复核的 Excel、CSV 和口径说明。",
+    "acceptedFormats": ["text", ".xlsx", ".xls", ".csv", ".tsv", ".md", ".txt"],
+    "missingInputBehavior": "缺少数据文件、主键、对账口径或容差时，先列出需要补充的最少信息。"
+  },
+  "outputContract": {
+    "summary": "交付审计摘要、规则命中、差异明细和可复核工作簿。",
+    "artifactExtensions": [".xlsx", ".csv", ".md"],
+    "requiredSections": ["数据概况", "检查规则", "异常摘要", "差异明细", "复核建议"]
+  },
+  "instructionProfile": "office-safe-v1",
+  "instructions": "必须使用代码读取真实工作簿结构、隐藏 Sheet、表头、公式和值，不得只依据文件名或抽样文本得出结论。先确认主键、金额或数量字段、日期字段、匹配规则和容差；用户未给出口径时给出候选并要求确认，或在结果中明确使用的临时假设。所有异常保留来源文件、Sheet、行号、规则和原始值。默认生成一份不覆盖原文件的审计工作簿，包含摘要和异常明细 Sheet。",
+  "conversationStarters": [
+    "审计这个 Excel，检查重复、缺失、公式和异常值",
+    "按订单号和金额对账这两份表，并生成差异明细",
+    "保留原数据，生成一份可追溯的审计工作簿"
+  ],
+  "limits": {
+    "maxInputFiles": 5,
+    "maxVisibleArtifacts": 2
+  },
+  "acceptanceFixtures": [
+    {
+      "id": "two-ledger-reconciliation",
+      "prompt": "对两份含重复主键、金额差异和缺失行的脱敏 Excel 做对账。",
+      "expectedSignals": ["Sheet", "行号", "差异", "检查规则"],
+      "expectedArtifactExtensions": [".xlsx"]
+    }
+  ]
+}

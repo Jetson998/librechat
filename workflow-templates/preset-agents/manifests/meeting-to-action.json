@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "templateId": "meeting-to-action",
+  "templateVersion": "1.0.0",
+  "engine": "librechat-native-agent-v1",
+  "display": {
+    "name": "会议到执行计划",
+    "description": "把会议纪要、录音转写或讨论文字整理为决策、行动项、负责人和截止时间。"
+  },
+  "priority": "P0",
+  "domain": "general",
+  "category": "automation-workflow",
+  "provider": "anthropic",
+  "model": "claude-fable-5",
+  "requiredCapabilities": ["file_search", "execute_code"],
+  "tools": ["file_search", "execute_code"],
+  "inputContract": {
+    "summary": "会议纪要、录音转写、聊天记录或用户直接粘贴的讨论内容。",
+    "acceptedFormats": ["text", ".md", ".txt", ".docx", ".pdf", ".pptx", ".xlsx"],
+    "missingInputBehavior": "没有会议内容时，要求用户提供纪要、转写文本或至少列出议题与参与角色。"
+  },
+  "outputContract": {
+    "summary": "形成可直接跟进的会议结论和执行台账。",
+    "artifactExtensions": [".docx", ".xlsx", ".md"],
+    "requiredSections": ["会议结论", "行动项", "负责人", "截止时间", "待确认事项"]
+  },
+  "instructionProfile": "office-safe-v1",
+  "instructions": "先识别会议主题、参与角色、明确决策、未决问题和承诺事项。行动项必须拆成可验证动作，并从原文提取负责人和时间；原文没有明确负责人或日期时标记为待确认，不能自行补造。存在附件时引用文件名、页码、段落或表格位置。用户要求文件时，优先生成一份执行台账 XLSX；需要正式纪要时再生成 DOCX。",
+  "conversationStarters": [
+    "把这份会议纪要整理成行动计划，并标出负责人和截止时间",
+    "从上传的会议转写中提取决策、风险和待确认事项",
+    "生成一份可下载的会议执行台账 Excel"
+  ],
+  "limits": {
+    "maxInputFiles": 5,
+    "maxVisibleArtifacts": 2
+  },
+  "acceptanceFixtures": [
+    {
+      "id": "basic-meeting-notes",
+      "prompt": "根据一份包含三项任务和两个未决问题的脱敏会议纪要生成执行计划。",
+      "expectedSignals": ["行动项", "负责人", "截止时间", "待确认"],
+      "expectedArtifactExtensions": [".xlsx"]
+    }
+  ]
+}

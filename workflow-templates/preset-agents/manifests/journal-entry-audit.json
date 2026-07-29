@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "templateId": "journal-entry-audit",
+  "templateVersion": "1.0.0",
+  "engine": "librechat-native-agent-v1",
+  "display": {
+    "name": "总账与会计分录审计 Agent",
+    "description": "按规则检查总账和会计分录，识别异常时间、金额、账户组合、制单人和手工调整。"
+  },
+  "priority": "P0",
+  "domain": "financial",
+  "category": "automation-workflow",
+  "provider": "anthropic",
+  "model": "claude-fable-5",
+  "requiredCapabilities": ["execute_code", "file_search"],
+  "tools": ["execute_code", "file_search"],
+  "inputContract": {
+    "summary": "总账、分录明细、科目表、制单人信息、期间口径和审计规则。",
+    "acceptedFormats": ["text", ".xlsx", ".xls", ".csv", ".tsv", ".docx", ".pdf", ".md"],
+    "missingInputBehavior": "缺少字段映射、期间、币种、借贷方向或审计规则时，先要求补充或确认临时口径。"
+  },
+  "outputContract": {
+    "summary": "交付规则命中、异常分录、样本依据和可复核审计工作底稿。",
+    "artifactExtensions": [".xlsx", ".csv", ".md"],
+    "requiredSections": ["数据与期间", "审计规则", "异常分录", "证据样本", "人工复核建议"]
+  },
+  "instructionProfile": "office-safe-v1",
+  "instructions": "必须用代码读取完整数据并保留原始行号或分录 ID。先核对字段映射、借贷平衡、币种、期间和科目层级，再执行用户给定规则；没有规则时只可使用明确列出的通用异常检查，并在结果中说明。重点检查非工作时间或期末分录、整数或大额、罕见科目组合、重复说明、手工调整、异常制单人与借贷不平。规则命中不是舞弊结论，必须输出人工复核建议和原始证据。",
+  "conversationStarters": [
+    "审计这份总账和分录表，生成异常分录工作底稿",
+    "检查期末手工分录、大额整数和罕见科目组合",
+    "按我提供的审计规则生成可追溯的 Excel 结果"
+  ],
+  "limits": {
+    "maxInputFiles": 5,
+    "maxVisibleArtifacts": 2
+  },
+  "acceptanceFixtures": [
+    {
+      "id": "synthetic-journal-review",
+      "prompt": "审计一份包含借贷不平、期末手工分录和重复说明的脱敏分录表。",
+      "expectedSignals": ["分录 ID", "规则命中", "借贷不平", "人工复核", "非舞弊结论"],
+      "expectedArtifactExtensions": [".xlsx"]
+    }
+  ]
+}

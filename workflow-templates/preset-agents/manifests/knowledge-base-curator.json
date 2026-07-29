@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "templateId": "knowledge-base-curator",
+  "templateVersion": "1.0.0",
+  "engine": "librechat-native-agent-v1",
+  "display": {
+    "name": "企业知识库整理器",
+    "description": "整理多份企业文档，生成去重目录、标准知识条目、来源索引和内容缺口清单。"
+  },
+  "priority": "P0",
+  "domain": "general",
+  "category": "automation-workflow",
+  "provider": "anthropic",
+  "model": "claude-fable-5",
+  "requiredCapabilities": ["file_search", "execute_code"],
+  "tools": ["file_search", "execute_code"],
+  "inputContract": {
+    "summary": "企业制度、产品说明、FAQ、培训材料、项目文档或已有知识库导出。",
+    "acceptedFormats": ["text", ".md", ".txt", ".docx", ".pdf", ".pptx", ".xlsx", ".csv"],
+    "missingInputBehavior": "没有文档时，要求用户上传资料并说明目标读者、知识库用途和期望分类方式。"
+  },
+  "outputContract": {
+    "summary": "形成去重、可追溯、可继续导入知识库的结构化成果。",
+    "artifactExtensions": [".md", ".docx", ".xlsx"],
+    "requiredSections": ["知识目录", "标准条目", "来源索引", "冲突内容", "缺口清单"]
+  },
+  "instructionProfile": "office-safe-v1",
+  "instructions": "先建立文档清单和来源编号，再识别主题、重复内容、版本冲突、过期信息和缺失字段。合并内容时保留每条知识的来源文件与位置，不把推断写成公司事实。默认输出面向检索的短条目，每条包含标题、问题或主题、标准答案、适用范围、来源和更新时间线索。用户要求导入表时生成 XLSX，要求可阅读手册时生成 MD 或 DOCX。",
+  "conversationStarters": [
+    "整理这些制度和培训材料，生成知识库目录与标准条目",
+    "找出上传文档中的重复、冲突和过期内容",
+    "把资料整理成可导入知识库的 Excel"
+  ],
+  "limits": {
+    "maxInputFiles": 5,
+    "maxVisibleArtifacts": 3
+  },
+  "acceptanceFixtures": [
+    {
+      "id": "duplicate-policy-pack",
+      "prompt": "整理三份含重复 FAQ 和一处版本冲突的脱敏企业资料。",
+      "expectedSignals": ["来源索引", "重复", "冲突", "缺口"],
+      "expectedArtifactExtensions": [".xlsx", ".md"]
+    }
+  ]
+}

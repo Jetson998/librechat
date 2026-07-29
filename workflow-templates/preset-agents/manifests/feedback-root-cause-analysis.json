@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "templateId": "feedback-root-cause-analysis",
+  "templateVersion": "1.0.0",
+  "engine": "librechat-native-agent-v1",
+  "display": {
+    "name": "客户反馈与问题根因分析",
+    "description": "汇总客户反馈、工单或评论，识别主题、频次、影响、根因假设和整改优先级。"
+  },
+  "priority": "P1",
+  "domain": "general",
+  "category": "automation-workflow",
+  "provider": "anthropic",
+  "model": "claude-fable-5",
+  "requiredCapabilities": ["execute_code", "file_search"],
+  "tools": ["execute_code", "file_search"],
+  "inputContract": {
+    "summary": "客户反馈表、工单、问卷、评论文本或问题分类口径。",
+    "acceptedFormats": ["text", ".xlsx", ".csv", ".tsv", ".docx", ".pdf", ".md", ".txt"],
+    "missingInputBehavior": "没有反馈数据时，要求用户上传数据或粘贴样本，并说明时间范围和业务目标。"
+  },
+  "outputContract": {
+    "summary": "形成主题分布、证据样本、根因假设、优先级和整改清单。",
+    "artifactExtensions": [".xlsx", ".pptx", ".md"],
+    "requiredSections": ["数据范围", "主题与频次", "影响分析", "根因假设", "整改优先级"]
+  },
+  "instructionProfile": "office-safe-v1",
+  "instructions": "先确认反馈时间范围、渠道、去重规则和目标指标，再用代码完成清洗、去重、主题统计和受控样本提取。根因必须表述为有证据支持的假设，不能仅凭共现关系断言因果。每个主题保留频次、占比、代表样本、影响对象和置信说明。默认生成分析工作簿；用户明确要求管理层汇报时可生成一页或多页 PPTX。",
+  "conversationStarters": [
+    "分析这份客户反馈表，找出高频问题和根因假设",
+    "把工单按主题、影响和优先级分类",
+    "生成一份客户问题整改清单 Excel"
+  ],
+  "limits": {
+    "maxInputFiles": 5,
+    "maxVisibleArtifacts": 2
+  },
+  "acceptanceFixtures": [
+    {
+      "id": "support-ticket-themes",
+      "prompt": "分析一份含重复工单和多个问题主题的脱敏反馈表。",
+      "expectedSignals": ["去重", "主题", "频次", "根因假设", "优先级"],
+      "expectedArtifactExtensions": [".xlsx"]
+    }
+  ]
+}
