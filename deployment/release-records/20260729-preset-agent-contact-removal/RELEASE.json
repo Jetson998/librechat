@@ -1,0 +1,117 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "The accepted 20260729-preset-workflow-agents release is the current production baseline; target preflight must revalidate the live seven-Agent snapshot before any write.",
+      "previous_release": "20260729-preset-workflow-agents",
+      "previous_source_revision": "8b629a7b6924f91333a9768d4dd57f8063b50cbb",
+      "expected_target_agents": 7,
+      "expected_legacy_contact": {
+        "name": "LibreChat Workflow Agent",
+        "email": ""
+      },
+      "public_root_status": 200,
+      "public_api_config_status": 200,
+      "office_status": 401,
+      "office_realm": "Office Converter"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The seven managed preset Workflow Agents no longer expose a top-level support_contact, so Agent details do not show 联系: LibreChat Workflow Agent. Names, descriptions, tools, models, category, promotion, ACLs, conversation starters, personal Agents, Skills, files, conversations, and services remain unchanged.",
+    "functions": [
+      "Stop the deterministic preset catalog compiler from injecting the legacy support_contact field.",
+      "Run a versioned target operation against exactly seven stable managed Agent IDs.",
+      "Validate the persisted drift digest and prove the contact is the only intended catalog difference.",
+      "Unset support_contact, advance the persisted template digest, and append a contact-free version snapshot.",
+      "Verify ACLs, categories, owner records, access roles, protected containers, and public boundaries are unchanged.",
+      "Create a targeted backup and automatically restore the exact seven Agent documents if apply or verification fails."
+    ],
+    "limitations": [
+      "This release changes the current records for the seven system-managed preset Agents only.",
+      "LibreChat generic support contact schema and user-created Agent contact editing remain available.",
+      "No billable model request is required; browser acceptance checks the rendered Agent detail and API state.",
+      "No service is restarted or rebuilt during the data-only operation."
+    ],
+    "reason": "The seven preset Workflow Agents currently contain a placeholder LibreChat Workflow Agent contact with no usable email. It adds noise to the Agent detail and is not a real support channel.",
+    "risk": "A broad or incorrect Mongo update could alter user Agents, ACLs, categories, or version history. The operation uses stable IDs, managedBy and digest guards, a read-only snapshot, agents-only write scope, exact targeted backup/rollback, and post-write equality checks for all non-Agent target data.",
+    "scope": [
+      "docs/PRESET_WORKFLOW_AGENT_CONTACT_REMOVAL_PLAN.md",
+      "workflow-templates/preset-agents",
+      "deployment/production-operations/2026-07-29-preset-agent-contact-removal"
+    ]
+  },
+  "created_at": "2026-07-29T05:02:55Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-operations/2026-07-29-preset-agent-contact-removal/scripts/deploy.sh",
+    "package_required_paths": [
+      "deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/runtime_common.py",
+      "deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/ssh-transport.sh"
+    ],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260729-preset-agent-contact-removal",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Run deployment/production-operations/2026-07-29-preset-agent-contact-removal/scripts/rollback.sh with the timestamp-matched backup directory and a local result path.",
+      "restore_scope": "Replace only the seven stable managed Agent documents with the exact preflight EJSON. Do not touch ACLs, categories, users, Skills, files, conversations, or services.",
+      "restore_source": "The runtime preflight data_snapshot copied into the timestamped production backup before the first Mongo write."
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "6fc1737e3aae9cb9fa3745ec3113e45e411d87e4",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-29T05:02:55Z",
+  "validation_plan": [
+    {
+      "command": "python3 deployment/production-operations/2026-07-29-preset-agent-contact-removal/scripts/test-release.py; python3 deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/test-release.py; scripts/validate-release-governance.sh; git diff --check",
+      "expected": "The compiled catalog omits support_contact, the migration is proven by an in-memory update/idempotence/rollback fixture, both Agent operation contracts pass, governance tests pass, and the tree has no whitespace errors.",
+      "type": "local"
+    },
+    {
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260729-preset-agent-contact-removal --evidence <runtime-preflight.json>",
+      "expected": "The exact seven-Agent snapshot, legacy contact scope, owner and access roles, runtime capabilities, protected service identities, resources, and public checks pass with write_operations empty.",
+      "type": "preflight"
+    },
+    {
+      "command": "scripts/release-deploy.sh --confirm 20260729-preset-agent-contact-removal 20260729-preset-agent-contact-removal -- <runtime-preflight.json> <deployment-result.json>",
+      "expected": "Only the seven managed Agent documents are updated; support_contact is absent after the write, non-Agent target snapshot sections are unchanged, no service restarts, and a timestamped backup is recorded.",
+      "type": "deployment"
+    },
+    {
+      "command": "Authenticated vip998 browser/API acceptance on desktop and mobile",
+      "expected": "The seven preset Agents remain visible and their details no longer show 联系: LibreChat Workflow Agent; personal Agent, Skill, file, and conversation entry points remain available.",
+      "type": "business"
+    }
+  ]
+}
