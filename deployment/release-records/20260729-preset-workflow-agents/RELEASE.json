@@ -1,7 +1,18 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "account": "vip998",
+      "browser_evidence": ".release-state/20260729-preset-workflow-agents/acceptance-evidence.json",
+      "desktop_agent_cards": 7,
+      "desktop_categories": ["精选", "自动化工作流", "全部"],
+      "mobile_agent_cards": 7,
+      "selected_agent": "会议到执行计划",
+      "selected_agent_input_placeholder": "发送消息给 会议到执行计划",
+      "edit_controls": 0,
+      "delete_controls": 0,
+      "evidence": ".release-state/20260729-preset-workflow-agents/acceptance-result.json"
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +24,13 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/preset-workflow-agents-31632abfb98b-20260729042927",
+      "before_snapshot_sha256": "ac95f4c8dbb4a4ed7e0b51ce0adbc0d9c5a6428ae96a38621b0ca4caa0518142",
+      "restore_scope": "Restore only the seven stable Workflow Agent IDs, their fourteen target ACL entries, and the eight related category values. Do not restart services or touch unrelated data.",
+      "backup_created_before_write": true
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -109,8 +125,12 @@
   "project_id": "librechat-self-host",
   "release_id": "20260729-preset-workflow-agents",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "path": ".release-state/20260729-preset-workflow-agents/release-plan.json",
+      "mode": "enhanced",
+      "acceptance_level": "heavy"
+    },
+    "sha256": "357cda5ae4d4cd47f3ef42a5521f27482a3c7ac8ce592125cce3db6ff067b974"
   },
   "rollback_reference": {
     "details": {
@@ -121,14 +141,36 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "deployed_at": "2026-07-29T04:29:30Z",
+      "artifact_sha256": "bb43dac632ca8fda99a64ff9cb252e8de4b15a3c19a257d4e343bb2585a33bea",
+      "catalog_digest": "1d201b4a32d3d7cea3a1bee7d7f073d5fca660ae3d00df700c0f422189bf4e18",
+      "before_snapshot_sha256": "ac95f4c8dbb4a4ed7e0b51ce0adbc0d9c5a6428ae96a38621b0ca4caa0518142",
+      "after_snapshot_sha256": "db6b2413b8e9f55a4d3ba4cb2e86e134dd56033a65e578c38b9036cbd2c0a7e1",
+      "created_agents": 7,
+      "owner_acl_upserts": 7,
+      "public_acl_upserts": 7,
+      "categories_disabled": 7,
+      "active_category": "automation-workflow",
+      "changed_services": ["chat-mongodb:data"],
+      "restarted_services": [],
+      "containers_unchanged": true,
+      "public_checks": {
+        "main_root": 200,
+        "api_config": 200,
+        "admin_root": 200,
+        "office_boundary": 401,
+        "office_realm": "Office Converter"
+      },
+      "evidence": ".release-state/20260729-preset-workflow-agents/deployment-result.json"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "31632abfb98bcdd02216a5018718f8f99a612f22",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-29T04:23:11Z",
+  "updated_at": "2026-07-29T04:38:12Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/test-release.py; scripts/validate-release-governance.sh; git diff --check",
@@ -141,7 +183,7 @@
       "type": "preflight"
     },
     {
-      "command": "scripts/release-deploy.sh 20260729-preset-workflow-agents --confirm 20260729-preset-workflow-agents -- <runtime-preflight.json> <deployment-result.json>",
+      "command": "scripts/release-deploy.sh --confirm 20260729-preset-workflow-agents 20260729-preset-workflow-agents -- <runtime-preflight.json> <deployment-result.json>",
       "expected": "Exactly seven managed Agents and fourteen owner/public ACL entries are present, only the target category values change, no container restarts, and a timestamped targeted backup is recorded.",
       "type": "deployment"
     },
