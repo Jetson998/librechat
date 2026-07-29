@@ -1,0 +1,123 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "active_default_categories": [
+        "general",
+        "hr",
+        "rd",
+        "finance",
+        "it",
+        "sales",
+        "aftersales"
+      ],
+      "catalog_digest": "1d201b4a32d3d7cea3a1bee7d7f073d5fca660ae3d00df700c0f422189bf4e18",
+      "description": "Production Agent marketplace before the preset Workflow Agent release",
+      "existing_target_agents": 0,
+      "office_realm": "Office Converter",
+      "office_status": 401,
+      "public_api_config_status": 200,
+      "public_root_status": 200,
+      "target_data_snapshot_sha256": "ac95f4c8dbb4a4ed7e0b51ce0adbc0d9c5a6428ae96a38621b0ca4caa0518142"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The Agent workspace shows seven public preset Workflow Agents on first open, all seven are promoted and grouped under the single automation-workflow category, the unused upstream HR/R&D/Finance/IT/Sales/After-sales categories are inactive, and normal users can use but cannot edit or delete the system Agents.",
+    "functions": [
+      "Define seven versioned Workflow Template Manifests and compile them deterministically into stable LibreChat Agent records",
+      "Use the existing anthropic/claude-fable-5 Agent provider and the production execute_code, file_search, and web_search capabilities",
+      "Resolve the existing ADMIN owner and Agent access roles at runtime without storing production ObjectIds in Git",
+      "Upsert one owner ACL and one PUBLIC viewer ACL for each managed Agent",
+      "Promote all seven Agents and assign the automation-workflow category",
+      "Deactivate only the seven non-custom upstream default categories",
+      "Lock apply to the signed target Mongo snapshot and protected container identities",
+      "Create a targeted Extended JSON backup and automatically restore it if seed or post-write verification fails",
+      "Preserve every unrelated Agent, Skill, file, conversation, user, ACL, service, model, and Office route"
+    ],
+    "limitations": [
+      "The first engine profile is librechat-native-agent-v1 and does not claim that the non-production File Agent Runtime or a workflow checkpoint state machine is active",
+      "This release publishes reviewed system Agents but does not open public marketplace publishing to ordinary users",
+      "The KYC and journal-entry Agents provide auxiliary review material and never make final regulated decisions",
+      "Production acceptance does not use real sensitive KYC, accounting, or customer data",
+      "No billable model request is required for the release gate; business-quality fixtures remain a separate acceptance stage"
+    ],
+    "reason": "The 2026-07-28 Agent UI and sidebar releases intentionally excluded market templates. Production therefore has zero Agent records while still showing seven empty upstream default categories, so vip998 cannot see any of the seven previously approved preset Agents.",
+    "risk": "This is an enhanced persistent-data release. Incorrect Agent ownership or ACLs could hide the cards, expose edit rights, or create duplicates; broad category or rollback queries could affect user data. The operation uses seven stable IDs, PUBLIC viewer-only grants, non-custom category filters, a signed read-only target snapshot, exact container identity locks, targeted backup/restore, idempotent digests, automatic rollback, and no service restart.",
+    "scope": [
+      "docs/PRESET_WORKFLOW_AGENTS_MARKET_RELEASE_PLAN.md",
+      "workflow-templates/preset-agents",
+      "deployment/production-operations/2026-07-29-preset-workflow-agents"
+    ]
+  },
+  "created_at": "2026-07-29T03:50:33Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260729-preset-workflow-agents",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Run deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/rollback.sh with the timestamp-matched backup directory and a local result path.",
+      "restore_scope": "Restore only the seven stable Workflow Agent IDs, their target ACL entries, and the eight related category values from the signed Extended JSON snapshot. Do not restart services or touch unrelated Agent, Skill, file, conversation, user, or ACL data.",
+      "restore_source": "The runtime preflight data_snapshot copied into the timestamped production backup before the first Mongo write."
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "c3d121bcc85b95bb4f40aa9e01b39944b788a6a7",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-29T03:50:33Z",
+  "validation_plan": [
+    {
+      "command": "python3 deployment/production-operations/2026-07-29-preset-workflow-agents/scripts/test-release.py; scripts/validate-release-governance.sh; git diff --check",
+      "expected": "Seven manifests, compiled digests, allowed tools, script syntax, data scope, credential scanning, executable entry points, and all release-governance tests pass.",
+      "type": "local"
+    },
+    {
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260729-preset-workflow-agents --evidence <runtime-preflight.json>",
+      "expected": "The exact target Agent/ACL/category snapshot, ADMIN owner, access roles, provider/model capabilities, protected service identities, resources, and public checks pass with write_operations empty.",
+      "type": "preflight"
+    },
+    {
+      "command": "scripts/release-deploy.sh 20260729-preset-workflow-agents --confirm 20260729-preset-workflow-agents -- <runtime-preflight.json> <deployment-result.json>",
+      "expected": "Exactly seven managed Agents and fourteen owner/public ACL entries are present, only the target category values change, no container restarts, and a timestamped targeted backup is recorded.",
+      "type": "deployment"
+    },
+    {
+      "command": "Authenticated vip998 browser acceptance on desktop and mobile plus authenticated Agent/category API inspection",
+      "expected": "Seven preset cards are visible, unwanted default categories are absent, selecting an Agent opens a new conversation, ordinary users have no edit/delete controls, and existing personal Agent/Skill/File entry points remain available.",
+      "type": "business"
+    }
+  ]
+}
