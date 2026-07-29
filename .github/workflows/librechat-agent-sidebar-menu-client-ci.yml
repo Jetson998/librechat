@@ -12,11 +12,14 @@ on:
       - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.sources.json'
       - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-contact-visibility.patch'
       - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-contact-visibility.sources.json'
+      - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-guidance-terminology.patch'
+      - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-guidance-terminology.sources.json'
       - 'integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/client-overlay-manifest.json'
       - 'integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/**'
       - 'scripts/verify-agent-platform-p0-ui-overlay.sh'
       - 'scripts/verify-agent-sidebar-menu-state-overlay.sh'
       - 'scripts/verify-preset-agent-contact-visibility-overlay.sh'
+      - 'scripts/verify-agent-guidance-terminology-overlay.sh'
       - 'scripts/compose-agent-platform-client.sh'
       - 'deployment/production-patches/*/client/**'
   workflow_dispatch:
@@ -47,8 +50,8 @@ jobs:
           cache: npm
           cache-dependency-path: upstream/package-lock.json
 
-      - name: Verify preset Agent contact visibility overlay
-        run: scripts/verify-preset-agent-contact-visibility-overlay.sh upstream
+      - name: Verify Agent guidance and terminology overlay
+        run: scripts/verify-agent-guidance-terminology-overlay.sh upstream
 
       - name: Apply Agent P0 UI patch
         run: >-
@@ -65,6 +68,11 @@ jobs:
           git -C upstream apply --whitespace=error-all
           "$GITHUB_WORKSPACE/integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-contact-visibility.patch"
 
+      - name: Apply Agent guidance and terminology patch
+        run: >-
+          git -C upstream apply --whitespace=error-all
+          "$GITHUB_WORKSPACE/integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-guidance-terminology.patch"
+
       - name: Install pinned dependencies
         working-directory: upstream
         run: npm ci
@@ -79,9 +87,11 @@ jobs:
           npm run test:ci -- --runInBand
           src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
           src/components/Agents/tests/MyAgentsView.spec.tsx
+          src/components/Agents/tests/AgentCard.spec.tsx
           src/hooks/Nav/useUnifiedSidebarLinks.spec.tsx
           src/locales/agentWorkspaceLocales.spec.ts
           src/components/Agents/tests/AgentGrid.integration.spec.tsx
+          src/components/Chat/Input/__tests__/ConversationStarters.spec.tsx
           src/components/Agents/tests/Accessibility.spec.tsx
           src/components/SidePanel/Agents/Tools/__tests__/ToolsMarketplaceDialog.spec.tsx
           src/components/SidePanel/Agents/Tools/__tests__/ToolsSection.spec.tsx
@@ -123,6 +133,7 @@ jobs:
           cp integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json artifacts/
           cp integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.sources.json artifacts/
           cp integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-contact-visibility.sources.json artifacts/
+          cp integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-guidance-terminology.sources.json artifacts/
 
       - name: Write Client artifact checksum
         working-directory: artifacts
