@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "component": "preset-agent-contact-visibility-client",
+  "source": {
+    "repository_commit": "b87a1f3da70f2a354d8cbb58f2a87007ec58804b",
+    "upstream_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "base_patch_sha256": "00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc",
+    "sidebar_patch_sha256": "c37a97f87857bdcb2f9f877e27917774ef0f614718adf74e5b316f15716fc525",
+    "contact_patch_sha256": "6699946b4662daec1005403aadc42a96d55ba27e70436ba8b74d148bc5c6f5d8"
+  },
+  "github_actions": {
+    "workflow": "LibreChat Agent Sidebar Menu Client",
+    "run_id": 30436620515,
+    "artifact_id": 8717748098,
+    "artifact_name": "librechat-agent-sidebar-menu-client-8fcb77f",
+    "head_sha": "b87a1f3da70f2a354d8cbb58f2a87007ec58804b",
+    "status": "completed",
+    "conclusion": "success",
+    "completed_at": "2026-07-29T08:46:21Z",
+    "expires_at": "2026-08-12T08:46:17Z",
+    "reported_artifact_size": 15294844,
+    "reported_artifact_sha256": "5e0938b7c888d04c7ba04ff4c3838620d3c5707fe6e79b36af3978e9ef2947f9",
+    "url": "https://github.com/Jetson998/librechat/actions/runs/30436620515"
+  },
+  "artifact": {
+    "origin": "independent-build-reproduction",
+    "zip_size": 15275980,
+    "zip_sha256": "56264deee0e95de4b093e5ca2c7febc0f2f18bf5dbcb0142e2e8d20cd221ee51",
+    "members": {
+      "agent-platform-client-overlay.json": "cb2a727a12eac77bbf062e85e2d490c923217d8c5243bd3fe0f0b8ce934e7bf4",
+      "agent-platform-p0-ui.sources.json": "bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237",
+      "agent-sidebar-menu-state.sources.json": "f93a1f1cd7005fe2409a4b4e10f8cd49140cde9e2c0453ecd7278b47be60bad9",
+      "preset-agent-contact-visibility.sources.json": "45fca4a81e6f9056787a89bcac17c5e906b9fea8136e01d2dc0da4e10286847e",
+      "client-dist.tar.gz": "bdfcf277efca7d2b553299deec8aaff51687fc4aef81374b28a18be3c13711bd",
+      "client-dist.tar.gz.sha256": "953ecdecd7b692c16895907eb591fa4e813606598b54caa671bfc085e7344f50"
+    },
+    "checksum_line": "bdfcf277efca7d2b553299deec8aaff51687fc4aef81374b28a18be3c13711bd  client-dist.tar.gz",
+    "tar_members": 355,
+    "tar_files": 352,
+    "tar_directories": 3
+  },
+  "client": {
+    "composed_index_sha256": "d54e0ff4a0e5b839858e260693ee632b8b4018b21198fa68e906f46d053a4375",
+    "base_index_sha256": "22a98c3eb15abb635ef843809a85bfedf2379cb2e93bf620cd6b6b00176d63a3",
+    "overlay_id": "librechat-protected-client-assets",
+    "asset_count": 10,
+    "hidden_contact_agent_ids": [
+      "workflow_meeting-to-action",
+      "workflow_knowledge-base-curator",
+      "workflow_excel-audit-reconciliation",
+      "workflow_policy-change-impact",
+      "workflow_feedback-root-cause-analysis",
+      "workflow_kyc-periodic-review",
+      "workflow_journal-entry-audit"
+    ]
+  },
+  "independent_build": {
+    "node": "24.14.1",
+    "npm": "11.11.0",
+    "source_archive_sha256": "0febede262457ec26413cb6b2bc9cec5411cb2e506105c369982efc214943bd2",
+    "checks": [
+      "three-layer overlay replay",
+      "AgentContact Jest 12/12",
+      "Client TypeScript typecheck",
+      "Client production build",
+      "protected Client asset source contracts",
+      "protected Client composition"
+    ]
+  },
+  "production_baseline": {
+    "public_index_sha256": "ef79e21b7d2b24998972f34a32db4dfd8700ff1898cf2caae6fbe6316756f6b9",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  }
+}
