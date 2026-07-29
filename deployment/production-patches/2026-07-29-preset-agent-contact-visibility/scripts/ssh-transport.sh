@@ -15,9 +15,15 @@ transport_prepare() {
     return
   fi
 
-  printf 'Production SSH password for %s@%s: ' "$user" "$host" >&2
-  IFS= read -r -s LIBRECHAT_SSH_PASSWORD
-  printf '\n' >&2
+  if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+    printf '%s\n' \
+      'Production SSH requires key authentication or an interactive control terminal.' >&2
+    return 1
+  fi
+
+  printf 'Production SSH password for %s@%s: ' "$user" "$host" >/dev/tty
+  IFS= read -r -s LIBRECHAT_SSH_PASSWORD </dev/tty
+  printf '\n' >/dev/tty
   test -n "$LIBRECHAT_SSH_PASSWORD"
   export LIBRECHAT_SSH_PASSWORD
   LIBRECHAT_SSH_MODE="password"

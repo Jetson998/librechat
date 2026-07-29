@@ -99,7 +99,14 @@ def main() -> None:
         'baseline["containers"]' in apply and "protected container changed" in apply,
         "protected container identities are not enforced",
     )
-    check("/dev/tty" not in transport, "SSH password input bypasses inherited stdin")
+    check(
+        'read -r -s LIBRECHAT_SSH_PASSWORD </dev/tty' in transport,
+        "SSH password input must use the interactive control terminal",
+    )
+    check(
+        "requires key authentication or an interactive control terminal" in transport,
+        "non-interactive SSH failure is not explicit",
+    )
     check(
         'librechat-agent-contact-visibility-runtime.XXXXXX"' in collect
         and "librechat-agent-contact-visibility-runtime.XXXXXX." not in collect,

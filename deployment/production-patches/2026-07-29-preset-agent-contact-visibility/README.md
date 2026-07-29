@@ -71,6 +71,19 @@ The release runner declares exactly:
 release-governance:targets=LibreChat-API
 ```
 
+## Release Runner Credential Handling
+
+The first protected apply attempt on 2026-07-29 stopped before the first SSH
+connection because the governance wrapper captures runner output and the
+password prompt inherited a non-interactive stdin. No remote deployment command
+ran and production remained on the accepted sidebar Client mount.
+
+The versioned transport now prefers SSH key authentication and otherwise reads
+the password only from the interactive control terminal at `/dev/tty`. It fails
+closed with an explicit error when neither key authentication nor a control
+terminal is available. The password is never written to the repository,
+release evidence, command arguments, or environment configuration.
+
 ## Preflight
 
 The versioned collector records the active Client mount and hash, Compose and
