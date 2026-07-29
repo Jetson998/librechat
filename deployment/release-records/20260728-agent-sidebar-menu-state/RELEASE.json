@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260728-agent-sidebar-menu-state/artifacts/20260728-agent-sidebar-menu-state-c01eb7dca1b7.tar.gz",
+      "manifest": ".release-state/20260728-agent-sidebar-menu-state/artifacts/manifest.json",
+      "value": "770ae69fce15ad85a9817789b4823bd9103fa29797b4eb2ceb64042f2d6cc184"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -25,8 +30,60 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "770ae69fce15ad85a9817789b4823bd9103fa29797b4eb2ceb64042f2d6cc184",
+    "build_environment": "ci",
+    "completed_requirements": [
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "client-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "checks": [
+        "Pinned Client workflow completed successfully for source e5f162c75e5bcb32be48c4ba28da0c84aa079491",
+        "Release source c01eb7dca1b7513f7e278faac54c6dae07f3598c triggered both matching Client workflows and both completed successfully",
+        "15 focused Agent and sidebar suites passed with 137 tests",
+        "Client typecheck and production build passed with 9307 modules",
+        "The downloaded ZIP matched GitHub artifact digest d4f1848acdacb5240fa46dedff65b09726a92ca99844f119be2ce44655a118c2",
+        "Client tar contained 355 safe members and matched c32fd952eac54b90369043e50e050486a5ecb58291d051c9fdc5f67a6a00503e",
+        "Both source manifests, the composed index, and ten protected assets passed the versioned release contract",
+        "The release package was generated from source c01eb7dca1b7513f7e278faac54c6dae07f3598c and matched 770ae69fce15ad85a9817789b4823bd9103fa29797b4eb2ceb64042f2d6cc184",
+        "All build and packaging work ran outside the production host"
+      ],
+      "pinned_client_artifact": {
+        "artifact_id": 8679020809,
+        "client_tar_sha256": "c32fd952eac54b90369043e50e050486a5ecb58291d051c9fdc5f67a6a00503e",
+        "composed_index_sha256": "ef79e21b7d2b24998972f34a32db4dfd8700ff1898cf2caae6fbe6316756f6b9",
+        "run_id": 30335517499,
+        "source_revision": "e5f162c75e5bcb32be48c4ba28da0c84aa079491",
+        "zip_sha256": "d4f1848acdacb5240fa46dedff65b09726a92ca99844f119be2ce44655a118c2"
+      },
+      "release_source_ci": [
+        {
+          "artifact_digest": "b11b6c91bab0265ccda445002df5f64b8169085a3847820b85ceed003bd8dfc5",
+          "artifact_id": 8679806211,
+          "conclusion": "success",
+          "run_id": 30337537377,
+          "status": "completed",
+          "workflow": "LibreChat Agent Platform Client"
+        },
+        {
+          "artifact_digest": "438fe1c2818dd54bd23f3d9195f80546de5d270651ea754ab854fb016f1b93ce",
+          "artifact_id": 8679808202,
+          "conclusion": "success",
+          "run_id": 30337537416,
+          "status": "completed",
+          "workflow": "LibreChat Agent Sidebar Menu Client"
+        }
+      ]
+    },
+    "production_host": false,
+    "provider": "GitHub Actions runs 30335517499, 30337537377, and 30337537416 plus Codex independent release packaging",
+    "release_plan_sha256": "68e242462c653ebef4bf795774796a00b785f59ffb739b9f4e17508f368c5032",
+    "source_revision": "c01eb7dca1b7513f7e278faac54c6dae07f3598c",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The Agent entry and workspace title display Agent, Agent routes show the selected background, and a second click collapses the sidebar without changing APIs, data, files, Skills, models, or protected services.",
@@ -83,7 +140,7 @@
   "source_revision": "c01eb7dca1b7513f7e278faac54c6dae07f3598c",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-28T07:14:22Z",
+  "updated_at": "2026-07-29T02:24:02Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-07-28-agent-sidebar-menu-state/scripts/test-release.py <downloaded-client-artifact.zip>; scripts/validate-release-governance.sh; git diff --check",
