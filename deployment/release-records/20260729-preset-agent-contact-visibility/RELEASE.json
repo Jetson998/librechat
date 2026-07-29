@@ -4,13 +4,8 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {
-      "algorithm": "sha256",
-      "artifact": ".release-state/20260729-preset-agent-contact-visibility/artifacts/20260729-preset-agent-contact-visibility-a2091e911505.tar.gz",
-      "manifest": ".release-state/20260729-preset-agent-contact-visibility/artifacts/manifest.json",
-      "value": "81e23c40b32a81192059747ee41998a7cb66e384c01665eaa91095caceb3eb29"
-    },
-    "status": "passed"
+    "details": {},
+    "status": "pending"
   },
   "backup_reference": {
     "details": {},
@@ -32,51 +27,8 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "81e23c40b32a81192059747ee41998a7cb66e384c01665eaa91095caceb3eb29",
-    "build_environment": "independent-build",
-    "completed_requirements": [
-      "client-bundle",
-      "deployable-artifact",
-      "versioned-patch-artifact",
-      "client-tests",
-      "patch-contract-tests",
-      "release-scope-tests"
-    ],
-    "details": {
-      "checks": [
-        "Three-layer upstream overlay replay passed",
-        "AgentContact Jest passed 12 of 12 tests",
-        "Client TypeScript typecheck passed",
-        "Client production build passed with 9307 modules",
-        "Protected Client source, composition, upload, login, usage, search, context-safety, generated-file, and asset contracts passed",
-        "The independent Client ZIP and tar matched their recorded SHA-256 digests",
-        "The release package was generated from source a2091e91150518bb991b711d8e4174473d0ff424 and matched 81e23c40b32a81192059747ee41998a7cb66e384c01665eaa91095caceb3eb29",
-        "All build and packaging work ran outside the production host"
-      ],
-      "github_actions": {
-        "artifact_id": 8717748098,
-        "conclusion": "success",
-        "head_sha": "b87a1f3da70f2a354d8cbb58f2a87007ec58804b",
-        "reported_artifact_sha256": "5e0938b7c888d04c7ba04ff4c3838620d3c5707fe6e79b36af3978e9ef2947f",
-        "run_id": 30436620515,
-        "status": "completed",
-        "workflow": "LibreChat Agent Sidebar Menu Client"
-      },
-      "independent_client_artifact": {
-        "client_tar_sha256": "bdfcf277efca7d2b553299deec8aaff51687fc4aef81374b28a18be3c13711bd",
-        "composed_index_sha256": "d54e0ff4a0e5b839858e260693ee632b8b4018b21198fa68e906f46d053a4375",
-        "protected_asset_count": 10,
-        "source_revision": "b87a1f3da70f2a354d8cbb58f2a87007ec58804b",
-        "tar_members": 355,
-        "upstream_revision": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
-        "zip_sha256": "56264deee0e95de4b093e5ca2c7febc0f2f18bf5dbcb0142e2e8d20cd221ee51"
-      }
-    },
-    "production_host": false,
-    "provider": "GitHub Actions run 30436620515 plus Codex independent Client reproduction and release packaging",
-    "release_plan_sha256": "9c1f283d7e328aa133109e12fd47b23513d0366dcd498c7e42f925ccf98f331f",
-    "source_revision": "a2091e91150518bb991b711d8e4174473d0ff424",
-    "status": "passed"
+    "details": {},
+    "status": "pending"
   },
   "change_summary": {
     "expected_result": "Exactly seven system-managed preset Workflow Agents omit the entire contact row on market cards, Agent detail, and new-conversation welcome. Contact rendering for personal Agents and every Agent outside the exact stable-ID list remains unchanged.",
@@ -129,10 +81,10 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "a2091e91150518bb991b711d8e4174473d0ff424",
+  "source_revision": "1e8c61efcb1139c31b28e4f8e3b084b17ccc7263",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-29T18:14:29Z",
+  "updated_at": "2026-07-29T18:40:04Z",
   "validation_plan": [
     {
       "command": "scripts/verify-preset-agent-contact-visibility-overlay.sh <official-unpatched-source> <official-archive>; Client AgentContact Jest; Client typecheck; Client production build; protected asset contracts; python3 deployment/production-patches/2026-07-29-preset-agent-contact-visibility/scripts/test-release.py <release.zip>; scripts/validate-release-governance.sh; git diff --check",
@@ -145,7 +97,7 @@
       "type": "preflight"
     },
     {
-      "command": "scripts/release-deploy.sh 20260729-preset-agent-contact-visibility --confirm 20260729-preset-agent-contact-visibility -- <release.zip> <runtime-preflight.json> <deployment-result.json>",
+      "command": "scripts/release-deploy.sh --confirm 20260729-preset-agent-contact-visibility 20260729-preset-agent-contact-visibility <release.zip> <runtime-preflight.json> <deployment-result.json>",
       "expected": "Only LibreChat-API is recreated; the candidate Client is served; the old Client and Compose override are backed up; all protected services and application data remain unchanged.",
       "type": "deployment"
     },
