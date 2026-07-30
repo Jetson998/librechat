@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260731-agent-category-dedup-count-fix/artifacts/20260731-agent-category-dedup-count-fix-56b91fa68a8c.tar.gz",
+      "manifest": ".release-state/20260731-agent-category-dedup-count-fix/artifacts/manifest.json",
+      "value": "b37875dfbc8046fadbb4f8683c8aa51dd52ae0774b3ac9145b3f09a35544447c"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -23,8 +28,45 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "b37875dfbc8046fadbb4f8683c8aa51dd52ae0774b3ac9145b3f09a35544447c",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "client-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "checks": [
+        "Pinned official upstream archive SHA-256 matched 0febede262457ec26413cb6b2bc9cec5411cb2e506105c369982efc214943bd2",
+        "Five-layer upstream overlay replay passed",
+        "Three focused Client test files passed 24 of 24 tests",
+        "Client TypeScript typecheck passed",
+        "Client production build passed",
+        "Protected Client composition passed with 10 assets",
+        "Versioned release contract and immutable artifact verification passed",
+        "Client ZIP contains exactly 8 files and the Client tar contains 355 members without AppleDouble entries",
+        "32 release-governance tests and both repository Skills validation passed",
+        "No build, dependency installation, model request, or Client compilation ran on the production host"
+      ],
+      "client_artifact": {
+        "client_tar_sha256": "16f276419989af6bd1c83157a0bdec9aa8f07e812cab07123f12a74041a012c0",
+        "composed_index_sha256": "26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544",
+        "origin": "independent-build",
+        "runtime_category_patch_sha256": "f3ea605fc928318f8b1b56ad4f3cb480adad8cf733be5b56ee8ad5f1fd819ee9",
+        "source_revision": "29a1e5ea9fae489d36b8b4a69a351a232dbbe001",
+        "tar_members": 355,
+        "upstream_revision": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+        "zip_sha256": "4c962d7b5ec44ffefe8cd339a8efa5d20d87b1d19020f7a6f7e45cd7ca8fdcd9"
+      }
+    },
+    "production_host": false,
+    "provider": "Codex independent build",
+    "release_plan_sha256": "3073f3a97605b51e7f8a1d4c83fef9efe45272030375882b593559bcec1c72d1",
+    "source_revision": "56b91fa68a8c1f7c682f7a7af717194bd565adc3",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The /agents workspace shows only 精选 Agent and 全部 when the sole business category contains the same seven records as promoted; each view contains seven cards, while the prior Agent runtime identity, starters, contact visibility, and personal Agent controls remain unchanged.",
@@ -61,8 +103,50 @@
   "project_id": "librechat-self-host",
   "release_id": "20260731-agent-category-dedup-count-fix",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_checks": [
+        "browser-ui",
+        "changed-path-smoke"
+      ],
+      "acceptance_level": "light",
+      "affected_services": [
+        "LibreChat-API",
+        "LibreChat-NGINX"
+      ],
+      "build_requirements": [
+        "client-bundle",
+        "deployable-artifact",
+        "versioned-patch-artifact"
+      ],
+      "deployment_targets": [
+        "LibreChat-API"
+      ],
+      "matched_rules": [
+        "client-ui",
+        "production-patch"
+      ],
+      "preflight_checks": [
+        "dependency-interface",
+        "host-disk",
+        "host-memory",
+        "rollback-available",
+        "service-state"
+      ],
+      "public_acceptance_checks": [
+        "api-config",
+        "main-root"
+      ],
+      "public_preflight_checks": [
+        "api-config",
+        "main-root"
+      ],
+      "test_requirements": [
+        "client-tests",
+        "patch-contract-tests",
+        "release-scope-tests"
+      ]
+    },
+    "sha256": "3073f3a97605b51e7f8a1d4c83fef9efe45272030375882b593559bcec1c72d1"
   },
   "rollback_reference": {
     "details": {
@@ -80,7 +164,7 @@
   "source_revision": "56b91fa68a8c1f7c682f7a7af717194bd565adc3",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-30T20:39:23Z",
+  "updated_at": "2026-07-30T20:41:42Z",
   "validation_plan": [
     {
       "command": "scripts/verify-preset-agent-runtime-category-fix-overlay.sh <official-unpatched-source> <official-archive>; three focused Client tests; Client typecheck/build; protected Client composition; versioned artifact and release contract tests; scripts/validate-release-governance.sh; git diff --check",
