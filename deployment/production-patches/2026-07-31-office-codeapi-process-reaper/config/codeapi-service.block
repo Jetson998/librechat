@@ -1,0 +1,22 @@
+  codeapi:
+    image: local/librechat-codeapi:office
+    pull_policy: never
+    container_name: LibreChat-CodeAPI
+    init: true
+    user: sandbox
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1536m
+    memswap_limit: 3072m
+    pids_limit: 256
+    environment:
+      CODEAPI_DATA_DIR: /srv/codeapi-data
+      CODEAPI_EXEC_TIMEOUT: "90"
+      CODEAPI_MAX_EXEC_TIMEOUT: "180"
+      CODEAPI_MAX_UPLOAD_BYTES: "157286400"
+      CODEAPI_MAX_ARTIFACT_BYTES: "209715200"
+    volumes:
+      - /opt/librechat/codeapi-data:/srv/codeapi-data
