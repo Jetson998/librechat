@@ -57,15 +57,7 @@
     "billable_model_request_allowed": false,
     "deploy_runner": "deployment/production-patches/2026-07-30-agent-guidance-terminology/scripts/deploy.sh",
     "package_required_paths": [],
-    "protected_services": [
-      "LibreChat-API",
-      "LibreChat-NGINX",
-      "LibreChat-CodeAPI",
-      "LibreChat-RAG-API",
-      "LibreChat-Admin-Panel",
-      "chat-mongodb",
-      "office-converter.service"
-    ],
+    "protected_services": [],
     "release_kind": "batch",
     "release_plan": "computed-from-change-summary.scope-at-verify"
   },
