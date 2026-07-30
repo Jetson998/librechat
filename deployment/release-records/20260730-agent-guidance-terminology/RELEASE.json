@@ -1,0 +1,117 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "active_client_mount": "/opt/librechat/preset-agent-contact-visibility/1e8c61efcb11-20260730032211/client-dist",
+      "api_config_status": 200,
+      "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+      "description": "Accepted preset contact visibility Client before Agent guidance and terminology release.",
+      "office_realm": "Office Converter",
+      "office_status": 401,
+      "previous_release": "20260729-preset-agent-contact-visibility",
+      "public_index_sha256": "d54e0ff4a0e5b839858e260693ee632b8b4018b21198fa68e906f46d053a4375",
+      "public_root_status": 200
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Seven preset Agents show the heading 可以这样开始 with three starter prompts, Agent-specific workspace wording uses 精选 Agent and Agent instead of 助手 or 自动化工作流, and ordinary or personal Agent configured contact remains visible.",
+    "functions": [
+      "Provide three visible conversation starters for exactly seven preset Agent IDs",
+      "Prefer configured conversation_starters for ordinary and personal Agents",
+      "Use Agent terminology for the Agent workspace, cards, categories, and Agent-specific tool descriptions",
+      "Keep the backend automation-workflow category value and Assistant product wording unchanged",
+      "Preserve the prior seven preset Agent contact-row visibility behavior",
+      "Replace only the LibreChat-API Client bind mount and recreate only LibreChat-API"
+    ],
+    "limitations": [
+      "No billable model request is required or allowed",
+      "The seven preset Agent IDs and starter prompts are exact source contracts",
+      "Live production acceptance depends on the existing vip998 session and available non-preset Agent fixture",
+      "The immutable Client ZIP is independently reproduced and is not committed to Git"
+    ],
+    "reason": "Give users an immediate answer to what they can send after starting a preset Agent conversation and unify Agent terminology across the Agent workspace without changing Agent data or backend category semantics.",
+    "risk": "A broad Client overlay could alter ordinary Agent starters, Assistant tools wording, protected assets, or unrelated services. The release locks the pinned upstream archive, four overlay patches, exact seven-Agent starter contract, successful CI run, independent ZIP, protected Client overlay, active production mount, service identities, and API-only Compose target.",
+    "scope": [
+      "deployment/production-patches/2026-07-30-agent-guidance-terminology"
+    ]
+  },
+  "created_at": "2026-07-30T03:09:19Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-patches/2026-07-30-agent-guidance-terminology/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [
+      "LibreChat-API",
+      "LibreChat-NGINX",
+      "LibreChat-CodeAPI",
+      "LibreChat-RAG-API",
+      "LibreChat-Admin-Panel",
+      "chat-mongodb",
+      "office-converter.service"
+    ],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260730-agent-guidance-terminology",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Run the versioned remote-rollback.sh with the timestamp-matched backup directory and runtime-preflight.json.",
+      "restore_scope": "Restore the exact pre-release Compose override and active Client mount, then recreate only LibreChat-API.",
+      "unchanged_data": "Agents, users, ACLs, categories, files, Skills, conversations, models, MongoDB, CodeAPI, RAG, Admin Panel, NGINX, Office Converter, and Runtime Connector are outside the write scope."
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "f5f02300f53f9526ddf62a86c8b74f3e7e525b26",
+  "status": "ready",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-30T03:09:19Z",
+  "validation_plan": [
+    {
+      "command": "scripts/verify-agent-guidance-terminology-overlay.sh <official-unpatched-source> <official-archive>; 18 focused Client test files; Client typecheck; Client production build; protected asset contracts; versioned artifact contract; scripts/validate-release-governance.sh; git diff --check",
+      "expected": "The four-layer overlay replay, 180 focused tests, Client build, exact seven-Agent starter and terminology contracts, protected assets, immutable ZIP, API-only runner, and governance contracts pass.",
+      "type": "local"
+    },
+    {
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260730-agent-guidance-terminology --evidence <runtime-preflight.json>",
+      "expected": "The current Client hash and mount, exact artifact, public boundaries, protected service identities, resources, and rollback source pass with write_operations empty.",
+      "type": "preflight"
+    },
+    {
+      "command": "scripts/release-deploy.sh --confirm 20260730-agent-guidance-terminology 20260730-agent-guidance-terminology <release.zip> <runtime-preflight.json> <deployment-result.json>",
+      "expected": "Only LibreChat-API is recreated; the candidate Client is served; the old Client and Compose override are backed up; all protected services and application data remain unchanged.",
+      "type": "deployment"
+    },
+    {
+      "command": "Authenticated vip998 browser acceptance on /agents, a preset Agent detail, a preset Agent new conversation, and an ordinary or personal Agent contact control",
+      "expected": "精选 Agent and Agent wording appear, preset conversations show 可以这样开始 with three prompts, configured ordinary or personal Agent contact remains visible, preset contact rows remain hidden, and no billable model request is sent.",
+      "type": "business"
+    }
+  ]
+}
