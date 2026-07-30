@@ -27,6 +27,7 @@ interface ToolsMarketplaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agentId: string;
+  allowedKinds?: AgentItemKind[];
 }
 
 type View = NonNullable<ItemFilter['view']>;
@@ -36,6 +37,7 @@ export default function ToolsMarketplaceDialog({
   open,
   onOpenChange,
   agentId,
+  allowedKinds,
 }: ToolsMarketplaceDialogProps) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
@@ -52,6 +54,15 @@ export default function ToolsMarketplaceDialog({
   const [search, setSearch] = useState('');
   const [detailItem, setDetailItem] = useState<AgentItem | null>(null);
   const [addMcpOpen, setAddMcpOpen] = useState(false);
+
+  const allowedKindSet = useMemo(
+    () => new Set<AgentItemKind>(allowedKinds ?? ['builtin', 'tool', 'mcp', 'action']),
+    [allowedKinds],
+  );
+  const visibleCatalog = useMemo(
+    () => catalog.filter((item) => allowedKindSet.has(item.kind)),
+    [allowedKindSet, catalog],
+  );
 
   const handleCreateNew = useCallback(
     (createKind: 'mcp' | 'action') => {
@@ -82,19 +93,23 @@ export default function ToolsMarketplaceDialog({
 
   const counts = useMemo(
     () => ({
-      builtin: catalog.filter((i) => i.kind === 'builtin').length,
-      tool: catalog.filter((i) => i.kind === 'tool').length,
-      mcp: catalog.filter((i) => i.kind === 'mcp').length,
+      builtin: visibleCatalog.filter((i) => i.kind === 'builtin').length,
+      tool: visibleCatalog.filter((i) => i.kind === 'tool').length,
+      mcp: visibleCatalog.filter((i) => i.kind === 'mcp').length,
       skill: 0,
-      action: catalog.filter((i) => i.kind === 'action').length,
+      action: visibleCatalog.filter((i) => i.kind === 'action').length,
     }),
-    [catalog],
+    [visibleCatalog],
   );
 
   const filtered = useMemo(
     () =>
-      applyFilter(catalog, { search, kind, category: 'all', view }, { favoritedIds: favoriteKeys }),
-    [catalog, search, kind, view, favoriteKeys],
+      applyFilter(
+        visibleCatalog,
+        { search, kind, category: 'all', view },
+        { favoritedIds: favoriteKeys },
+      ),
+    [visibleCatalog, search, kind, view, favoriteKeys],
   );
 
   const handleToggle = useCallback(
@@ -193,8 +208,9 @@ export default function ToolsMarketplaceDialog({
             onSelectView={setView}
             onSelectKind={setKind}
             counts={counts}
-            totalCount={catalog.length}
+            totalCount={visibleCatalog.length}
             onCreateNew={handleCreateNew}
+            allowedKinds={allowedKinds}
           />
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="flex items-center gap-2 px-6 py-4 pr-12">

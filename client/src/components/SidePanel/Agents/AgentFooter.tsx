@@ -26,12 +26,14 @@ export default function AgentFooter({
   setActivePanel,
   setCurrentAgentId,
   isAvatarUploading = false,
+  onAgentDeleted,
 }: Pick<
   AgentPanelProps,
   'setCurrentAgentId' | 'createMutation' | 'activePanel' | 'setActivePanel'
 > & {
   updateMutation: ReturnType<typeof useUpdateAgentMutation>;
   isAvatarUploading?: boolean;
+  onAgentDeleted?: () => void;
 }) {
   const localize = useLocalize();
   const { user } = useAuthContext();
@@ -92,6 +94,7 @@ export default function AgentFooter({
               agent_id={agent_id}
               setCurrentAgentId={setCurrentAgentId}
               createMutation={createMutation}
+              onDeleted={onAgentDeleted}
             />
           )}
         {(agent?.author === user?.id || user?.role === SystemRoles.ADMIN || canShareThisAgent) &&

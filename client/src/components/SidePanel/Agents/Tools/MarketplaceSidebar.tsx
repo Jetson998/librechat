@@ -20,6 +20,7 @@ interface MarketplaceSidebarProps {
   counts: Record<AgentItemKind, number>;
   totalCount: number;
   onCreateNew?: (kind: 'mcp' | 'action') => void;
+  allowedKinds?: AgentItemKind[];
 }
 
 interface SidebarItemProps {
@@ -60,6 +61,7 @@ export default function MarketplaceSidebar({
   counts,
   totalCount,
   onCreateNew,
+  allowedKinds,
 }: MarketplaceSidebarProps) {
   const localize = useLocalize();
   const [createOpen, setCreateOpen] = useState(false);
@@ -72,17 +74,21 @@ export default function MarketplaceSidebar({
     () => agentsConfig?.capabilities?.includes(AgentCapabilities.actions) ?? false,
     [agentsConfig],
   );
+  const allowedKindSet = useMemo(
+    () => new Set<AgentItemKind>(allowedKinds ?? ['builtin', 'tool', 'mcp', 'action']),
+    [allowedKinds],
+  );
 
   const createItems = useMemo(() => {
     const items: Array<{ label: string; icon: ReactNode; onClick: () => void }> = [];
-    if (hasMcpCreateAccess) {
+    if (hasMcpCreateAccess && allowedKindSet.has('mcp')) {
       items.push({
         label: localize('com_ui_tools_kind_mcp'),
         icon: <Server className="size-4" aria-hidden="true" />,
         onClick: () => onCreateNew?.('mcp'),
       });
     }
-    if (actionsEnabled) {
+    if (actionsEnabled && allowedKindSet.has('action')) {
       items.push({
         label: localize('com_ui_tools_kind_actions'),
         icon: <Workflow className="size-4" aria-hidden="true" />,
@@ -90,7 +96,7 @@ export default function MarketplaceSidebar({
       });
     }
     return items;
-  }, [localize, onCreateNew, hasMcpCreateAccess, actionsEnabled]);
+  }, [actionsEnabled, allowedKindSet, hasMcpCreateAccess, localize, onCreateNew]);
 
   return (
     <aside className="flex w-56 shrink-0 flex-col gap-0.5 border-r border-border-light bg-surface-primary-alt p-3">
@@ -135,46 +141,54 @@ export default function MarketplaceSidebar({
         }}
         count={totalCount}
       />
-      <SidebarItem
-        icon={<ListFilter className="size-4" />}
-        label={localize('com_ui_tools_kind_official')}
-        active={activeKind === 'builtin' && activeView === 'marketplace'}
-        onClick={() => {
-          onSelectView('marketplace');
-          onSelectKind('builtin');
-        }}
-        count={counts.builtin}
-      />
-      <SidebarItem
-        icon={<Wrench className="size-4" />}
-        label={localize('com_ui_tools_kind_tools')}
-        active={activeKind === 'tool' && activeView === 'marketplace'}
-        onClick={() => {
-          onSelectView('marketplace');
-          onSelectKind('tool');
-        }}
-        count={counts.tool}
-      />
-      <SidebarItem
-        icon={<Server className="size-4" />}
-        label={localize('com_ui_tools_kind_mcp')}
-        active={activeKind === 'mcp' && activeView === 'marketplace'}
-        onClick={() => {
-          onSelectView('marketplace');
-          onSelectKind('mcp');
-        }}
-        count={counts.mcp}
-      />
-      <SidebarItem
-        icon={<Workflow className="size-4" />}
-        label={localize('com_ui_tools_kind_actions')}
-        active={activeKind === 'action' && activeView === 'marketplace'}
-        onClick={() => {
-          onSelectView('marketplace');
-          onSelectKind('action');
-        }}
-        count={counts.action}
-      />
+      {allowedKindSet.has('builtin') && (
+        <SidebarItem
+          icon={<ListFilter className="size-4" />}
+          label={localize('com_ui_tools_kind_official')}
+          active={activeKind === 'builtin' && activeView === 'marketplace'}
+          onClick={() => {
+            onSelectView('marketplace');
+            onSelectKind('builtin');
+          }}
+          count={counts.builtin}
+        />
+      )}
+      {allowedKindSet.has('tool') && (
+        <SidebarItem
+          icon={<Wrench className="size-4" />}
+          label={localize('com_ui_tools_kind_tools')}
+          active={activeKind === 'tool' && activeView === 'marketplace'}
+          onClick={() => {
+            onSelectView('marketplace');
+            onSelectKind('tool');
+          }}
+          count={counts.tool}
+        />
+      )}
+      {allowedKindSet.has('mcp') && (
+        <SidebarItem
+          icon={<Server className="size-4" />}
+          label={localize('com_ui_tools_kind_mcp')}
+          active={activeKind === 'mcp' && activeView === 'marketplace'}
+          onClick={() => {
+            onSelectView('marketplace');
+            onSelectKind('mcp');
+          }}
+          count={counts.mcp}
+        />
+      )}
+      {allowedKindSet.has('action') && (
+        <SidebarItem
+          icon={<Workflow className="size-4" />}
+          label={localize('com_ui_tools_kind_actions')}
+          active={activeKind === 'action' && activeView === 'marketplace'}
+          onClick={() => {
+            onSelectView('marketplace');
+            onSelectKind('action');
+          }}
+          count={counts.action}
+        />
+      )}
 
       <div className="mx-2 my-3 h-px bg-border-light" />
 

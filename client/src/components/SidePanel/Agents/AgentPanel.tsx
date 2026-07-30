@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useRef, useState } from 'react';
+import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { useWatch, useForm, FormProvider } from 'react-hook-form';
@@ -22,7 +22,7 @@ import {
   useGetExpandedAgentByIdQuery,
   useUploadAgentAvatarMutation,
 } from '~/data-provider';
-import { createProviderOption, getDefaultAgentFormValues } from '~/utils';
+import { cn, createProviderOption, getDefaultAgentFormValues } from '~/utils';
 import { useResourcePermissions } from '~/hooks/useResourcePermissions';
 import { useSelectAgent, useLocalize, useAuthContext } from '~/hooks';
 import { useAgentPanelContext } from '~/Providers/AgentPanelContext';
@@ -30,7 +30,7 @@ import AgentPanelSkeleton from './AgentPanelSkeleton';
 import AdvancedPanel from './Advanced/AdvancedPanel';
 import { Panel, isEphemeralAgent } from '~/common';
 import AgentConfig from './AgentConfig';
-import AgentSelect from './AgentSelect';
+import AgentSelect, { getAgentFormValues } from './AgentSelect';
 import AgentFooter from './AgentFooter';
 import ModelPanel from './ModelPanel';
 
@@ -212,7 +212,15 @@ export const isAvatarUploadOnlyDirty = (
   return result.sawDirty && result.onlyAvatarDirty;
 };
 
-export default function AgentPanel() {
+interface AgentPanelProps {
+  workspaceMode?: boolean;
+  onAgentIdChange?: (agentId?: string) => void;
+}
+
+export default function AgentPanel({
+  workspaceMode = false,
+  onAgentIdChange,
+}: AgentPanelProps = {}) {
   const localize = useLocalize();
   const { user } = useAuthContext();
   const { showToast } = useToastContext();
@@ -224,6 +232,17 @@ export default function AgentPanel() {
     setCurrentAgentId,
     agent_id: current_agent_id,
   } = useAgentPanelContext();
+
+  const handleCurrentAgentIdChange = useCallback(
+    (value: React.SetStateAction<string | undefined>) => {
+      const nextValue = typeof value === 'function' ? value(current_agent_id) : value;
+      setCurrentAgentId(nextValue);
+      if (workspaceMode) {
+        onAgentIdChange?.(nextValue);
+      }
+    },
+    [current_agent_id, onAgentIdChange, setCurrentAgentId, workspaceMode],
+  );
 
   const { onSelect: onSelectAgent } = useSelectAgent();
 
@@ -257,6 +276,19 @@ export default function AgentPanel() {
     setValue,
     formState: { dirtyFields },
   } = methods;
+
+  useEffect(() => {
+    if (!workspaceMode) {
+      return;
+    }
+    if (!current_agent_id) {
+      reset(getDefaultAgentFormValues());
+      return;
+    }
+    if (agentQuery.data && agentQuery.isSuccess) {
+      reset(getAgentFormValues(agentQuery.data));
+    }
+  }, [agentQuery.data, agentQuery.isSuccess, current_agent_id, reset, workspaceMode]);
   const [isAvatarUploadInFlight, setIsAvatarUploadInFlight] = useState(false);
   const uploadAvatarMutation = useUploadAgentAvatarMutation({
     onSuccess: (updatedAgent) => {
@@ -379,7 +411,7 @@ export default function AgentPanel() {
 
   const create = useCreateAgentMutation({
     onSuccess: async (data) => {
-      setCurrentAgentId(data.id);
+      handleCurrentAgentIdChange(data.id);
       showToast({
         message: `${localize('com_assistants_create_success')} ${
           data.name ?? localize('com_ui_agent')
@@ -474,6 +506,15 @@ export default function AgentPanel() {
   }, [agent_id, onSelectAgent]);
 
   const canEditAgent = useMemo(() => {
+    if (
+      workspaceMode &&
+      current_agent_id &&
+      !agentQuery.isInitialLoading &&
+      (agentQuery.isError || !agentQuery.data)
+    ) {
+      return false;
+    }
+
     if (!agentQuery.data?.id) {
       return true;
     }
@@ -483,55 +524,68 @@ export default function AgentPanel() {
     }
 
     return canEdit;
-  }, [agentQuery.data?.id, user?.role, canEdit]);
+  }, [
+    agentQuery.data,
+    agentQuery.isError,
+    agentQuery.isInitialLoading,
+    canEdit,
+    current_agent_id,
+    user?.role,
+    workspaceMode,
+  ]);
 
   return (
     <FormProvider {...methods}>
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="scrollbar-gutter-stable flex flex-1 flex-col px-3 pb-3 pt-2"
+        className={cn(
+          'scrollbar-gutter-stable flex flex-1 flex-col px-3 pb-3 pt-2',
+          workspaceMode && 'mx-auto w-full max-w-3xl px-4 py-5',
+        )}
         aria-label="Agent configuration form"
       >
         <div className="flex-1">
-          <div className="flex w-full flex-wrap gap-2">
-            <div className="w-full">
-              <AgentSelect
-                createMutation={create}
-                agentQuery={agentQuery}
-                setCurrentAgentId={setCurrentAgentId}
-                selectedAgentId={agentQuery.isInitialLoading ? null : (current_agent_id ?? null)}
-              />
-            </div>
-            {agent_id && (
-              <div className="flex w-full gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-center"
-                  onClick={() => {
-                    reset(getDefaultAgentFormValues());
-                    setCurrentAgentId(undefined);
-                  }}
-                  disabled={agentQuery.isInitialLoading}
-                  aria-label={localize('com_ui_create_new_agent')}
-                >
-                  <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
-                  {localize('com_ui_create_new_agent')}
-                </Button>
-                <Button
-                  variant="submit"
-                  disabled={isEphemeralAgent(agent_id) || agentQuery.isInitialLoading}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleSelectAgent();
-                  }}
-                  aria-label={localize('com_ui_select_agent')}
-                >
-                  {localize('com_ui_select')}
-                </Button>
+          {!workspaceMode && (
+            <div className="flex w-full flex-wrap gap-2">
+              <div className="w-full">
+                <AgentSelect
+                  createMutation={create}
+                  agentQuery={agentQuery}
+                  setCurrentAgentId={handleCurrentAgentIdChange}
+                  selectedAgentId={agentQuery.isInitialLoading ? null : (current_agent_id ?? null)}
+                />
               </div>
-            )}
-          </div>
+              {agent_id && (
+                <div className="flex w-full gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center"
+                    onClick={() => {
+                      reset(getDefaultAgentFormValues());
+                      handleCurrentAgentIdChange(undefined);
+                    }}
+                    disabled={agentQuery.isInitialLoading}
+                    aria-label={localize('com_ui_create_new_agent')}
+                  >
+                    <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+                    {localize('com_ui_create_new_agent')}
+                  </Button>
+                  <Button
+                    variant="submit"
+                    disabled={isEphemeralAgent(agent_id) || agentQuery.isInitialLoading}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSelectAgent();
+                    }}
+                    aria-label={localize('com_ui_select_agent')}
+                  >
+                    {localize('com_ui_select')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           {agentQuery.isInitialLoading && <AgentPanelSkeleton />}
           {!canEditAgent && !agentQuery.isInitialLoading && (
             <div className="flex h-[30vh] w-full items-center justify-center">
@@ -560,7 +614,8 @@ export default function AgentPanel() {
             isAvatarUploading={isAvatarUploadInFlight || uploadAvatarMutation.isLoading}
             activePanel={activePanel}
             setActivePanel={setActivePanel}
-            setCurrentAgentId={setCurrentAgentId}
+            setCurrentAgentId={handleCurrentAgentIdChange}
+            onAgentDeleted={workspaceMode ? () => handleCurrentAgentIdChange(undefined) : undefined}
           />
         )}
       </form>

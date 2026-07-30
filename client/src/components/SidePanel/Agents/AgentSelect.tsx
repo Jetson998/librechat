@@ -12,6 +12,113 @@ import { useListAgentsQuery } from '~/data-provider';
 
 const keys = new Set(Object.keys(defaultAgentFormValues));
 
+export function getAgentFormValues(fullAgent: Agent): Partial<AgentForm & TAgentCapabilities> {
+  const isGlobal = fullAgent.isPublic ?? false;
+  const update = {
+    ...fullAgent,
+    provider: createProviderOption(fullAgent.provider),
+    label: fullAgent.name ?? '',
+    value: fullAgent.id || '',
+    icon: isGlobal ? <EarthIcon className="icon-lg text-green-400" /> : null,
+  };
+
+  const capabilities: TAgentCapabilities = {
+    [AgentCapabilities.web_search]: false,
+    [AgentCapabilities.file_search]: false,
+    [AgentCapabilities.execute_code]: false,
+    [AgentCapabilities.memory]: false,
+    [AgentCapabilities.end_after_tools]: false,
+    [AgentCapabilities.hide_sequential_outputs]: false,
+  };
+
+  const agentTools: string[] = [];
+  (fullAgent.tools ?? []).forEach((tool) => {
+    if (capabilities[tool] !== undefined) {
+      capabilities[tool] = true;
+      return;
+    }
+
+    agentTools.push(tool);
+  });
+
+  const formValues: Partial<AgentForm & TAgentCapabilities> = {
+    ...capabilities,
+    agent: update,
+    model: update.model,
+    tools: agentTools,
+    category: fullAgent.category || 'general',
+    support_contact: fullAgent.support_contact,
+    avatar_file: null,
+    avatar_preview: fullAgent.avatar?.filepath ?? '',
+    avatar_action: null,
+  };
+
+  Object.entries(fullAgent).forEach(([name, value]) => {
+    if (name === 'model_parameters') {
+      formValues[name] = value;
+      return;
+    }
+
+    if (capabilities[name] !== undefined) {
+      formValues[name] = value;
+      return;
+    }
+
+    if (
+      name === 'agent_ids' &&
+      Array.isArray(value) &&
+      value.every((item) => typeof item === 'string')
+    ) {
+      formValues[name] = value;
+      return;
+    }
+
+    if (
+      name === 'skills' &&
+      Array.isArray(value) &&
+      value.every((item) => typeof item === 'string')
+    ) {
+      formValues[name] = value;
+      return;
+    }
+
+    if (name === 'skills_enabled' && typeof value === 'boolean') {
+      formValues[name] = value;
+      return;
+    }
+
+    if (name === 'edges' && Array.isArray(value)) {
+      formValues[name] = value;
+      return;
+    }
+
+    if (name === 'subagents' && typeof value === 'object' && value !== null) {
+      formValues[name] = value;
+      return;
+    }
+
+    if (name === 'tool_options' && typeof value === 'object' && value !== null) {
+      formValues[name] = value;
+      return;
+    }
+
+    if (!keys.has(name)) {
+      return;
+    }
+
+    if (name === 'recursion_limit' && typeof value === 'number') {
+      formValues[name] = value;
+      return;
+    }
+
+    if (typeof value !== 'number' && typeof value !== 'object') {
+      formValues[name] = value;
+    }
+  });
+
+  return formValues;
+}
+
 function AgentSelect({
   agentQuery,
   selectedAgentId = null,
@@ -45,112 +152,7 @@ function AgentSelect({
 
   const resetAgentForm = useCallback(
     (fullAgent: Agent) => {
-      const isGlobal = fullAgent.isPublic ?? false;
-      const update = {
-        ...fullAgent,
-        provider: createProviderOption(fullAgent.provider),
-        label: fullAgent.name ?? '',
-        value: fullAgent.id || '',
-        icon: isGlobal ? <EarthIcon className={'icon-lg text-green-400'} /> : null,
-      };
-
-      const capabilities: TAgentCapabilities = {
-        [AgentCapabilities.web_search]: false,
-        [AgentCapabilities.file_search]: false,
-        [AgentCapabilities.execute_code]: false,
-        [AgentCapabilities.memory]: false,
-        [AgentCapabilities.end_after_tools]: false,
-        [AgentCapabilities.hide_sequential_outputs]: false,
-      };
-
-      const agentTools: string[] = [];
-      (fullAgent.tools ?? []).forEach((tool) => {
-        if (capabilities[tool] !== undefined) {
-          capabilities[tool] = true;
-          return;
-        }
-
-        agentTools.push(tool);
-      });
-
-      const formValues: Partial<AgentForm & TAgentCapabilities> = {
-        ...capabilities,
-        agent: update,
-        model: update.model,
-        tools: agentTools,
-        // Ensure the category is properly set for the form
-        category: fullAgent.category || 'general',
-        // Make sure support_contact is properly loaded
-        support_contact: fullAgent.support_contact,
-        avatar_file: null,
-        avatar_preview: fullAgent.avatar?.filepath ?? '',
-        avatar_action: null,
-      };
-
-      Object.entries(fullAgent).forEach(([name, value]) => {
-        if (name === 'model_parameters') {
-          formValues[name] = value;
-          return;
-        }
-
-        if (capabilities[name] !== undefined) {
-          formValues[name] = value;
-          return;
-        }
-
-        if (
-          name === 'agent_ids' &&
-          Array.isArray(value) &&
-          value.every((item) => typeof item === 'string')
-        ) {
-          formValues[name] = value;
-          return;
-        }
-
-        if (
-          name === 'skills' &&
-          Array.isArray(value) &&
-          value.every((item) => typeof item === 'string')
-        ) {
-          formValues[name] = value;
-          return;
-        }
-
-        if (name === 'skills_enabled' && typeof value === 'boolean') {
-          formValues[name] = value;
-          return;
-        }
-
-        if (name === 'edges' && Array.isArray(value)) {
-          formValues[name] = value;
-          return;
-        }
-
-        if (name === 'subagents' && typeof value === 'object' && value !== null) {
-          formValues[name] = value;
-          return;
-        }
-
-        if (name === 'tool_options' && typeof value === 'object' && value !== null) {
-          formValues[name] = value;
-          return;
-        }
-
-        if (!keys.has(name)) {
-          return;
-        }
-
-        if (name === 'recursion_limit' && typeof value === 'number') {
-          formValues[name] = value;
-          return;
-        }
-
-        if (typeof value !== 'number' && typeof value !== 'object') {
-          formValues[name] = value;
-        }
-      });
-
-      reset(formValues);
+      reset(getAgentFormValues(fullAgent));
     },
     [reset],
   );

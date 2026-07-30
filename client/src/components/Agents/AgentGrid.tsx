@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { Spinner } from '@librechat/client';
+import { Button, Spinner } from '@librechat/client';
 import { PermissionBits } from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
 import { useMarketplaceAgentsInfiniteQuery } from '~/data-provider/Agents';
@@ -14,6 +14,10 @@ interface AgentGridProps {
   searchQuery: string;
   onSelectAgent: (agent: t.Agent) => void;
   scrollElementRef?: React.RefObject<HTMLElement>;
+  canCreate?: boolean;
+  onCreate?: () => void;
+  onClearSearch?: () => void;
+  onViewAll?: () => void;
 }
 
 /**
@@ -24,6 +28,10 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   searchQuery,
   onSelectAgent,
   scrollElementRef,
+  canCreate = false,
+  onCreate,
+  onClearSearch,
+  onViewAll,
 }) => {
   const localize = useLocalize();
 
@@ -109,6 +117,10 @@ const AgentGrid: React.FC<AgentGridProps> = ({
    * Get category display name from API data or use fallback
    */
   const getCategoryDisplayName = (categoryValue: string) => {
+    if (categoryValue === 'automation-workflow') {
+      return localize('com_agents_category_agent');
+    }
+
     const categoryData = categories.find((cat) => cat.value === categoryValue);
     if (categoryData) {
       return categoryData.label;
@@ -125,6 +137,34 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     // Simple capitalization for unknown categories
     return categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
   };
+
+  const emptyState = useMemo(() => {
+    if (searchQuery) {
+      return {
+        heading: localize('com_agents_search_empty_heading'),
+        description: localize('com_agents_search_no_results', { query: searchQuery }),
+        actionLabel: localize('com_agents_clear_search'),
+        onAction: onClearSearch,
+      };
+    }
+
+    if (category !== 'all' && category !== 'promoted') {
+      const categoryName = getCategoryDisplayName(category);
+      return {
+        heading: localize('com_agents_category_empty', { category: categoryName }),
+        description: localize('com_agents_category_empty_description'),
+        actionLabel: localize('com_agents_workspace_view_all'),
+        onAction: onViewAll,
+      };
+    }
+
+    return {
+      heading: localize('com_agents_workspace_market_empty'),
+      description: localize('com_agents_workspace_market_empty_description'),
+      actionLabel: localize('com_agents_workspace_create'),
+      onAction: canCreate ? onCreate : undefined,
+    };
+  }, [canCreate, categories, category, localize, onClearSearch, onCreate, onViewAll, searchQuery]);
 
   // Simple loading spinner
   const loadingSpinner = (
@@ -152,7 +192,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     <div
       className="space-y-6"
       role="tabpanel"
-      id={`category-panel-${category}`}
+      id={`tabpanel-${category}`}
       aria-labelledby={`category-tab-${category}`}
       aria-live="polite"
       aria-busy={isLoading && !hasData}
@@ -160,16 +200,18 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       {/* Handle empty results with enhanced accessibility */}
       {(!currentAgents || currentAgents.length === 0) && !isLoading && !isFetching ? (
         <div
-          className="py-12 text-center text-text-secondary"
+          className="flex flex-col items-center px-4 py-14 text-center"
           role="status"
           aria-live="polite"
-          aria-label={
-            searchQuery
-              ? localize('com_agents_search_empty_heading')
-              : localize('com_agents_empty_state_heading')
-          }
+          aria-label={emptyState.heading}
         >
-          <h3 className="mb-2 text-lg font-medium">{localize('com_agents_empty_state_heading')}</h3>
+          <h3 className="text-lg font-semibold text-text-primary">{emptyState.heading}</h3>
+          <p className="mt-2 max-w-md text-sm text-text-secondary">{emptyState.description}</p>
+          {emptyState.onAction && (
+            <Button type="button" variant="outline" className="mt-5" onClick={emptyState.onAction}>
+              {emptyState.actionLabel}
+            </Button>
+          )}
         </div>
       ) : (
         <>

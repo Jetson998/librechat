@@ -165,7 +165,11 @@ function AssistantToolsDialog({
                     : localize('com_nav_tool_dialog')}
                 </DialogTitle>
                 <Description className="text-sm text-text-secondary">
-                  {localize('com_nav_tool_dialog_description')}
+                  {localize(
+                    isAgentTools
+                      ? 'com_nav_tool_dialog_agents_description'
+                      : 'com_nav_tool_dialog_description',
+                  )}
                 </Description>
               </div>
             </div>

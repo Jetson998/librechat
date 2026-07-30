@@ -22,10 +22,12 @@ function DeleteButton({
   agent_id,
   setCurrentAgentId,
   createMutation,
+  onDeleted,
 }: {
   agent_id: string;
   setCurrentAgentId: React.Dispatch<React.SetStateAction<string | undefined>>;
   createMutation: UseMutationResult<Agent, Error, AgentCreateParams>;
+  onDeleted?: () => void;
 }) {
   const localize = useLocalize();
   const { reset } = useFormContext();
@@ -36,10 +38,6 @@ function DeleteButton({
   const deleteAgent = useDeleteAgentMutation({
     onSuccess: (_, vars, context) => {
       const updatedList = context as Agent[] | undefined;
-      if (!updatedList) {
-        return;
-      }
-
       showToast({
         message: localize('com_ui_agent_deleted'),
         status: 'success',
@@ -48,6 +46,16 @@ function DeleteButton({
       if (createMutation.data?.id ?? '') {
         logger.log('agents', 'resetting createMutation');
         createMutation.reset();
+      }
+
+      if (onDeleted) {
+        onDeleted();
+        reset(getDefaultAgentFormValues());
+        return;
+      }
+
+      if (!updatedList) {
+        return;
       }
 
       const firstAgent = updatedList[0] as Agent | undefined;
@@ -128,6 +136,7 @@ const MemoizedDeleteButton = memo(
   (prevProps, nextProps) =>
     prevProps.agent_id === nextProps.agent_id &&
     prevProps.setCurrentAgentId === nextProps.setCurrentAgentId &&
+    prevProps.onDeleted === nextProps.onDeleted &&
     prevProps.createMutation.data?.id === nextProps.createMutation.data?.id &&
     prevProps.createMutation.isLoading === nextProps.createMutation.isLoading,
 );

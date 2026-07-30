@@ -6,27 +6,45 @@ import VersionPanel from './Version/VersionPanel';
 import AgentPanel from './AgentPanel';
 import store from '~/store';
 
-export default function AgentPanelSwitch() {
+interface AgentPanelSwitchProps {
+  workspaceMode?: boolean;
+  workspaceAgentId?: string;
+  onAgentIdChange?: (agentId?: string) => void;
+}
+
+export default function AgentPanelSwitch(props: AgentPanelSwitchProps = {}) {
   return (
     <AgentPanelProvider>
-      <AgentPanelSwitchWithContext />
+      <AgentPanelSwitchWithContext {...props} />
     </AgentPanelProvider>
   );
 }
 
-function AgentPanelSwitchWithContext() {
-  const { activePanel, setCurrentAgentId } = useAgentPanelContext();
+function AgentPanelSwitchWithContext({
+  workspaceMode = false,
+  workspaceAgentId,
+  onAgentIdChange,
+}: AgentPanelSwitchProps) {
+  const { activePanel, setActivePanel, setCurrentAgentId } = useAgentPanelContext();
   const agentId = useRecoilValue(store.conversationAgentIdByIndex(0));
 
   useEffect(() => {
+    if (workspaceMode) {
+      setCurrentAgentId(
+        workspaceAgentId && !isEphemeralAgent(workspaceAgentId) ? workspaceAgentId : undefined,
+      );
+      setActivePanel(Panel.builder);
+      return;
+    }
+
     const agent_id = agentId ?? '';
     if (!isEphemeralAgent(agent_id)) {
       setCurrentAgentId(agent_id);
     }
-  }, [setCurrentAgentId, agentId]);
+  }, [agentId, setActivePanel, setCurrentAgentId, workspaceAgentId, workspaceMode]);
 
   if (activePanel === Panel.version) {
     return <VersionPanel />;
   }
-  return <AgentPanel />;
+  return <AgentPanel workspaceMode={workspaceMode} onAgentIdChange={onAgentIdChange} />;
 }

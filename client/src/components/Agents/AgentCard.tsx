@@ -23,6 +23,10 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onSelect, className = '' }
   const categoryLabel = useMemo(() => {
     if (!agent.category) return '';
 
+    if (agent.category === 'automation-workflow') {
+      return localize('com_agents_category_agent');
+    }
+
     const category = categories.find((cat) => cat.value === agent.category);
     if (category) {
       if (category.label && category.label.startsWith('com_')) {

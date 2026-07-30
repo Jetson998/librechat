@@ -59,6 +59,11 @@ const mockLocalize = jest.fn((key: string, options?: any) => {
     com_agents_loading: 'Loading...',
     com_agents_empty_state_heading: 'No agents found',
     com_agents_search_empty_heading: 'No search results',
+    com_agents_workspace_market_empty: 'No recommended assistants yet',
+    com_agents_workspace_market_empty_description: 'No assistants have been published yet',
+    com_agents_workspace_create: 'Create Assistant',
+    com_agents_category_empty_description: 'This category is empty',
+    com_agents_workspace_view_all: 'View all',
     com_agents_created_by: 'by',
     com_agents_top_picks: 'Top Picks',
     com_agents_all_category: 'All',
@@ -385,7 +390,7 @@ describe('Accessibility Improvements', () => {
 
       // Check tabpanel role
       const tabpanel = screen.getByRole('tabpanel');
-      expect(tabpanel).toHaveAttribute('id', 'category-panel-all');
+      expect(tabpanel).toHaveAttribute('id', 'tabpanel-all');
       expect(tabpanel).toHaveAttribute('aria-labelledby', 'category-tab-all');
       expect(tabpanel).toHaveAttribute('aria-live', 'polite');
     });
@@ -458,7 +463,7 @@ describe('Accessibility Improvements', () => {
       // Check empty state accessibility
       const emptyState = screen.getByRole('status');
       expect(emptyState).toHaveAttribute('aria-live', 'polite');
-      expect(emptyState).toHaveAttribute('aria-label', 'No agents found');
+      expect(emptyState).toHaveAttribute('aria-label', 'No recommended assistants yet');
     });
   });
 

@@ -45,6 +45,9 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
     if (category.value === 'all') {
       return localize('com_agents_all_category');
     }
+    if (category.value === 'automation-workflow') {
+      return localize('com_agents_category_agent');
+    }
     if (category.label && category.label.startsWith('com_')) {
       return localize(category.label as TranslationKeys);
     }

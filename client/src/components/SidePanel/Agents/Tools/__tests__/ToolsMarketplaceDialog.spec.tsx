@@ -218,4 +218,21 @@ describe('ToolsMarketplaceDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /com_ui_tools_view_favorites/ }));
     expect(screen.getByText('com_ui_tools_view_favorites_empty')).toBeInTheDocument();
   });
+
+  test('filters the catalog and sidebar to the allowed item kinds', () => {
+    render(
+      <ToolsMarketplaceDialog
+        open
+        onOpenChange={jest.fn()}
+        agentId="a1"
+        allowedKinds={['builtin']}
+      />,
+    );
+
+    expect(screen.getByText('com_ui_run_code')).toBeInTheDocument();
+    expect(screen.queryByText('DALL-E')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /com_ui_tools_kind_tools/ }),
+    ).not.toBeInTheDocument();
+  });
 });

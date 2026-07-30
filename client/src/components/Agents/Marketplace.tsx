@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaQuery } from '@librechat/client';
-import { PermissionTypes, Permissions } from 'librechat-data-provider';
-import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
+import { EModelEndpoint, PermissionTypes, Permissions } from 'librechat-data-provider';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type t from 'librechat-data-provider';
 import { useDocumentTitle, useHasAccess, useLocalize, TranslationKeys } from '~/hooks';
-import { useGetEndpointsQuery, useGetAgentCategoriesQuery } from '~/data-provider';
-import MarketplaceAdminSettings from './MarketplaceAdminSettings';
-import OpenSidebar from '~/components/Chat/Menus/OpenSidebar';
+import { useGetAgentCategoriesQuery, useGetEndpointsQuery } from '~/data-provider';
+import AgentPanelSwitch from '~/components/SidePanel/Agents/AgentPanelSwitch';
 import { SidePanelGroup } from '~/components/SidePanel';
+import MarketplaceAdminSettings from './MarketplaceAdminSettings';
+import AgentWorkspaceHeader from './AgentWorkspaceHeader';
+import type { AgentWorkspaceView } from './AgentWorkspaceHeader';
+import MyAgentsView from './MyAgentsView';
 import CategoryTabs from './CategoryTabs';
 import SearchBar from './SearchBar';
 import AgentGrid from './AgentGrid';
@@ -17,393 +20,385 @@ interface AgentMarketplaceProps {
   className?: string;
 }
 
-/**
- * AgentMarketplace - Main component for browsing and discovering agents
- *
- * Provides tabbed navigation for different agent categories,
- * search functionality, and detailed agent view through a modal dialog.
- * Uses URL parameters for state persistence and deep linking.
- */
+type Direction = 'left' | 'right';
+
+function normalizeWorkspaceView(value: string | null): AgentWorkspaceView {
+  if (value === 'mine' || value === 'create') {
+    return value;
+  }
+  return 'recommended';
+}
+
 const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) => {
   const localize = useLocalize();
   const navigate = useNavigate();
+  const location = useLocation();
   const { category } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
 
-  // Get URL parameters
+  const view = normalizeWorkspaceView(searchParams.get('view'));
+  const workspaceAgentId = searchParams.get('agent') || undefined;
   const searchQuery = searchParams.get('q') || '';
 
-  // Animation state
-  type Direction = 'left' | 'right';
-  // Initialize with a default value to prevent rendering issues
+  const hasAccessToAgents = useHasAccess({
+    permissionType: PermissionTypes.AGENTS,
+    permission: Permissions.USE,
+  });
+  const hasAccessToCreateAgents = useHasAccess({
+    permissionType: PermissionTypes.AGENTS,
+    permission: Permissions.CREATE,
+  });
+  const hasAccessToMarketplace = useHasAccess({
+    permissionType: PermissionTypes.MARKETPLACE,
+    permission: Permissions.USE,
+  });
+
+  const endpointsQuery = useGetEndpointsQuery();
+  const agentsEndpoint = endpointsQuery.data?.[EModelEndpoint.agents];
+  const workspaceAvailable = agentsEndpoint != null && hasAccessToAgents && hasAccessToMarketplace;
+  const canCreate =
+    workspaceAvailable && hasAccessToCreateAgents && agentsEndpoint.disableBuilder !== true;
+  const effectiveView: AgentWorkspaceView =
+    view === 'create' && endpointsQuery.isSuccess && !canCreate ? 'mine' : view;
+  const isBuilderOpen =
+    effectiveView === 'create' || (effectiveView === 'mine' && workspaceAgentId != null);
+
   const [displayCategory, setDisplayCategory] = useState<string>(category || 'all');
   const [nextCategory, setNextCategory] = useState<string | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationDirection, setAnimationDirection] = useState<Direction>('right');
-
-  // Ref for the scrollable container to enable infinite scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const transitionTimeoutRef = useRef<number | null>(null);
+  const recommendedLocationRef = useRef('/agents');
 
-  // Set page title
-  useDocumentTitle(`${localize('com_agents_marketplace')} | LibreChat`);
+  useDocumentTitle(`${localize('com_agents_workspace')} | LibreChat`);
 
-  // Ensure endpoints config is loaded first (required for agent queries)
-  useGetEndpointsQuery();
-
-  // Fetch categories using existing query pattern
   const categoriesQuery = useGetAgentCategoriesQuery({
-    staleTime: 1000 * 60 * 15, // 15 minutes - categories rarely change
+    enabled: effectiveView === 'recommended' && workspaceAvailable,
+    staleTime: 1000 * 60 * 15,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
 
-  // Handle initial category when on /agents without a category
+  useEffect(() => {
+    if (effectiveView === 'recommended') {
+      recommendedLocationRef.current = `${location.pathname}${location.search}`;
+    }
+  }, [effectiveView, location.pathname, location.search]);
+
   useEffect(() => {
     if (
+      effectiveView === 'recommended' &&
       !category &&
-      window.location.pathname === '/agents' &&
+      location.pathname === '/agents' &&
       categoriesQuery.data &&
       displayCategory === 'all'
     ) {
-      const hasPromoted = categoriesQuery.data.some((cat) => cat.value === 'promoted');
+      const hasPromoted = categoriesQuery.data.some((item) => item.value === 'promoted');
       if (hasPromoted) {
-        // If promoted exists, update display to show it
         setDisplayCategory('promoted');
       }
     }
-  }, [category, categoriesQuery.data, displayCategory]);
+  }, [category, categoriesQuery.data, displayCategory, effectiveView, location.pathname]);
 
-  /**
-   * Handle agent card selection - updates URL for deep linking
-   */
-  const handleAgentSelect = (agent: t.Agent) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('agent_id', agent.id);
-    setSearchParams(newParams);
-  };
-
-  /**
-   * Determine ordered tabs to compute indices for direction
-   */
-  const orderedTabs = useMemo<string[]>(() => {
-    const dynamic = (categoriesQuery.data || []).map((c) => c.value);
-    // Only include values that actually exist in the categories
-    const set = new Set<string>(dynamic);
-    return Array.from(set);
-  }, [categoriesQuery.data]);
-
-  const getTabIndex = useCallback(
-    (tab: string): number => {
-      const idx = orderedTabs.indexOf(tab);
-      return idx >= 0 ? idx : 0;
-    },
-    [orderedTabs],
-  );
-
-  /**
-   * Handle category tab selection changes with directional animation
-   */
-  const handleTabChange = (tabValue: string) => {
-    if (tabValue === displayCategory || isTransitioning) {
-      // Ignore redundant or rapid clicks during transition
-      return;
-    }
-
-    const currentIndex = getTabIndex(displayCategory);
-    const newIndex = getTabIndex(tabValue);
-    const direction: Direction = newIndex > currentIndex ? 'right' : 'left';
-
-    setAnimationDirection(direction);
-    setNextCategory(tabValue);
-    setIsTransitioning(true);
-
-    // Update URL immediately, preserving current search params
-    const currentSearchParams = searchParams.toString();
-    const searchParamsStr = currentSearchParams ? `?${currentSearchParams}` : '';
-    if (tabValue === 'promoted') {
-      navigate(`/agents${searchParamsStr}`);
-    } else {
-      navigate(`/agents/${tabValue}${searchParamsStr}`);
-    }
-
-    // Complete transition after 300ms
-    window.setTimeout(() => {
-      setDisplayCategory(tabValue);
-      setNextCategory(null);
-      setIsTransitioning(false);
-    }, 300);
-  };
-
-  /**
-   * Sync display when URL changes externally (back/forward)
-   */
   useEffect(() => {
     if (category && category !== displayCategory && !isTransitioning) {
-      // URL changed externally, update display without animation
       setDisplayCategory(category);
     }
   }, [category, displayCategory, isTransitioning]);
 
-  // No longer needed with keyframes
+  useEffect(
+    () => () => {
+      if (transitionTimeoutRef.current != null) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
-  /**
-   * Handle search query changes
-   *
-   * @param query - The search query string
-   */
-  const handleSearch = (query: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    const currentCategory = displayCategory;
-
-    if (query.trim()) {
-      newParams.set('q', query.trim());
-    } else {
-      newParams.delete('q');
+  useEffect(() => {
+    if (view === 'create' && !canCreate && workspaceAvailable) {
+      navigate('/agents?view=mine', { replace: true });
     }
+  }, [canCreate, navigate, view, workspaceAvailable]);
 
-    // Always preserve current category when searching or clearing search
-    if (currentCategory === 'promoted') {
-      navigate(`/agents${newParams.toString() ? `?${newParams.toString()}` : ''}`);
-    } else {
+  useEffect(() => {
+    if (endpointsQuery.isSuccess && !workspaceAvailable) {
+      navigate('/c/new', { replace: true });
+    }
+  }, [endpointsQuery.isSuccess, navigate, workspaceAvailable]);
+
+  const orderedTabs = useMemo(() => {
+    const dynamic = (categoriesQuery.data || []).map((item) => item.value);
+    return Array.from(new Set(dynamic));
+  }, [categoriesQuery.data]);
+
+  const getTabIndex = useCallback(
+    (tab: string) => {
+      const index = orderedTabs.indexOf(tab);
+      return index >= 0 ? index : 0;
+    },
+    [orderedTabs],
+  );
+
+  const getCategoryData = useCallback(
+    (categoryValue: string) => {
+      if (categoryValue === 'promoted') {
+        return {
+          name: localize('com_agents_top_picks'),
+          description: localize('com_agents_recommended'),
+        };
+      }
+      if (categoryValue === 'all') {
+        return {
+          name: localize('com_agents_all'),
+          description: localize('com_agents_all_description'),
+        };
+      }
+      if (categoryValue === 'automation-workflow') {
+        const categoryData = categoriesQuery.data?.find(
+          (item) => item.value === categoryValue,
+        );
+        return {
+          name: localize('com_agents_category_agent'),
+          description: categoryData?.description || '',
+        };
+      }
+
+      const categoryData = categoriesQuery.data?.find((item) => item.value === categoryValue);
+      if (categoryData) {
+        return {
+          name: categoryData.label?.startsWith('com_')
+            ? localize(categoryData.label as TranslationKeys)
+            : categoryData.label,
+          description: categoryData.description?.startsWith('com_')
+            ? localize(categoryData.description as TranslationKeys)
+            : categoryData.description || '',
+        };
+      }
+
+      return {
+        name: categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1),
+        description: '',
+      };
+    },
+    [categoriesQuery.data, localize],
+  );
+
+  const handleWorkspaceViewChange = useCallback(
+    (nextView: AgentWorkspaceView) => {
+      if (nextView === 'recommended') {
+        navigate(recommendedLocationRef.current);
+        return;
+      }
+      if (nextView === 'create' && !canCreate) {
+        return;
+      }
+      navigate(`/agents?view=${nextView}`);
+    },
+    [canCreate, navigate],
+  );
+
+  const handleBack = useCallback(() => {
+    if (effectiveView === 'mine') {
+      navigate('/agents?view=mine');
+      return;
+    }
+    navigate(recommendedLocationRef.current);
+  }, [effectiveView, navigate]);
+
+  const handleWorkspaceAgentIdChange = useCallback(
+    (agentId?: string) => {
+      if (agentId) {
+        navigate(`/agents?view=mine&agent=${encodeURIComponent(agentId)}`, { replace: true });
+        return;
+      }
+      if (effectiveView === 'mine') {
+        navigate('/agents?view=mine', { replace: true });
+      }
+    },
+    [effectiveView, navigate],
+  );
+
+  const handleAgentSelect = useCallback(
+    (agent: t.Agent) => {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('agent_id', agent.id);
+      setSearchParams(newParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const handleEditAgent = useCallback(
+    (agent: t.Agent) => {
+      navigate(`/agents?view=mine&agent=${encodeURIComponent(agent.id)}`);
+    },
+    [navigate],
+  );
+
+  const handleTabChange = useCallback(
+    (tabValue: string) => {
+      if (tabValue === displayCategory || isTransitioning) {
+        return;
+      }
+
+      const direction: Direction =
+        getTabIndex(tabValue) > getTabIndex(displayCategory) ? 'right' : 'left';
+      setAnimationDirection(direction);
+      setNextCategory(tabValue);
+      setIsTransitioning(true);
+
+      const currentSearchParams = searchParams.toString();
+      const searchParamsString = currentSearchParams ? `?${currentSearchParams}` : '';
       navigate(
-        `/agents/${currentCategory}${newParams.toString() ? `?${newParams.toString()}` : ''}`,
+        tabValue === 'promoted'
+          ? `/agents${searchParamsString}`
+          : `/agents/${tabValue}${searchParamsString}`,
       );
-    }
+
+      if (transitionTimeoutRef.current != null) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+      transitionTimeoutRef.current = window.setTimeout(() => {
+        setDisplayCategory(tabValue);
+        setNextCategory(null);
+        setIsTransitioning(false);
+      }, 300);
+    },
+    [displayCategory, getTabIndex, isTransitioning, navigate, searchParams],
+  );
+
+  const handleSearch = useCallback(
+    (query: string) => {
+      const newParams = new URLSearchParams(searchParams);
+      if (query.trim()) {
+        newParams.set('q', query.trim());
+      } else {
+        newParams.delete('q');
+      }
+
+      const suffix = newParams.toString() ? `?${newParams.toString()}` : '';
+      navigate(
+        displayCategory === 'promoted' ? `/agents${suffix}` : `/agents/${displayCategory}${suffix}`,
+      );
+    },
+    [displayCategory, navigate, searchParams],
+  );
+
+  const renderCategoryPane = (categoryValue: string, isNext = false) => {
+    const { name, description } = getCategoryData(categoryValue);
+    return (
+      <div
+        className={cn(
+          isNext && 'absolute inset-0',
+          isNext &&
+            (animationDirection === 'right'
+              ? 'motion-safe:animate-slide-in-right'
+              : 'motion-safe:animate-slide-in-left'),
+          !isNext &&
+            isTransitioning &&
+            (animationDirection === 'right'
+              ? 'motion-safe:animate-slide-out-left'
+              : 'motion-safe:animate-slide-out-right'),
+        )}
+        key={`${isNext ? 'next' : 'current'}-${categoryValue}`}
+      >
+        {!searchQuery && (
+          <div className="mb-5 mt-5 text-left">
+            <h2 className="text-xl font-semibold text-text-primary">{name}</h2>
+            {description && <p className="mt-1 text-sm text-text-secondary">{description}</p>}
+          </div>
+        )}
+        <AgentGrid
+          category={categoryValue}
+          searchQuery={searchQuery}
+          onSelectAgent={handleAgentSelect}
+          scrollElementRef={scrollContainerRef}
+          canCreate={canCreate}
+          onCreate={() => handleWorkspaceViewChange('create')}
+          onClearSearch={() => handleSearch('')}
+          onViewAll={() => handleTabChange('all')}
+        />
+      </div>
+    );
   };
 
-  const hasAccessToMarketplace = useHasAccess({
-    permissionType: PermissionTypes.MARKETPLACE,
-    permission: Permissions.USE,
-  });
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    if (!hasAccessToMarketplace) {
-      timeoutId = setTimeout(() => {
-        navigate('/c/new');
-      }, 1000);
-    }
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [hasAccessToMarketplace, navigate]);
-
-  if (!hasAccessToMarketplace) {
+  if (!endpointsQuery.isLoading && !workspaceAvailable) {
     return null;
   }
+
   return (
-    <div className={`relative flex w-full grow overflow-hidden bg-presentation ${className}`}>
+    <div
+      className={`relative flex w-full grow flex-col overflow-hidden bg-presentation ${className}`}
+    >
+      <AgentWorkspaceHeader
+        view={effectiveView}
+        canCreate={canCreate}
+        isBuilderOpen={isBuilderOpen}
+        onBack={handleBack}
+        onChange={handleWorkspaceViewChange}
+      />
       <SidePanelGroup>
         <main className="flex h-full flex-col overflow-hidden" role="main">
-          {/* Scrollable container */}
           <div
-            ref={scrollContainerRef}
-            className="scrollbar-gutter-stable relative flex h-full flex-col overflow-y-auto overflow-x-hidden"
+            id={`agent-workspace-panel-${effectiveView}`}
+            role="tabpanel"
+            aria-labelledby={`agent-workspace-tab-${effectiveView}`}
+            className="h-full min-h-0"
           >
-            {/* Hero Section - scrolls away */}
-            {!isSmallScreen && (
-              <div className="container mx-auto max-w-4xl">
-                <div className={cn('mb-8 text-center', 'mt-12')}>
-                  <h1 className="mb-3 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
-                    {localize('com_agents_marketplace')}
-                  </h1>
-                  <p className="mx-auto mb-6 max-w-2xl text-lg text-text-secondary">
-                    {localize('com_agents_marketplace_subtitle')}
-                  </p>
+            {isBuilderOpen ? (
+              <div className="scrollbar-gutter-stable h-full overflow-y-auto">
+                <AgentPanelSwitch
+                  workspaceMode
+                  workspaceAgentId={effectiveView === 'mine' ? workspaceAgentId : undefined}
+                  onAgentIdChange={handleWorkspaceAgentIdChange}
+                />
+              </div>
+            ) : effectiveView === 'mine' ? (
+              <div className="scrollbar-gutter-stable h-full overflow-y-auto">
+                <div className="container mx-auto max-w-4xl">
+                  <MyAgentsView
+                    canCreate={canCreate}
+                    onCreate={() => handleWorkspaceViewChange('create')}
+                    onEdit={handleEditAgent}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div
+                ref={scrollContainerRef}
+                className="scrollbar-gutter-stable relative flex h-full flex-col overflow-y-auto overflow-x-hidden"
+              >
+                <div className="sticky top-0 z-10 bg-presentation pb-3 pt-4">
+                  <div className="container mx-auto max-w-4xl px-4">
+                    {isSmallScreen && (
+                      <div className="mb-3 flex justify-end">
+                        <MarketplaceAdminSettings compact />
+                      </div>
+                    )}
+                    <div className="mx-auto flex max-w-2xl gap-2 pb-4">
+                      <SearchBar value={searchQuery} onSearch={handleSearch} />
+                      {!isSmallScreen && <MarketplaceAdminSettings />}
+                    </div>
+                    <CategoryTabs
+                      categories={categoriesQuery.data || []}
+                      activeTab={displayCategory}
+                      isLoading={categoriesQuery.isLoading}
+                      onChange={handleTabChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="container mx-auto max-w-4xl px-4 pb-8">
+                  <div className="relative overflow-hidden">
+                    {renderCategoryPane(displayCategory)}
+                    {isTransitioning && nextCategory && renderCategoryPane(nextCategory, true)}
+                  </div>
                 </div>
               </div>
             )}
-            {/* Sticky wrapper for search bar and categories */}
-            <div className="sticky top-0 z-10 mt-4 bg-presentation pb-4 md:mt-0">
-              <div className="container mx-auto max-w-4xl px-4">
-                {isSmallScreen ? (
-                  <div className="mx-auto mb-3 flex max-w-2xl items-center justify-between gap-2">
-                    <OpenSidebar />
-                    <MarketplaceAdminSettings compact />
-                  </div>
-                ) : null}
-                {/* Search bar */}
-                <div className="mx-auto flex max-w-2xl gap-2 pb-6">
-                  <SearchBar value={searchQuery} onSearch={handleSearch} />
-                  {/* TODO: Remove this once we have a better way to handle admin settings */}
-                  {!isSmallScreen && <MarketplaceAdminSettings />}
-                </div>
-
-                {/* Category tabs */}
-                <CategoryTabs
-                  categories={categoriesQuery.data || []}
-                  activeTab={displayCategory}
-                  isLoading={categoriesQuery.isLoading}
-                  onChange={handleTabChange}
-                />
-              </div>
-            </div>
-            {/* Scrollable content area */}
-            <div className="container mx-auto max-w-4xl px-4 pb-8">
-              {/* Two-pane animated container wrapping category header + grid */}
-              <div className="relative overflow-hidden">
-                {/* Current content pane */}
-                <div
-                  className={cn(
-                    isTransitioning &&
-                      (animationDirection === 'right'
-                        ? 'motion-safe:animate-slide-out-left'
-                        : 'motion-safe:animate-slide-out-right'),
-                  )}
-                  key={`pane-current-${displayCategory}`}
-                >
-                  {/* Category header - only show when not searching */}
-                  {!searchQuery && (
-                    <div className="mb-6 mt-6">
-                      {(() => {
-                        // Get category data for display
-                        const getCategoryData = () => {
-                          if (displayCategory === 'promoted') {
-                            return {
-                              name: localize('com_agents_top_picks'),
-                              description: localize('com_agents_recommended'),
-                            };
-                          }
-                          if (displayCategory === 'all') {
-                            return {
-                              name: localize('com_agents_all'),
-                              description: localize('com_agents_all_description'),
-                            };
-                          }
-
-                          // Find the category in the API data
-                          const categoryData = categoriesQuery.data?.find(
-                            (cat) => cat.value === displayCategory,
-                          );
-                          if (categoryData) {
-                            return {
-                              name: categoryData.label?.startsWith('com_')
-                                ? localize(categoryData.label as TranslationKeys)
-                                : categoryData.label,
-                              description: categoryData.description?.startsWith('com_')
-                                ? localize(categoryData.description as TranslationKeys)
-                                : categoryData.description || '',
-                            };
-                          }
-
-                          // Fallback for unknown categories
-                          return {
-                            name:
-                              displayCategory.charAt(0).toUpperCase() + displayCategory.slice(1),
-                            description: '',
-                          };
-                        };
-
-                        const { name, description } = getCategoryData();
-
-                        return (
-                          <div className="text-left">
-                            <h2 className="text-2xl font-bold text-text-primary">{name}</h2>
-                            {description && (
-                              <p className="mt-2 text-text-secondary">{description}</p>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {/* Agent grid */}
-                  <AgentGrid
-                    key={`grid-${displayCategory}`}
-                    category={displayCategory}
-                    searchQuery={searchQuery}
-                    onSelectAgent={handleAgentSelect}
-                    scrollElementRef={scrollContainerRef}
-                  />
-                </div>
-
-                {/* Next content pane, only during transition */}
-                {isTransitioning && nextCategory && (
-                  <div
-                    className={cn(
-                      'absolute inset-0',
-                      animationDirection === 'right'
-                        ? 'motion-safe:animate-slide-in-right'
-                        : 'motion-safe:animate-slide-in-left',
-                    )}
-                    key={`pane-next-${nextCategory}-${animationDirection}`}
-                  >
-                    {/* Category header - only show when not searching */}
-                    {!searchQuery && (
-                      <div className="mb-6 mt-6">
-                        {(() => {
-                          // Get category data for display
-                          const getCategoryData = () => {
-                            if (nextCategory === 'promoted') {
-                              return {
-                                name: localize('com_agents_top_picks'),
-                                description: localize('com_agents_recommended'),
-                              };
-                            }
-                            if (nextCategory === 'all') {
-                              return {
-                                name: localize('com_agents_all'),
-                                description: localize('com_agents_all_description'),
-                              };
-                            }
-
-                            // Find the category in the API data
-                            const categoryData = categoriesQuery.data?.find(
-                              (cat) => cat.value === nextCategory,
-                            );
-                            if (categoryData) {
-                              return {
-                                name: categoryData.label?.startsWith('com_')
-                                  ? localize(categoryData.label as TranslationKeys)
-                                  : categoryData.label,
-                                description: categoryData.description?.startsWith('com_')
-                                  ? localize(
-                                      categoryData.description as Parameters<typeof localize>[0],
-                                    )
-                                  : categoryData.description || '',
-                              };
-                            }
-
-                            // Fallback for unknown categories
-                            return {
-                              name:
-                                (nextCategory || '').charAt(0).toUpperCase() +
-                                (nextCategory || '').slice(1),
-                              description: '',
-                            };
-                          };
-
-                          const { name, description } = getCategoryData();
-
-                          return (
-                            <div className="text-left">
-                              <h2 className="text-2xl font-bold text-text-primary">{name}</h2>
-                              {description && (
-                                <p className="mt-2 text-text-secondary">{description}</p>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-
-                    {/* Agent grid */}
-                    <AgentGrid
-                      key={`grid-${nextCategory}`}
-                      category={nextCategory}
-                      searchQuery={searchQuery}
-                      onSelectAgent={handleAgentSelect}
-                      scrollElementRef={scrollContainerRef}
-                    />
-                  </div>
-                )}
-
-                {/* Note: Using Tailwind keyframes for slide in/out animations */}
-              </div>
-            </div>
           </div>
         </main>
       </SidePanelGroup>

@@ -84,6 +84,7 @@ jest.mock('librechat-data-provider/react-query', () => ({
 }));
 
 jest.mock('~/utils', () => ({
+  cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
   createProviderOption: jest.fn((provider: string) => ({ value: provider, label: provider })),
   getDefaultAgentFormValues: jest.fn(() => ({
     id: '',

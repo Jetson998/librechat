@@ -18,6 +18,51 @@ jest.mock('~/utils', () => ({
 }));
 
 describe('AgentContact', () => {
+  it.each([
+    'workflow_meeting-to-action',
+    'workflow_knowledge-base-curator',
+    'workflow_excel-audit-reconciliation',
+    'workflow_policy-change-impact',
+    'workflow_feedback-root-cause-analysis',
+    'workflow_kyc-periodic-review',
+    'workflow_journal-entry-audit',
+  ])('hides contact for managed preset Agent %s', (id) => {
+    const { container } = render(
+      <AgentContact
+        agent={
+          {
+            id,
+            support_contact: { name: 'LibreChat Workflow Agent' },
+            owner_contact: { name: 'Owner User', email: 'owner@example.com' },
+          } as any
+        }
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText('Contact:')).not.toBeInTheDocument();
+    expect(screen.queryByText('LibreChat Workflow Agent')).not.toBeInTheDocument();
+    expect(screen.queryByText('Owner User')).not.toBeInTheDocument();
+  });
+
+  it('keeps contact visible for an Agent outside the exact preset ID list', () => {
+    render(
+      <AgentContact
+        agent={
+          {
+            id: 'workflow_custom-agent',
+            support_contact: { name: 'Visible Support', email: 'support@example.com' },
+          } as any
+        }
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Visible Support' })).toHaveAttribute(
+      'href',
+      'mailto:support@example.com',
+    );
+  });
+
   it('uses support contact before owner contact', () => {
     render(
       <AgentContact

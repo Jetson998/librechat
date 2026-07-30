@@ -1,15 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useToastContext } from '@librechat/client';
 import { ChevronLeft, Check, Copy } from 'lucide-react';
-import { AgentCapabilities, PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { AgentForm } from '~/common';
 import { sectionLabelClass, groupHeadingClass } from './ui';
-import { useLocalize, useHasAccess } from '~/hooks';
+import { useLocalize } from '~/hooks';
 import { useAgentPanelContext } from '~/Providers';
+import ToolsSection from '../Tools/ToolsSection';
 import OrchestrationHub from './OrchestrationHub';
+import PublishingSettings from './PublishingSettings';
 import MaxAgentSteps from './MaxAgentSteps';
-import SkillsToggle from './SkillsToggle';
 import { Panel } from '~/common';
 
 export default function AdvancedPanel() {
@@ -19,7 +19,7 @@ export default function AdvancedPanel() {
   const currentAgentId = watch('id');
   const [copied, setCopied] = useState(false);
 
-  const { agentsConfig, setActivePanel } = useAgentPanelContext();
+  const { setActivePanel } = useAgentPanelContext();
 
   const handleCopyAgentId = async () => {
     if (!currentAgentId) return;
@@ -32,16 +32,6 @@ export default function AdvancedPanel() {
       showToast({ message: localize('com_ui_error'), status: 'error' });
     }
   };
-
-  const skillsEnabled = useMemo(
-    () => agentsConfig?.capabilities.includes(AgentCapabilities.skills) ?? false,
-    [agentsConfig],
-  );
-  const hasSkillsAccess = useHasAccess({
-    permissionType: PermissionTypes.SKILLS,
-    permission: Permissions.USE,
-  });
-  const showSkillsKillSwitch = skillsEnabled && hasSkillsAccess;
 
   return (
     <div className="mb-1 flex w-full flex-col gap-4 text-sm">
@@ -62,9 +52,18 @@ export default function AdvancedPanel() {
 
       <div className="flex flex-col gap-5 px-2 pb-2">
         <section className="flex flex-col gap-3">
+          <span className={groupHeadingClass}>{localize('com_agents_advanced_publishing')}</span>
+          <PublishingSettings />
+        </section>
+
+        <section className="flex flex-col gap-3">
           <span className={groupHeadingClass}>{localize('com_ui_essentials')}</span>
           <MaxAgentSteps />
-          {showSkillsKillSwitch && <SkillsToggle />}
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <span className={groupHeadingClass}>{localize('com_agents_advanced_integrations')}</span>
+          <ToolsSection agentId={currentAgentId ?? ''} variant="advanced" />
         </section>
 
         <OrchestrationHub currentAgentId={currentAgentId} />

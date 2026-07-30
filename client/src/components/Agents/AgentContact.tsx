@@ -3,11 +3,25 @@ import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
 type AgentContactProps = {
-  agent?: Pick<t.Agent, 'support_contact' | 'owner_contact'> | null;
+  agent?: Pick<t.Agent, 'id' | 'support_contact' | 'owner_contact'> | null;
   className?: string;
 };
 
+const HIDDEN_CONTACT_AGENT_IDS = new Set([
+  'workflow_meeting-to-action',
+  'workflow_knowledge-base-curator',
+  'workflow_excel-audit-reconciliation',
+  'workflow_policy-change-impact',
+  'workflow_feedback-root-cause-analysis',
+  'workflow_kyc-periodic-review',
+  'workflow_journal-entry-audit',
+]);
+
 export default function AgentContact({ agent, className = '' }: AgentContactProps) {
+  if (agent?.id && HIDDEN_CONTACT_AGENT_IDS.has(agent.id)) {
+    return null;
+  }
+
   const localize = useLocalize();
   const supportName = agent?.support_contact?.name?.trim() ?? '';
   const supportEmail = agent?.support_contact?.email?.trim() ?? '';

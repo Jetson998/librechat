@@ -45,6 +45,29 @@ const createForm = (): AgentForm => ({
 });
 
 describe('composeAgentUpdatePayload', () => {
+  it('preserves advanced fields when the basic builder submits', () => {
+    const form = createForm();
+    form.category = 'finance';
+    form.support_contact = { name: 'Support Team', email: 'support@example.com' };
+    form.recursion_limit = 42;
+    form.agent_ids = ['agent_child'];
+    form.edges = [{ from: 'agent_123', to: 'agent_child', edgeType: 'handoff' }];
+    form.end_after_tools = true;
+    form.hide_sequential_outputs = true;
+
+    const { payload } = composeAgentUpdatePayload(form, 'agent_123');
+
+    expect(payload).toMatchObject({
+      category: 'finance',
+      support_contact: { name: 'Support Team', email: 'support@example.com' },
+      recursion_limit: 42,
+      agent_ids: ['agent_child'],
+      edges: [{ from: 'agent_123', to: 'agent_child', edgeType: 'handoff' }],
+      end_after_tools: true,
+      hide_sequential_outputs: true,
+    });
+  });
+
   it('includes avatar: null when resetting a persistent agent', () => {
     const form = createForm();
     form.avatar_action = 'reset';

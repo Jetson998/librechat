@@ -11,6 +11,7 @@ jest.mock('~/hooks/useLocalize', () => () => (key: string) => {
     com_agents_top_picks: 'Top Picks',
     com_agents_all: 'All Agents',
     com_agents_all_category: 'All',
+    com_agents_category_agent: 'Agent',
     com_ui_no_categories: 'No categories available',
     com_agents_category_tabs_label: 'Agent Categories',
     com_ui_agent_category_general: 'General',
@@ -137,6 +138,27 @@ describe('CategoryTabs', () => {
     await user.click(allTab);
 
     expect(mockOnChange).toHaveBeenCalledWith('all');
+  });
+
+  it('displays the preset workflow category as Agent', () => {
+    render(
+      <CategoryTabs
+        categories={[
+          {
+            value: 'automation-workflow',
+            label: '自动化工作流',
+            description: 'Preset workflows',
+            count: 7,
+          },
+        ]}
+        activeTab="automation-workflow"
+        isLoading={false}
+        onChange={mockOnChange}
+      />,
+    );
+
+    expect(screen.getByText('Agent')).toBeInTheDocument();
+    expect(screen.queryByText('自动化工作流')).not.toBeInTheDocument();
   });
 
   it('shows inactive state for non-selected tabs', () => {

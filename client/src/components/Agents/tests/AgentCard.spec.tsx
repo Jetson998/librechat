@@ -28,6 +28,7 @@ jest.mock('~/hooks/useLocalize', () => () => (key: string) => {
     com_agents_agent_card_label: '{{name}} agent. {{description}}',
     com_agents_category_general: 'General',
     com_agents_category_hr: 'Human Resources',
+    com_agents_category_agent: 'Agent',
     com_agents_contact: 'Contact',
     com_agents_no_contact_available: 'No contact available',
     com_agents_description_card: '{{description}}',
@@ -43,6 +44,7 @@ jest.mock('~/hooks', () => ({
       com_agents_agent_card_label: '{{name}} agent. {{description}}',
       com_agents_category_general: 'General',
       com_agents_category_hr: 'Human Resources',
+      com_agents_category_agent: 'Agent',
       com_agents_contact: 'Contact',
       com_agents_no_contact_available: 'No contact available',
       com_agents_description_card: '{{description}}',
@@ -385,6 +387,22 @@ describe('AgentCard', () => {
     );
 
     expect(screen.getByText('Custom Category')).toBeInTheDocument();
+  });
+
+  it('displays the preset workflow category as Agent', () => {
+    const presetWorkflowAgent = {
+      ...mockAgent,
+      category: 'automation-workflow',
+    };
+
+    render(
+      <Wrapper>
+        <AgentCard agent={presetWorkflowAgent} onSelect={mockOnSelect} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText('Agent')).toBeInTheDocument();
+    expect(screen.queryByText('Automation Workflow')).not.toBeInTheDocument();
   });
 
   it('displays capitalized fallback for unknown category', () => {

@@ -28,6 +28,7 @@ jest.mock('../SmartLoader', () => ({
 jest.mock('~/hooks/useLocalize', () => () => (key: string, options?: any) => {
   const mockTranslations: Record<string, string> = {
     com_agents_top_picks: 'Top Picks',
+    com_agents_category_agent: 'Agent',
     com_agents_all: 'All Agents',
     com_agents_recommended: 'Our recommended agents',
     com_agents_results_for: 'Results for "{{query}}"',
@@ -36,6 +37,14 @@ jest.mock('~/hooks/useLocalize', () => () => (key: string, options?: any) => {
     com_agents_error_searching: 'Error searching agents',
     com_agents_search_empty_heading: 'No results found',
     com_agents_empty_state_heading: 'No agents available',
+    com_agents_search_no_results: 'No Agents found for "{{query}}"',
+    com_agents_clear_search: 'Clear search',
+    com_agents_category_empty: 'No Agents found in {{category}}',
+    com_agents_category_empty_description: 'This category is empty.',
+    com_agents_workspace_view_all: 'View all',
+    com_agents_workspace_market_empty: 'No recommended Agents yet',
+    com_agents_workspace_market_empty_description: 'No Agents have been published yet.',
+    com_agents_workspace_create: 'Create Agent',
     com_agents_loading: 'Loading...',
     com_agents_grid_announcement: '{{count}} agents in {{category}}',
     com_agents_no_more_results: "You've reached the end of the results",
@@ -382,7 +391,7 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         </Wrapper>,
       );
 
-      expect(screen.getByText('No agents available')).toBeInTheDocument();
+      expect(screen.getByText('No Agents found in Finance')).toBeInTheDocument();
     });
   });
 
@@ -448,7 +457,91 @@ describe('AgentGrid Integration with useGetMarketplaceAgentsQuery', () => {
         </Wrapper>,
       );
 
-      expect(screen.getByText('No agents available')).toBeInTheDocument();
+      expect(screen.getByText('No results found')).toBeInTheDocument();
+      expect(screen.getByText('No Agents found for "nonexistent"')).toBeInTheDocument();
+    });
+
+    it('clears an empty search through the actionable CTA', () => {
+      const onClearSearch = jest.fn();
+      mockUseMarketplaceAgentsInfiniteQuery.mockReturnValue({
+        ...defaultMockQueryResult,
+        data: { pages: [{ data: [] }] },
+      });
+
+      render(
+        <AgentGrid
+          category="all"
+          searchQuery="missing"
+          onSelectAgent={mockOnSelectAgent}
+          onClearSearch={onClearSearch}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+      expect(onClearSearch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Actionable Empty States', () => {
+    beforeEach(() => {
+      mockUseMarketplaceAgentsInfiniteQuery.mockReturnValue({
+        ...defaultMockQueryResult,
+        data: { pages: [{ data: [] }] },
+      });
+    });
+
+    it('shows the create action only when creation is allowed', () => {
+      const onCreate = jest.fn();
+      const { rerender } = render(
+        <AgentGrid
+          category="promoted"
+          searchQuery=""
+          onSelectAgent={mockOnSelectAgent}
+          canCreate={false}
+          onCreate={onCreate}
+        />,
+      );
+
+      expect(screen.queryByRole('button', { name: 'Create Agent' })).not.toBeInTheDocument();
+
+      rerender(
+        <AgentGrid
+          category="promoted"
+          searchQuery=""
+          onSelectAgent={mockOnSelectAgent}
+          canCreate
+          onCreate={onCreate}
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Create Agent' }));
+      expect(onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses Agent for the preset workflow category empty state', () => {
+      render(
+        <AgentGrid
+          category="automation-workflow"
+          searchQuery=""
+          onSelectAgent={mockOnSelectAgent}
+        />,
+      );
+
+      expect(screen.getByText('No Agents found in Agent')).toBeInTheDocument();
+    });
+
+    it('offers a view-all action for an empty category', () => {
+      const onViewAll = jest.fn();
+      render(
+        <AgentGrid
+          category="finance"
+          searchQuery=""
+          onSelectAgent={mockOnSelectAgent}
+          onViewAll={onViewAll}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'View all' }));
+      expect(onViewAll).toHaveBeenCalledTimes(1);
     });
   });
 

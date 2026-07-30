@@ -77,7 +77,10 @@ jest.mock('@librechat/client', () => ({
 
 jest.mock('../ToolsMarketplaceDialog', () => ({
   __esModule: true,
-  default: ({ open }: { open: boolean }) => (open ? <div data-testid="marketplace-open" /> : null),
+  default: ({ open, allowedKinds }: { open: boolean; allowedKinds?: string[] }) =>
+    open ? (
+      <div data-testid="marketplace-open" data-allowed-kinds={allowedKinds?.join(',')} />
+    ) : null,
 }));
 
 const fileSearchItem: AgentItem = {
@@ -86,6 +89,15 @@ const fileSearchItem: AgentItem = {
   name: 'com_assistants_file_search',
   description: '',
   iconKey: 'file_search',
+};
+
+const regularToolItem: AgentItem = {
+  kind: 'tool',
+  id: 'calculator',
+  name: 'Calculator',
+  description: '',
+  iconKey: 'tool',
+  plugin: { pluginKey: 'calculator' } as any,
 };
 
 beforeEach(() => {
@@ -135,5 +147,26 @@ describe('ToolsSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'remove-file_search' }));
     expect(screen.queryByTestId('item-dialog')).not.toBeInTheDocument();
     expect(mockSetValue).toHaveBeenCalledWith('file_search', false, { shouldDirty: true });
+  });
+
+  test('basic mode shows platform capabilities and Skills but hides advanced tools', () => {
+    mockSelected = [fileSearchItem, regularToolItem];
+    render(<ToolsSection agentId="a" variant="basic" />);
+
+    expect(screen.getByText('file_search')).toBeInTheDocument();
+    expect(screen.queryByText('calculator')).not.toBeInTheDocument();
+    expect(screen.getByText('com_ui_skills')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'com_agents_add_platform_capabilities' }));
+    expect(screen.getByTestId('marketplace-open')).toHaveAttribute('data-allowed-kinds', 'builtin');
+  });
+
+  test('advanced mode shows integrations without duplicating Skills', () => {
+    mockSelected = [fileSearchItem, regularToolItem];
+    render(<ToolsSection agentId="a" variant="advanced" />);
+
+    expect(screen.queryByText('file_search')).not.toBeInTheDocument();
+    expect(screen.getByText('calculator')).toBeInTheDocument();
+    expect(screen.queryByText('com_ui_skills')).not.toBeInTheDocument();
   });
 });

@@ -4,7 +4,7 @@ import { useFormContext } from 'react-hook-form';
 import { Label, OGDialog, OGDialogTemplate, useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions, AgentCapabilities } from 'librechat-data-provider';
 import type { TPlugin } from 'librechat-data-provider';
-import type { AgentItem } from './items/types';
+import type { AgentItem, AgentItemKind } from './items/types';
 import type { AgentForm } from '~/common';
 import {
   useAgentItems,
@@ -25,9 +25,14 @@ import ToolRow from './ToolRow';
 
 interface Props {
   agentId: string;
+  variant?: 'all' | 'basic' | 'advanced';
 }
 
-export default function ToolsSection({ agentId }: Props) {
+const BASIC_KINDS: AgentItemKind[] = ['builtin'];
+const ADVANCED_KINDS: AgentItemKind[] = ['tool', 'mcp', 'action'];
+const ALL_TOOL_KINDS: AgentItemKind[] = ['builtin', 'tool', 'mcp', 'action'];
+
+export default function ToolsSection({ agentId, variant = 'all' }: Props) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
   const [open, setOpen] = useState(false);
@@ -62,7 +67,7 @@ export default function ToolsSection({ agentId }: Props) {
     () => agentsConfig?.capabilities?.includes(AgentCapabilities.skills) ?? false,
     [agentsConfig],
   );
-  const showSkills = hasSkillsAccess && skillsEnabled;
+  const showSkills = variant !== 'advanced' && hasSkillsAccess && skillsEnabled;
   const { data: skillsData } = useListSkillsQuery({ limit: 100 }, { enabled: showSkills });
   const resolvedSkills = useResolvedSkills(skillsData?.skills);
 
@@ -200,12 +205,19 @@ export default function ToolsSection({ agentId }: Props) {
     [attachedMcpServers, mcpServersMap],
   );
 
+  const visibleToolKinds = useMemo(
+    () =>
+      variant === 'basic' ? BASIC_KINDS : variant === 'advanced' ? ADVANCED_KINDS : ALL_TOOL_KINDS,
+    [variant],
+  );
+  const visibleToolKindSet = useMemo(() => new Set(visibleToolKinds), [visibleToolKinds]);
+
   /** MCP rows show how many of the server's tools are enabled for this agent, not
    * the total the server exposes, so the count reflects what the agent can use. */
   const toolItems = useMemo(() => {
     const enabled = new Set(tools);
     const withCounts = selected
-      .filter((item) => item.kind !== 'skill')
+      .filter((item) => item.kind !== 'skill' && visibleToolKindSet.has(item.kind))
       .map((item) =>
         item.kind === 'mcp'
           ? {
@@ -214,17 +226,42 @@ export default function ToolsSection({ agentId }: Props) {
             }
           : item,
       );
-    return [...withCounts, ...orphanedMcpItems];
-  }, [selected, orphanedMcpItems, tools]);
+    return [...withCounts, ...(visibleToolKindSet.has('mcp') ? orphanedMcpItems : [])];
+  }, [selected, orphanedMcpItems, tools, visibleToolKindSet]);
   const skillItems = useMemo(() => selected.filter((item) => item.kind === 'skill'), [selected]);
+
+  const sectionCopy = useMemo(() => {
+    if (variant === 'basic') {
+      return {
+        title: localize('com_agents_platform_capabilities'),
+        addLabel: localize('com_agents_add_platform_capabilities'),
+        emptyLabel: localize('com_agents_platform_capabilities_empty'),
+        emptyHint: localize('com_agents_platform_capabilities_empty_hint'),
+      };
+    }
+    if (variant === 'advanced') {
+      return {
+        title: localize('com_agents_advanced_integrations'),
+        addLabel: localize('com_agents_add_advanced_integrations'),
+        emptyLabel: localize('com_agents_advanced_integrations_empty'),
+        emptyHint: localize('com_agents_advanced_integrations_empty_hint'),
+      };
+    }
+    return {
+      title: localize('com_ui_tools_section_title'),
+      addLabel: localize('com_ui_add_tools'),
+      emptyLabel: localize('com_ui_tools_empty'),
+      emptyHint: localize('com_ui_tools_empty_hint'),
+    };
+  }, [localize, variant]);
 
   return (
     <>
       <SelectedSection
-        title={localize('com_ui_tools_section_title')}
-        addLabel={localize('com_ui_add_tools')}
-        emptyLabel={localize('com_ui_tools_empty')}
-        emptyHint={localize('com_ui_tools_empty_hint')}
+        title={sectionCopy.title}
+        addLabel={sectionCopy.addLabel}
+        emptyLabel={sectionCopy.emptyLabel}
+        emptyHint={sectionCopy.emptyHint}
         items={toolItems}
         onAdd={() => setOpen(true)}
         onInfo={setDialogItem}
@@ -242,7 +279,14 @@ export default function ToolsSection({ agentId }: Props) {
           onRemove={handleQuickRemove}
         />
       )}
-      {open && <ToolsMarketplaceDialog open={open} onOpenChange={setOpen} agentId={agentId} />}
+      {open && (
+        <ToolsMarketplaceDialog
+          open={open}
+          onOpenChange={setOpen}
+          agentId={agentId}
+          allowedKinds={visibleToolKinds}
+        />
+      )}
       {skillsOpen && (
         <SkillsDialog open={skillsOpen} onOpenChange={setSkillsOpen} agentId={agentId} />
       )}
