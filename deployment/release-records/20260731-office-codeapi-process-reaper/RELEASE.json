@@ -18,10 +18,10 @@
   },
   "baseline_reference": {
     "details": {
-      "codeapi_container": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+      "codeapi_container": "751bc9f00b61fec2f9e870135aa05e347234991e689a5723bb5c6d96c17e0aa7",
       "codeapi_image_id": "sha256:dc97d2378247102a6ef9f42dbabc9698ed5e39d299179db5b356f7a2e7681b3c",
       "compose_override_sha256": "1bad8d2ede3ecd94ba67bd3ff4cef0597c56b5a178003ee5d2ad1dbbfb6c861f",
-      "description": "CodeAPI is running from the expected image and data mount but is absent from the active Compose files, has init disabled, and has exhausted pids_limit=256 with 247 zombie children.",
+      "description": "Emergency recovery recreated CodeAPI from the expected image and cleared the 247 zombies (PIDs now 5). It remains absent from the active Compose files with init disabled, so the permanent reaper fix is still required.",
       "incident_conversation": "78ed6485-3d95-4887-b8e8-cad89c27f0bf",
       "incident_error": "BlockingIOError: [Errno 11] Resource temporarily unavailable",
       "incident_file_sha256": "3573f4100364d526a9a2125b4829b45ad7fb3477f2b807899c0748b34627f175"
@@ -108,7 +108,7 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "3a7109e99ba0799a1a39433036b2684f084bec0d",
+  "source_revision": "cbc1d761b7ed7d2dccee0288968b689c12fd1cd6",
   "status": "planned",
   "unresolved_issues": [],
   "updated_at": "2026-07-30T21:31:38Z",
