@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260731-office-codeapi-process-reaper/artifacts/20260731-office-codeapi-process-reaper-3a7109e99ba0.tar.gz",
+      "artifact": ".release-state/20260731-office-codeapi-process-reaper/artifacts/20260731-office-codeapi-process-reaper-cbc1d761b7ed.tar.gz",
       "manifest": ".release-state/20260731-office-codeapi-process-reaper/artifacts/manifest.json",
-      "value": "0766c4ed19aacf7c6095162149188774047e68d03ed33e5f712f4445edd23bcc"
+      "value": "c9b677847412624c4ae5461e25271f5b3904749ee59a40d1f890d8f1a401d060"
     },
     "status": "passed"
   },
@@ -29,7 +29,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "0766c4ed19aacf7c6095162149188774047e68d03ed33e5f712f4445edd23bcc",
+    "artifact_sha256": "c9b677847412624c4ae5461e25271f5b3904749ee59a40d1f890d8f1a401d060",
     "build_environment": "independent-build",
     "completed_requirements": [
       "deployable-artifact",
@@ -52,8 +52,8 @@
     },
     "production_host": false,
     "provider": "Codex independent deterministic configuration validation",
-    "release_plan_sha256": "bf7e1e05b5c863e148979a0ae15f7a7de16d3718cca88fc987fe7e098ce783d8",
-    "source_revision": "3a7109e99ba0799a1a39433036b2684f084bec0d",
+    "release_plan_sha256": "35aff12bc8c9d631ec23e370826597fc42f8235e80bdf9b76433be464793b061",
+    "source_revision": "cbc1d761b7ed7d2dccee0288968b689c12fd1cd6",
     "status": "passed"
   },
   "change_summary": {
@@ -111,7 +111,7 @@
   "source_revision": "cbc1d761b7ed7d2dccee0288968b689c12fd1cd6",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-30T21:31:38Z",
+  "updated_at": "2026-07-30T21:39:56Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-07-31-office-codeapi-process-reaper/tests/test-release.py; scripts/validate-release-governance.sh; git diff --check",
