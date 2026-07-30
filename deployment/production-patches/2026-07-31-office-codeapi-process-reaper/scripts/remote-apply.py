@@ -110,7 +110,17 @@ def main() -> None:
                 if inspect(name)["Id"] != container_id:
                     raise RuntimeError(f"protected service changed: {name}")
             js = "fetch('http://codeapi:8000/exec',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({lang:'bash',code:'printf codeapi-process-reaper-ok'})}).then(async r=>{const t=await r.text();if(!r.ok||!t.includes('codeapi-process-reaper-ok')){console.error(r.status,t);process.exit(2)}console.log(r.status)}).catch(e=>{console.error(e);process.exit(3)})"
-            exec_smoke = run(["docker", "exec", "LibreChat-API", "node", "-e", js])
+            exec_smoke = None
+            last_exec_error = ""
+            for _ in range(45):
+                candidate = run(["docker", "exec", "LibreChat-API", "node", "-e", js], check=False)
+                if candidate.returncode == 0:
+                    exec_smoke = candidate
+                    break
+                last_exec_error = candidate.stderr.strip() or candidate.stdout.strip()
+                time.sleep(2)
+            if exec_smoke is None:
+                raise RuntimeError(f"API-to-CodeAPI exec did not recover after DNS transition: {last_exec_error}")
             result = {
                 "schema_version": 1,
                 "status": "passed",

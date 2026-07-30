@@ -37,6 +37,7 @@ apply_text = (PATCH / "scripts/remote-apply.py").read_text(encoding="utf-8")
 require("--remove-orphans" not in apply_text, "runner must not remove orphans")
 require('"--no-deps", "--force-recreate", "codeapi"' in apply_text, "runner is not CodeAPI-scoped")
 require("remote-rollback.py" in apply_text, "automatic rollback is missing")
+require("API-to-CodeAPI exec did not recover after DNS transition" in apply_text, "DNS transition retry is missing")
 
 python_files = sorted((PATCH / "scripts").glob("*.py")) + [Path(__file__)]
 with tempfile.TemporaryDirectory() as temp_dir:
