@@ -1,0 +1,108 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "active_client_mount": "/opt/librechat/agent-guidance-terminology/f5f02300f53f-20260730115356/client-dist",
+      "api_container": "b9dcb7222e8e2298a90dab00019654747a5643820364e5aa256cc8d055e2399c",
+      "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+      "description": "Accepted Agent guidance and terminology release before the preset Agent runtime identity migration.",
+      "previous_release": "20260730-agent-guidance-terminology",
+      "public_index_sha256": "e0a7b257027e0d68f59d4f2b4d033dab525395dc54241a85261169fa4fd1938f"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Seven managed preset Agents use persistent agent_workflow_* IDs and initialize with their stored anthropic/claude-fable-5 model; /agents shows only 精选 Agent and 全部 when the sole business category duplicates all results; preset starters and contact hiding remain intact; ordinary or personal Agent contact remains visible.",
+    "functions": [
+      "Migrate exactly seven librechat-preset-workflow-agents records from workflow_* to agent_workflow_*",
+      "Preserve each Agent _id, owner, provider, model, all non-ID version fields, and 14 ACL entries",
+      "Scan every non-system Mongo collection and other Agent records for exact legacy ID references before mutation",
+      "Deploy the verified five-layer Client artifact with new contact/starter IDs and redundant-category suppression",
+      "Back up the full Extended JSON target snapshot, previous Client tree, and Compose override",
+      "Recreate only LibreChat-API while leaving the chat-mongodb container and all protected services unchanged",
+      "Automatically roll back both Mongo Agent documents and the Client mount on any post-mutation failure"
+    ],
+    "limitations": [
+      "No billable model request is allowed; browser acceptance stops before sending a prompt",
+      "The migration fails closed if any target new ID exists or any external legacy-ID reference is found",
+      "The immutable Client ZIP is retained outside Git and identified only by its recorded SHA-256",
+      "No conversation is created solely for acceptance"
+    ],
+    "reason": "LibreChat recognizes persistent Agents by the agent_ prefix. Production still stores the seven preset records as workflow_*, so selecting the audit Agent initializes without its saved model and reports missing_model. The only active business category also repeats the same seven promoted Agents shown under 精选 Agent and 全部.",
+    "risk": "This enhanced release changes persistent Agent identity and the active Client together. Incorrect mapping could orphan references or alter ACL/ownership; a partial failure could leave Mongo and Client out of sync. The release locks exact old/new IDs, scans references, saves Extended JSON, proves only ID fields changed, and couples Mongo and Client rollback.",
+    "scope": [
+      "deployment/production-patches/2026-07-30-preset-agent-runtime-category-fix"
+    ]
+  },
+  "created_at": "2026-07-30T17:40:10Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-patches/2026-07-30-preset-agent-runtime-category-fix/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260730-preset-agent-runtime-category-fix",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "automatic": "Any failure after Mongo mutation invokes the versioned remote-rollback.py.",
+      "command": "Run the timestamp-matched remote-rollback.py with the backup directory and saved runtime-preflight.json.",
+      "restore_scope": "Replace the seven Agent documents from Extended JSON by _id, verify ACLs unchanged, restore the previous Compose override and Client mount, then recreate only LibreChat-API.",
+      "unchanged_data": "Users, conversations, messages, files, Skills, categories, model configuration, non-target Agents, CodeAPI, RAG, Admin, NGINX, Mongo container, Office Converter, and Runtime Connector are outside the write scope."
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "100d43c7108e35394300544dda913b4ef333b0b3",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-30T17:40:10Z",
+  "validation_plan": [
+    {
+      "command": "scripts/verify-preset-agent-runtime-category-fix-overlay.sh <official-unpatched-source> <official-archive>; focused Client tests; Client typecheck/build; release test with the clean ZIP; scripts/validate-release-governance.sh; git diff --check",
+      "expected": "The five-layer overlay, 23 focused tests, Client build, exact seven-ID mapping, migration simulation, 355-member AppleDouble-free artifact, protected assets, enhanced target lock, and 32 governance tests pass.",
+      "type": "local"
+    },
+    {
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260730-preset-agent-runtime-category-fix --evidence <runtime-preflight.json>",
+      "expected": "The active Client/service baseline, host resources, seven legacy Agents, 14 ACLs, category state, absence of target IDs, absence of external legacy-ID references, and rollback sources pass with write_operations empty.",
+      "type": "preflight"
+    },
+    {
+      "command": "scripts/release-deploy.sh --confirm 20260730-preset-agent-runtime-category-fix 20260730-preset-agent-runtime-category-fix <clean-client.zip> <runtime-preflight.json> <deployment-result.json>",
+      "expected": "Only Agent ID fields and the Client bind mount change; only LibreChat-API is recreated; seven _id values and 14 ACL entries remain unchanged; all public and protected-service checks pass.",
+      "type": "deployment"
+    },
+    {
+      "command": "Authenticated vip998 browser acceptance on /agents, the audit Agent detail/new conversation, and a personal Agent contact control without sending a prompt",
+      "expected": "Only 精选 Agent and 全部 remain with seven cards each, the audit Agent opens without missing_model, three starters remain, preset contact is hidden, ordinary/personal contact remains available, and billable_model_requests is 0.",
+      "type": "business"
+    }
+  ]
+}
