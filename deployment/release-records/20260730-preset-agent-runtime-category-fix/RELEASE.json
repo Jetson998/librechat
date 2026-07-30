@@ -1,7 +1,20 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_evidence": ".release-state/20260730-preset-agent-runtime-category-fix/business-acceptance-failed.json",
+      "billable_model_requests": 0,
+      "browser_account": "vip998",
+      "checks_passed": [
+        "Audit Agent opens with its stored model and no missing_model error",
+        "Three preset conversation starters are visible",
+        "Managed preset Agent contact row is hidden",
+        "Personal Agent contact-support controls remain available"
+      ],
+      "conversation_created": false,
+      "failed_check": "The Agent business category duplicates all seven cards shown under 精选 Agent and remains visible alongside 全部.",
+      "root_cause": "The Client required all.count, but the production categories API omits count on all and exposes the comparison count on promoted."
+    },
+    "status": "failed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +26,14 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/preset-agent-runtime-category-fix-513d03c00bb5-20260730200855",
+      "client_mount_before": "/opt/librechat/agent-guidance-terminology/f5f02300f53f-20260730115356/client-dist",
+      "mongo_snapshot_sha256_before": "318d2f5cfd001db91efe676ee796e0a2fc236eef5893814953b251c3c79e48d6",
+      "release_root": "/opt/librechat/preset-agent-runtime-category-fix/513d03c00bb5-20260730200855",
+      "rollback_runner": "/opt/librechat/preset-agent-runtime-category-fix/513d03c00bb5-20260730200855/remote-rollback.py"
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -130,14 +149,48 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acl_count": 14,
+      "active_client_mount": "/opt/librechat/preset-agent-runtime-category-fix/513d03c00bb5-20260730200855/client-dist",
+      "api_container_after": "1ed3e001995b609bfed67caab3cced229b9cabe1e004f448db40b0fd59bd98c7",
+      "api_container_before": "b9dcb7222e8e2298a90dab00019654747a5643820364e5aa256cc8d055e2399c",
+      "client_index_sha256": "37e9e18e822416f744d46eeca5322baf5f06db58a03056f81f3db49857b44aca",
+      "compose_sha256_after": "b46724ca439e53b0602c9444d025735780064aa2e670ce1fd01c448b195e9816",
+      "compose_sha256_before": "30c4360529672a72d2ded18f9eb33afcfcb8fd2e9ac6cd3fb1b45479511f3bce",
+      "deployed_at": "2026-07-30T20:09:31+00:00",
+      "deployment_result": ".release-state/20260730-preset-agent-runtime-category-fix/deployment/deployment-result.json",
+      "migrated_agent_count": 7,
+      "mongo_container": "01d5bc03e9cb05a5efe43cc8a95c3dfce1e6387f65250923d135debe3050e7c6",
+      "mongo_snapshot_sha256_after": "b8cf402ab0240c6ac9e6a608126bebea31604b914f27fed8b1139ac6e50d837e",
+      "mongo_snapshot_sha256_before": "318d2f5cfd001db91efe676ee796e0a2fc236eef5893814953b251c3c79e48d6",
+      "preserved_resource_id_count": 7,
+      "protected_services": {
+        "LibreChat-Admin-Panel": "53d4071e329102e8fb8653c4cbdea00646bde97a686e60e85d526035b1d1aced",
+        "LibreChat-CodeAPI": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+        "LibreChat-NGINX": "1a5c01b19b73559d6ff2a7b9e053d77d5528946b61bafcd7acae86532f9e03df",
+        "LibreChat-RAG-API": "d16e85e1e1036a8d203a338032d367e472f7245e993efc1ef30d06e7bf6373de",
+        "chat-mongodb": "01d5bc03e9cb05a5efe43cc8a95c3dfce1e6387f65250923d135debe3050e7c6"
+      },
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "recreated_services": [
+        "LibreChat-API"
+      ]
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "513d03c00bb529d6f59b97941edf7798126fbb87",
-  "status": "planned",
-  "unresolved_issues": [],
-  "updated_at": "2026-07-30T20:03:02Z",
+  "status": "failed",
+  "unresolved_issues": [
+    "Business acceptance failed because the redundant Agent category remains visible and duplicates the seven promoted cards. A Client-only follow-up release is required; the successful Mongo identity migration must not be repeated."
+  ],
+  "updated_at": "2026-07-30T20:28:58Z",
   "validation_plan": [
     {
       "command": "scripts/verify-preset-agent-runtime-category-fix-overlay.sh <official-unpatched-source> <official-archive>; focused Client tests; Client typecheck/build; release test with the clean ZIP; scripts/validate-release-governance.sh; git diff --check",

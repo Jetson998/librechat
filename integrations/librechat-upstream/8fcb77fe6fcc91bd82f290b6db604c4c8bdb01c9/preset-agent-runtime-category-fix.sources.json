@@ -40,7 +40,7 @@
   ],
   "patch": {
     "path": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-runtime-category-fix.patch",
-    "sha256": "1fac4f7cde9a71af49ec3e6d3f3c08e864f09cd085dfc214f9b8983e856ab566"
+    "sha256": "f3ea605fc928318f8b1b56ad4f3cb480adad8cf733be5b56ee8ad5f1fd819ee9"
   },
   "lockfile": {
     "path": "package-lock.json",
@@ -61,9 +61,9 @@
   "expected_output": "client/dist",
   "files": [
     {"path": "client/src/components/Agents/AgentContact.tsx", "base_blob": "080d5d122626482cf883a0d521279e50bce88a2b", "result_blob": "ed00a77c9e986e014951c19297d5577811ee0ca8", "status": "modified"},
-    {"path": "client/src/components/Agents/Marketplace.tsx", "base_blob": "f625c99e4d91cc10c062b00bd0b9ae7c44f6f207", "result_blob": "fc3424df1eb962c703e2e4be47ceaf4ffcfbe81a", "status": "modified"},
+    {"path": "client/src/components/Agents/Marketplace.tsx", "base_blob": "f625c99e4d91cc10c062b00bd0b9ae7c44f6f207", "result_blob": "5f1732ee0e7bd28018233290cd0f256984a59f30", "status": "modified"},
     {"path": "client/src/components/Agents/tests/AgentContact.spec.tsx", "base_blob": "6297d87b437fa0057f24ec5651db2d6ecaed4b63", "result_blob": "70af86976306c367845a1ef2891d1e2cd318284b", "status": "modified"},
-    {"path": "client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx", "base_blob": "9738ea8ed61ca873f6d26fc501df3829e17c0f38", "result_blob": "e0903085e6714fd63bd4a616c8f676450118f3d7", "status": "modified"},
+    {"path": "client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx", "base_blob": "9738ea8ed61ca873f6d26fc501df3829e17c0f38", "result_blob": "48b8ed99fcb6fc32510ea3bb1278b1e392a660a2", "status": "modified"},
     {"path": "client/src/components/Chat/Input/ConversationStarters.tsx", "base_blob": "f6397685577e916fe3c0dcf4c558773ddf55bdf1", "result_blob": "54697cd48064bad432d36d9668473c38daeba8b0", "status": "modified"},
     {"path": "client/src/components/Chat/Input/__tests__/ConversationStarters.spec.tsx", "base_blob": "1cadb993e270f77b952c859b8d7cab76f89213cc", "result_blob": "ba206ee3ff2d54a9327029cddb4fa8346d9b4e66", "status": "modified"}
   ],

@@ -24,10 +24,10 @@ index 080d5d122626482cf883a0d521279e50bce88a2b..ed00a77c9e986e014951c19297d55778
  
  export default function AgentContact({ agent, className = '' }: AgentContactProps) {
 diff --git a/client/src/components/Agents/Marketplace.tsx b/client/src/components/Agents/Marketplace.tsx
-index f625c99e4d91cc10c062b00bd0b9ae7c44f6f207..fc3424df1eb962c703e2e4be47ceaf4ffcfbe81a 100644
+index f625c99e4d91cc10c062b00bd0b9ae7c44f6f207..5f1732ee0e7bd28018233290cd0f256984a59f30 100644
 --- a/client/src/components/Agents/Marketplace.tsx
 +++ b/client/src/components/Agents/Marketplace.tsx
-@@ -29,6 +29,25 @@ function normalizeWorkspaceView(value: string | null): AgentWorkspaceView {
+@@ -29,6 +29,27 @@ function normalizeWorkspaceView(value: string | null): AgentWorkspaceView {
    return 'recommended';
  }
  
@@ -35,14 +35,16 @@ index f625c99e4d91cc10c062b00bd0b9ae7c44f6f207..fc3424df1eb962c703e2e4be47ceaf4f
 +  categories: t.TMarketplaceCategory[],
 +): t.TMarketplaceCategory[] {
 +  const allCategory = categories.find((item) => item.value === 'all');
++  const promotedCategory = categories.find((item) => item.value === 'promoted');
 +  const businessCategories = categories.filter(
 +    (item) => item.value !== 'promoted' && item.value !== 'all',
 +  );
++  const comparisonCount = allCategory?.count ?? promotedCategory?.count;
 +
 +  if (
 +    businessCategories.length === 1 &&
-+    allCategory?.count != null &&
-+    businessCategories[0].count === allCategory.count
++    comparisonCount != null &&
++    businessCategories[0].count === comparisonCount
 +  ) {
 +    return categories.filter((item) => item.value !== businessCategories[0].value);
 +  }
@@ -53,7 +55,7 @@ index f625c99e4d91cc10c062b00bd0b9ae7c44f6f207..fc3424df1eb962c703e2e4be47ceaf4f
  const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) => {
    const localize = useLocalize();
    const navigate = useNavigate();
-@@ -82,6 +101,11 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
+@@ -82,6 +103,11 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
      refetchOnMount: false,
    });
  
@@ -65,7 +67,7 @@ index f625c99e4d91cc10c062b00bd0b9ae7c44f6f207..fc3424df1eb962c703e2e4be47ceaf4f
    useEffect(() => {
      if (effectiveView === 'recommended') {
        recommendedLocationRef.current = `${location.pathname}${location.search}`;
-@@ -131,9 +155,9 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
+@@ -131,9 +157,9 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
    }, [endpointsQuery.isSuccess, navigate, workspaceAvailable]);
  
    const orderedTabs = useMemo(() => {
@@ -77,7 +79,7 @@ index f625c99e4d91cc10c062b00bd0b9ae7c44f6f207..fc3424df1eb962c703e2e4be47ceaf4f
  
    const getTabIndex = useCallback(
      (tab: string) => {
-@@ -383,7 +407,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
+@@ -383,7 +409,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                        {!isSmallScreen && <MarketplaceAdminSettings />}
                      </div>
                      <CategoryTabs
@@ -112,7 +114,7 @@ index 6297d87b437fa0057f24ec5651db2d6ecaed4b63..70af86976306c367845a1ef2891d1e2c
      const { container } = render(
        <AgentContact
 diff --git a/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx b/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
-index 9738ea8ed61ca873f6d26fc501df3829e17c0f38..e0903085e6714fd63bd4a616c8f676450118f3d7 100644
+index 9738ea8ed61ca873f6d26fc501df3829e17c0f38..48b8ed99fcb6fc32510ea3bb1278b1e392a660a2 100644
 --- a/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
 +++ b/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
 @@ -2,7 +2,7 @@ import React from 'react';
@@ -129,10 +131,9 @@ index 9738ea8ed61ca873f6d26fc501df3829e17c0f38..e0903085e6714fd63bd4a616c8f67645
    useGetAgentCategoriesQuery: () => ({
      data: [
 -      { value: 'promoted', label: 'Top Picks' },
--      { value: 'all', label: 'All' },
 +      { value: 'promoted', label: 'Top Picks', count: 7 },
 +      { value: 'automation-workflow', label: 'Agent', count: 7 },
-+      { value: 'all', label: 'All', count: 7 },
+       { value: 'all', label: 'All' },
      ],
      isLoading: false,
    }),
@@ -155,7 +156,7 @@ index 9738ea8ed61ca873f6d26fc501df3829e17c0f38..e0903085e6714fd63bd4a616c8f67645
    ),
  }));
  
-@@ -146,6 +155,23 @@ describe('Agent workspace navigation', () => {
+@@ -146,6 +155,33 @@ describe('Agent workspace navigation', () => {
      expect(screen.getByTestId('location')).toHaveTextContent('/agents/finance');
    });
  
@@ -163,6 +164,16 @@ index 9738ea8ed61ca873f6d26fc501df3829e17c0f38..e0903085e6714fd63bd4a616c8f67645
 +    renderMarketplace();
 +
 +    expect(screen.getByTestId('category-tabs')).toHaveAttribute('data-values', 'promoted,all');
++  });
++
++  test('prefers an explicit all count over the promoted fallback', () => {
++    expect(
++      filterRedundantAgentCategories([
++        { value: 'promoted', label: 'Top Picks', count: 7 },
++        { value: 'automation-workflow', label: 'Agent', count: 7 },
++        { value: 'all', label: 'All', count: 8 },
++      ]),
++    ).toHaveLength(3);
 +  });
 +
 +  test('keeps business category tabs when multiple categories contain results', () => {

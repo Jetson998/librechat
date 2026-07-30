@@ -244,7 +244,9 @@ marketplace_source = (verify_dir / "client/src/components/Agents/Marketplace.tsx
 for marker in (
     "filterRedundantAgentCategories",
     "businessCategories.length === 1",
-    "businessCategories[0].count === allCategory.count",
+    "const promotedCategory = categories.find((item) => item.value === 'promoted')",
+    "const comparisonCount = allCategory?.count ?? promotedCategory?.count",
+    "businessCategories[0].count === comparisonCount",
     "categories={visibleCategories}",
 ):
     if marker not in marketplace_source:
@@ -255,6 +257,7 @@ marketplace_test = (
 ).read_text(encoding="utf-8")
 for marker in (
     "hides the only business category when it duplicates all results",
+    "prefers an explicit all count over the promoted fallback",
     "keeps business category tabs when multiple categories contain results",
 ):
     if marker not in marketplace_test:
