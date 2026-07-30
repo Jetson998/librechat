@@ -1,0 +1,264 @@
+diff --git a/client/src/components/Agents/AgentContact.tsx b/client/src/components/Agents/AgentContact.tsx
+index 080d5d122626482cf883a0d521279e50bce88a2b..ed00a77c9e986e014951c19297d5577811ee0ca8 100644
+--- a/client/src/components/Agents/AgentContact.tsx
++++ b/client/src/components/Agents/AgentContact.tsx
+@@ -8,13 +8,13 @@ type AgentContactProps = {
+ };
+ 
+ const HIDDEN_CONTACT_AGENT_IDS = new Set([
+-  'workflow_meeting-to-action',
+-  'workflow_knowledge-base-curator',
+-  'workflow_excel-audit-reconciliation',
+-  'workflow_policy-change-impact',
+-  'workflow_feedback-root-cause-analysis',
+-  'workflow_kyc-periodic-review',
+-  'workflow_journal-entry-audit',
++  'agent_workflow_meeting-to-action',
++  'agent_workflow_knowledge-base-curator',
++  'agent_workflow_excel-audit-reconciliation',
++  'agent_workflow_policy-change-impact',
++  'agent_workflow_feedback-root-cause-analysis',
++  'agent_workflow_kyc-periodic-review',
++  'agent_workflow_journal-entry-audit',
+ ]);
+ 
+ export default function AgentContact({ agent, className = '' }: AgentContactProps) {
+diff --git a/client/src/components/Agents/Marketplace.tsx b/client/src/components/Agents/Marketplace.tsx
+index f625c99e4d91cc10c062b00bd0b9ae7c44f6f207..fc3424df1eb962c703e2e4be47ceaf4ffcfbe81a 100644
+--- a/client/src/components/Agents/Marketplace.tsx
++++ b/client/src/components/Agents/Marketplace.tsx
+@@ -29,6 +29,25 @@ function normalizeWorkspaceView(value: string | null): AgentWorkspaceView {
+   return 'recommended';
+ }
+ 
++export function filterRedundantAgentCategories(
++  categories: t.TMarketplaceCategory[],
++): t.TMarketplaceCategory[] {
++  const allCategory = categories.find((item) => item.value === 'all');
++  const businessCategories = categories.filter(
++    (item) => item.value !== 'promoted' && item.value !== 'all',
++  );
++
++  if (
++    businessCategories.length === 1 &&
++    allCategory?.count != null &&
++    businessCategories[0].count === allCategory.count
++  ) {
++    return categories.filter((item) => item.value !== businessCategories[0].value);
++  }
++
++  return categories;
++}
++
+ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) => {
+   const localize = useLocalize();
+   const navigate = useNavigate();
+@@ -82,6 +101,11 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
+     refetchOnMount: false,
+   });
+ 
++  const visibleCategories = useMemo(
++    () => filterRedundantAgentCategories(categoriesQuery.data || []),
++    [categoriesQuery.data],
++  );
++
+   useEffect(() => {
+     if (effectiveView === 'recommended') {
+       recommendedLocationRef.current = `${location.pathname}${location.search}`;
+@@ -131,9 +155,9 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
+   }, [endpointsQuery.isSuccess, navigate, workspaceAvailable]);
+ 
+   const orderedTabs = useMemo(() => {
+-    const dynamic = (categoriesQuery.data || []).map((item) => item.value);
++    const dynamic = visibleCategories.map((item) => item.value);
+     return Array.from(new Set(dynamic));
+-  }, [categoriesQuery.data]);
++  }, [visibleCategories]);
+ 
+   const getTabIndex = useCallback(
+     (tab: string) => {
+@@ -383,7 +407,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
+                       {!isSmallScreen && <MarketplaceAdminSettings />}
+                     </div>
+                     <CategoryTabs
+-                      categories={categoriesQuery.data || []}
++                      categories={visibleCategories}
+                       activeTab={displayCategory}
+                       isLoading={categoriesQuery.isLoading}
+                       onChange={handleTabChange}
+diff --git a/client/src/components/Agents/tests/AgentContact.spec.tsx b/client/src/components/Agents/tests/AgentContact.spec.tsx
+index 6297d87b437fa0057f24ec5651db2d6ecaed4b63..70af86976306c367845a1ef2891d1e2cd318284b 100644
+--- a/client/src/components/Agents/tests/AgentContact.spec.tsx
++++ b/client/src/components/Agents/tests/AgentContact.spec.tsx
+@@ -19,13 +19,13 @@ jest.mock('~/utils', () => ({
+ 
+ describe('AgentContact', () => {
+   it.each([
+-    'workflow_meeting-to-action',
+-    'workflow_knowledge-base-curator',
+-    'workflow_excel-audit-reconciliation',
+-    'workflow_policy-change-impact',
+-    'workflow_feedback-root-cause-analysis',
+-    'workflow_kyc-periodic-review',
+-    'workflow_journal-entry-audit',
++    'agent_workflow_meeting-to-action',
++    'agent_workflow_knowledge-base-curator',
++    'agent_workflow_excel-audit-reconciliation',
++    'agent_workflow_policy-change-impact',
++    'agent_workflow_feedback-root-cause-analysis',
++    'agent_workflow_kyc-periodic-review',
++    'agent_workflow_journal-entry-audit',
+   ])('hides contact for managed preset Agent %s', (id) => {
+     const { container } = render(
+       <AgentContact
+diff --git a/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx b/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
+index 9738ea8ed61ca873f6d26fc501df3829e17c0f38..e0903085e6714fd63bd4a616c8f676450118f3d7 100644
+--- a/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
++++ b/client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx
+@@ -2,7 +2,7 @@ import React from 'react';
+ import '@testing-library/jest-dom';
+ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+-import Marketplace from '../Marketplace';
++import Marketplace, { filterRedundantAgentCategories } from '../Marketplace';
+ 
+ let mockCanCreate = true;
+ 
+@@ -39,8 +39,9 @@ jest.mock('~/data-provider', () => ({
+   }),
+   useGetAgentCategoriesQuery: () => ({
+     data: [
+-      { value: 'promoted', label: 'Top Picks' },
+-      { value: 'all', label: 'All' },
++      { value: 'promoted', label: 'Top Picks', count: 7 },
++      { value: 'automation-workflow', label: 'Agent', count: 7 },
++      { value: 'all', label: 'All', count: 7 },
+     ],
+     isLoading: false,
+   }),
+@@ -78,8 +79,16 @@ jest.mock('../SearchBar', () => ({
+ 
+ jest.mock('../CategoryTabs', () => ({
+   __esModule: true,
+-  default: ({ activeTab }: { activeTab: string }) => (
+-    <div data-testid="category-tabs">{activeTab}</div>
++  default: ({
++    activeTab,
++    categories,
++  }: {
++    activeTab: string;
++    categories: Array<{ value: string }>;
++  }) => (
++    <div data-testid="category-tabs" data-values={categories.map((item) => item.value).join(',')}>
++      {activeTab}
++    </div>
+   ),
+ }));
+ 
+@@ -146,6 +155,23 @@ describe('Agent workspace navigation', () => {
+     expect(screen.getByTestId('location')).toHaveTextContent('/agents/finance');
+   });
+ 
++  test('hides the only business category when it duplicates all results', () => {
++    renderMarketplace();
++
++    expect(screen.getByTestId('category-tabs')).toHaveAttribute('data-values', 'promoted,all');
++  });
++
++  test('keeps business category tabs when multiple categories contain results', () => {
++    expect(
++      filterRedundantAgentCategories([
++        { value: 'promoted', label: 'Top Picks', count: 7 },
++        { value: 'automation-workflow', label: 'Agent', count: 5 },
++        { value: 'finance', label: 'Finance', count: 2 },
++        { value: 'all', label: 'All', count: 7 },
++      ]),
++    ).toHaveLength(4);
++  });
++
+   test('switches between My Assistants and Create Assistant through URL state', () => {
+     renderMarketplace();
+ 
+diff --git a/client/src/components/Chat/Input/ConversationStarters.tsx b/client/src/components/Chat/Input/ConversationStarters.tsx
+index f6397685577e916fe3c0dcf4c558773ddf55bdf1..54697cd48064bad432d36d9668473c38daeba8b0 100644
+--- a/client/src/components/Chat/Input/ConversationStarters.tsx
++++ b/client/src/components/Chat/Input/ConversationStarters.tsx
+@@ -11,37 +11,37 @@ import { useLocalize, useSubmitMessage } from '~/hooks';
+ 
+ // Keep these Client-only fallbacks aligned with workflow-templates/preset-agents/compiled-agents.json.
+ const PRESET_AGENT_CONVERSATION_STARTERS: Record<string, string[]> = {
+-  'workflow_excel-audit-reconciliation': [
++  'agent_workflow_excel-audit-reconciliation': [
+     '审计这个 Excel，检查重复、缺失、公式和异常值',
+     '按订单号和金额对账这两份表，并生成差异明细',
+     '保留原数据，生成一份可追溯的审计工作簿',
+   ],
+-  'workflow_feedback-root-cause-analysis': [
++  'agent_workflow_feedback-root-cause-analysis': [
+     '分析这份客户反馈表，找出高频问题和根因假设',
+     '把工单按主题、影响和优先级分类',
+     '生成一份客户问题整改清单 Excel',
+   ],
+-  'workflow_journal-entry-audit': [
++  'agent_workflow_journal-entry-audit': [
+     '审计这份总账和分录表，生成异常分录工作底稿',
+     '检查期末手工分录、大额整数和罕见科目组合',
+     '按我提供的审计规则生成可追溯的 Excel 结果',
+   ],
+-  'workflow_knowledge-base-curator': [
++  'agent_workflow_knowledge-base-curator': [
+     '整理这些制度和培训材料，生成知识库目录与标准条目',
+     '找出上传文档中的重复、冲突和过期内容',
+     '把资料整理成可导入知识库的 Excel',
+   ],
+-  'workflow_kyc-periodic-review': [
++  'agent_workflow_kyc-periodic-review': [
+     '根据上传的客户资料整理一份 KYC 定期审查清单',
+     '核对客户档案完整性，并列出需要人工复核的风险信号',
+     '汇总获准公开来源中的负面信息并保留证据链接',
+   ],
+-  'workflow_meeting-to-action': [
++  'agent_workflow_meeting-to-action': [
+     '把这份会议纪要整理成行动计划，并标出负责人和截止时间',
+     '从上传的会议转写中提取决策、风险和待确认事项',
+     '生成一份可下载的会议执行台账 Excel',
+   ],
+-  'workflow_policy-change-impact': [
++  'agent_workflow_policy-change-impact': [
+     '比较这两版制度，输出条款级差异和影响分析',
+     '找出新制度对现有流程、系统和岗位的影响',
+     '生成一份整改行动清单 Excel',
+diff --git a/client/src/components/Chat/Input/__tests__/ConversationStarters.spec.tsx b/client/src/components/Chat/Input/__tests__/ConversationStarters.spec.tsx
+index 1cadb993e270f77b952c859b8d7cab76f89213cc..ba206ee3ff2d54a9327029cddb4fa8346d9b4e66 100644
+--- a/client/src/components/Chat/Input/__tests__/ConversationStarters.spec.tsx
++++ b/client/src/components/Chat/Input/__tests__/ConversationStarters.spec.tsx
+@@ -77,11 +77,11 @@ describe('ConversationStarters', () => {
+   it('shows preset guidance when the Agent projection omits configured starters', () => {
+     mockConversation = {
+       endpoint: 'agents',
+-      agent_id: 'workflow_excel-audit-reconciliation',
++      agent_id: 'agent_workflow_excel-audit-reconciliation',
+     };
+     mockAgentsMap = {
+-      'workflow_excel-audit-reconciliation': {
+-        id: 'workflow_excel-audit-reconciliation',
++      'agent_workflow_excel-audit-reconciliation': {
++        id: 'agent_workflow_excel-audit-reconciliation',
+         name: 'Excel 数据审计与对账',
+       },
+     };
+@@ -103,11 +103,11 @@ describe('ConversationStarters', () => {
+   it('keeps an Agent own configured starters ahead of the preset fallback', () => {
+     mockConversation = {
+       endpoint: 'agents',
+-      agent_id: 'workflow_excel-audit-reconciliation',
++      agent_id: 'agent_workflow_excel-audit-reconciliation',
+     };
+     mockAgentsMap = {
+-      'workflow_excel-audit-reconciliation': {
+-        id: 'workflow_excel-audit-reconciliation',
++      'agent_workflow_excel-audit-reconciliation': {
++        id: 'agent_workflow_excel-audit-reconciliation',
+         conversation_starters: ['使用 Agent 当前配置的引导语'],
+       },
+     };

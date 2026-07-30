@@ -177,6 +177,7 @@ function buildInstructions(manifest, profileText) {
 }
 
 function buildAgent(manifest, profileText, manifestDigest) {
+  const legacyId = `workflow_${manifest.templateId}`;
   const workflowMetadata = {
     managedBy: 'librechat-preset-workflow-agents',
     templateId: manifest.templateId,
@@ -188,7 +189,8 @@ function buildAgent(manifest, profileText, manifestDigest) {
   };
 
   return {
-    id: `workflow_${manifest.templateId}`,
+    id: `agent_workflow_${manifest.templateId}`,
+    legacyId,
     name: manifest.display.name,
     description: manifest.display.description,
     instructions: buildInstructions(manifest, profileText),

@@ -211,13 +211,13 @@ agents = compiled.get("agents", [])
 if len(agents) != 7:
     fail("compiled preset Agent contract no longer contains exactly seven Agents")
 
-expected_ids = {agent["id"] for agent in agents}
+expected_ids = {agent.get("legacyId", agent["id"]) for agent in agents}
 actual_ids = set(re.findall(r"^\s*'([^']+)': \[", constant_body, re.MULTILINE))
 if actual_ids != expected_ids:
     fail(f"preset conversation starter ID mismatch: {sorted(actual_ids)}")
 
 for agent in agents:
-    agent_id = agent["id"]
+    agent_id = agent.get("legacyId", agent["id"])
     block = re.search(
         rf"'{re.escape(agent_id)}': \[(.*?)\n\s*\],",
         constant_body,

@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "integration_id": "preset-agent-runtime-category-fix",
+  "upstream": {
+    "repository": "https://github.com/danny-avila/LibreChat.git",
+    "commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "tree": "66d1547235bc3e0f61663778b386e0ec7ec72c58",
+    "archive_url": "https://codeload.github.com/danny-avila/LibreChat/tar.gz/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "archive_sha256": "0febede262457ec26413cb6b2bc9cec5411cb2e506105c369982efc214943bd2"
+  },
+  "base_overlays": [
+    {
+      "integration_id": "agent-platform-p0-ui",
+      "manifest": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.sources.json",
+      "manifest_sha256": "bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237",
+      "patch": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-platform-p0-ui.patch",
+      "patch_sha256": "00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc"
+    },
+    {
+      "integration_id": "agent-sidebar-menu-state",
+      "manifest": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.sources.json",
+      "manifest_sha256": "f93a1f1cd7005fe2409a4b4e10f8cd49140cde9e2c0453ecd7278b47be60bad9",
+      "patch": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-sidebar-menu-state.patch",
+      "patch_sha256": "c37a97f87857bdcb2f9f877e27917774ef0f614718adf74e5b316f15716fc525"
+    },
+    {
+      "integration_id": "preset-agent-contact-visibility",
+      "manifest": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-contact-visibility.sources.json",
+      "manifest_sha256": "45fca4a81e6f9056787a89bcac17c5e906b9fea8136e01d2dc0da4e10286847e",
+      "patch": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-contact-visibility.patch",
+      "patch_sha256": "6699946b4662daec1005403aadc42a96d55ba27e70436ba8b74d148bc5c6f5d8"
+    },
+    {
+      "integration_id": "agent-guidance-terminology",
+      "manifest": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-guidance-terminology.sources.json",
+      "manifest_sha256": "5f6cacc11e24ffd65c86d3ba400e4b531e8f06cde9271bb3bf877c26f2ab0224",
+      "patch": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/agent-guidance-terminology.patch",
+      "patch_sha256": "8038176a51b2e98b4730ee639a43cabcfade18c45396b6c4ebeb961cc7736dfe"
+    }
+  ],
+  "patch": {
+    "path": "integrations/librechat-upstream/8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9/preset-agent-runtime-category-fix.patch",
+    "sha256": "1fac4f7cde9a71af49ec3e6d3f3c08e864f09cd085dfc214f9b8983e856ab566"
+  },
+  "lockfile": {
+    "path": "package-lock.json",
+    "upstream_blob": "783b1f4ee01971d1daeba523293a6b7d69e68969",
+    "sha256": "dbf35a03491cf56fdffe3e69c123870b606ff304883847d81865f267f7e7c8bf"
+  },
+  "toolchain": {
+    "node": "24.14.1",
+    "npm": "11.11.0"
+  },
+  "commands": {
+    "install": "npm ci",
+    "build_packages": "npm run build:packages",
+    "client_typecheck": "npm run typecheck --workspace=@librechat/frontend",
+    "client_build": "npm run build --workspace=@librechat/frontend",
+    "targeted_tests": "npm run test:ci --workspace=@librechat/frontend -- --runInBand src/components/Agents/tests/MarketplaceWorkspace.spec.tsx src/components/Agents/tests/AgentContact.spec.tsx src/components/Chat/Input/__tests__/ConversationStarters.spec.tsx"
+  },
+  "expected_output": "client/dist",
+  "files": [
+    {"path": "client/src/components/Agents/AgentContact.tsx", "base_blob": "080d5d122626482cf883a0d521279e50bce88a2b", "result_blob": "ed00a77c9e986e014951c19297d5577811ee0ca8", "status": "modified"},
+    {"path": "client/src/components/Agents/Marketplace.tsx", "base_blob": "f625c99e4d91cc10c062b00bd0b9ae7c44f6f207", "result_blob": "fc3424df1eb962c703e2e4be47ceaf4ffcfbe81a", "status": "modified"},
+    {"path": "client/src/components/Agents/tests/AgentContact.spec.tsx", "base_blob": "6297d87b437fa0057f24ec5651db2d6ecaed4b63", "result_blob": "70af86976306c367845a1ef2891d1e2cd318284b", "status": "modified"},
+    {"path": "client/src/components/Agents/tests/MarketplaceWorkspace.spec.tsx", "base_blob": "9738ea8ed61ca873f6d26fc501df3829e17c0f38", "result_blob": "e0903085e6714fd63bd4a616c8f676450118f3d7", "status": "modified"},
+    {"path": "client/src/components/Chat/Input/ConversationStarters.tsx", "base_blob": "f6397685577e916fe3c0dcf4c558773ddf55bdf1", "result_blob": "54697cd48064bad432d36d9668473c38daeba8b0", "status": "modified"},
+    {"path": "client/src/components/Chat/Input/__tests__/ConversationStarters.spec.tsx", "base_blob": "1cadb993e270f77b952c859b8d7cab76f89213cc", "result_blob": "ba206ee3ff2d54a9327029cddb4fa8346d9b4e66", "status": "modified"}
+  ],
+  "runtime_overlay_guard": {
+    "commit": "60eba76375213dafc1874d943e41371201c300ab",
+    "files": [
+      {"path": "integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/controller-runtime-bridge.patch", "sha256": "ca43626191379ab8fec889d8e19a7f0e9387e11c33d06a7e3edcc140a2be36c9"},
+      {"path": "integrations/librechat-upstream/60eba76375213dafc1874d943e41371201c300ab/README.md", "sha256": "2c5d5d0cc22e0f1b270e4d38f367b31b6469cb45090605a9c85366e675e8c193"}
+    ]
+  }
+}
