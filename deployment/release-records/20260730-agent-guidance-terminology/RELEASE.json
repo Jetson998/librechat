@@ -1,7 +1,27 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "accepted_at": "2026-07-30T04:26:53Z",
+      "acceptance_evidence": ".release-state/20260730-agent-guidance-terminology/acceptance-result.json",
+      "billable_model_requests": 0,
+      "browser_account": "vip998",
+      "business_evidence": ".release-state/20260730-agent-guidance-terminology/business-acceptance.json",
+      "checks": [
+        "Agent workspace uses 精选 Agent and Agent terminology",
+        "Seven preset Agent cards use Agent labels",
+        "Preset Excel Agent detail hides the contact row",
+        "Preset Excel Agent new conversation shows 可以这样开始 and three starter prompts",
+        "Personal Agent advanced settings retain contact-support name and email controls",
+        "No starter prompt was clicked and no model request was sent"
+      ],
+      "conversation_created": false,
+      "limitation": "The vip998 production account had no separate non-preset shared Agent detail fixture. The personal Agent editor contact controls and the exact seven-ID artifact contract were verified without creating production test data.",
+      "public_checks": {
+        "api_config": 200,
+        "main_root": 200
+      }
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +33,20 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/agent-guidance-terminology-f5f02300f53f-20260730115356",
+      "deployment_result": "/opt/librechat/backups/agent-guidance-terminology-f5f02300f53f-20260730115356/DEPLOY_RESULT.json",
+      "previous_client_index_sha256": "d54e0ff4a0e5b839858e260693ee632b8b4018b21198fa68e906f46d053a4375",
+      "previous_client_mount": "/opt/librechat/preset-agent-contact-visibility/1e8c61efcb11-20260730032211/client-dist",
+      "rollback_runner": "/opt/librechat/agent-guidance-terminology/f5f02300f53f-20260730115356/remote-rollback.sh",
+      "saved_files": [
+        "client-dist",
+        "compose.override.yaml",
+        "runtime-preflight.json",
+        "DEPLOY_RESULT.json"
+      ]
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -166,14 +198,38 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "active_client_mount": "/opt/librechat/agent-guidance-terminology/f5f02300f53f-20260730115356/client-dist",
+      "api_container_after": "b9dcb7222e8e2298a90dab00019654747a5643820364e5aa256cc8d055e2399c",
+      "api_container_before": "8ce9f2ee532a81018cc5b0c288a4789b06847ec8c9373b0f50eeb936b702cc66",
+      "client_index_sha256": "e0a7b257027e0d68f59d4f2b4d033dab525395dc54241a85261169fa4fd1938f",
+      "compose_sha256_after": "30c4360529672a72d2ded18f9eb33afcfcb8fd2e9ac6cd3fb1b45479511f3bce",
+      "compose_sha256_before": "a71f1999072ef4eed2d90364e5eb6ead2023e1928bbaf87d18ed7fa37d6ba8fb",
+      "deployed_at": "2026-07-30T03:54:15+00:00",
+      "deployment_result": ".release-state/20260730-agent-guidance-terminology/deployment/deployment-result.json",
+      "protected_services": {
+        "LibreChat-Admin-Panel": "53d4071e329102e8fb8653c4cbdea00646bde97a686e60e85d526035b1d1aced",
+        "LibreChat-CodeAPI": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+        "LibreChat-NGINX": "1a5c01b19b73559d6ff2a7b9e053d77d5528946b61bafcd7acae86532f9e03df",
+        "LibreChat-RAG-API": "d16e85e1e1036a8d203a338032d367e472f7245e993efc1ef30d06e7bf6373de",
+        "chat-mongodb": "01d5bc03e9cb05a5efe43cc8a95c3dfce1e6387f65250923d135debe3050e7c6"
+      },
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "release_root": "/opt/librechat/agent-guidance-terminology/f5f02300f53f-20260730115356"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "f5f02300f53f9526ddf62a86c8b74f3e7e525b26",
-  "status": "ready",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-30T03:29:09Z",
+  "updated_at": "2026-07-30T04:26:53Z",
   "validation_plan": [
     {
       "command": "scripts/verify-agent-guidance-terminology-overlay.sh <official-unpatched-source> <official-archive>; 18 focused Client test files; Client typecheck; Client production build; protected asset contracts; versioned artifact contract; scripts/validate-release-governance.sh; git diff --check",
