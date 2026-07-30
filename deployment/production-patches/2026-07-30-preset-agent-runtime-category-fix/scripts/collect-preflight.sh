@@ -93,6 +93,26 @@ raw.update(
             "id_mapping": metadata["migration"]["id_mapping"],
             "compiled_digest": metadata["source"]["compiled_digest"],
         },
+        "backup_reference": {
+            "type": "pre-write-targeted-backup",
+            "planned_directory": (
+                "/opt/librechat/backups/preset-agent-runtime-category-fix-"
+                + record["source_revision"][:12]
+                + "-<UTC timestamp>"
+            ),
+            "source_snapshot_sha256": raw["mongo_snapshot_sha256"],
+            "contents": [
+                "before-target-snapshot.json",
+                "client-dist",
+                "compose.override.yaml",
+                "runtime-preflight.json",
+                "artifact.json",
+                "snapshot.js",
+                "migrate.js",
+                "rollback.js",
+                "remote-rollback.py",
+            ],
+        },
     }
 )
 output_path.write_text(

@@ -94,6 +94,10 @@ def main() -> None:
     check("--remove-orphans" not in "\n".join((deploy, apply, rollback)), "orphan removal is forbidden")
     check("remote-apply.py" in deploy and "migrate.js" in deploy, "migration runner is not staged")
     check("chat-mongodb" in preflight and "mongo_snapshot_sha256" in preflight, "Mongo preflight is incomplete")
+    check(
+        '"backup_reference"' in collect and "source_snapshot_sha256" in collect,
+        "planned targeted data backup reference is missing",
+    )
     check("externalReferences" in snapshot and "getCollectionNames" in snapshot, "external reference scan missing")
     check("collectionName === 'agents'" in snapshot, "other Agent references are not scanned")
     check("$set: { id: nextId, versions }" in migrate, "migration write scope changed")
