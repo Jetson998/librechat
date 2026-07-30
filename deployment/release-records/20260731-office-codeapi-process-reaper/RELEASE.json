@@ -1,7 +1,23 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_evidence": ".release-state/20260731-office-codeapi-process-reaper/business-acceptance.json",
+      "acceptance_evidence_sha256": "4918e83a8c85ee2258732becf1029722f2a06e809ec75dbbbb8dfa85a2ed3991",
+      "billable_model_requests": 1,
+      "browser_account": "vip998",
+      "checks": [
+        "DOCX analysis completed with a meaningful summary and no CodeAPI 500",
+        "The model reported 618 document paragraphs and 10 tables",
+        "CodeAPI remained at 6 PIDs with zero zombies after the request",
+        "Post-deploy CodeAPI /exec requests returned 200",
+        "User explicitly verified the result as passed"
+      ],
+      "conversation_created": false,
+      "conversation_id": "78ed6485-3d95-4887-b8e8-cad89c27f0bf",
+      "public_acceptance": ".release-state/20260731-office-codeapi-process-reaper/acceptance-result.json",
+      "public_acceptance_sha256": "9827c32cdab1d7b32897e9eef2d226a94e538cf2abf340559220464b0a3399d6"
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +29,13 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/codeapi-process-reaper-cbc1d761b7ed-20260730214238",
+      "deployment_result": ".release-state/20260731-office-codeapi-process-reaper/deployment/deployment-result.json",
+      "previous_codeapi_container": "751bc9f00b61fec2f9e870135aa05e347234991e689a5723bb5c6d96c17e0aa7",
+      "previous_compose_override_sha256": "1bad8d2ede3ecd94ba67bd3ff4cef0597c56b5a178003ee5d2ad1dbbfb6c861f"
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -91,8 +112,56 @@
   "project_id": "librechat-self-host",
   "release_id": "20260731-office-codeapi-process-reaper",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_checks": [
+        "changed-path-smoke",
+        "limited-model-request",
+        "office-file-roundtrip"
+      ],
+      "acceptance_level": "heavy",
+      "affected_services": [
+        "LibreChat-API",
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "chat-mongodb"
+      ],
+      "build_requirements": [
+        "deployable-artifact",
+        "model-tool-artifact",
+        "versioned-patch-artifact"
+      ],
+      "deployment_targets": [
+        "LibreChat-API",
+        "LibreChat-CodeAPI"
+      ],
+      "matched_rules": [
+        "office-file-chain",
+        "production-patch"
+      ],
+      "preflight_checks": [
+        "dependency-interface",
+        "host-disk",
+        "host-memory",
+        "rollback-available",
+        "service-state"
+      ],
+      "public_acceptance_checks": [
+        "api-config",
+        "main-root",
+        "office-auth-boundary"
+      ],
+      "public_preflight_checks": [
+        "api-config",
+        "main-root",
+        "office-auth-boundary"
+      ],
+      "test_requirements": [
+        "model-tool-tests",
+        "patch-contract-tests",
+        "release-scope-tests"
+      ]
+    },
+    "sha256": "35aff12bc8c9d631ec23e370826597fc42f8235e80bdf9b76433be464793b061"
   },
   "rollback_reference": {
     "details": {
@@ -104,14 +173,45 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "codeapi_container_after": "31ef4b61d9702cf63fdf7d3a1fdbc6a6c0edaef9c0cb3da0774d4ef5fff618e0",
+      "codeapi_container_before": "751bc9f00b61fec2f9e870135aa05e347234991e689a5723bb5c6d96c17e0aa7",
+      "codeapi_exec_status": 200,
+      "codeapi_image_id": "sha256:dc97d2378247102a6ef9f42dbabc9698ed5e39d299179db5b356f7a2e7681b3c",
+      "codeapi_init": true,
+      "codeapi_pids_current": 6,
+      "codeapi_pids_limit": 256,
+      "codeapi_zombie_count": 0,
+      "compose_override_sha256_after": "08a004de934c939bab38093968e92325dbd3ae56de30167b8a5335de1208770c",
+      "compose_override_sha256_before": "1bad8d2ede3ecd94ba67bd3ff4cef0597c56b5a178003ee5d2ad1dbbfb6c861f",
+      "deployed_at": "2026-07-30T21:42:42+00:00",
+      "deployment_result": ".release-state/20260731-office-codeapi-process-reaper/deployment/deployment-result.json",
+      "deployment_result_sha256": "45d562b10a568810dc263527e5e471eb47ff0c86e39d87bedce40453ef7246cc",
+      "process_tree": "docker-init -> uvicorn",
+      "protected_services": {
+        "LibreChat-API": "3e82f51eb10120b2a7c3c2aaff4b0305c5174f554ead8a7e9ac9bf7ab457bd17",
+        "LibreChat-Admin-Panel": "53d4071e329102e8fb8653c4cbdea00646bde97a686e60e85d526035b1d1aced",
+        "LibreChat-NGINX": "1a5c01b19b73559d6ff2a7b9e053d77d5528946b61bafcd7acae86532f9e03df",
+        "LibreChat-RAG-API": "d16e85e1e1036a8d203a338032d367e472f7245e993efc1ef30d06e7bf6373de",
+        "chat-mongodb": "01d5bc03e9cb05a5efe43cc8a95c3dfce1e6387f65250923d135debe3050e7c6"
+      },
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "recreated_services": [
+        "LibreChat-CodeAPI"
+      ]
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "cbc1d761b7ed7d2dccee0288968b689c12fd1cd6",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-30T21:39:56Z",
+  "updated_at": "2026-07-30T21:47:42Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-07-31-office-codeapi-process-reaper/tests/test-release.py; scripts/validate-release-governance.sh; git diff --check",
