@@ -1,0 +1,106 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "active_client_mount": "/opt/librechat/preset-agent-runtime-category-fix/513d03c00bb5-20260730200855/client-dist",
+      "api_container": "1ed3e001995b609bfed67caab3cced229b9cabe1e004f448db40b0fd59bd98c7",
+      "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+      "description": "Deployed preset Agent identity migration with all runtime checks passing but redundant category business acceptance failing.",
+      "previous_release": "20260730-preset-agent-runtime-category-fix",
+      "public_index_sha256": "37e9e18e822416f744d46eeca5322baf5f06db58a03056f81f3db49857b44aca"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The /agents workspace shows only 精选 Agent and 全部 when the sole business category contains the same seven records as promoted; each view contains seven cards, while the prior Agent runtime identity, starters, contact visibility, and personal Agent controls remain unchanged.",
+    "functions": [
+      "Prefer an explicit all.count when the API provides it",
+      "Fallback to promoted.count when the synthetic all category omits count",
+      "Hide exactly one business category only when its count equals the comparison total",
+      "Retain business categories when multiple categories exist or counts differ",
+      "Deploy the independently built five-layer Client artifact",
+      "Replace only the LibreChat-API Client bind mount and recreate only LibreChat-API"
+    ],
+    "limitations": [
+      "No billable model request is allowed; browser acceptance stops before sending a prompt",
+      "The successful seven-Agent Mongo identity migration must not be repeated",
+      "The immutable Client ZIP is retained outside Git and identified by SHA-256",
+      "No conversation is created solely for acceptance"
+    ],
+    "reason": "Production acceptance proved the Agent runtime identity fix but found that the redundant Agent category remained visible. The categories API omits count on all and exposes count on promoted, while the original Client comparison and test mock required all.count.",
+    "risk": "An incorrect fallback could hide a legitimate category or change unrelated Agent behavior. The release locks the exact API response shape in regression tests, replays the full upstream overlay, verifies the immutable Client, protects all service identities, and performs an API-only recreate with rollback.",
+    "scope": [
+      "deployment/production-patches/2026-07-31-agent-category-dedup-count-fix"
+    ]
+  },
+  "created_at": "2026-07-30T20:38:07Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-patches/2026-07-31-agent-category-dedup-count-fix/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260731-agent-category-dedup-count-fix",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "command": "Run the versioned remote-rollback.sh with the timestamp-matched backup directory and runtime-preflight.json.",
+      "restore_scope": "Restore the exact pre-release Compose override and active Client mount, then recreate only LibreChat-API.",
+      "unchanged_data": "Agent documents, Agent IDs, ACLs, users, categories, files, Skills, conversations, models, MongoDB, CodeAPI, RAG, Admin Panel, NGINX, Office Converter, and Runtime Connector are outside the write scope."
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "56b91fa68a8c1f7c682f7a7af717194bd565adc3",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-30T20:39:23Z",
+  "validation_plan": [
+    {
+      "command": "scripts/verify-preset-agent-runtime-category-fix-overlay.sh <official-unpatched-source> <official-archive>; three focused Client tests; Client typecheck/build; protected Client composition; versioned artifact and release contract tests; scripts/validate-release-governance.sh; git diff --check",
+      "expected": "The five-layer overlay, 24 focused tests, category fallback markers, Client build, protected assets, immutable eight-member ZIP, API-only runner, and governance contracts pass.",
+      "type": "local"
+    },
+    {
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260731-agent-category-dedup-count-fix --evidence <runtime-preflight.json>",
+      "expected": "The current Client hash and mount, exact candidate artifact, public boundaries, protected service identities, resources, and rollback source pass with write_operations empty.",
+      "type": "preflight"
+    },
+    {
+      "command": "scripts/release-deploy.sh 20260731-agent-category-dedup-count-fix --confirm 20260731-agent-category-dedup-count-fix <client.zip> <runtime-preflight.json> <deployment-result.json>",
+      "expected": "Only LibreChat-API is recreated; no Mongo script is staged or executed; the candidate Client is served; the previous Client and Compose override are backed up; protected services remain unchanged.",
+      "type": "deployment"
+    },
+    {
+      "command": "Authenticated vip998 browser acceptance on /agents, the audit Agent detail/new conversation, and personal Agent contact controls without sending a prompt",
+      "expected": "Only 精选 Agent and 全部 remain with seven cards each, the audit Agent has no missing_model, three starters remain, preset contact is hidden, personal contact controls remain, and billable_model_requests is 0.",
+      "type": "business"
+    }
+  ]
+}
