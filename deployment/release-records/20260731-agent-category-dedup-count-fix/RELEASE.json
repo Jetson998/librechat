@@ -1,7 +1,20 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_evidence": ".release-state/20260731-agent-category-dedup-count-fix/business-acceptance.json",
+      "billable_model_requests": 0,
+      "browser_account": "vip998",
+      "checks": [
+        "Only 精选 Agent and 全部 remain; each shows seven cards",
+        "Audit Agent opens with its stored Agent model and no missing_model",
+        "Three starter prompts are visible and none was clicked",
+        "Preset Agent contact row is hidden",
+        "Personal Agent contact-support name and email controls remain visible"
+      ],
+      "conversation_created": false,
+      "public_acceptance": ".release-state/20260731-agent-category-dedup-count-fix/acceptance-result.json"
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +26,20 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/agent-category-dedup-count-fix-56b91fa68a8c-20260731044351",
+      "deployment_result": "/opt/librechat/backups/agent-category-dedup-count-fix-56b91fa68a8c-20260731044351/DEPLOY_RESULT.json",
+      "previous_client_index_sha256": "37e9e18e822416f744d46eeca5322baf5f06db58a03056f81f3db49857b44aca",
+      "previous_client_mount": "/opt/librechat/preset-agent-runtime-category-fix/513d03c00bb5-20260730200855/client-dist",
+      "rollback_runner": "/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/remote-rollback.sh",
+      "saved_files": [
+        "client-dist",
+        "compose.override.yaml",
+        "runtime-preflight.json",
+        "DEPLOY_RESULT.json"
+      ]
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -157,14 +182,41 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "active_client_mount": "/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist",
+      "api_container_after": "3e82f51eb10120b2a7c3c2aaff4b0305c5174f554ead8a7e9ac9bf7ab457bd17",
+      "api_container_before": "1ed3e001995b609bfed67caab3cced229b9cabe1e004f448db40b0fd59bd98c7",
+      "client_index_sha256": "26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544",
+      "compose_sha256_after": "1bad8d2ede3ecd94ba67bd3ff4cef0597c56b5a178003ee5d2ad1dbbfb6c861f",
+      "compose_sha256_before": "b46724ca439e53b0602c9444d025735780064aa2e670ce1fd01c448b195e9816",
+      "deployed_at": "2026-07-30T20:44:09+00:00",
+      "deployment_result": ".release-state/20260731-agent-category-dedup-count-fix/deployment/deployment-result.json",
+      "protected_services": {
+        "LibreChat-Admin-Panel": "53d4071e329102e8fb8653c4cbdea00646bde97a686e60e85d526035b1d1aced",
+        "LibreChat-CodeAPI": "ddba629a7b6384c8088d012008f0300ba2d1e355b620b26a71c1e5dfaf3428df",
+        "LibreChat-NGINX": "1a5c01b19b73559d6ff2a7b9e053d77d5528946b61bafcd7acae86532f9e03df",
+        "LibreChat-RAG-API": "d16e85e1e1036a8d203a338032d367e472f7245e993efc1ef30d06e7bf6373de",
+        "chat-mongodb": "01d5bc03e9cb05a5efe43cc8a95c3dfce1e6387f65250923d135debe3050e7c6"
+      },
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "recreated_services": [
+        "LibreChat-API"
+      ],
+      "release_root": "/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "56b91fa68a8c1f7c682f7a7af717194bd565adc3",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-30T20:41:42Z",
+  "updated_at": "2026-07-30T20:48:34Z",
   "validation_plan": [
     {
       "command": "scripts/verify-preset-agent-runtime-category-fix-overlay.sh <official-unpatched-source> <official-archive>; three focused Client tests; Client typecheck/build; protected Client composition; versioned artifact and release contract tests; scripts/validate-release-governance.sh; git diff --check",
