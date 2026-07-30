@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260730-agent-guidance-terminology/artifacts/20260730-agent-guidance-terminology-f5f02300f53f.tar.gz",
+      "manifest": ".release-state/20260730-agent-guidance-terminology/artifacts/manifest.json",
+      "value": "e5d0a9edb5b519bd8637ae294ab84c5778e2025844d23096b3eb7ce73e321df1"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -26,8 +31,51 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "e5d0a9edb5b519bd8637ae294ab84c5778e2025844d23096b3eb7ce73e321df1",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "client-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "checks": [
+        "Four-layer upstream overlay replay passed",
+        "18 focused Client test files passed 180 of 180 tests",
+        "Client TypeScript typecheck passed",
+        "Client production build passed with 9307 modules",
+        "Protected Client source, composition, upload, login, usage, search, context-safety, generated-file, and asset contracts passed",
+        "The independent Client ZIP and tar matched their recorded SHA-256 digests",
+        "The release package was generated from source f5f02300f53f9526ddf62a86c8b74f3e7e525b26 and matched e5d0a9edb5b519bd8637ae294ab84c5778e2025844d23096b3eb7ce73e321df1",
+        "All build and packaging work ran outside the production host"
+      ],
+      "github_actions": {
+        "artifact_id": 8739589134,
+        "conclusion": "success",
+        "head_sha": "157446d1598dff98ee95dedd063a962df262e475",
+        "reported_artifact_sha256": "227bba7c52b55304e32bbfbeeb2cac7de49d3ac34c23bc8d69d65a9e35e7976e",
+        "run_id": 30490577877,
+        "status": "completed",
+        "workflow": "LibreChat Agent Sidebar Menu Client"
+      },
+      "independent_client_artifact": {
+        "client_tar_sha256": "1a912d51eefb418159d6e37fe0f83b808aae7f22d51b42199e50a3383199da86",
+        "composed_index_sha256": "e0a7b257027e0d68f59d4f2b4d033dab525395dc54241a85261169fa4fd1938f",
+        "protected_asset_count": 10,
+        "source_revision": "157446d1598dff98ee95dedd063a962df262e475",
+        "tar_members": 355,
+        "upstream_revision": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+        "zip_sha256": "c54fb70a60311f9fc4f4f7204ebf45b79eeffae4e8c77dcc63ce6c19ea3553d7"
+      }
+    },
+    "production_host": false,
+    "provider": "GitHub Actions run 30490577877 plus Codex independent Client reproduction and release packaging",
+    "release_plan_sha256": "8f4166e2d4afa4a27b135549ae206ebb76b034774297193426dfe74506e0566c",
+    "source_revision": "f5f02300f53f9526ddf62a86c8b74f3e7e525b26",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Seven preset Agents show the heading 可以这样开始 with three starter prompts, Agent-specific workspace wording uses 精选 Agent and Agent instead of 助手 or 自动化工作流, and ordinary or personal Agent configured contact remains visible.",
@@ -64,8 +112,50 @@
   "project_id": "librechat-self-host",
   "release_id": "20260730-agent-guidance-terminology",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_checks": [
+        "browser-ui",
+        "changed-path-smoke"
+      ],
+      "acceptance_level": "light",
+      "affected_services": [
+        "LibreChat-API",
+        "LibreChat-NGINX"
+      ],
+      "build_requirements": [
+        "client-bundle",
+        "deployable-artifact",
+        "versioned-patch-artifact"
+      ],
+      "deployment_targets": [
+        "LibreChat-API"
+      ],
+      "matched_rules": [
+        "client-ui",
+        "production-patch"
+      ],
+      "preflight_checks": [
+        "dependency-interface",
+        "host-disk",
+        "host-memory",
+        "rollback-available",
+        "service-state"
+      ],
+      "public_acceptance_checks": [
+        "api-config",
+        "main-root"
+      ],
+      "public_preflight_checks": [
+        "api-config",
+        "main-root"
+      ],
+      "test_requirements": [
+        "client-tests",
+        "patch-contract-tests",
+        "release-scope-tests"
+      ]
+    },
+    "sha256": "8f4166e2d4afa4a27b135549ae206ebb76b034774297193426dfe74506e0566c"
   },
   "rollback_reference": {
     "details": {
@@ -83,7 +173,7 @@
   "source_revision": "f5f02300f53f9526ddf62a86c8b74f3e7e525b26",
   "status": "ready",
   "unresolved_issues": [],
-  "updated_at": "2026-07-30T03:09:19Z",
+  "updated_at": "2026-07-30T03:29:09Z",
   "validation_plan": [
     {
       "command": "scripts/verify-agent-guidance-terminology-overlay.sh <official-unpatched-source> <official-archive>; 18 focused Client test files; Client typecheck; Client production build; protected asset contracts; versioned artifact contract; scripts/validate-release-governance.sh; git diff --check",
