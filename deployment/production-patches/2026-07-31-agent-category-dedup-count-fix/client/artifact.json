@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "component": "agent-category-dedup-count-fix-client",
+  "source": {
+    "repository_commit": "29a1e5ea9fae489d36b8b4a69a351a232dbbe001",
+    "upstream_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "base_patch_sha256": "00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc",
+    "sidebar_patch_sha256": "c37a97f87857bdcb2f9f877e27917774ef0f614718adf74e5b316f15716fc525",
+    "contact_patch_sha256": "6699946b4662daec1005403aadc42a96d55ba27e70436ba8b74d148bc5c6f5d8",
+    "terminology_patch_sha256": "8038176a51b2e98b4730ee639a43cabcfade18c45396b6c4ebeb961cc7736dfe",
+    "runtime_category_patch_sha256": "f3ea605fc928318f8b1b56ad4f3cb480adad8cf733be5b56ee8ad5f1fd819ee9",
+    "compiled_agents_sha256": "a2f3accd0a701a8a49c1d8c8423b114e06890f867ee89884f6b7146a74bab6fd",
+    "compiled_digest": "9cb4c86faf63bf9cb6166f849aaa19129233f59dc99d818605a07315845ac943"
+  },
+  "build_provenance": {
+    "provider": "Codex independent build",
+    "build_environment": "independent-build",
+    "production_host": false,
+    "source_revision": "29a1e5ea9fae489d36b8b4a69a351a232dbbe001",
+    "completed_at": "2026-07-30T20:33:00Z",
+    "node": "24.14.1",
+    "npm": "11.11.0",
+    "source_archive_sha256": "0febede262457ec26413cb6b2bc9cec5411cb2e506105c369982efc214943bd2",
+    "checks": [
+      "five-layer upstream overlay replay",
+      "three focused Client test files, 24 of 24 tests",
+      "Client TypeScript typecheck",
+      "Client production build",
+      "protected Client asset source contracts",
+      "protected Client composition",
+      "AppleDouble-free tar and ZIP member validation"
+    ]
+  },
+  "artifact": {
+    "origin": "independent-build",
+    "zip_size": 15288930,
+    "zip_sha256": "4c962d7b5ec44ffefe8cd339a8efa5d20d87b1d19020f7a6f7e45cd7ca8fdcd9",
+    "members": {
+      "agent-platform-client-overlay.json": "32ad10f08606d27d82c809df9ad875ca88e8db2c53c29e0ab1c7654fbe4de07f",
+      "agent-platform-p0-ui.sources.json": "bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237",
+      "agent-sidebar-menu-state.sources.json": "f93a1f1cd7005fe2409a4b4e10f8cd49140cde9e2c0453ecd7278b47be60bad9",
+      "preset-agent-contact-visibility.sources.json": "45fca4a81e6f9056787a89bcac17c5e906b9fea8136e01d2dc0da4e10286847e",
+      "agent-guidance-terminology.sources.json": "5f6cacc11e24ffd65c86d3ba400e4b531e8f06cde9271bb3bf877c26f2ab0224",
+      "preset-agent-runtime-category-fix.sources.json": "6e76d3ebb9f50e1c64448f3898eb75acbe964170d76343898e345ddd48479678",
+      "client-dist.tar.gz": "16f276419989af6bd1c83157a0bdec9aa8f07e812cab07123f12a74041a012c0",
+      "client-dist.tar.gz.sha256": "1f5a2db01b512c53226708c4b4f55501bde3f6d7aaf8c7fc51add47bc09dd3bf"
+    },
+    "checksum_line": "16f276419989af6bd1c83157a0bdec9aa8f07e812cab07123f12a74041a012c0  client-dist.tar.gz",
+    "tar_members": 355,
+    "tar_files": 352,
+    "tar_directories": 3
+  },
+  "client": {
+    "composed_index_sha256": "26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544",
+    "base_index_sha256": "7f1915682476f914e8211fa9095ab3f8f87e753e4021cb2fb69563e739929bcb",
+    "overlay_id": "librechat-protected-client-assets",
+    "asset_count": 10,
+    "hidden_contact_agent_ids": [
+      "agent_workflow_meeting-to-action",
+      "agent_workflow_knowledge-base-curator",
+      "agent_workflow_excel-audit-reconciliation",
+      "agent_workflow_policy-change-impact",
+      "agent_workflow_feedback-root-cause-analysis",
+      "agent_workflow_kyc-periodic-review",
+      "agent_workflow_journal-entry-audit"
+    ]
+  },
+  "agent_identity_contract": {
+    "managed_by": "librechat-preset-workflow-agents",
+    "agent_count": 7,
+    "id_mapping": [
+      ["workflow_meeting-to-action", "agent_workflow_meeting-to-action"],
+      ["workflow_knowledge-base-curator", "agent_workflow_knowledge-base-curator"],
+      ["workflow_excel-audit-reconciliation", "agent_workflow_excel-audit-reconciliation"],
+      ["workflow_policy-change-impact", "agent_workflow_policy-change-impact"],
+      ["workflow_feedback-root-cause-analysis", "agent_workflow_feedback-root-cause-analysis"],
+      ["workflow_kyc-periodic-review", "agent_workflow_kyc-periodic-review"],
+      ["workflow_journal-entry-audit", "agent_workflow_journal-entry-audit"]
+    ]
+  },
+  "production_baseline": {
+    "public_index_sha256": "37e9e18e822416f744d46eeca5322baf5f06db58a03056f81f3db49857b44aca",
+    "active_client_mount": "/opt/librechat/preset-agent-runtime-category-fix/513d03c00bb5-20260730200855/client-dist",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  }
+}
