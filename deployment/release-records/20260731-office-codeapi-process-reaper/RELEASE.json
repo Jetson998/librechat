@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260731-office-codeapi-process-reaper/artifacts/20260731-office-codeapi-process-reaper-3a7109e99ba0.tar.gz",
+      "manifest": ".release-state/20260731-office-codeapi-process-reaper/artifacts/manifest.json",
+      "value": "0766c4ed19aacf7c6095162149188774047e68d03ed33e5f712f4445edd23bcc"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -24,8 +29,32 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "0766c4ed19aacf7c6095162149188774047e68d03ed33e5f712f4445edd23bcc",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "deployable-artifact",
+      "model-tool-artifact",
+      "versioned-patch-artifact",
+      "model-tool-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "checks": [
+        "CodeAPI Compose insertion is deterministic and idempotent",
+        "init, PID, memory, mount and security contracts passed",
+        "single-service deployment and automatic rollback contracts passed",
+        "Python syntax compilation passed",
+        "32 release-governance tests and both repository Skills passed",
+        "git diff --check passed",
+        "No build or dependency installation ran on production"
+      ]
+    },
+    "production_host": false,
+    "provider": "Codex independent deterministic configuration validation",
+    "release_plan_sha256": "bf7e1e05b5c863e148979a0ae15f7a7de16d3718cca88fc987fe7e098ce783d8",
+    "source_revision": "3a7109e99ba0799a1a39433036b2684f084bec0d",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "CodeAPI is managed by the active Compose project with init=true, keeps the exact image, data mount, resource limits and security controls, recreates only LibreChat-CodeAPI, accepts /exec requests again, and no longer accumulates unreaped LibreOffice/GnuPG descendants.",
@@ -82,7 +111,7 @@
   "source_revision": "3a7109e99ba0799a1a39433036b2684f084bec0d",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-30T21:29:03Z",
+  "updated_at": "2026-07-30T21:31:38Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-07-31-office-codeapi-process-reaper/tests/test-release.py; scripts/validate-release-governance.sh; git diff --check",
