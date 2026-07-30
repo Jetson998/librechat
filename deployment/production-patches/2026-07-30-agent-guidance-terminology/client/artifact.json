@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "component": "agent-guidance-terminology-client",
+  "source": {
+    "repository_commit": "157446d1598dff98ee95dedd063a962df262e475",
+    "upstream_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "base_patch_sha256": "00fc078859275611b717e34bd3a0fda4c44d08db1412b6df9e8735d27d0777bc",
+    "sidebar_patch_sha256": "c37a97f87857bdcb2f9f877e27917774ef0f614718adf74e5b316f15716fc525",
+    "contact_patch_sha256": "6699946b4662daec1005403aadc42a96d55ba27e70436ba8b74d148bc5c6f5d8",
+    "terminology_patch_sha256": "8038176a51b2e98b4730ee639a43cabcfade18c45396b6c4ebeb961cc7736dfe"
+  },
+  "github_actions": {
+    "workflow": "LibreChat Agent Sidebar Menu Client",
+    "run_id": 30490577877,
+    "artifact_id": 8739589134,
+    "artifact_name": "librechat-agent-sidebar-menu-client-8fcb77f",
+    "head_sha": "157446d1598dff98ee95dedd063a962df262e475",
+    "status": "completed",
+    "conclusion": "success",
+    "completed_at": "2026-07-29T21:02:43Z",
+    "expires_at": "2026-08-12T21:02:36Z",
+    "reported_artifact_size": 15300122,
+    "reported_artifact_sha256": "227bba7c52b55304e32bbfbeeb2cac7de49d3ac34c23bc8d69d65a9e35e7976e",
+    "url": "https://github.com/Jetson998/librechat/actions/runs/30490577877"
+  },
+  "artifact": {
+    "origin": "independent-build-reproduction",
+    "zip_size": 15243204,
+    "zip_sha256": "c54fb70a60311f9fc4f4f7204ebf45b79eeffae4e8c77dcc63ce6c19ea3553d7",
+    "members": {
+      "agent-platform-client-overlay.json": "9dfad7fb0b8c437a06afb835dd9349baf63aa645218cd44cfbb9e4115f572392",
+      "agent-platform-p0-ui.sources.json": "bddabe15942fd54427e19f6e8dba444fe89aec3baab7d19ec2fe4546302ff237",
+      "agent-sidebar-menu-state.sources.json": "f93a1f1cd7005fe2409a4b4e10f8cd49140cde9e2c0453ecd7278b47be60bad9",
+      "preset-agent-contact-visibility.sources.json": "45fca4a81e6f9056787a89bcac17c5e906b9fea8136e01d2dc0da4e10286847e",
+      "agent-guidance-terminology.sources.json": "5f6cacc11e24ffd65c86d3ba400e4b531e8f06cde9271bb3bf877c26f2ab0224",
+      "client-dist.tar.gz": "1a912d51eefb418159d6e37fe0f83b808aae7f22d51b42199e50a3383199da86",
+      "client-dist.tar.gz.sha256": "454996a47d3493a0af93bd409a054c3e794263ccb1240a9cba129852a0e72c46"
+    },
+    "checksum_line": "1a912d51eefb418159d6e37fe0f83b808aae7f22d51b42199e50a3383199da86  client-dist.tar.gz",
+    "tar_members": 355,
+    "tar_files": 352,
+    "tar_directories": 3
+  },
+  "client": {
+    "composed_index_sha256": "e0a7b257027e0d68f59d4f2b4d033dab525395dc54241a85261169fa4fd1938f",
+    "base_index_sha256": "d9e15eaf2ea5ceff06a4b63af84d7cf580ac359eb057424e0369b00564826b5c",
+    "overlay_id": "librechat-protected-client-assets",
+    "asset_count": 10,
+    "hidden_contact_agent_ids": [
+      "workflow_meeting-to-action",
+      "workflow_knowledge-base-curator",
+      "workflow_excel-audit-reconciliation",
+      "workflow_policy-change-impact",
+      "workflow_feedback-root-cause-analysis",
+      "workflow_kyc-periodic-review",
+      "workflow_journal-entry-audit"
+    ]
+  },
+  "independent_build": {
+    "node": "24.14.1",
+    "npm": "11.11.0",
+    "source_archive_sha256": "0febede262457ec26413cb6b2bc9cec5411cb2e506105c369982efc214943bd2",
+    "checks": [
+      "four-layer upstream overlay replay",
+      "18 focused Client test files, 180 of 180 tests",
+      "Client TypeScript typecheck",
+      "Client production build",
+      "protected Client asset source contracts",
+      "protected Client composition"
+    ]
+  },
+  "production_baseline": {
+    "public_index_sha256": "d54e0ff4a0e5b839858e260693ee632b8b4018b21198fa68e906f46d053a4375",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  }
+}
