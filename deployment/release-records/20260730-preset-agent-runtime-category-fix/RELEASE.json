@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260730-preset-agent-runtime-category-fix/artifacts/20260730-preset-agent-runtime-category-fix-100d43c7108e.tar.gz",
+      "manifest": ".release-state/20260730-preset-agent-runtime-category-fix/artifacts/manifest.json",
+      "value": "a096c3d1c351b395fb214532bef8522ac82a5c577e3adf1aed8d895aa58b0167"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -23,8 +28,58 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "a096c3d1c351b395fb214532bef8522ac82a5c577e3adf1aed8d895aa58b0167",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "client-bundle",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "client-tests",
+      "data-change-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "checks": [
+        "Five-layer pinned upstream overlay replay passed",
+        "Three focused Client test files passed 23 of 23 tests",
+        "Client TypeScript typecheck passed",
+        "Client production build passed",
+        "Protected Client composition and asset hashes passed",
+        "In-memory migrate/rollback tests passed for seven Agents and 14 ACL entries",
+        "Conflict and unexpected-version fail-closed migration tests passed",
+        "Enhanced deployment target and automatic combined rollback contracts passed",
+        "Release ZIP verification passed with exactly 355 non-AppleDouble tar members",
+        "32 release-governance tests and both repository Skills validation passed",
+        "The release package was generated from source 100d43c7108e35394300544dda913b4ef333b0b3 and matched a096c3d1c351b395fb214532bef8522ac82a5c577e3adf1aed8d895aa58b0167",
+        "No build, dependency installation, migration, or Client compilation ran on the production host"
+      ],
+      "github_actions": {
+        "artifact_id": 8750249452,
+        "conclusion": "success",
+        "head_sha": "d880d08fbb72de34193456b5a4be62c95303bc02",
+        "reported_artifact_sha256": "18d7e096ec7562257b786c47842e374475cb896f9ede2fa5b5b698319c01fe0b",
+        "run_id": 30519531259,
+        "status": "completed",
+        "workflow": "LibreChat Agent Sidebar Menu Client"
+      },
+      "independent_client_artifact": {
+        "appledouble_members": 0,
+        "client_tar_sha256": "35f0094c809f69769627bcd8dbc17c49e5c7977780de21ef1eca832c52758ab5",
+        "composed_index_sha256": "37e9e18e822416f744d46eeca5322baf5f06db58a03056f81f3db49857b44aca",
+        "source_revision": "d880d08fbb72de34193456b5a4be62c95303bc02",
+        "tar_directories": 3,
+        "tar_files": 352,
+        "tar_members": 355,
+        "upstream_revision": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+        "zip_sha256": "6be12f42311e50350ac911503da326b60186d3594f1d295cec5a9c7b022856e3"
+      }
+    },
+    "production_host": false,
+    "provider": "GitHub Actions run 30519531259 plus Codex independent Client, migration, and release-package verification",
+    "release_plan_sha256": "fb36644d5e293c7c55402e32cda67b6101161c647173f8adba8c53d7c1c4fcb6",
+    "source_revision": "100d43c7108e35394300544dda913b4ef333b0b3",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Seven managed preset Agents use persistent agent_workflow_* IDs and initialize with their stored anthropic/claude-fable-5 model; /agents shows only 精选 Agent and 全部 when the sole business category duplicates all results; preset starters and contact hiding remain intact; ordinary or personal Agent contact remains visible.",
@@ -82,7 +137,7 @@
   "source_revision": "100d43c7108e35394300544dda913b4ef333b0b3",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-30T17:40:10Z",
+  "updated_at": "2026-07-30T19:53:38Z",
   "validation_plan": [
     {
       "command": "scripts/verify-preset-agent-runtime-category-fix-overlay.sh <official-unpatched-source> <official-archive>; focused Client tests; Client typecheck/build; release test with the clean ZIP; scripts/validate-release-governance.sh; git diff --check",
