@@ -76,10 +76,10 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "0adca6f7c5321b3d1a33956018dcbab12ae52822",
+  "source_revision": "e5f4e857ebef702da6f62152093052ceeffe4661",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-31T09:25:52Z",
+  "updated_at": "2026-07-31T11:17:12Z",
   "validation_plan": [
     {
       "type": "local",
