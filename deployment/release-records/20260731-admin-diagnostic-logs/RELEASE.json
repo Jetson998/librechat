@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-68595101cb5e.tar.gz",
+      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-8bf018126978.tar.gz",
       "manifest": ".release-state/20260731-admin-diagnostic-logs/artifacts/manifest.json",
-      "value": "17ae36c8d947f82e28d58c517ebc36a5db33faa347fca30ca1158a939219c575"
+      "value": "ce8708f7c8901c2cf5948cc1ae6dd4d981d1b8e9119b20c99955443ede9d4699"
     },
     "status": "passed"
   },
@@ -25,7 +25,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "17ae36c8d947f82e28d58c517ebc36a5db33faa347fca30ca1158a939219c575",
+    "artifact_sha256": "ce8708f7c8901c2cf5948cc1ae6dd4d981d1b8e9119b20c99955443ede9d4699",
     "build_environment": "ci",
     "completed_requirements": [
       "admin-artifact",
@@ -58,7 +58,8 @@
         "Source, secret scan, CI attestation, Bash syntax, Python syntax and git diff checks passed.",
         "33 repository release-governance tests passed.",
         "Candidate Compose YAML and production Compose base both parsed successfully.",
-        "Read-only production service health, memory and disk checks passed."
+        "Read-only production service health, memory and disk checks passed.",
+        "Versioned remote runner syntax passed and its default path pulls the CI GHCR image without a production build."
       ],
       "quality_gate": {
         "client_build": "passed",
@@ -93,8 +94,8 @@
     },
     "production_host": false,
     "provider": "GitHub Actions run 30628473296 plus local Admin preflight and independent contract checks",
-    "release_plan_sha256": "f1bb1fa5e3e1d22eeccfd02ba65d911b41c1c7419918ccad021603d45cc52940",
-    "source_revision": "68595101cb5e48eb4b826309b564df06177cf850",
+    "release_plan_sha256": "b31f235a53be094106e40b9a7e93be352e567d9b4abb0c3225b7d019bc78d85e",
+    "source_revision": "8bf018126978bddbb408193e417985c073344803",
     "status": "passed"
   },
   "change_summary": {
@@ -151,7 +152,7 @@
   "source_revision": "8bf018126978bddbb408193e417985c073344803",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-31T14:11:00Z",
+  "updated_at": "2026-07-31T14:22:15Z",
   "validation_plan": [
     {
       "command": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/verify-source.sh",
