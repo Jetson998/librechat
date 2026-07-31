@@ -3,6 +3,17 @@
 # release-governance:targets=LibreChat-API,LibreChat-Admin-Panel,LibreChat-NGINX
 set -Eeuo pipefail
 
+if [[ -n "${RELEASE_ARTIFACT_PATH:-}" ]]; then
+  release_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  : "${RELEASE_ARTIFACT_SHA256:?RELEASE_ARTIFACT_SHA256 is required}"
+  command -v expect >/dev/null
+  export LOCAL_TARBALL="$RELEASE_ARTIFACT_PATH"
+  export TARBALL_SHA256="$RELEASE_ARTIFACT_SHA256"
+  export RELEASE_DIR="$release_dir"
+  export SSH_PASS="${SSH_PASS-}"
+  exec expect "$release_dir/scripts/deploy-remote.exp"
+fi
+
 stage_dir="${1:-/tmp/librechat-admin-panel-zh-cn-release}"
 root_dir="/opt/librechat"
 compose_base="$root_dir/compose.yaml"

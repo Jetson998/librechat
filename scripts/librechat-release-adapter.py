@@ -1143,6 +1143,7 @@ def command_deploy(args):
                     "RELEASE_ID": args.release_id,
                     "RELEASE_SOURCE_REVISION": record["source_revision"],
                     "RELEASE_ARTIFACT_SHA256": manifest["artifact"]["sha256"],
+                    "RELEASE_ARTIFACT_PATH": str(artifact.resolve()),
                 }
             )
             completed = run(
