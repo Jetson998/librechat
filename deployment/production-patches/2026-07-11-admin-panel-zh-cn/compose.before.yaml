@@ -22,7 +22,7 @@ services:
     volumes:
     - /opt/librechat/codeapi-data:/srv/codeapi-data
   admin-panel:
-    image: ghcr.io/jetson998/librechat-admin-panel-zh-cn:ca5aa4c17881
+    image: librechat-admin-panel-zh-cn:fad4332f83e6
     container_name: LibreChat-Admin-Panel
     depends_on:
     - api
