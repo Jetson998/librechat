@@ -225,9 +225,7 @@ describe('CustomEndpointsRenderer', () => {
 
     fireEvent.click(container.querySelector('[title="Muskapis-openai"]')!);
 
-    const name = container.querySelector(
-      'input#Muskapis-openai-name',
-    ) as HTMLInputElement | null;
+    const name = container.querySelector('input#Muskapis-openai-name') as HTMLInputElement | null;
 
     expect(name).not.toBeNull();
     fireEvent.change(name!, { target: { value: 'MuskAPI' } });

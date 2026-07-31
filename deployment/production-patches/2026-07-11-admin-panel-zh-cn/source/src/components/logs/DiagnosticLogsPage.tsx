@@ -132,7 +132,10 @@ export function DiagnosticLogsPage() {
         )}
       </section>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label={localize('com_diagnostic_logs_summary')}>
+      <section
+        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+        aria-label={localize('com_diagnostic_logs_summary')}
+      >
         <SummaryItem label={localize('com_diagnostic_logs_summary_events')} value="--" />
         <SummaryItem label={localize('com_diagnostic_logs_summary_errors')} value="--" />
         <SummaryItem label={localize('com_diagnostic_logs_summary_last')} value="--" />
