@@ -321,6 +321,22 @@ class ReleaseGateTests(unittest.TestCase):
         ):
             self.assertIn(phrase, skill)
 
+    def test_generic_skill_is_guidance_not_a_mandatory_state_machine(self):
+        skill = (ROOT / "skills/lightweight-release-governance/SKILL.md").read_text(
+            encoding="utf-8"
+        ).lower()
+        for phrase in (
+            "decision guide and toolkit",
+            "constrain dangerous outcomes",
+            "everything else is conditional",
+            "metrics supervise the workflow; they are not release gates",
+            "do not add a telemetry system",
+        ):
+            self.assertIn(phrase, skill)
+        self.assertNotIn(
+            "prepare -> preflight_permissions -> repository_gate", skill
+        )
+
     def test_generic_skill_has_no_project_specific_provider_names(self):
         generic = "\n".join(
             path.read_text(encoding="utf-8")

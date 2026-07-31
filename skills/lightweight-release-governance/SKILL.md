@@ -1,193 +1,129 @@
 ---
 name: lightweight-release-governance
-description: Lightweight release workflow and rollback-first governance for self-hosted applications. Use when a project needs a baseline, change record, validation entry point, traceable artifacts, release evidence, rollback planning, resumable gates, or a stricter protection mode before an external runtime write. Keep ordinary analysis, coding, and documentation work lightweight.
+description: High-autonomy, rollback-aware guidance for releasing self-hosted applications. Use it to choose the smallest trustworthy path for a versioned release, production change, recovery, acceptance, or release result. Keep ordinary development outside release governance and avoid process work that does not improve safety, verification, recovery, or traceability.
 ---
 
 # Lightweight Release Governance
 
-Use this skill as a small release and recovery toolkit, not as a replacement for
-the project's development process, CI platform, monitoring, or secret manager.
+This Skill is a decision guide and toolkit, not a universal state machine. Trust
+the model to choose the implementation path. Constrain dangerous outcomes, not
+the model's reasoning process.
 
-## Operating modes
+## When to use it
 
-Select the least restrictive mode that matches the task:
+- Do not invoke release governance for ordinary analysis, coding, local tests,
+  or documentation.
+- Use it when preparing a release artifact, changing an external runtime,
+  recovering a service, accepting changed business behavior, or recording what
+  was actually released.
+- Batch related development and govern the batch once when it is ready.
 
-- `light`: analysis, local coding, documentation, or local experiments. Do not
-  invoke production gates.
-- `release`: prepare a versioned change or artifact. Require a target, baseline,
-  change record, validation, rollback plan, and traceable source/artifact data.
-- `protected`: any external runtime write, service restart, configuration/data
-  mutation, or deployment. Add read-only target preflight, bounded scope,
-  rollback evidence, risk-adaptive business acceptance, and a release result.
-- `enhanced`: high-risk changes such as shared infrastructure, migrations, or
-  concurrent releases. Add heavy business acceptance, immutable artifact
-  attestation, deployment locking, strict input fingerprints, and automatic
-  rollback evidence.
+## Required outcomes
 
-Never use an ad-hoc environment variable to skip a gate. A gate may be
-`not_applicable` only when the project adapter declares that outcome for the
-selected mode and records a reason.
+A trustworthy release proves only what matters:
 
-## Batch boundary
+1. The project, target, intended scope, and current state are understood.
+2. The change is recoverable, or an irreversible risk is explicitly accepted
+   before the write.
+3. The simplest trustworthy validation for this change has passed.
+4. The affected business path works after the change.
+5. The actual result, warnings, and recovery reference are recorded truthfully.
 
-Do not start a governed release for every coding task or commit. Daily AI-assisted
-development stays in `light`: make the change, run focused local checks, and
-commit normally. Start `release`, `protected`, or `enhanced` only when a related
-batch is ready to package or deploy. Resolve the accumulated paths once and run
-the selected build, tests, target checks, and acceptance once for that batch.
+Everything else is conditional. Do not create gates, evidence files, builds,
+or checks merely to satisfy this Skill.
 
-Use `enhanced` at low frequency for a batch containing data, routing, identity,
-core file, or other high-risk changes. Batching reduces repeated work; it never
-permits a high-risk production change to use a lower mode.
+## Working method
 
-## Required sequence
-
-The generic protocol is:
+Use this shape rather than a fixed checklist:
 
 ```text
-prepare -> preflight_permissions -> repository_gate -> package_manifest
-         -> ci_attestation_gate -> target_preflight -> apply_gate
-         -> acceptance_gate -> release_record
+observe -> decide -> act -> verify -> record
 ```
 
-Project adapters may declare a gate `not_applicable`, but they must preserve the
-order of all applicable gates. A failed or blocked gate stops the write path.
+- Read the project adapter once and use its existing scripts and facts.
+- Confirm required access and target reachability before expensive build work.
+- Freeze the release scope before producing the final artifact.
+- Prefer one trusted artifact. Reuse valid build, test, preflight, or acceptance
+  evidence when its revision, artifact, configuration, and assumptions match.
+- Combine related read-only checks. Prefer one bounded apply over many remote
+  commands.
+- Resume from the last trustworthy result after a failure. Re-run only work
+  invalidated by changed inputs.
+- If an execution control plane does not start a command, stop retrying it and
+  give the operator one exact project-owned command plus expected evidence.
+- Keep detailed logs in files and return only the decision, compact evidence,
+  warnings, and paths to the model context.
 
-1. Confirm project, repository, revision, environment, and scope.
-2. Run the adapter's read-only capability check before relying on a command,
-   remote reference, credential, or external dependency.
-3. Capture a known-good baseline or an explicit baseline reference.
-4. Record the intended change, expected behavior, risk, verification, and
-   rollback action.
-5. Run read-only repository and target checks before any external write.
-6. Build artifacts from an exact source revision, never from an uncommitted
-   working tree or on the production host. A project may build in CI or another
-   independent build environment once per release batch.
-7. Verify the build or artifact proof using the provider-neutral evidence
-   contract supplied by the project adapter.
-8. Apply only the bounded, versioned change after the protected gates pass.
-9. Run the adapter's `acceptance_gate`. Business acceptance remains part of
-   release governance whenever user-visible or business behavior can change;
-   select a light or heavy level from the affected path and risk instead of
-   applying a fixed test list. Do not create billable or destructive test data
-   unless the release explicitly requires it.
-10. Write an immutable release result and keep detailed evidence in files rather
-   than injecting full logs into model context.
+## Scale protection to risk
+
+Use the least costly path that preserves the required outcomes.
+
+- A small, reversible, single-target change normally needs an existing trusted
+  artifact, a compact target check, a bounded apply, focused business
+  acceptance, and a result record.
+- Data, identity, permissions, billing, routing, shared infrastructure,
+  difficult rollback, or uncertain impact justify stronger backup, artifact,
+  locking, and acceptance evidence.
+- First-time environment setup is provisioning work. Separate it from ordinary
+  application releases so later releases can reuse the stable runtime.
+- During an incident, restore the known-good service first when safe. Record the
+  recovery, then handle the permanent fix as a separate change if needed.
+
+Do not lower protection for high-risk writes, but do not force high-risk tools
+onto ordinary changes.
 
 ## Business acceptance
 
-Business acceptance is a decision gate, not a requirement to rerun every test,
-open every page, or exercise every role. The project adapter identifies its
-critical business paths; this Skill supplies the selection rules.
+Business acceptance remains part of every user-visible production decision.
 
-Use **light acceptance** by default for ordinary releases:
+- Use light acceptance for an ordinary change: cover the changed path and its
+  nearest guardrail, then stop.
+- Use heavy acceptance only when the affected data, identity, money, routing,
+  core workflow, service coupling, or rollback risk warrants it.
+- Reuse valid acceptance evidence when the relevant inputs still match.
+- Do not open every page, exercise every role, or create billable or destructive
+  data unless the changed path requires it.
+- If acceptance fails after a write, stop further rollout and recover when the
+  affected path is unsafe or critical.
+- Full scans, load tests, cleanup, formatting, and unrelated health audits are
+  not business acceptance. Reference them only when independently required.
 
-- cover only the changed business path and its nearest guardrail;
-- reuse valid CI, candidate-environment, or prior evidence when the source
-  revision, artifact, configuration, and assumptions are unchanged;
-- run a small, bounded smoke check after an external write;
-- do not use a browser for a non-UI change or send a model request when the
-  model/tool path is unaffected.
+## Failure and recovery
 
-Use **heavy acceptance** when the change affects data structure or migration,
-authentication or permissions, billing or quotas, model routing, a core file
-pipeline, multiple services, a difficult-to-reverse behavior, or a major
-version upgrade. The adapter may also select heavy acceptance when the impact
-is uncertain and the rollback is weak.
+First determine whether the command started, then distinguish an execution
+failure from unavailable dependencies, rejected access, state conflict,
+invalid artifacts, target drift, deployment failure, acceptance failure, or
+recording failure.
 
-The absence of a dedicated test environment is not a reason to abandon
-acceptance. Use the least risky available evidence source: CI, a temporary
-environment, a maintenance-window check, or a targeted production smoke. An
-irreversible change must not be first tested in production.
+Use `references/failure-taxonomy.md` only when classification is unclear. Use
+checkpoint and evidence tooling only when it helps resume safely; do not make
+checkpoint maintenance the main task.
 
-Acceptance evidence should state the selected level, reason, affected scope,
-result, warnings, evidence location, and whether release may continue. It may
-reference existing test or operational evidence; it does not need to copy full
-logs into the model context.
+## Efficiency supervision
 
-If acceptance fails before a write, stop the write. If it fails after a write,
-stop further rollout, preserve evidence, and roll back when the affected path
-is unsafe or critical. Never retry a mutating test blindly. Server cleanup,
-full security scans, load tests, formatting, and unrelated service audits are
-not business acceptance; record or reference their independent results only
-when the release needs them.
+Metrics supervise the workflow; they are not release gates. When the data is
+available, report:
 
-## Resource and context limits
+- release execution duration;
+- actual production-write attempts;
+- rework count for repeated critical work;
+- final result and unexpected scope changes;
+- release amplification: release duration divided by development active time.
 
-Keep the model's role bounded. Deterministic adapter code should batch checks,
-apply timeouts, cap retries, and write detailed results to evidence files. The
-model should receive a compact summary, warnings, decision, and paths. Do not
-build a complete test environment on the target host, poll a workflow in a
-loop, or call tools repeatedly for checks that one structured result can cover.
+Mark amplification as estimated or unavailable when development time cannot be
+reconstructed reliably. Do not add a telemetry system only to collect these
+metrics.
 
-## Failure handling
+## Project adapter boundary
 
-First determine whether the attempted command actually started. Keep these
-cases separate:
+The project owns concrete commands, targets, risk facts, acceptance paths, and
+recovery actions. Load detailed contracts only when needed:
 
-- `execution_not_started`: the execution control plane did not start it.
-- `execution_failed`: the command started and returned an error.
-- `dependency_unavailable`: a required tool, network, or external service was
-  unavailable.
-- `authentication_failed` / `authorization_failed`: credentials or scope were
-  rejected.
-- `state_conflict`: a concurrent or incompatible state prevented the action.
-- `artifact_invalid` / `attestation_failed`: the produced proof or artifact is
-  incomplete or inconsistent.
-- `target_drift`: the target changed after a previous gate passed.
-- `deployment_failed` / `acceptance_failed` / `recording_failed`: later-stage
-  failures with their own recovery evidence.
+- `references/adapter-contract.md`: project adapter responsibilities;
+- `references/evidence-contract.md`: durable evidence guidance;
+- `references/failure-taxonomy.md`: failure classification;
+- `references/new-project-onboarding.md`: new-project setup.
 
-Use `scripts/release_gate.py classify-failure` for a stable category and keep
-provider-specific details in the evidence file. Do not turn an approval,
-network, or authentication failure into a code diagnosis without proof.
-
-## Checkpoints and recovery
-
-Store checkpoints outside the tracked source tree while a release is running.
-Each passed gate records an input fingerprint. On resume:
-
-1. Load the last checkpoint.
-2. Recompute the fingerprints of the affected inputs.
-3. Mark changed gates and all dependent gates `invalidated`.
-4. Resume from the first invalidated gate.
-
-Never restart from the beginning merely because a later gate failed, and never
-continue past an invalidated gate.
-
-## Project adapter contract
-
-The project owns the concrete commands and paths. Read the adapter's contract
-before running a release:
-
-- configuration identifies the project, repository, modes, required files, and
-  adapter commands;
-- scripts implement repository checks, target preflight, scoped application,
-  and acceptance;
-- the adapter identifies critical business paths, risk triggers, reusable
-  evidence, automated checks, and cases that need human confirmation; it should
-  resolve these from accumulated changed paths instead of asking the model to
-  improvise a new test list for each release;
-- the release record uses provider-neutral fields such as `source_revision`,
-  `build_attestation`, `artifact_digest`, `runtime_snapshot`,
-  `backup_reference`, and `acceptance_result`.
-
-Do not put provider-specific assumptions in this Skill. Load the project's
-adapter references only when the task enters `release` or `protected` mode.
-
-When onboarding a new project, read
-`references/new-project-onboarding.md` and start from the fail-closed files in
-`assets/project-adapter-template/`. Replace the adapter behavior with
-project-owned checks before allowing any external write.
-
-## Daily command surface
-
-Keep the operator-facing path small. A project should normally expose:
-
-```text
-prepare -> verify -> preflight -> deploy -> accept -> record
-```
-
-The scripts may perform many deterministic checks internally, but they should
-return a compact summary, machine-readable evidence path, and a non-zero exit
-status on a blocked gate.
+The bundled script may validate records, manifests, and checkpoints when a
+project chooses to use them. It does not make those artifacts mandatory for
+every release.
