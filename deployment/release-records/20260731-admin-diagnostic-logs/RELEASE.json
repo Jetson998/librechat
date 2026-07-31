@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-d5566544e684.tar.gz",
+      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-74827c5eaa3e.tar.gz",
       "manifest": ".release-state/20260731-admin-diagnostic-logs/artifacts/manifest.json",
-      "value": "ebc93488d61a1fb813b608f7880f3950b93883893ce0a1170a3cac01ae8b454f"
+      "value": "53489f80739feb81579c5afe349eb7d39b22e0e966365a7019855e66e2a96455"
     },
     "status": "passed"
   },
@@ -25,7 +25,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "ebc93488d61a1fb813b608f7880f3950b93883893ce0a1170a3cac01ae8b454f",
+    "artifact_sha256": "53489f80739feb81579c5afe349eb7d39b22e0e966365a7019855e66e2a96455",
     "build_environment": "ci",
     "completed_requirements": [
       "admin-artifact",
@@ -59,7 +59,7 @@
         "33 repository release-governance tests passed.",
         "Candidate Compose YAML and production Compose base both parsed successfully.",
         "Read-only production service health, memory and disk checks passed.",
-        "Versioned remote runner syntax passed, its target marker matches the computed plan, release-deploy passes the artifact path to the versioned SSH runner, safe in-tree symlink extraction passed, and the default path pulls the CI GHCR image without a production build."
+        "Versioned remote runner syntax passed, target and target-lock markers match the computed plan, release-deploy passes the artifact path to the versioned SSH runner, safe in-tree symlink extraction passed, and the default path pulls the CI GHCR image without a production build."
       ],
       "quality_gate": {
         "client_build": "passed",
@@ -94,8 +94,8 @@
     },
     "production_host": false,
     "provider": "GitHub Actions run 30628473296 plus local Admin preflight and independent contract checks",
-    "release_plan_sha256": "b14f2084968b514f01f52c65eb6c9daade0564ed7ff0f745c988ccb70b051962",
-    "source_revision": "d5566544e684c97d26f4c87567219049b8aa0a99",
+    "release_plan_sha256": "c1c55872d1b172ffe757820b5adec236dac27fea6c62f7bb16b0c89249216ef7",
+    "source_revision": "74827c5eaa3ed4e4dbe15eb7afdb280c6c5f66e7",
     "status": "passed"
   },
   "change_summary": {
@@ -152,7 +152,7 @@
   "source_revision": "74827c5eaa3ed4e4dbe15eb7afdb280c6c5f66e7",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-31T15:07:46Z",
+  "updated_at": "2026-07-31T15:20:23Z",
   "validation_plan": [
     {
       "command": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/verify-source.sh",
