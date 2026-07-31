@@ -65,7 +65,7 @@ grep -Fq 'business-upload-label-patch' "$upload_menu_index"
 grep -Fq '图片上传' "$upload_menu_script"
 grep -Fq 'Office文件上传' "$upload_menu_script"
 grep -Fq '文件提取文字上传' "$upload_menu_script"
-grep -Fq '/opt/librechat/context-safety-ui/702fc0c9988e-20260719002157/client-dist:/app/client/dist:ro' "$candidate_override"
+grep -Fq '/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist:/app/client/dist:ro' "$candidate_override"
 
 "$stage_dir/scripts/verify-ci-attestation.sh" "$stage_dir"
 cmp -s "$compose_override" "$expected_before"
