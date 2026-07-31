@@ -8,11 +8,23 @@ if [[ -n "${RELEASE_ARTIFACT_PATH:-}" ]]; then
   release_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   : "${RELEASE_ARTIFACT_SHA256:?RELEASE_ARTIFACT_SHA256 is required}"
   command -v expect >/dev/null
-  export LOCAL_TARBALL="$RELEASE_ARTIFACT_PATH"
-  export TARBALL_SHA256="$RELEASE_ARTIFACT_SHA256"
+  transport_parent="$(mktemp -d "${TMPDIR:-/tmp}/librechat-admin-panel-transport.XXXXXX")"
+  trap 'rm -rf "$transport_parent"' EXIT
+  transport_root="$transport_parent/librechat-admin-panel-zh-cn-release"
+  mkdir -p "$transport_root"
+  cp -a "$release_dir/." "$transport_root/"
+  transport_tar="$transport_parent/librechat-admin-panel-zh-cn-release.tar.gz"
+  COPYFILE_DISABLE=1 tar -czf "$transport_tar" -C "$transport_parent" librechat-admin-panel-zh-cn-release
+  if command -v sha256sum >/dev/null; then
+    transport_sha256="$(sha256sum "$transport_tar" | awk '{print $1}')"
+  else
+    transport_sha256="$(shasum -a 256 "$transport_tar" | awk '{print $1}')"
+  fi
+  export LOCAL_TARBALL="$transport_tar"
+  export TARBALL_SHA256="$transport_sha256"
   export RELEASE_DIR="$release_dir"
   export SSH_PASS="${SSH_PASS-}"
-  exec expect "$release_dir/scripts/deploy-remote.exp"
+  expect "$release_dir/scripts/deploy-remote.exp"
 fi
 
 stage_dir="${1:-/tmp/librechat-admin-panel-zh-cn-release}"
