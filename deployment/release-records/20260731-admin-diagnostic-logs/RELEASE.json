@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-68595101cb5e.tar.gz",
+      "manifest": ".release-state/20260731-admin-diagnostic-logs/artifacts/manifest.json",
+      "value": "17ae36c8d947f82e28d58c517ebc36a5db33faa347fca30ca1158a939219c575"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -20,8 +25,77 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "17ae36c8d947f82e28d58c517ebc36a5db33faa347fca30ca1158a939219c575",
+    "build_environment": "ci",
+    "completed_requirements": [
+      "admin-artifact",
+      "client-bundle",
+      "dependency-install-and-build",
+      "deployable-artifact",
+      "validated-runtime-config",
+      "versioned-patch-artifact",
+      "admin-tests",
+      "client-tests",
+      "dependency-tests",
+      "full-service-health-audit",
+      "patch-contract-tests",
+      "release-scope-tests",
+      "routing-config-tests",
+      "vulnerability-scan"
+    ],
+    "details": {
+      "github_actions": {
+        "conclusion": "success",
+        "final_source_tag": "admin-ci-fad4332f83e6",
+        "head_sha": "d4bf850506f19b744e55c70fd6a2c64dbf6beb3e",
+        "image_asset": "admin-panel-image.tar.gz",
+        "image_release": "admin-image-fad4332f83e6",
+        "run_id": 30628473296,
+        "workflow": "Admin Panel zh-CN CI"
+      },
+      "independent_checks": [
+        "Release artifact manifest matched the recorded SHA-256.",
+        "Source, secret scan, CI attestation, Bash syntax, Python syntax and git diff checks passed.",
+        "33 repository release-governance tests passed.",
+        "Candidate Compose YAML and production Compose base both parsed successfully.",
+        "Read-only production service health, memory and disk checks passed."
+      ],
+      "quality_gate": {
+        "client_build": "passed",
+        "lint": "passed",
+        "locale_keys": 1327,
+        "ssr_build": "passed",
+        "test_files": 25,
+        "tests": 782,
+        "typecheck": "passed"
+      },
+      "vulnerability_scan": {
+        "dependencies": {
+          "dev": 390,
+          "optional": 113,
+          "peer": 0,
+          "peerOptional": 0,
+          "prod": 471,
+          "total": 916
+        },
+        "dependency_manifests_unchanged_since_baseline": true,
+        "registry": "https://registry.npmjs.org",
+        "status": "completed_with_preexisting_findings",
+        "vulnerabilities": {
+          "critical": 0,
+          "high": 9,
+          "info": 0,
+          "low": 0,
+          "moderate": 5,
+          "total": 14
+        }
+      }
+    },
+    "production_host": false,
+    "provider": "GitHub Actions run 30628473296 plus local Admin preflight and independent contract checks",
+    "release_plan_sha256": "f1bb1fa5e3e1d22eeccfd02ba65d911b41c1c7419918ccad021603d45cc52940",
+    "source_revision": "68595101cb5e48eb4b826309b564df06177cf850",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The Admin Panel exposes a protected diagnostic logs page at /logs without changing LibreChat chat, API, MongoDB, Office, CodeAPI, or Nginx behavior.",
@@ -58,8 +132,8 @@
   },
   "rollback_reference": {
     "details": {
-      "path": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/ROLLBACK.md",
       "method": "Restore the backed-up compose override and recreate only the Admin Panel image/container.",
+      "path": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/ROLLBACK.md",
       "protected_services": [
         "LibreChat-API",
         "LibreChat-NGINX",
@@ -77,27 +151,27 @@
   "source_revision": "68595101cb5e48eb4b826309b564df06177cf850",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-31T11:17:12Z",
+  "updated_at": "2026-07-31T14:11:00Z",
   "validation_plan": [
     {
-      "type": "local",
       "command": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/verify-source.sh",
-      "expected": "Pinned source, localization, source-tree hash, and secret scan pass."
+      "expected": "Pinned source, localization, source-tree hash, and secret scan pass.",
+      "type": "local"
     },
     {
-      "type": "ci",
       "command": "Admin Panel zh-CN CI workflow",
-      "expected": "Localization, format, import, lint, typecheck, tests, build, amd64 image, and final admin-ci tag pass."
+      "expected": "Localization, format, import, lint, typecheck, tests, build, amd64 image, and final admin-ci tag pass.",
+      "type": "ci"
     },
     {
-      "type": "target",
       "command": "Versioned Admin Panel deploy runner",
-      "expected": "Only LibreChat-Admin-Panel is recreated; API, Nginx, CodeAPI, RAG, and MongoDB remain unchanged."
+      "expected": "Only LibreChat-Admin-Panel is recreated; API, Nginx, CodeAPI, RAG, and MongoDB remain unchanged.",
+      "type": "target"
     },
     {
-      "type": "acceptance",
       "command": "Authenticated browser acceptance for https://admin.152.32.172.162.sslip.io/logs",
-      "expected": "Diagnostic logs menu and page render, permission boundary remains enforced, and unavailable API state is explicit."
+      "expected": "Diagnostic logs menu and page render, permission boundary remains enforced, and unavailable API state is explicit.",
+      "type": "acceptance"
     }
   ]
 }
