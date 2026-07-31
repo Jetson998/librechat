@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# release-governance:scoped-deployment
+# release-governance:targets=LibreChat-Admin-Panel
 set -Eeuo pipefail
 
 stage_dir="${1:-/tmp/librechat-admin-panel-zh-cn-release}"
