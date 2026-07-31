@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render } from '@testing-library/react';
 import type * as t from '@/types';
-import { createField } from '@/test/fixtures';
 import { CustomEndpointsRenderer } from '../EndpointsRenderer';
+import { createField } from '@/test/fixtures';
 
 vi.mock('@/hooks/useLocalize', () => ({
   default: () => (key: string) => key,

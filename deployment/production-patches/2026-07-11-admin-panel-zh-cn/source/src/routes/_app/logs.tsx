@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { AccessDenied, PermissionsUnavailable } from '@/components/shared';
-import { DiagnosticLogsPage } from '@/components/logs';
 import { READ_AUDIT_LOG_CAPABILITY } from '@/constants';
+import { DiagnosticLogsPage } from '@/components/logs';
 import { useCapabilities } from '@/hooks';
 
 export const Route = createFileRoute('/_app/logs')({
