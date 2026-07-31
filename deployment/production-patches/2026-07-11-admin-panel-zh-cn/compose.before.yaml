@@ -1,6 +1,28 @@
 services:
+  codeapi:
+    image: local/librechat-codeapi:office
+    pull_policy: never
+    container_name: LibreChat-CodeAPI
+    init: true
+    user: sandbox
+    restart: unless-stopped
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    mem_limit: 1536m
+    memswap_limit: 3072m
+    pids_limit: 256
+    environment:
+      CODEAPI_DATA_DIR: /srv/codeapi-data
+      CODEAPI_EXEC_TIMEOUT: '90'
+      CODEAPI_MAX_EXEC_TIMEOUT: '180'
+      CODEAPI_MAX_UPLOAD_BYTES: '157286400'
+      CODEAPI_MAX_ARTIFACT_BYTES: '209715200'
+    volumes:
+    - /opt/librechat/codeapi-data:/srv/codeapi-data
   admin-panel:
-    image: librechat-admin-panel-model-pricing-keyfix:1ff1e5728a85
+    image: ghcr.io/jetson998/librechat-admin-panel-zh-cn:ca5aa4c17881
     container_name: LibreChat-Admin-Panel
     depends_on:
     - api
@@ -17,11 +39,22 @@ services:
     - admin-panel
   api:
     volumes:
-    - /opt/librechat/admin-user-creation/users.js:/app/api/server/routes/admin/users.js:ro
-    - /opt/librechat/model-pricing-dotted-key/406693a-20260718201634/api-index.cjs:/app/packages/api/dist/index.cjs:ro
-    - /opt/librechat/user-usage-cost-detail-availability/de2beeace561-20260718223055/user.js:/app/api/server/routes/user.js:ro
-    - /opt/librechat/user-model-market/6bfb5be23255-20260718235639/usage-dashboard.js:/app/api/server/routes/usage-dashboard.js:ro
-    - /opt/librechat/context-safety-ui/702fc0c9988e-20260719002157/client-dist:/app/client/dist:ro
+    - /opt/librechat/visible-artifact-limit/36d386dc294e-20260722004612/BaseClient.js:/app/api/app/clients/BaseClient.js:ro
+    - /opt/librechat/visible-artifact-limit/36d386dc294e-20260722004612/GeneratedArtifactVisibility.js:/app/api/server/services/Files/GeneratedArtifactVisibility.js:ro
+    - /opt/librechat/visible-artifact-limit/36d386dc294e-20260722004612/code-process.js:/app/api/server/services/Files/Code/process.js:ro
+    - /opt/librechat/generated-files-tab/029799a602eb-20260722031155/user.js:/app/api/server/routes/user.js:ro
+    - /opt/librechat/generated-files-tab/029799a602eb-20260722031155/generated-files.js:/app/api/server/routes/generated-files.js:ro
+    - /opt/librechat/user-balance-credits/918b2228b667-20260723011842/users.js:/app/api/server/routes/admin/users.js:ro
+    - /opt/librechat/user-balance-credits/918b2228b667-20260723011842/admin-balance.js:/app/api/server/routes/admin/admin-balance.js:ro
+    - /opt/librechat/user-balance-credits/918b2228b667-20260723011842/usage-dashboard.js:/app/api/server/routes/usage-dashboard.js:ro
+    - /opt/librechat/agent-progress-ledger/e46b4b51064f-20260724165803/api-index.cjs:/app/packages/api/dist/index.cjs:ro
+    - /opt/librechat/agent-progress-ledger/e46b4b51064f-20260724165803/code-tool-contract.cjs:/app/packages/api/dist/code-tool-contract.cjs:ro
+    - /opt/librechat/agent-progress-ledger/e46b4b51064f-20260724165803/tool-call-normalizer.cjs:/app/packages/api/dist/tool-call-normalizer.cjs:ro
+    - /opt/librechat/agent-progress-ledger/e46b4b51064f-20260724165803/tool-progress-ledger.cjs:/app/packages/api/dist/tool-progress-ledger.cjs:ro
+    - /opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist:/app/client/dist:ro
+    - /opt/librechat/office-preparse-result-contract-fix/657994b62e45-20260731191021/InitializationFailure.js:/app/api/server/controllers/agents/InitializationFailure.js:ro
+    - /opt/librechat/office-preparse-result-contract-fix/657994b62e45-20260731191021/request.js:/app/api/server/controllers/agents/request.js:ro
+    - /opt/librechat/office-preparse-result-contract-fix/657994b62e45-20260731191021/OfficePreparse.js:/app/api/server/services/Files/OfficePreparse.js:ro
     environment:
     - USER_USAGE_TIMEZONE=Asia/Singapore
     - USER_USAGE_CURRENCY=USD
