@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-8bf018126978.tar.gz",
+      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-341dbc15722c.tar.gz",
       "manifest": ".release-state/20260731-admin-diagnostic-logs/artifacts/manifest.json",
-      "value": "ce8708f7c8901c2cf5948cc1ae6dd4d981d1b8e9119b20c99955443ede9d4699"
+      "value": "839f16cff7037fcc934e469baea7692048c185dbc69589f225a8d2bdd562942a"
     },
     "status": "passed"
   },
@@ -149,10 +149,10 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "341dbc15722c401a313973ccda8c22682df67303",
+  "source_revision": "7e6b29a5eddaa5c268508178e7009364158237a8",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-31T14:22:15Z",
+  "updated_at": "2026-07-31T14:35:09Z",
   "validation_plan": [
     {
       "command": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/verify-source.sh",
