@@ -41,7 +41,7 @@
     ]
   },
   "created_at": "2026-07-31T09:25:52Z",
-  "mode": "protected",
+  "mode": "enhanced",
   "project_adapter": {
     "billable_model_request_allowed": false,
     "deploy_runner": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/deploy.sh",
