@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-0bdd1b835425.tar.gz",
+      "artifact": ".release-state/20260731-admin-diagnostic-logs/artifacts/20260731-admin-diagnostic-logs-2d7f1b5beb7e.tar.gz",
       "manifest": ".release-state/20260731-admin-diagnostic-logs/artifacts/manifest.json",
-      "value": "7fa2e237a5cbbbc76c20ca06420cce672fcc532af3f4f92a8bf3e1beedd9eaf1"
+      "value": "54de6439e71e3d44050a8eec72e4486b874f10be9134ffed38adcfe4769b1438"
     },
     "status": "passed"
   },
@@ -25,7 +25,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "7fa2e237a5cbbbc76c20ca06420cce672fcc532af3f4f92a8bf3e1beedd9eaf1",
+    "artifact_sha256": "54de6439e71e3d44050a8eec72e4486b874f10be9134ffed38adcfe4769b1438",
     "build_environment": "ci",
     "completed_requirements": [
       "admin-artifact",
@@ -94,8 +94,8 @@
     },
     "production_host": false,
     "provider": "GitHub Actions run 30628473296 plus local Admin preflight and independent contract checks",
-    "release_plan_sha256": "1d14aba950346c5e901e84f124350d2d265fad40f3aa086458288df552a1d2d3",
-    "source_revision": "0bdd1b835425e3651f0cacf6baab87456c0bb79a",
+    "release_plan_sha256": "2c6426fe0de802c431e5c2312d2e9fc071a26df3569c2baf93d74bbbab908272",
+    "source_revision": "2d7f1b5beb7e4d988185ba328e4cfda4320f9682",
     "status": "passed"
   },
   "change_summary": {
@@ -152,7 +152,7 @@
   "source_revision": "2d7f1b5beb7e4d988185ba328e4cfda4320f9682",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-07-31T16:34:47Z",
+  "updated_at": "2026-07-31T16:41:37Z",
   "validation_plan": [
     {
       "command": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/verify-source.sh",
