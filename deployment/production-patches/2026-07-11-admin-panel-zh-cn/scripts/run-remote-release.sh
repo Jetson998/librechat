@@ -12,6 +12,7 @@ build_memory="${BUILD_MEMORY:-1024m}"
 build_cpu_quota="${BUILD_CPU_QUOTA:-50000}"
 build_timeout="${BUILD_TIMEOUT:-45m}"
 old_deps_image="${OLD_DEPS_IMAGE:-librechat-admin-panel-zh-cn-deps:1f409f3}"
+use_ci_image="${USE_CI_IMAGE:-true}"
 
 log() {
   printf '[admin-release] %s\n' "$*"
@@ -73,10 +74,35 @@ log "verifying source and CI attestation"
 REQUIRE_CI_ATTESTATION=true "$stage_dir/scripts/verify-source.sh"
 "$stage_dir/scripts/verify-ci-attestation.sh" "$stage_dir"
 target_image_ref="$(cat "$stage_dir/IMAGE_REF")"
+source_hash="$(cat "$stage_dir/SOURCE_TREE_SHA256")"
+ci_image_ref="${CI_IMAGE_REF:-ghcr.io/jetson998/librechat-admin-panel-zh-cn:${source_hash:0:12}}"
 
-log "building release image"
-BUILD_MEMORY="$build_memory" BUILD_CPU_QUOTA="$build_cpu_quota" BUILD_TIMEOUT="$build_timeout" \
-  "$stage_dir/scripts/build-image.sh" "$stage_dir"
+if [ "$use_ci_image" = "true" ]; then
+  log "pulling CI-built release image"
+  docker pull "$ci_image_ref"
+  docker image inspect "$ci_image_ref" \
+    --format '{{.Architecture}} {{index .Config.Labels "org.opencontainers.image.revision"}}' \
+    | grep -F "amd64 $source_hash"
+  docker tag "$ci_image_ref" "$target_image_ref"
+  image_id="$(docker image inspect "$target_image_ref" --format '{{.Id}}')"
+  printf '%s\n' "$image_id" >"$stage_dir/BUILT_IMAGE_ID"
+  cat >"$stage_dir/BUILD_RESULT.txt" <<EOF
+image_ref=$target_image_ref
+image_id=$image_id
+architecture=amd64
+source_tree_sha256=$source_hash
+upstream_revision=$(cat "$stage_dir/UPSTREAM_REVISION")
+ci_verified_commit=$(cat "$stage_dir/CI_VERIFIED_COMMIT")
+ci_verified_tag=$(cat "$stage_dir/CI_VERIFIED_TAG")
+ci_verified_run=$(cat "$stage_dir/CI_VERIFIED_RUN")
+build_environment=ci-image-pull
+ci_image_ref=$ci_image_ref
+EOF
+else
+  log "building release image with bounded fallback"
+  BUILD_MEMORY="$build_memory" BUILD_CPU_QUOTA="$build_cpu_quota" BUILD_TIMEOUT="$build_timeout" \
+    "$stage_dir/scripts/build-image.sh" "$stage_dir"
+fi
 
 log "running deploy preflight"
 PREFLIGHT_ONLY=true "$stage_dir/scripts/deploy.sh" "$stage_dir"
