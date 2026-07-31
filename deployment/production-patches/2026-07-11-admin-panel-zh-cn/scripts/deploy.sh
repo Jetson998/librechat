@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # release-governance:scoped-deployment
 # release-governance:targets=LibreChat-API,LibreChat-Admin-Panel,LibreChat-NGINX
+# release-governance:target-lock
 set -Eeuo pipefail
 
 if [[ -n "${RELEASE_ARTIFACT_PATH:-}" ]]; then
