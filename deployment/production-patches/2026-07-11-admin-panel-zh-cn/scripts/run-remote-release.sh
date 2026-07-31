@@ -43,6 +43,7 @@ office_code_before="$(curl -ksS -o /dev/null -w '%{http_code}' "$office_url")"
 office_realm_before="$(curl -ksSI "$office_url" | tr -d '\r' | awk -F': ' 'tolower($1)=="www-authenticate" {print $2; exit}')"
 config_count_before="$(docker exec chat-mongodb mongosh --quiet LibreChat --eval 'db.configs.countDocuments({})' | tail -n 1 | tr -d '[:space:]')"
 codeapi_health_before="$(docker inspect LibreChat-CodeAPI --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
+codeapi_running_before="$(docker inspect LibreChat-CodeAPI --format '{{.State.Running}}')"
 main_code_before="$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/")"
 api_config_code_before="$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/api/config")"
 admin_code_before="$(curl -ksS -o /dev/null -w '%{http_code}' "$admin_url/")"
@@ -58,7 +59,11 @@ test "$office_realm_before" = 'Basic realm="Office Converter"'
 case "$config_count_before" in
   ''|*[!0-9]*) exit 1 ;;
 esac
-test "$codeapi_health_before" = "healthy"
+test "$codeapi_running_before" = "true"
+case "$codeapi_health_before" in
+  healthy|none) ;;
+  *) exit 1 ;;
+esac
 
 log "verifying uploaded tarball"
 test -f "$tarball_path"

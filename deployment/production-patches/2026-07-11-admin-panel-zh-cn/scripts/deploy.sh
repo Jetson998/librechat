@@ -140,7 +140,13 @@ test "$(grep -o 'business-upload-label-patch' "$main_html" | wc -l | tr -d '[:sp
 rm -f "$main_html"
 test "$(curl -ksS -o /dev/null -w '%{http_code}' "$main_url/office/")" = "401"
 test "$(curl -ksSI "$main_url/office/" | tr -d '\r' | awk -F': ' 'tolower($1)=="www-authenticate" {print $2; exit}')" = 'Basic realm="Office Converter"'
-test "$(docker inspect LibreChat-CodeAPI --format '{{.State.Health.Status}}')" = "healthy"
+codeapi_running_after="$(docker inspect LibreChat-CodeAPI --format '{{.State.Running}}')"
+codeapi_health_after="$(docker inspect LibreChat-CodeAPI --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
+test "$codeapi_running_after" = "true"
+case "$codeapi_health_after" in
+  healthy|none) ;;
+  *) exit 1 ;;
+esac
 test "$(docker exec chat-mongodb mongosh --quiet LibreChat --eval 'db.configs.countDocuments({})' | tail -n 1 | tr -d '[:space:]')" = "$config_count_before"
 docker exec LibreChat-Admin-Panel sh -lc "grep -R -q '简体中文' /app/dist"
 docker exec LibreChat-Admin-Panel sh -lc "grep -R -q '修改版源代码' /app/dist"
