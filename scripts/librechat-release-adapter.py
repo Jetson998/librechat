@@ -1040,10 +1040,23 @@ def safe_extract(archive, destination):
     destination = Path(destination).resolve()
     with tarfile.open(archive, "r:*") as handle:
         for member in handle.getmembers():
-            if member.issym() or member.islnk():
+            if member.islnk():
                 raise AdapterError(
                     f"artifact_invalid: links are not allowed in deploy artifacts: {member.name}"
                 )
+            if member.issym():
+                link_target = Path(member.linkname)
+                if link_target.is_absolute():
+                    raise AdapterError(
+                        f"artifact_invalid: unsafe archive link target: {member.name}"
+                    )
+                resolved_link = (destination / member.name).parent / link_target
+                try:
+                    resolved_link.resolve(strict=False).relative_to(destination)
+                except ValueError as exc:
+                    raise AdapterError(
+                        f"artifact_invalid: unsafe archive link target: {member.name}"
+                    ) from exc
             target = (destination / member.name).resolve()
             try:
                 target.relative_to(destination)
