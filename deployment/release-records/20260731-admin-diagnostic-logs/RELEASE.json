@@ -1,0 +1,105 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Existing production Admin Panel source and image attestation before the diagnostic logs menu change",
+      "revision": "918b2228b667c5611868daab9d33c48bea2f8468",
+      "source_tree_sha256": "ca5aa4c17881314a9409c62e5654d3f094f25de1155a4a102319c19b08d65631"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The Admin Panel exposes a protected diagnostic logs page at /logs without changing LibreChat chat, API, MongoDB, Office, CodeAPI, or Nginx behavior.",
+    "functions": [
+      "Add a Diagnostic logs item to the Admin Panel sidebar and command menu",
+      "Add a permission-gated /logs route with filters, summary fields, and a result table shell",
+      "Document the diagnostic event API, privacy boundary, retention, and indexes"
+    ],
+    "limitations": [
+      "The diagnostic event API is not part of this release, so the page explicitly shows an unavailable state and no fabricated rows",
+      "The page temporarily reuses read:audit_log until a dedicated read:diagnostic_logs capability is implemented"
+    ],
+    "reason": "Provide an administrator-facing entry point for the planned runtime diagnostic logs and a stable UI contract for the backend event endpoint.",
+    "risk": "Low: only the standalone Admin Panel image changes; the release runner recreates LibreChat-Admin-Panel only and retains a compose backup for rollback.",
+    "scope": [
+      "deployment/production-patches/2026-07-11-admin-panel-zh-cn"
+    ]
+  },
+  "created_at": "2026-07-31T09:25:52Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [
+      "LibreChat-Admin-Panel"
+    ],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260731-admin-diagnostic-logs",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "path": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/ROLLBACK.md",
+      "method": "Restore the backed-up compose override and recreate only the Admin Panel image/container.",
+      "protected_services": [
+        "LibreChat-API",
+        "LibreChat-NGINX",
+        "LibreChat-CodeAPI",
+        "chat-mongodb"
+      ]
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "0adca6f7c5321b3d1a33956018dcbab12ae52822",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-07-31T09:25:52Z",
+  "validation_plan": [
+    {
+      "type": "local",
+      "command": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/verify-source.sh",
+      "expected": "Pinned source, localization, source-tree hash, and secret scan pass."
+    },
+    {
+      "type": "ci",
+      "command": "Admin Panel zh-CN CI workflow",
+      "expected": "Localization, format, import, lint, typecheck, tests, build, amd64 image, and final admin-ci tag pass."
+    },
+    {
+      "type": "target",
+      "command": "Versioned Admin Panel deploy runner",
+      "expected": "Only LibreChat-Admin-Panel is recreated; API, Nginx, CodeAPI, RAG, and MongoDB remain unchanged."
+    },
+    {
+      "type": "acceptance",
+      "command": "Authenticated browser acceptance for https://admin.152.32.172.162.sslip.io/logs",
+      "expected": "Diagnostic logs menu and page render, permission boundary remains enforced, and unavailable API state is explicit."
+    }
+  ]
+}
