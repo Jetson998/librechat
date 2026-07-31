@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppLogsRouteImport } from './routes/_app/logs'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppPricingRouteImport } from './routes/_app/pricing'
 import { Route as AppHelpRouteImport } from './routes/_app/help'
@@ -32,6 +33,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLogsRoute = AppLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUsersRoute = AppUsersRouteImport.update({
@@ -72,6 +78,7 @@ const AuthOpenidCallbackRoute = AuthOpenidCallbackRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/logs': typeof AppLogsRoute
   '/login': typeof LoginRoute
   '/access': typeof AppAccessRoute
   '/grants': typeof AppGrantsRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof AppPricingRoute
   '/users': typeof AppUsersRoute
   '/': typeof AppIndexRoute
+  '/logs': typeof AppLogsRoute
   '/auth/openid/callback': typeof AuthOpenidCallbackRoute
   '/configuration': typeof AppConfigurationIndexRoute
 }
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/_app/pricing': typeof AppPricingRoute
   '/_app/users': typeof AppUsersRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/logs': typeof AppLogsRoute
   '/auth/openid/callback': typeof AuthOpenidCallbackRoute
   '/_app/configuration/': typeof AppConfigurationIndexRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/logs'
     | '/login'
     | '/access'
     | '/grants'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/users'
     | '/'
+    | '/logs'
     | '/auth/openid/callback'
     | '/configuration'
   id:
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/_app/pricing'
     | '/_app/users'
     | '/_app/'
+    | '/_app/logs'
     | '/auth/openid/callback'
     | '/_app/configuration/'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/logs': {
+      id: '/_app/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof AppLogsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/users': {
@@ -224,6 +243,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppLogsRoute: typeof AppLogsRoute
   AppAccessRoute: typeof AppAccessRoute
   AppGrantsRoute: typeof AppGrantsRoute
   AppHelpRoute: typeof AppHelpRoute
@@ -234,6 +254,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppLogsRoute: AppLogsRoute,
   AppAccessRoute: AppAccessRoute,
   AppGrantsRoute: AppGrantsRoute,
   AppHelpRoute: AppHelpRoute,

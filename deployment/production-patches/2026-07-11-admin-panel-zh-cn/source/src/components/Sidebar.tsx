@@ -5,12 +5,18 @@ import type * as t from '@/types';
 import { useStripAriaExpanded, useCapabilities, useLocalize } from '@/hooks';
 import libreChatLogo from '@/assets/librechat.svg';
 import { SettingsDialog } from './SettingsDialog';
-import { SystemCapabilities } from '@/constants';
+import { READ_AUDIT_LOG_CAPABILITY, SystemCapabilities } from '@/constants';
 import { getInitials, cn } from '@/utils';
 import { adminLogoutFn } from '@/server';
 
 const navItems: t.NavItem[] = [
   { labelKey: 'com_nav_dashboard', path: '/', icon: 'home' },
+  {
+    labelKey: 'com_nav_diagnostic_logs',
+    path: '/logs',
+    icon: 'document',
+    capability: READ_AUDIT_LOG_CAPABILITY,
+  },
   {
     labelKey: 'com_nav_configuration',
     path: '/configuration',

@@ -2,6 +2,8 @@ node_modules
 package-lock.json
 pnpm-lock.yaml
 logs/
+!src/components/logs/
+!src/components/logs/**
 .DS_Store
 dist
 dist-ssr
