@@ -25,6 +25,7 @@ if [[ -n "${RELEASE_ARTIFACT_PATH:-}" ]]; then
   export RELEASE_DIR="$release_dir"
   export SSH_PASS="${SSH_PASS-}"
   expect "$release_dir/scripts/deploy-remote.exp"
+  exit 0
 fi
 
 stage_dir="${1:-/tmp/librechat-admin-panel-zh-cn-release}"
