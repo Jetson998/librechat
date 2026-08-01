@@ -39,7 +39,7 @@
   "backup_reference": {
     "details": {
       "backup_dir": "/opt/librechat/backups/diagnostic-log-backend-d44feb7eb4b0-20260801185037",
-      "deployment_result": "/tmp/librechat-diagnostic-log-backend-d44feb7eb4b0/DEPLOY_RESULT.json",
+      "deployment_result": "/opt/librechat/backups/diagnostic-log-backend-d44feb7eb4b0-20260801185037/DEPLOY_RESULT.json",
       "saved_files": [
         "active-containers.json",
         "capabilities.cjs.before",
