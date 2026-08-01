@@ -67,11 +67,7 @@ trap 'cleanup' EXIT
 transport_prepare "$host" "$user"
 transport_exec "mkdir -p '$remote_stage' && chmod 700 '$remote_stage'"
 transport_copy_to "$api_tar" "$remote_stage/api-office-overlay.tar.gz"
-if [[ "$admin_kind" == "admin-dist-tar" ]]; then
-  transport_copy_to "$admin_tar" "$remote_stage/admin-dist.tar.gz"
-else
-  transport_copy_to "$admin_tar" "$remote_stage/admin-image.tar"
-fi
+transport_copy_to "$admin_tar" "$remote_stage/$admin_name"
 transport_copy_to "$handoff_stage/deployment-handoff-manifest.json" "$remote_stage/deployment-handoff-manifest.json"
 transport_copy_to "$runtime_evidence" "$remote_stage/runtime-preflight.json"
 transport_copy_to "$remote_apply" "$remote_stage/remote-apply.py"
