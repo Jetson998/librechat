@@ -337,6 +337,30 @@ class ReleaseGateTests(unittest.TestCase):
             "prepare -> preflight_permissions -> repository_gate", skill
         )
 
+    def test_generic_skill_separates_development_candidate_and_release(self):
+        skill_path = ROOT / "skills/lightweight-release-governance/SKILL.md"
+        skill = skill_path.read_text(encoding="utf-8")
+        for heading in (
+            "### Development stage",
+            "### Candidate stage",
+            "### Release stage",
+        ):
+            self.assertIn(heading, skill)
+        for phrase in (
+            "Do not review every small commit",
+            "explicit deployment instruction",
+            "An apply or container update is not release completion",
+            "开发完成，待打包代码",
+            "候选版本已就绪，待上线",
+            "已上线，待验收",
+            "发布完成",
+        ):
+            self.assertIn(phrase, skill)
+        self.assertNotIn(
+            "Confirm required access and target reachability before expensive build work",
+            skill,
+        )
+
     def test_generic_skill_has_no_project_specific_provider_names(self):
         generic = "\n".join(
             path.read_text(encoding="utf-8")

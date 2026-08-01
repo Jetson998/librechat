@@ -1,4 +1,4 @@
 interface:
   display_name: "Lightweight Release Governance"
-  short_description: "面向自托管应用的高自主、回滚优先轻量发布决策指南"
-  default_prompt: "Use $lightweight-release-governance to choose the smallest trustworthy release path, verify the changed business outcome, and keep recovery and results traceable."
+  short_description: "开发完成、候选待上线、上线验收三阶段的轻量发布指南"
+  default_prompt: "Use $lightweight-release-governance to move a completed development batch through one trusted release candidate and an explicitly approved, accepted deployment without unnecessary gates or repeated work."

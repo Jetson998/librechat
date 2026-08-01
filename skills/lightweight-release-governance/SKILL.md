@@ -1,6 +1,6 @@
 ---
 name: lightweight-release-governance
-description: High-autonomy, rollback-aware guidance for releasing self-hosted applications. Use it to choose the smallest trustworthy path for a versioned release, production change, recovery, acceptance, or release result. Keep ordinary development outside release governance and avoid process work that does not improve safety, verification, recovery, or traceability.
+description: High-autonomy, rollback-aware guidance for moving self-hosted changes from completed development to a trusted release candidate and then an accepted production release. Use it for packaging, deployment, recovery, acceptance, or release results. Keep ordinary development outside release governance and avoid work that does not improve safety, verification, recovery, or traceability.
 ---
 
 # Lightweight Release Governance
@@ -17,6 +17,46 @@ the model's reasoning process.
   recovering a service, accepting changed business behavior, or recording what
   was actually released.
 - Batch related development and govern the batch once when it is ready.
+
+## Three-stage lifecycle
+
+Use the phase to decide what work is allowed and the status to describe how far
+that phase has progressed. Do not turn every checkpoint into an independent
+top-level state. Risk changes the depth of validation, not the three phases.
+
+### Development stage
+
+Complete the planned scope, self-test it, create one reviewable commit, and
+review that stable commit or diff. Do not review every small commit. Fix valid
+findings, retest the affected code, and commit the final result. Keep the code,
+scope, focused test result, review conclusion, and unresolved limitations. Do
+not create a release record, final artifact, or production check. A later source
+change returns the work to development. For Simplified Chinese display, use
+`开发完成，待打包代码` when the final reviewed commit can be frozen.
+
+### Candidate stage
+
+Enter only when asked to package, build, or prepare a release. Freeze the batch,
+run necessary CI and tests once, build outside production, prove the
+source-to-artifact relationship, identify the previous stable recovery version,
+and stop at `ready`. Do not run target preflight or a production write without
+an explicit deployment instruction. Source, dependency, build, or scope changes
+supersede the candidate; unrelated target drift normally blocks deployment
+without forcing a rebuild. Display `候选版本已就绪，待上线` when ready.
+
+### Release stage
+
+Enter only after an explicit deployment instruction. Revalidate the candidate,
+run one fresh read-only target preflight, back up when needed, apply the selected
+change, run focused technical smoke and affected-path business acceptance, then
+record the result. An apply or container update is not release completion. Use
+`已上线，待验收` after apply and `发布完成` only after acceptance, recovery
+evidence, and truthful result recording are complete.
+
+Use a small conceptual status vocabulary such as `in_progress`, `ready`,
+`completed`, `blocked`, `failed`, `superseded`, and `rolled_back`. A project may
+map these meanings to its existing schema; do not add fields only to satisfy
+this Skill.
 
 ## Required outcomes
 
@@ -41,7 +81,8 @@ observe -> decide -> act -> verify -> record
 ```
 
 - Read the project adapter once and use its existing scripts and facts.
-- Confirm required access and target reachability before expensive build work.
+- Confirm build and CI capabilities before expensive build work. Defer
+  production target reachability checks until an explicit deployment request.
 - Freeze the release scope before producing the final artifact.
 - Prefer one trusted artifact. Reuse valid build, test, preflight, or acceptance
   evidence when its revision, artifact, configuration, and assumptions match.
