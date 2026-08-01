@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/20260802-diagnostic-log-backend-d44feb7eb4b0.tar.gz",
+      "manifest": ".release-state/20260802-diagnostic-log-backend/artifacts/manifest.json",
+      "value": "0dcc64c8189c607afeab4760965b8a2adb3bdb4aa155965415e3ed3de1d55172"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -22,8 +27,45 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "admin_source_candidate": {
+        "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/admin-source-candidate-a64ca0d3d1ee.tar.gz",
+        "sha256": "6232aaf232c339116410e15409c62e120ec726795df222e9deb928b3b8d259b5",
+        "source_tree_sha256": "a64ca0d3d1eecf75e4927d9302dc91fc74d24e5f46038dab4758f7722595e424"
+      },
+      "api_office_overlay": {
+        "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/api-office-overlay-d44feb7eb4b0.tar.gz",
+        "composed_office_preparse_sha256": "2f5efa0159cee121768aad645d106456e6ea41fe74930c1960830cfbeb792c4e",
+        "sha256": "84cacc3df635f3796f9cc3b1bc610e4e60af6872ec583dd10539b148921b4628"
+      },
+      "candidate_source_artifact": {
+        "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/20260802-diagnostic-log-backend-d44feb7eb4b0.tar.gz",
+        "sha256": "0dcc64c8189c607afeab4760965b8a2adb3bdb4aa155965415e3ed3de1d55172"
+      },
+      "completed_checks": [
+        "diagnostic event focused tests passed",
+        "diagnostic overlay composition tests passed",
+        "all diagnostic backend overlay JavaScript syntax checks passed",
+        "Office patch composed against the accepted 2026-07-31 source and passed JavaScript syntax check",
+        "source Manifest JSON and candidate tar inventories passed",
+        "release governance validation and 34 repository governance tests passed",
+        "repository and remote scope digest match passed"
+      ],
+      "docker_image_attempt": {
+        "base_image": "oven/bun:1.3.11-alpine",
+        "command_scope": "local Docker buildx linux/amd64 candidate build",
+        "failure": "Docker Hub anonymous-token request timed out while resolving the base image; no local base image was available.",
+        "status": "blocked"
+      },
+      "production_host": false,
+      "production_write_attempts": 0,
+      "unmet_requirements": [
+        "A reproducible Linux/amd64 Admin image could not be built because the locked base image could not be fetched.",
+        "No reviewed unified deployment runner exists in the frozen diagnostic source batch, so the source package is not a deployable production artifact.",
+        "A complete API Jest run remains unclaimed because the inherited integration timeout and Node heap limit prevent an honest full-suite attestation."
+      ]
+    },
+    "status": "blocked"
   },
   "change_summary": {
     "expected_result": "A replayable, privacy-safe diagnostic event index is prepared for LibreChat: bounded failure-only events, tenant-scoped Admin retrieval, stable Office classifications, and an Admin diagnostic-log interface. No production system is changed during candidate preparation.",
@@ -70,8 +112,29 @@
   "project_id": "librechat-self-host",
   "release_id": "20260802-diagnostic-log-backend",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "heavy",
+      "affected_services": [
+        "LibreChat-API",
+        "LibreChat-Admin-Panel",
+        "LibreChat-CodeAPI",
+        "LibreChat-NGINX",
+        "LibreChat-RAG-API",
+        "chat-mongodb"
+      ],
+      "deployment_targets": [
+        "LibreChat-API",
+        "LibreChat-Admin-Panel",
+        "LibreChat-CodeAPI"
+      ],
+      "matched_rules": [
+        "admin-panel",
+        "api-runtime",
+        "office-file-chain",
+        "production-patch"
+      ]
+    },
+    "sha256": "45217caed3c81582c424684e36d969b90b4e0dc29c7ac4d123d2a720cce3b74a"
   },
   "rollback_reference": {
     "details": {
@@ -92,9 +155,13 @@
   },
   "schema_version": 1,
   "source_revision": "d44feb7eb4b0779fbadbb60dfaafa84cbb8f08b7",
-  "status": "planned",
-  "unresolved_issues": [],
-  "updated_at": "2026-08-01T16:08:56Z",
+  "status": "blocked",
+  "unresolved_issues": [
+    "candidate_admin_image_blocked: Docker Hub timed out while fetching oven/bun:1.3.11-alpine and no local base image is available.",
+    "candidate_deployment_runner_missing: the reviewed diagnostic source batch has no unified versioned runner for API, Admin, and Office overlays.",
+    "candidate_full_api_jest_unavailable: inherited usageEvents integration timeout and Node heap ceiling prevent a full-suite pass claim."
+  ],
+  "updated_at": "2026-08-01T16:26:08Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-08-01-diagnostic-log-backend/scripts/test-diagnostic-events.js",
