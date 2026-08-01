@@ -79,19 +79,40 @@ def safe_extract(archive: Path, destination: Path) -> None:
         handle.extractall(destination)
 
 
-def verify_handoff(stage: Path) -> tuple[str, str, str]:
+def artifact_path(stage: Path, item: dict) -> Path:
+    name = item.get("filename") or Path(item["path"]).name
+    path = (stage / name).resolve()
+    require(path.parent == stage.resolve(), f"handoff artifact escapes stage: {name}")
+    return path
+
+
+def verify_handoff(stage: Path) -> dict:
     manifest = json.loads((stage / "deployment-handoff-manifest.json").read_text(encoding="utf-8"))
     require(manifest.get("status") == "packaged_for_later_deployment", "handoff is not packaged")
     artifacts = {item["kind"]: item for item in manifest["artifacts"]}
     api_tar = stage / "api-office-overlay.tar.gz"
-    admin_tar = stage / "admin-image.tar"
     require(digest(api_tar) == artifacts["api-office-overlay"]["sha256"], "API overlay digest mismatch")
-    require(digest(admin_tar) == artifacts["admin-image-tar"]["sha256"], "Admin image digest mismatch")
-    return (
-        artifacts["admin-image-tar"]["image_ref"],
-        artifacts["admin-image-tar"]["image_id"],
-        artifacts["admin-image-tar"]["source_tree_sha256"],
-    )
+    if "admin-dist-tar" in artifacts:
+        admin_item = artifacts["admin-dist-tar"]
+        admin_dist = artifact_path(stage, admin_item)
+        require(digest(admin_dist) == admin_item["sha256"], "Admin dist digest mismatch")
+        return {
+            "mode": "dist",
+            "admin_dist": admin_dist,
+            "candidate_image_manifest_digest": admin_item.get("candidate_image_manifest_digest"),
+            "source_tree_sha256": admin_item["source_tree_sha256"],
+        }
+    admin_item = artifacts["admin-image-tar"]
+    admin_tar = artifact_path(stage, admin_item)
+    require(digest(admin_tar) == admin_item["sha256"], "Admin image digest mismatch")
+    return {
+        "mode": "image",
+        "admin_tar": admin_tar,
+        "admin_image_ref": admin_item["image_ref"],
+        "admin_image_id": admin_item["image_id"],
+        "admin_image_manifest_digest": admin_item.get("image_manifest_digest"),
+        "source_tree_sha256": admin_item["source_tree_sha256"],
+    }
 
 
 def build_capability_runtime(stage: Path, destination: Path) -> str:
@@ -127,9 +148,21 @@ def target(entry: object) -> str:
 
 
 def write_candidate_compose(path: Path, release_dir: Path, admin_image_ref: str) -> Path:
-    import yaml
-
-    payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    payload = json.loads(
+        run(
+            [
+                "docker",
+                "compose",
+                "-f",
+                str(ROOT / "compose.yaml"),
+                "-f",
+                str(path),
+                "config",
+                "--format",
+                "json",
+            ]
+        ).stdout
+    )
     services = payload.setdefault("services", {})
     api = services.setdefault("api", {})
     volumes = api.setdefault("volumes", [])
@@ -140,8 +173,16 @@ def write_candidate_compose(path: Path, release_dir: Path, admin_image_ref: str)
     api["volumes"].append(f"{release_dir / 'data-schemas/admin/capabilities.cjs'}:{CAPABILITIES_PATH}:ro")
     services.setdefault("admin-panel", {})["image"] = admin_image_ref
     candidate = path.with_name(f"compose.override.yaml.next-{os.getpid()}")
-    candidate.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    candidate.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return candidate
+
+
+def write_admin_dist(stage: Path, release_dir: Path, admin_dist: Path) -> None:
+    destination = release_dir / "admin-dist"
+    destination.mkdir(parents=True, exist_ok=True)
+    safe_extract(admin_dist, destination)
+    require((destination / "client").is_dir(), "Admin dist client directory is missing")
+    require((destination / "server/server.js").is_file(), "Admin dist server entry is missing")
 
 
 def public_status(url: str) -> int:
@@ -167,8 +208,20 @@ def main() -> None:
     source_revision = sys.argv[2]
     runtime = json.loads((stage / "runtime-preflight.json").read_text(encoding="utf-8"))
     baseline = runtime["baseline"]
-    admin_image_ref, expected_admin_image_id, source_tree_hash = verify_handoff(stage)
+    admin_artifact = verify_handoff(stage)
     require(runtime["source_revision"] == source_revision, "runtime evidence revision mismatch")
+    admin_mode = admin_artifact["mode"]
+    admin_image_ref = (
+        baseline["admin_image"]["ref"]
+        if admin_mode == "dist"
+        else admin_artifact["admin_image_ref"]
+    )
+    expected_admin_image_id = (
+        baseline["admin_image"]["id"]
+        if admin_mode == "dist"
+        else admin_artifact["admin_image_id"]
+    )
+    source_tree_hash = admin_artifact["source_tree_sha256"]
 
     work_dir = Path(tempfile.mkdtemp(prefix="diagnostic-log-apply-"))
     release_dir = ROOT / "diagnostic-log-backend" / f"{source_revision[:12]}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
@@ -207,10 +260,14 @@ def main() -> None:
             build_capability_runtime(stage, capability)
             capability.chmod(0o444)
 
-            run(["docker", "load", "--input", str(stage / "admin-image.tar")])
-            loaded_image = inspect_image = json.loads(run(["docker", "image", "inspect", admin_image_ref]).stdout)[0]
-            require(loaded_image["Id"] == expected_admin_image_id, "loaded Admin image ID mismatch")
-            require(loaded_image.get("Architecture") == "amd64", "Admin image architecture mismatch")
+            if admin_mode == "image":
+                run(["docker", "load", "--input", str(admin_artifact["admin_tar"])])
+                loaded_image = json.loads(run(["docker", "image", "inspect", admin_image_ref]).stdout)[0]
+                accepted_ids = {expected_admin_image_id, admin_artifact.get("admin_image_manifest_digest")}
+                require(loaded_image["Id"] in accepted_ids, "loaded Admin image ID mismatch")
+                require(loaded_image.get("Architecture") == "amd64", "Admin image architecture mismatch")
+            else:
+                write_admin_dist(stage, release_dir, admin_artifact["admin_dist"])
 
             backup_dir.mkdir(parents=True, exist_ok=False)
             backup_dir.chmod(0o700)
@@ -227,6 +284,16 @@ def main() -> None:
                 encoding="utf-8",
             )
             candidate_override = write_candidate_compose(compose_override, release_dir, admin_image_ref)
+            if admin_mode == "dist":
+                payload = json.loads(candidate_override.read_text(encoding="utf-8"))
+                admin = payload["services"]["admin-panel"]
+                admin_volumes = admin.setdefault("volumes", [])
+                admin_volumes = [entry for entry in admin_volumes if target(entry) != "/app/dist"]
+                admin_volumes.append(f"{release_dir / 'admin-dist'}:/app/dist:ro")
+                admin["volumes"] = admin_volumes
+                candidate_override.write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+                )
             run(["docker", "compose", "-f", str(ROOT / "compose.yaml"), "-f", str(candidate_override), "config"])
             os.replace(candidate_override, compose_override)
             changed = True
@@ -245,6 +312,13 @@ def main() -> None:
 
             check_file_hashes(release_dir)
             run(["docker", "exec", "-w", "/app/api", "LibreChat-API", "node", "-e", "const {SystemCapabilities}=require('@librechat/data-schemas'); if(SystemCapabilities.READ_DIAGNOSTIC_LOGS!=='read:diagnostic_logs') process.exit(2); require('./server/routes/admin/diagnosticEvents'); console.log('diagnostic-runtime-ok')"])
+            if admin_mode == "dist":
+                for relative in ("server/server.js", "client/assets/logs-DKP2w2mP.js"):
+                    expected = digest(release_dir / "admin-dist" / relative)
+                    actual = run(
+                        ["docker", "exec", "LibreChat-Admin-Panel", "sha256sum", f"/app/dist/{relative}"]
+                    ).stdout.split()[0]
+                    require(actual == expected, f"Admin dist hash mismatch: {relative}")
             require(public_status("https://152.32.172.162.sslip.io/") == 200, "main site failed")
             require(public_status("https://152.32.172.162.sslip.io/office/") == 401, "Office auth boundary changed")
 
@@ -266,6 +340,11 @@ def main() -> None:
                 "release_dir": str(release_dir),
                 "admin_image_ref": admin_image_ref,
                 "admin_image_id": expected_admin_image_id,
+                "admin_deployment_mode": admin_mode,
+                "admin_candidate_image_manifest_digest": admin_artifact.get("candidate_image_manifest_digest"),
+                "admin_dist_sha256": (
+                    digest(admin_artifact["admin_dist"]) if admin_mode == "dist" else None
+                ),
                 "admin_source_tree_sha256": source_tree_hash,
                 "compose_override_sha256_before": baseline["compose_override_sha256"],
                 "compose_override_sha256_after": digest(compose_override),

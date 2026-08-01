@@ -39,6 +39,9 @@ def main() -> None:
         require(destination in apply, f"runtime destination missing: {destination}")
     require("compose.override.yaml.before" in apply and "remote-rollback.sh" in apply, "rollback contract missing")
     require("up" in apply and "--no-deps" in apply, "single-service Compose recreation missing")
+    require("admin-dist-tar" in apply and "/app/dist" in apply, "Admin dist-only handoff contract missing")
+    require('"--format",' in apply and '"json"' in apply, "Compose JSON normalization contract missing")
+    require("import yaml" not in apply, "remote runner must not require PyYAML")
     require("write_operations" in preflight and "rollback_available" in collect, "read-only preflight contract missing")
     require("rm -rf \"$handoff_stage\"" in deploy, "handoff cleanup is not bounded")
 

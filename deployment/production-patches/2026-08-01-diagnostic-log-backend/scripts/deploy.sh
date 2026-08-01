@@ -24,7 +24,7 @@ cleanup() {
 trap cleanup EXIT
 
 tar -xzf "$handoff_tar" -C "$handoff_stage"
-python3 - "$handoff_stage/deployment-handoff-manifest.json" "$handoff_stage" <<'PY'
+admin_spec="$(python3 - "$handoff_stage/deployment-handoff-manifest.json" "$handoff_stage" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -36,15 +36,25 @@ assert manifest["status"] == "packaged_for_later_deployment"
 files = {item["kind"]: item for item in manifest["artifacts"]}
 for kind, name in {
     "api-office-overlay": "api-office-overlay-d44feb7eb4b0.tar.gz",
-    "admin-image-tar": "admin-image-a64ca0d3d1ee.tar",
 }.items():
     path = pathlib.Path(root) / name
     actual = hashlib.sha256(path.read_bytes()).hexdigest()
     assert actual == files[kind]["sha256"], f"handoff digest mismatch: {kind}"
+admin_kind = "admin-dist-tar" if "admin-dist-tar" in files else "admin-image-tar"
+assert admin_kind in files, "handoff has no Admin runtime artifact"
+admin_item = files[admin_kind]
+admin_name = admin_item.get("filename") or pathlib.Path(admin_item["path"]).name
+admin_path = pathlib.Path(root) / admin_name
+actual = hashlib.sha256(admin_path.read_bytes()).hexdigest()
+assert actual == admin_item["sha256"], f"handoff digest mismatch: {admin_kind}"
+print(f"{admin_kind}:{admin_name}")
 PY
+)"
+admin_kind="${admin_spec%%:*}"
+admin_name="${admin_spec#*:}"
 
 api_tar="$handoff_stage/api-office-overlay-d44feb7eb4b0.tar.gz"
-admin_tar="$handoff_stage/admin-image-a64ca0d3d1ee.tar"
+admin_tar="$handoff_stage/$admin_name"
 remote_apply="$script_dir/remote-apply.py"
 remote_rollback="$script_dir/remote-rollback.sh"
 for file in "$api_tar" "$admin_tar" "$remote_apply" "$remote_rollback"; do
@@ -57,7 +67,11 @@ trap 'cleanup' EXIT
 transport_prepare "$host" "$user"
 transport_exec "mkdir -p '$remote_stage' && chmod 700 '$remote_stage'"
 transport_copy_to "$api_tar" "$remote_stage/api-office-overlay.tar.gz"
-transport_copy_to "$admin_tar" "$remote_stage/admin-image.tar"
+if [[ "$admin_kind" == "admin-dist-tar" ]]; then
+  transport_copy_to "$admin_tar" "$remote_stage/admin-dist.tar.gz"
+else
+  transport_copy_to "$admin_tar" "$remote_stage/admin-image.tar"
+fi
 transport_copy_to "$handoff_stage/deployment-handoff-manifest.json" "$remote_stage/deployment-handoff-manifest.json"
 transport_copy_to "$runtime_evidence" "$remote_stage/runtime-preflight.json"
 transport_copy_to "$remote_apply" "$remote_stage/remote-apply.py"
