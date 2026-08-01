@@ -33,6 +33,19 @@
         "sha256": "6232aaf232c339116410e15409c62e120ec726795df222e9deb928b3b8d259b5",
         "source_tree_sha256": "a64ca0d3d1eecf75e4927d9302dc91fc74d24e5f46038dab4758f7722595e424"
       },
+      "admin_image_candidate": {
+        "architecture": "amd64",
+        "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/admin-image-a64ca0d3d1ee.tar",
+        "artifact_sha256": "b334a59f2bc5db56b1c1a505321c9704c2c1368e63e32d55c8f2965926d8b5ca",
+        "artifact_size_bytes": 260632576,
+        "base_image": "oven/bun:1.3.11-alpine",
+        "base_image_digest": "sha256:7ed9f74c326d1c260abe247ac423ccbf5ac92af62bb442d515d1f92f21e8ea9b",
+        "image_id": "sha256:f74511af14a14c10221d827fa3ac11afdbfd8d572dd9972ab231b25b297b06aa",
+        "image_manifest_digest": "sha256:3ceac815558ec73f5f0c02fa717c0658c41ef1ee9d925d38be623f578a369a75",
+        "image_ref": "librechat-admin-panel-diagnostic-log-backend:a64ca0d3d1ee",
+        "os": "linux",
+        "source_tree_sha256": "a64ca0d3d1eecf75e4927d9302dc91fc74d24e5f46038dab4758f7722595e424"
+      },
       "api_office_overlay": {
         "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/api-office-overlay-d44feb7eb4b0.tar.gz",
         "composed_office_preparse_sha256": "2f5efa0159cee121768aad645d106456e6ea41fe74930c1960830cfbeb792c4e",
@@ -49,18 +62,25 @@
         "Office patch composed against the accepted 2026-07-31 source and passed JavaScript syntax check",
         "source Manifest JSON and candidate tar inventories passed",
         "release governance validation and 34 repository governance tests passed",
-        "repository and remote scope digest match passed"
+        "repository and remote scope digest match passed",
+        "Admin linux/amd64 candidate image build passed",
+        "Admin image locales, focused tests, typecheck, format baseline, import baseline, and production build passed",
+        "Admin image tar export, digest, architecture, and source revision label verification passed"
       ],
       "docker_image_attempt": {
         "base_image": "oven/bun:1.3.11-alpine",
+        "base_image_digest": "sha256:7ed9f74c326d1c260abe247ac423ccbf5ac92af62bb442d515d1f92f21e8ea9b",
         "command_scope": "local Docker buildx linux/amd64 candidate build",
-        "failure": "Docker Hub anonymous-token request timed out while resolving the base image; no local base image was available.",
-        "status": "blocked"
+        "image_id": "sha256:f74511af14a14c10221d827fa3ac11afdbfd8d572dd9972ab231b25b297b06aa",
+        "image_manifest_digest": "sha256:3ceac815558ec73f5f0c02fa717c0658c41ef1ee9d925d38be623f578a369a75",
+        "initial_failure": "Docker Hub anonymous-token request timed out while resolving the base image; no local base image was available.",
+        "platform": "linux/amd64",
+        "recovery": "Pulled the locked amd64 base variant and rebuilt with --pull=false from the local cache.",
+        "status": "passed"
       },
       "production_host": false,
       "production_write_attempts": 0,
       "unmet_requirements": [
-        "A reproducible Linux/amd64 Admin image could not be built because the locked base image could not be fetched.",
         "No reviewed unified deployment runner exists in the frozen diagnostic source batch, so the source package is not a deployable production artifact.",
         "A complete API Jest run remains unclaimed because the inherited integration timeout and Node heap limit prevent an honest full-suite attestation."
       ]
@@ -111,6 +131,11 @@
   },
   "project_id": "librechat-self-host",
   "release_id": "20260802-diagnostic-log-backend",
+  "deployment_handoff": {
+    "manifest": ".release-state/20260802-diagnostic-log-backend/artifacts/deployment-handoff-manifest.json",
+    "production_write_attempts": 0,
+    "status": "packaged_not_ready"
+  },
   "release_plan": {
     "details": {
       "acceptance_level": "heavy",
@@ -157,11 +182,10 @@
   "source_revision": "d44feb7eb4b0779fbadbb60dfaafa84cbb8f08b7",
   "status": "blocked",
   "unresolved_issues": [
-    "candidate_admin_image_blocked: Docker Hub timed out while fetching oven/bun:1.3.11-alpine and no local base image is available.",
     "candidate_deployment_runner_missing: the reviewed diagnostic source batch has no unified versioned runner for API, Admin, and Office overlays.",
     "candidate_full_api_jest_unavailable: inherited usageEvents integration timeout and Node heap ceiling prevent a full-suite pass claim."
   ],
-  "updated_at": "2026-08-01T16:26:08Z",
+  "updated_at": "2026-08-01T16:44:35Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-08-01-diagnostic-log-backend/scripts/test-diagnostic-events.js",
