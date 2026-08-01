@@ -1,7 +1,19 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_evidence": ".release-state/20260731-admin-diagnostic-logs/business-acceptance.json",
+      "billable_model_requests": 0,
+      "browser_account": "admin@example.local",
+      "checks": [
+        "Admin Panel exposes 诊断日志 at /logs",
+        "Diagnostic logs page renders filters, summary, table shell, privacy note, and explicit unavailable API state",
+        "No fabricated diagnostic rows are shown and no model request is sent",
+        "Only LibreChat-Admin-Panel was recreated; protected service IDs remain unchanged"
+      ],
+      "conversation_created": false,
+      "public_acceptance": ".release-state/20260731-admin-diagnostic-logs/acceptance-result.json"
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +25,18 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/admin-panel-zh-cn-20260801004515",
+      "deployment_result": "/opt/librechat/backups/admin-panel-zh-cn-20260801004515/DEPLOY_RESULT.txt",
+      "saved_files": [
+        "admin-container-before.json",
+        "compose.override.yaml",
+        "config-count-before",
+        "DEPLOY_RESULT.txt"
+      ],
+      "rollback_scope": "Restore the backed-up Compose override and recreate only the Admin Panel image/container."
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -129,7 +151,7 @@
   "release_id": "20260731-admin-diagnostic-logs",
   "release_plan": {
     "details": {},
-    "sha256": ""
+    "sha256": "2c6426fe0de802c431e5c2312d2e9fc071a26df3569c2baf93d74bbbab908272"
   },
   "rollback_reference": {
     "details": {
@@ -145,14 +167,43 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "admin_container_after": "4787682ae309a5315a79e95e785a8d5e6626c1717925ea6a06e53cf9007785d6",
+      "admin_container_before": "90294be8bdb20b158f014dfe8af199375d55b3827169157a57959ddfa12f1656",
+      "admin_image_id": "sha256:218d0c9785bddea213e520d4b03c59261ffc5dfbfb60d32772da45c8ba4b076a",
+      "admin_image_ref": "librechat-admin-panel-zh-cn:fad4332f83e6",
+      "ci_image_ref": "ghcr.io/jetson998/librechat-admin-panel-zh-cn:fad4332f83e6",
+      "ci_verified_commit": "d4bf850506f19b744e55c70fd6a2c64dbf6beb3e",
+      "ci_verified_run": 30628473296,
+      "ci_verified_tag": "admin-ci-fad4332f83e6",
+      "deployed_at": "2026-07-31T16:45:44+00:00",
+      "deployment_result": ".release-state/20260731-admin-diagnostic-logs/deployment/apply-result.json",
+      "protected_services": {
+        "LibreChat-API": "a13e8afaccf9b4784aa395212bf2ed9f447aa4e43062fef47d743a82b18ba142",
+        "LibreChat-CodeAPI": "31ef4b61d9702cf63fdf7d3a1fdbc6a6c0edaef9c0cb3da0774d4ef5fff618e0",
+        "LibreChat-NGINX": "1a5c01b19b73559d6ff2a7b9e053d77d5528946b61bafcd7acae86532f9e03df",
+        "LibreChat-RAG-API": "not-recreated",
+        "chat-mongodb": "01d5bc03e9cb05a5efe43cc8a95c3dfce1e6387f65250923d135debe3050e7c6"
+      },
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "recreated_services": [
+        "LibreChat-Admin-Panel"
+      ],
+      "source_tree_sha256": "fad4332f83e629eaa96586b913ea75842be4898030b603ce9fb8d4466bdd5d07"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "2d7f1b5beb7e4d988185ba328e4cfda4320f9682",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-07-31T16:41:37Z",
+  "updated_at": "2026-08-01T03:10:06Z",
   "validation_plan": [
     {
       "command": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/scripts/verify-source.sh",
