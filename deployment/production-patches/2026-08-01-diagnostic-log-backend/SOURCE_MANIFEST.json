@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "batch_id": "2026-08-01-diagnostic-log-backend",
+  "status": "development_only",
+  "release_actions_performed": [],
+  "bases": {
+    "backend": {
+      "local_revision": "e3496b4bd3e77849d8aa1ce87378432681f95ad3",
+      "upstream_revision": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+    },
+    "admin_and_governance": {
+      "repository_revision": "9cf6ae6a461f68de487a9dd3ca26672eef7e1d5a"
+    }
+  },
+  "backend_overlay": [
+    {
+      "path": "api/models/index.js",
+      "base_blob": "2a1cb222f96fdb7c3fa5a25829697eac623bcabc",
+      "result_blob": "33befa5c14010b469d107ce21f1460a1cf5b5cc7",
+      "sha256": "37cf0b99c1d92719ef7f6b9ffe78216813d6193aa91044ad1376603fa9b90505",
+      "bytes": 774
+    },
+    {
+      "path": "api/server/controllers/agents/request.js",
+      "base_blob": "81213a23d9a42fde6118a7f060e07ef324046a75",
+      "result_blob": "a8666c84f50af443770da2a1478b297933ac8100",
+      "sha256": "e25a0a1eb669c263d095a952c46c075c352a1744187f8ddc51b1f289883ed02d",
+      "bytes": 50272
+    },
+    {
+      "path": "api/server/index.js",
+      "base_blob": "f88b2fd2581bb612179b6d0800e8c5ef9287858a",
+      "result_blob": "4619310c432811a7435e2b0066c66a749922fd4e",
+      "sha256": "6c24bc39d97a78caaa47dfe4b8ab510dcd385254b615c7e92ac9e8e4c3381cf1",
+      "bytes": 17410
+    },
+    {
+      "path": "api/server/routes/index.js",
+      "base_blob": "ac2b38f579ab779414df5f8bbe3e2a178fbc8f05",
+      "result_blob": "e968d4f4ff41e505a3a0d1a1afc5983b1bd03c08",
+      "sha256": "67544339303e0280ec944e18bc2f0967462c45cd99685013cb192383e099a474",
+      "bytes": 2037
+    },
+    {
+      "path": "api/server/routes/admin/diagnosticEvents.js",
+      "base_blob": null,
+      "result_blob": "8e6a6b0444e09684a54d6c57f02f27974b86dd94",
+      "sha256": "0da216ee61337e68fe88657c46f72c46d261cbb92e7659146f5cffc6bae75564",
+      "bytes": 3390
+    },
+    {
+      "path": "api/server/services/DiagnosticEvents.js",
+      "base_blob": null,
+      "result_blob": "2cc30b0661e2844b5e3cd37756fb10bcb0d4b98a",
+      "sha256": "b9fde11d17d3adf7a3634d01923accfbe3e84cdd35fc576afe1e2a8dc35589d1",
+      "bytes": 12364
+    },
+    {
+      "path": "api/server/services/DiagnosticEvents.spec.js",
+      "base_blob": null,
+      "result_blob": "057cbf3597da92f553e2812a05f061eebbe06612",
+      "sha256": "7a85a15f8e5dd8d417a7e1ccb9c3859ec64ce906839fd5c58abb62693aefd9d2",
+      "bytes": 3865
+    },
+    {
+      "path": "packages/data-schemas/src/admin/capabilities.ts",
+      "base_blob": "33a6c2ecf91614eeef610832d2815442353a3271",
+      "result_blob": "a4654090a3dd928f69b860d8bd9f436747ee069a",
+      "sha256": "2959ee1bfe8620f0af2bad2e8eb7f47c4191ec999be8b5655133ade59d5163a3",
+      "bytes": 8806
+    }
+  ],
+  "admin_overlay": [
+    {
+      "path": "src/components/logs/DiagnosticLogsPage.tsx",
+      "base_blob": "2e0bbed84ed6bff23ffccce7c0a49a1d47f5f6eb",
+      "result_blob": "098e1f969d54382536b56c06643a7281817d294a",
+      "sha256": "3175b0ca9da2ba582431ecfaa988b851bfaf688d524336d0e738d601ca2ab9c6",
+      "bytes": 16371
+    },
+    {
+      "path": "src/components/logs/DiagnosticLogDetailDrawer.tsx",
+      "base_blob": null,
+      "result_blob": "00ae4569a5e74afa6ec7ab94e7c2da81f114e516",
+      "sha256": "60b8f216d9eaf45e9cbc0dbe62bd5985ba7cd3877c1182086e568e541bcc187c",
+      "bytes": 8813
+    },
+    {
+      "path": "src/components/logs/index.ts",
+      "base_blob": "5bbf7779048a7e91c2964f1cecee36e9827c77d3",
+      "result_blob": "800459ddee6112c283b6d155538926e9c43026d0",
+      "sha256": "2e1c487fa74dd468f17f78c866936e4b3e99e2ecb2f102183b182e8dadbce6e3",
+      "bytes": 132
+    },
+    {
+      "path": "src/locales/en/translation.json",
+      "base_blob": "8497c4b7ca87d2d44ca1036a084a2996c030be6a",
+      "result_blob": "2b01568b979ade9e46d5a12e354414f2aec01a4a",
+      "sha256": "f85c923d79ea20de7dc43c6de7229bb47ffeb50047392ce1797c3f409361a154",
+      "bytes": 73300
+    },
+    {
+      "path": "src/locales/zh-Hans/translation.json",
+      "base_blob": "f1e87a8b8f7080c7b76a7871cc3ceceb18dcfbd3",
+      "result_blob": "32f1bda76f11b20dfc9e4c81f14a124145f7a725",
+      "sha256": "d9893721c1dc4753e035c719fb732d65e097d4a4f7b95a61c9d578f474bf2f66",
+      "bytes": 71189
+    },
+    {
+      "path": "src/server/diagnosticLogs.test.ts",
+      "base_blob": "3362f3b58180cb8267210a7135f3f9d3c588f761",
+      "result_blob": "50c977c05058389e919ea85a99bb11294a5d5caf",
+      "sha256": "e60e472e4d83d1e98b4c88efe39408e5ddc8142b57668f29f5bc99233f6d2937",
+      "bytes": 5071
+    },
+    {
+      "path": "src/server/diagnosticLogs.ts",
+      "base_blob": "8321b50e72158e2baabdffca47fe0a05a171078e",
+      "result_blob": "4f0301fc1ae7ea343263dc370036a2daec54097d",
+      "sha256": "95e2a97aba5caa071728f39908c913f9694397cb0c1202a645a9deee98a99ee3",
+      "bytes": 6394
+    }
+  ],
+  "office_patches": [
+    {
+      "patch": "office/api-index.cjs.patch",
+      "path": "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/api-index.cjs",
+      "base_blob": "0e2185c900a2d06d47eebf36a5b099ba2063182e",
+      "result_blob": "6454ebd08bf9594be12bc821146ce286c6640436",
+      "sha256": "18272f2a1533885a4c11054e6498664363bc79775c56b69d56aa12cbc6450f62",
+      "bytes": 2115774
+    },
+    {
+      "patch": "office/test-office-preparse-gate.js.patch",
+      "path": "deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",
+      "base_blob": "eae4004b1d84a12604b292418c85a2c74ec724f3",
+      "result_blob": "9fb00a10e7e50ca852250e7260eb7132b66f391c",
+      "sha256": "d0943ca8f7874359c26ae60692cbdd8d5341579391fe7cee544b3d573c31d231",
+      "bytes": 9655
+    }
+  ]
+}

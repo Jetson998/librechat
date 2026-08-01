@@ -65,6 +65,7 @@ Response shape:
       "streamId": "...",
       "messageId": "...",
       "model": "claude-opus-5",
+      "errorCode": "OFFICE_PREPARSE_INVALID_MANIFEST",
       "errorName": "SyntaxError",
       "errorMessage": "Unexpected non-whitespace character after JSON at position 33758",
       "durationMs": 4521,
@@ -82,9 +83,10 @@ The detail endpoint can be:
 GET /api/admin/diagnostic-events/:id
 ```
 
-Use cursor pagination for large collections. The list endpoint should return
-only safe metadata; a detail endpoint may add a redacted stack and a bounded
-redacted tail sample when an operator has the diagnostic permission.
+Use cursor pagination for large collections. The list endpoint returns only
+safe metadata; the detail endpoint may add a redacted stack when an operator
+has the diagnostic permission. Full prompts, file contents, credentials, and
+raw tool output are never stored in this collection.
 
 ## Event taxonomy
 
@@ -141,5 +143,12 @@ for error/state-transition events.
   output are discarded before rendering.
 - A `404` or `503` response is rendered as an explicit unavailable state, and a
   failed response never creates placeholder rows.
-- The production API currently remains a separate backend task. Until it is
-  implemented, `/logs` is expected to show the unavailable state.
+- The API stores only error/state-transition events through a bounded
+  asynchronous queue, with a 14-day TTL and correlation indexes.
+- Office pre-parse errors carry stable diagnostic codes, including
+  `OFFICE_PREPARSE_INVALID_MANIFEST`, so classification does not depend only
+  on localized error text.
+- The Admin client uses cursor pagination and opens a detail drawer that
+  fetches the redacted stack separately from the list.
+- The production API and persisted rows are not part of the existing Admin
+  Panel release; deployment remains a separate approval and release task.
