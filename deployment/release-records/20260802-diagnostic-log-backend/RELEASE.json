@@ -1,20 +1,59 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_evidence": ".release-state/20260802-diagnostic-log-backend/deployment/apply-result.json",
+      "billable_model_requests": 0,
+      "checks": [
+        "API diagnostic and Office overlays mounted with exact candidate hashes",
+        "Admin dist-only runtime mounted at /app/dist from the reviewed candidate image output",
+        "Main root, API config, and Admin root returned 200",
+        "Office authentication boundary remained 401",
+        "CodeAPI, NGINX, RAG API, and MongoDB container identities remained unchanged",
+        "No user conversation or model request was generated"
+      ],
+      "limitation": "Technical smoke acceptance only; no authenticated browser walkthrough of the diagnostic log page was performed.",
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      }
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
       "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/20260802-diagnostic-log-backend-d44feb7eb4b0.tar.gz",
       "manifest": ".release-state/20260802-diagnostic-log-backend/artifacts/manifest.json",
-      "value": "0dcc64c8189c607afeab4760965b8a2adb3bdb4aa155965415e3ed3de1d55172"
+      "value": "0dcc64c8189c607afeab4760965b8a2adb3bdb4aa155965415e3ed3de1d55172",
+      "deployment_handoff": {
+        "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/20260802-diagnostic-log-backend-deploy-handoff-dist-a64ca0d3d1ee.tar.gz",
+        "sha256": "80491547e1711363f476f2d87ddbcc8ee851502666935050fedaf85a28fc5f15",
+        "size_bytes": 1238659,
+        "admin_dist_sha256": "9cbc70faa1980ca3d8988045fda1c5fc0fd402afc84b044945c66ab2363fd250"
+      }
     },
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/diagnostic-log-backend-d44feb7eb4b0-20260801185037",
+      "deployment_result": "/tmp/librechat-diagnostic-log-backend-d44feb7eb4b0/DEPLOY_RESULT.json",
+      "saved_files": [
+        "active-containers.json",
+        "capabilities.cjs.before",
+        "compose.override.yaml.before",
+        "runtime-preflight.json"
+      ],
+      "rollback_scope": "Restore the saved Compose override and recreate only LibreChat-API and LibreChat-Admin-Panel; diagnostic_events data is not dropped.",
+      "first_attempt_rollback": {
+        "backup_dir": "/opt/librechat/backups/diagnostic-log-backend-d44feb7eb4b0-20260801184533",
+        "status": "passed",
+        "reason": "The initial runtime probe used bare Node resolution for the project ~ alias; the runner restored the prior Compose override before the final retry."
+      }
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -46,6 +85,14 @@
         "os": "linux",
         "source_tree_sha256": "a64ca0d3d1eecf75e4927d9302dc91fc74d24e5f46038dab4758f7722595e424"
       },
+      "admin_dist_runtime": {
+        "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/admin-dist-a64ca0d3d1ee.tar.gz",
+        "sha256": "9cbc70faa1980ca3d8988045fda1c5fc0fd402afc84b044945c66ab2363fd250",
+        "size_bytes": 1187991,
+        "candidate_image_manifest_digest": "sha256:3ceac815558ec73f5f0c02fa717c0658c41ef1ee9d925d38be623f578a369a75",
+        "runtime_mount": "/app/dist",
+        "transfer_mode": "dist-only; existing production Admin image and node_modules reused"
+      },
       "api_office_overlay": {
         "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/api-office-overlay-d44feb7eb4b0.tar.gz",
         "composed_office_preparse_sha256": "2f5efa0159cee121768aad645d106456e6ea41fe74930c1960830cfbeb792c4e",
@@ -65,7 +112,9 @@
         "repository and remote scope digest match passed",
         "Admin linux/amd64 candidate image build passed",
         "Admin image locales, focused tests, typecheck, format baseline, import baseline, and production build passed",
-        "Admin image tar export, digest, architecture, and source revision label verification passed"
+        "Admin image tar export, digest, architecture, and source revision label verification passed",
+        "Dist-only handoff manifest, SHA-256, and production mount verification passed",
+        "Versioned deployment runner contract, rollback contract, and remote runtime preflight passed"
       ],
       "docker_image_attempt": {
         "base_image": "oven/bun:1.3.11-alpine",
@@ -81,7 +130,6 @@
       "production_host": false,
       "production_write_attempts": 0,
       "unmet_requirements": [
-        "No reviewed unified deployment runner exists in the frozen diagnostic source batch, so the source package is not a deployable production artifact.",
         "A complete API Jest run remains unclaimed because the inherited integration timeout and Node heap limit prevent an honest full-suite attestation."
       ]
     },
@@ -97,12 +145,12 @@
       "Compose the Admin diagnostic-log page from the deployed Admin source baseline"
     ],
     "limitations": [
-      "This candidate is a versioned source-and-replay artifact only: it contains no production preflight, backup, restart, deployment, or production acceptance evidence.",
-      "A unified production deployment runner is intentionally not included in the reviewed diagnostic source batch; a later deployment operation must be separately reviewed and approved before this candidate can be applied.",
-      "The focused backend test suite, overlay composition, Admin complete quality gate, and Sol review passed at the frozen revision; a full API Jest run remains unclaimed because an inherited integration timeout and Node heap ceiling prevented completion."
+      "Production acceptance is technical smoke only; an authenticated browser walkthrough of the diagnostic log page remains outstanding.",
+      "The focused backend test suite, overlay composition, Admin complete quality gate, and Sol review passed at the frozen revision; a full API Jest run remains unclaimed because an inherited integration timeout and Node heap ceiling prevented completion.",
+      "The Admin image candidate is retained as provenance, while production uses a 1.1 MB dist-only handoff over the already deployed Admin runtime image."
     ],
     "reason": "Provide privacy-safe evidence for diagnosing Office pre-parse failures, initialization persistence failures, and follow-up parent-saving conflicts without recording prompts, credentials, raw tool output, or stacks.",
-    "risk": "Enhanced: this candidate affects the API, Admin Panel, Office pre-parse error path, diagnostic collection indexes, permissions, and tenant isolation. Candidate preparation performs no production write.",
+    "risk": "Enhanced: this release affects the API, Admin Panel runtime dist, Office pre-parse error path, diagnostic collection indexes, permissions, and tenant isolation. The deployment runner scopes writes to API/Admin and preserves CodeAPI, NGINX, RAG API, and MongoDB.",
     "scope": [
       "deployment/production-patches/2026-08-01-diagnostic-log-backend",
       "docs/ADMIN_DIAGNOSTIC_LOG_DESIGN.md"
@@ -112,7 +160,7 @@
   "mode": "enhanced",
   "project_adapter": {
     "billable_model_request_allowed": false,
-    "deploy_runner": "",
+    "deploy_runner": "deployment/production-patches/2026-08-01-diagnostic-log-backend/scripts/deploy.sh",
     "package_required_paths": [
       "deployment/production-patches/2026-07-11-admin-panel-zh-cn/SOURCE_TREE_SHA256",
       "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source",
@@ -132,9 +180,11 @@
   "project_id": "librechat-self-host",
   "release_id": "20260802-diagnostic-log-backend",
   "deployment_handoff": {
-    "manifest": ".release-state/20260802-diagnostic-log-backend/artifacts/deployment-handoff-manifest.json",
-    "production_write_attempts": 0,
-    "status": "packaged_not_ready"
+    "manifest": ".release-state/20260802-diagnostic-log-backend/artifacts/deployment-handoff-manifest-dist.json",
+    "artifact": ".release-state/20260802-diagnostic-log-backend/artifacts/20260802-diagnostic-log-backend-deploy-handoff-dist-a64ca0d3d1ee.tar.gz",
+    "artifact_sha256": "80491547e1711363f476f2d87ddbcc8ee851502666935050fedaf85a28fc5f15",
+    "production_write_attempts": 2,
+    "status": "deployed"
   },
   "release_plan": {
     "details": {
@@ -170,22 +220,52 @@
         "20260731-office-codeapi-process-reaper",
         "eaf723cb73114aef7ff8a7e8e7ce31fb53321ec4"
       ],
-      "stop_condition": "Do not deploy until the versioned runner proves its backup and protected-service invariants in a fresh read-only target preflight."
+      "stop_condition": "Future changes require a fresh read-only target preflight; this release passed that gate and recorded both the automatic rollback and final apply."
     },
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "admin_container_before": "8a8f0c5c99e8cc342221dcc200570b03cf5c6c0f778fc6406b6ebc6c5e7d91cc",
+      "admin_container_after": "01f6d9081beebb58a8c218813b077ea97b8ae508dcf38924d50ffaf3d35836a0",
+      "admin_deployment_mode": "dist",
+      "admin_dist_sha256": "9cbc70faa1980ca3d8988045fda1c5fc0fd402afc84b044945c66ab2363fd250",
+      "admin_candidate_image_manifest_digest": "sha256:3ceac815558ec73f5f0c02fa717c0658c41ef1ee9d925d38be623f578a369a75",
+      "admin_image_id": "sha256:218d0c9785bddea213e520d4b03c59261ffc5dfbfb60d32772da45c8ba4b076a",
+      "admin_image_ref": "librechat-admin-panel-zh-cn:fad4332f83e6",
+      "api_container_before": "bf2a5401660035fb282064cb3a5a865ccde78ed1d1b64eebd0dd20541ef37e98",
+      "api_container_after": "cc3e8494a9cc5d2b939fc2d9a1edf035dba99ae9027438bb0b8ec5eb9580a2c2",
+      "backup_dir": "/opt/librechat/backups/diagnostic-log-backend-d44feb7eb4b0-20260801185037",
+      "compose_override_sha256_before": "27e2b7ad853d45b7f0a0cfeef66f3d45a140ca3b90e133d64c58e9660adecc2f",
+      "compose_override_sha256_after": "0fad75bf8430bf97f2bbfe42506e8f7a52613482592461fbd7690abf9ce02ebd",
+      "deployment_result": ".release-state/20260802-diagnostic-log-backend/deployment/apply-result.json",
+      "runtime_preflight": ".release-state/20260802-diagnostic-log-backend/runtime-preflight.json",
+      "deployed_at": "2026-08-01T18:51:08+00:00",
+      "protected_services": {
+        "LibreChat-CodeAPI": "31ef4b61d9702cf63fdf7d3a1fdbc6a6c0edaef9c0cb3da0774d4ef5fff618e0",
+        "LibreChat-NGINX": "1a5c01b19b73559d6ff2a7b9e053d77d5528946b61bafcd7acae86532f9e03df",
+        "LibreChat-RAG-API": "d16e85e1e1036a8d203a338032d367e472f7245e993efc1ef30d06e7bf6373de",
+        "chat-mongodb": "01d5bc03e9cb05a5efe43cc8a95c3dfce1e6387f65250923d135debe3050e7c6"
+      },
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "admin_root": 200,
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "billable_model_requests": 0,
+      "business_acceptance": "technical smoke only; no user/model request generated"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "d44feb7eb4b0779fbadbb60dfaafa84cbb8f08b7",
-  "status": "blocked",
+  "status": "deployed",
   "unresolved_issues": [
-    "candidate_deployment_runner_missing: the reviewed diagnostic source batch has no unified versioned runner for API, Admin, and Office overlays.",
     "candidate_full_api_jest_unavailable: inherited usageEvents integration timeout and Node heap ceiling prevent a full-suite pass claim."
   ],
-  "updated_at": "2026-08-01T16:44:35Z",
+  "updated_at": "2026-08-01T18:51:08Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-08-01-diagnostic-log-backend/scripts/test-diagnostic-events.js",
