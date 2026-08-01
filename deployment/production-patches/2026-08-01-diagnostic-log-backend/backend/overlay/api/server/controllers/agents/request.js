@@ -193,6 +193,7 @@ function recordAgentDiagnostic({
   streamId,
   messageId,
   endpointOption,
+  errorCode,
 }) {
   if (typeof recordDiagnosticEvent !== 'function') return;
   recordDiagnosticEvent({
@@ -204,24 +205,42 @@ function recordAgentDiagnostic({
     conversationId,
     streamId,
     messageId,
+    errorCode,
     model: getEndpointResponseModel(endpointOption) || getAgentResponseModel(req, endpointOption),
   });
 }
 
 function classifyOfficePreparseDiagnosticError(error) {
   const code = typeof error?.code === 'string' ? error.code : undefined;
-  if (code?.startsWith('OFFICE_PREPARSE_') || error?.diagnosticStage === 'office_preparse') {
+  const officeEvents = {
+    OFFICE_PREPARSE_INVALID_MANIFEST: 'office_preparse_manifest_invalid',
+    OFFICE_PREPARSE_MANIFEST_MISSING: 'office_preparse_manifest_missing',
+    OFFICE_PREPARSE_MANIFEST_INCOMPLETE: 'office_preparse_manifest_incomplete',
+    OFFICE_PREPARSE_FILE_FAILED: 'office_preparse_file_failed',
+    OFFICE_PREPARSE_TIMEOUT: 'office_preparse_timeout',
+    OFFICE_PREPARSE_ABORTED: 'office_preparse_aborted',
+    OFFICE_PREPARSE_FILE_REFERENCE_MISSING: 'office_preparse_file_reference_missing',
+    OFFICE_PREPARSE_FILE_REFERENCE_AMBIGUOUS: 'office_preparse_file_reference_ambiguous',
+    OFFICE_PREPARSE_TOOL_FAILED: 'office_preparse_tool_failed',
+    OFFICE_PREPARSE_FAILED: 'office_preparse_failed',
+  };
+  const mappedEvent = Object.prototype.hasOwnProperty.call(officeEvents, code)
+    ? officeEvents[code]
+    : undefined;
+  const event = mappedEvent || error?.diagnosticEvent;
+  if (event || code?.startsWith('OFFICE_PREPARSE_') || error?.diagnosticStage === 'office_preparse') {
     return {
-      event:
-        error?.diagnosticEvent ||
-        (code === 'OFFICE_PREPARSE_INVALID_MANIFEST'
-          ? 'office_preparse_manifest_invalid'
-          : 'office_preparse_failed'),
+      event: event || 'office_preparse_failed',
       stage: 'office_preparse',
+      errorCode: code || 'OFFICE_PREPARSE_FAILED',
     };
   }
   if (/Office pre-parse returned an invalid manifest/i.test(error?.message ?? '')) {
-    return { event: 'office_preparse_manifest_invalid', stage: 'office_preparse' };
+    return {
+      event: 'office_preparse_manifest_invalid',
+      stage: 'office_preparse',
+      errorCode: 'OFFICE_PREPARSE_INVALID_MANIFEST',
+    };
   }
   return null;
 }
@@ -230,8 +249,16 @@ function classifyAgentDiagnosticError(error, phase = 'initialization') {
   return (
     classifyOfficePreparseDiagnosticError(error) ||
     (phase === 'generation'
-      ? { event: 'generation_failed', stage: 'generation' }
-      : { event: 'generation_initialization_failed', stage: 'generation' })
+      ? {
+          event: 'generation_failed',
+          stage: 'generation',
+          errorCode: 'GENERATION_FAILED',
+        }
+      : {
+          event: 'generation_initialization_failed',
+          stage: 'generation',
+          errorCode: 'GENERATION_INITIALIZATION_FAILED',
+        })
   );
 }
 
@@ -925,6 +952,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
             event: diagnostic.event,
             stage: diagnostic.stage,
             error,
+            errorCode: diagnostic.errorCode,
             userId,
             conversationId,
             streamId,
@@ -964,6 +992,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
         event: diagnostic.event,
         stage: diagnostic.stage,
         error: err,
+        errorCode: diagnostic.errorCode,
         userId,
         conversationId,
         streamId,
@@ -981,6 +1010,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
       event: diagnostic.event,
       stage: diagnostic.stage,
       error,
+      errorCode: diagnostic.errorCode,
       userId,
       conversationId: req.body?.conversationId,
       streamId: req._resumableStreamId ?? req.body?.streamId ?? req.body?.conversationId,
@@ -1392,6 +1422,7 @@ const _LegacyAgentController = async (req, res, next, initializeClient, addTitle
       event: diagnostic.event,
       stage: diagnostic.stage,
       error,
+      errorCode: diagnostic.errorCode,
       userId,
       conversationId,
       streamId,

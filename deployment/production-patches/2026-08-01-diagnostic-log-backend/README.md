@@ -1,8 +1,8 @@
 # Diagnostic log development batch
 
-Status: remediated development candidate awaiting a second Sol review. This
-batch has not been packaged, preflighted, deployed, restarted, or accepted
-against production.
+Status: development remediation after the second Sol review. This batch has
+not been packaged, preflighted, deployed, restarted, or accepted against
+production.
 
 This directory is an independent, versioned development artifact for the
 runtime diagnostic-log work. It deliberately does not modify the previously
@@ -12,16 +12,18 @@ deployed Office or Admin release directories in place.
 
 - Backend: a bounded asynchronous `diagnostic_events` collection with a
   14-day TTL, tenant-scoped correlation indexes, HMAC user identifiers,
-  JSON-aware credential redaction, at most four concurrent writes, and
-  one-read cursor pages with Admin-only list/detail routes.
+  allowlisted static event summaries, at most four concurrent writes, a
+  rate-limited overflow counter, and one-read cursor pages with Admin-only
+  list/detail routes.
 - Agent path: records initialization failures, generation failures,
   follow-up `409` parent-saving rejections, and stable Office pre-parse error
-  classifications without storing prompts, file bodies, credentials, or raw
-  tool output.
+  classifications without storing prompts, file bodies, credentials, filenames,
+  raw error text, stacks, or raw tool output.
 - Office path: adds stable error codes to the existing pre-parse patch through
   minimal unified diffs.
-- Admin Panel: adds exact lookup cursor pagination and a redacted detail
-  drawer on top of the already released diagnostic-log menu/client contract.
+- Admin Panel: adds exact lookup cursor pagination and a safe-metadata detail
+  drawer on top of the already released diagnostic-log menu/client contract;
+  the page is an event index, not a request-timeline viewer.
 
 ## Immutable bases
 
@@ -61,10 +63,11 @@ node deployment/production-patches/2026-08-01-diagnostic-log-backend/scripts/tes
 ```
 
 `scripts/test-composed-overlay.js` verifies the 2026-07-31 mounted Agent
-contract, the current diagnostic overlay, and the patched Office error codes in
-one temporary composition. The remaining Backend Jest and Admin Vitest,
-typecheck, and build gates are run only from the pinned source trees; no
-dependency installation or network-based bootstrap is performed by this batch.
+contract, the current diagnostic overlay, the Admin permission boundary, and
+the patched Office error codes in one temporary composition. The remaining
+Backend Jest and Admin Vitest, typecheck, and build gates are run only from the
+pinned source trees; no dependency installation or network-based bootstrap is
+performed by this batch.
 
 ## Release boundary
 

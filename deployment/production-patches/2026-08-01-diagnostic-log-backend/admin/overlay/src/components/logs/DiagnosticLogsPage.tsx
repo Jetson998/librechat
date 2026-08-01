@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Icon } from '@clickhouse/click-ui';
 import type { DiagnosticLogEntry, DiagnosticLogFilters, DiagnosticLogsResult } from '@/server';
@@ -73,6 +74,38 @@ export function DiagnosticLogsPage() {
   };
 
   const stateMessage = getStateMessage(localize, isPending, isError, data, entries);
+  let tableBody: ReactNode;
+  if (isPending) {
+    tableBody = (
+      <tr>
+        <td colSpan={6}>
+          <LoadingState />
+        </td>
+      </tr>
+    );
+  } else if (stateMessage) {
+    tableBody = (
+      <tr>
+        <td colSpan={6}>
+          <div role="status">
+            <EmptyState
+              className="px-4 py-12 text-center text-sm text-(--cui-color-text-muted)"
+              message={stateMessage}
+            />
+          </div>
+        </td>
+      </tr>
+    );
+  } else {
+    tableBody = entries.map((entry) => (
+      <DiagnosticLogRow
+        key={entry.id}
+        entry={entry}
+        localize={localize}
+        onOpen={() => setSelectedEntryId(entry.id)}
+      />
+    ));
+  }
 
   return (
     <div
@@ -239,35 +272,7 @@ export function DiagnosticLogsPage() {
               </th>
             </tr>
           </thead>
-          <tbody>
-            {isPending ? (
-              <tr>
-                <td colSpan={6}>
-                  <LoadingState />
-                </td>
-              </tr>
-            ) : stateMessage ? (
-              <tr>
-                <td colSpan={6}>
-                  <div role="status">
-                    <EmptyState
-                      className="px-4 py-12 text-center text-sm text-(--cui-color-text-muted)"
-                      message={stateMessage}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              entries.map((entry) => (
-                <DiagnosticLogRow
-                  key={entry.id}
-                  entry={entry}
-                  localize={localize}
-                  onOpen={() => setSelectedEntryId(entry.id)}
-                />
-              ))
-            )}
-          </tbody>
+          <tbody>{tableBody}</tbody>
         </table>
       </section>
 
@@ -326,12 +331,12 @@ function DiagnosticLogRow({
       </td>
       <td className="max-w-100 px-4 py-3 align-top">
         <div className="font-mono text-xs text-(--cui-color-text-default)">{entry.event}</div>
-        {entry.errorMessage && (
+        {entry.errorSummary && (
           <div
             className="mt-1 truncate text-xs text-(--cui-color-text-muted)"
-            title={entry.errorMessage}
+            title={entry.errorSummary}
           >
-            {entry.errorMessage}
+            {entry.errorSummary}
           </div>
         )}
       </td>

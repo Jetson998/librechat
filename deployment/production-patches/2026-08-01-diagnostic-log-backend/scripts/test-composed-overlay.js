@@ -32,6 +32,11 @@ const diagnosticInitializationFailurePath = path.join(
 );
 const officeSourcePath = path.join(productionRoot, 'office-context-patch/OfficePreparse.js');
 const officePatchPath = path.join(patchRoot, 'office/OfficePreparse.js.patch');
+const adminBaselineRoot = path.join(
+  repoRoot,
+  'deployment/production-patches/2026-07-11-admin-panel-zh-cn/source',
+);
+const adminOverlayRoot = path.join(patchRoot, 'admin/overlay');
 const contractHarnessPath = path.join(
   productionRoot,
   'scripts/test-office-preparse-result-contract.js',
@@ -81,8 +86,51 @@ const assertOnlyDiagnosticAdditions = () => {
   assert(source.includes('req.officePreparseSignal = job.abortController.signal;'));
   assert(source.includes('delete req.officePreparseSignal;'));
   assert(source.includes('persistInitializationFailure({'));
-  assert(source.includes("? { event: 'generation_failed', stage: 'generation' }"));
+  assert(source.includes("event: 'generation_failed'"));
+  assert(source.includes("errorCode: diagnostic.errorCode"));
   assert(source.includes("classifyAgentDiagnosticError(error, 'generation')"));
+};
+
+const copyTree = (sourceRoot, destinationRoot) => {
+  for (const entry of fs.readdirSync(sourceRoot, { withFileTypes: true })) {
+    const source = path.join(sourceRoot, entry.name);
+    const destination = path.join(destinationRoot, entry.name);
+    if (entry.isDirectory()) {
+      fs.mkdirSync(destination, { recursive: true });
+      copyTree(source, destination);
+    } else {
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(source, destination);
+    }
+  }
+};
+
+const assertAdminPermissionAndPrivacy = (temporaryRoot) => {
+  const composedRoot = path.join(temporaryRoot, 'admin-composed');
+  copyTree(adminBaselineRoot, composedRoot);
+  copyTree(adminOverlayRoot, composedRoot);
+
+  const route = fs.readFileSync(path.join(composedRoot, 'src/routes/_app/logs.tsx'), 'utf8');
+  const sidebar = fs.readFileSync(path.join(composedRoot, 'src/components/Sidebar.tsx'), 'utf8');
+  const detail = fs.readFileSync(
+    path.join(composedRoot, 'src/components/logs/DiagnosticLogDetailDrawer.tsx'),
+    'utf8',
+  );
+  const server = fs.readFileSync(
+    path.join(composedRoot, 'src/server/diagnosticLogs.ts'),
+    'utf8',
+  );
+
+  assert(route.includes('READ_DIAGNOSTIC_LOGS_CAPABILITY'));
+  assert(!route.includes('READ_AUDIT_LOG_CAPABILITY'));
+  assert(sidebar.includes('capability: READ_DIAGNOSTIC_LOGS_CAPABILITY'));
+  assert(!sidebar.includes('READ_AUDIT_LOG_CAPABILITY'));
+  assert(detail.includes('DiagnosticLogDetailEntry'));
+  assert(!detail.includes('entry.stack'));
+  assert(!detail.includes('entry.errorMessage'));
+  assert(server.includes('errorSummary'));
+  assert(!server.includes('errorMessage:'));
+  assert(!server.includes('stack:'));
 };
 
 const copyPatchedOfficeSource = (temporaryRoot) => {
@@ -146,6 +194,139 @@ const assertOfficeErrorCodes = async (officePreparsePath) => {
   );
 };
 
+const captureRejection = async (promise) => {
+  try {
+    await promise;
+  } catch (error) {
+    return error;
+  }
+  assert.fail('Expected an Office pre-parse rejection.');
+};
+
+const assertOfficeSafetyAndRuntimeCodes = async (officePreparsePath) => {
+  delete require.cache[officePreparsePath];
+  const office = require(officePreparsePath);
+  const createHarness = (invoke) =>
+    office.createOfficePreparse({
+      createBashExecutionTool: () => ({ invoke }),
+      getCodeApiAuthHeaders: async () => ({ Authorization: 'Bearer test' }),
+      logger: { debug: () => {} },
+    });
+  const assertDiagnosticError = (error, code, event, forbidden = []) => {
+    assert.equal(error?.code, code);
+    assert.equal(error?.diagnosticEvent, event);
+    assert.equal(error?.diagnosticStage, 'office_preparse');
+    for (const value of forbidden) {
+      assert(!error.message.includes(value), `raw value leaked into error message: ${value}`);
+    }
+  };
+
+  const rawFilename = '123-45-6789.xlsx';
+  const rawToolError = 'clientToken=auth-secret';
+  const failedContent =
+    office.MANIFEST_MARKER +
+    JSON.stringify({
+      files: [{ filename: rawFilename, ok: false, error: rawToolError }],
+    });
+  const failed = await captureRejection(
+    createHarness(async () => ({ content: failedContent })).prepareCurrentTurnOfficeContext({
+      req: {},
+      requestFiles: [{ ...currentFile, filename: rawFilename }],
+      primedCodeFiles: [{ ...currentPrimed, name: rawFilename }],
+    }),
+  );
+  assertDiagnosticError(
+    failed,
+    'OFFICE_PREPARSE_FILE_FAILED',
+    'office_preparse_file_failed',
+    [rawFilename, rawToolError],
+  );
+
+  const invalid = await captureRejection(
+    createHarness(async () => ({ content: office.MANIFEST_MARKER + '{raw tool output}' }))
+      .prepareCurrentTurnOfficeContext({
+        req: {},
+        requestFiles: [currentFile],
+        primedCodeFiles: [currentPrimed],
+      }),
+  );
+  assertDiagnosticError(
+    invalid,
+    'OFFICE_PREPARSE_INVALID_MANIFEST',
+    'office_preparse_manifest_invalid',
+    ['raw tool output'],
+  );
+
+  const missingReference = await captureRejection(
+    createHarness(async () => ({ content: '' })).prepareCurrentTurnOfficeContext({
+      req: {},
+      requestFiles: [currentFile],
+      primedCodeFiles: [],
+    }),
+  );
+  assertDiagnosticError(
+    missingReference,
+    'OFFICE_PREPARSE_FILE_REFERENCE_MISSING',
+    'office_preparse_file_reference_missing',
+    [currentFile.filename],
+  );
+
+  const ambiguousReference = await captureRejection(
+    createHarness(async () => ({ content: '' })).prepareCurrentTurnOfficeContext({
+      req: {},
+      requestFiles: [currentFile],
+      primedCodeFiles: [currentPrimed, { ...currentPrimed, id: 'code-current-2' }],
+    }),
+  );
+  assertDiagnosticError(
+    ambiguousReference,
+    'OFFICE_PREPARSE_FILE_REFERENCE_AMBIGUOUS',
+    'office_preparse_file_reference_ambiguous',
+    [currentFile.filename],
+  );
+
+  const preAborted = new AbortController();
+  preAborted.abort();
+  const abortedBeforeStart = await captureRejection(
+    createHarness(async () => ({ content: '' })).prepareCurrentTurnOfficeContext({
+      req: { officePreparseSignal: preAborted.signal },
+      requestFiles: [currentFile],
+      primedCodeFiles: [currentPrimed],
+    }),
+  );
+  assertDiagnosticError(
+    abortedBeforeStart,
+    'OFFICE_PREPARSE_ABORTED',
+    'office_preparse_aborted',
+  );
+
+  const timeout = await captureRejection(
+    createHarness(() => new Promise(() => {})).prepareCurrentTurnOfficeContext({
+      req: {},
+      requestFiles: [currentFile],
+      primedCodeFiles: [currentPrimed],
+      timeoutMs: 5,
+    }),
+  );
+  assertDiagnosticError(timeout, 'OFFICE_PREPARSE_TIMEOUT', 'office_preparse_timeout');
+
+  const toolFailure = await captureRejection(
+    createHarness(async () => {
+      throw new Error('auth-secret raw tool output');
+    }).prepareCurrentTurnOfficeContext({
+      req: {},
+      requestFiles: [currentFile],
+      primedCodeFiles: [currentPrimed],
+    }),
+  );
+  assertDiagnosticError(
+    toolFailure,
+    'OFFICE_PREPARSE_TOOL_FAILED',
+    'office_preparse_tool_failed',
+    ['auth-secret', 'raw tool output'],
+  );
+};
+
 const runCurrentRequestContract = (temporaryRoot, officePreparsePath) => {
   const harnessSource = fs
     .readFileSync(contractHarnessPath, 'utf8')
@@ -167,8 +348,10 @@ const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'diagnostic-overlay-
 Promise.resolve()
   .then(() => assertOnlyDiagnosticAdditions())
   .then(async () => {
+    assertAdminPermissionAndPrivacy(temporaryRoot);
     const officePreparsePath = copyPatchedOfficeSource(temporaryRoot);
     await assertOfficeErrorCodes(officePreparsePath);
+    await assertOfficeSafetyAndRuntimeCodes(officePreparsePath);
     runCurrentRequestContract(temporaryRoot, officePreparsePath);
   })
   .then(() => process.stdout.write('diagnostic overlay composition tests passed\n'))

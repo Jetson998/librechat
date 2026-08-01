@@ -1,0 +1,6 @@
+components/configuration/ConfigPage.tsx
+components/logs/DiagnosticLogDetailDrawer.tsx
+components/logs/DiagnosticLogsPage.tsx
+routes/_app/logs.tsx
+server/config.test.ts
+server/scopes.ts

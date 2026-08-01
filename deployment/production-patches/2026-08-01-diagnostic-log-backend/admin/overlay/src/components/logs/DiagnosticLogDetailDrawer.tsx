@@ -2,7 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useQuery } from '@tanstack/react-query';
 import { Button, IconButton } from '@clickhouse/click-ui';
 import type { ReactNode } from 'react';
-import type { DiagnosticLogEntry } from '@/server';
+import type { DiagnosticLogDetailEntry, DiagnosticLogEntry } from '@/server';
 import { LoadingState } from '@/components/shared';
 import { useLocalize } from '@/hooks';
 import { diagnosticLogEntryQueryOptions } from '@/server';
@@ -34,6 +34,20 @@ export function DiagnosticLogDetailDrawer({
   const { data, isPending, isError } = useQuery(diagnosticLogEntryQueryOptions(entryId ?? undefined));
   const entry = data?.entry ?? null;
   const notFound = !isPending && !isError && data?.entry === null;
+  let detailContent: ReactNode = null;
+  if (isPending) {
+    detailContent = (
+      <div className="flex h-full items-center justify-center px-4 py-8">
+        <LoadingState />
+      </div>
+    );
+  } else if (isError) {
+    detailContent = <DetailMessage message={localize('com_diagnostic_logs_detail_load_error')} />;
+  } else if (notFound) {
+    detailContent = <DetailMessage message={localize('com_diagnostic_logs_detail_not_found')} />;
+  } else if (entry) {
+    detailContent = <DiagnosticLogDetail entry={entry} localize={localize} />;
+  }
 
   return (
     <Dialog.Root
@@ -76,17 +90,7 @@ export function DiagnosticLogDetailDrawer({
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {isPending ? (
-              <div className="flex h-full items-center justify-center px-4 py-8">
-                <LoadingState />
-              </div>
-            ) : isError ? (
-              <DetailMessage message={localize('com_diagnostic_logs_detail_load_error')} />
-            ) : notFound ? (
-              <DetailMessage message={localize('com_diagnostic_logs_detail_not_found')} />
-            ) : entry ? (
-              <DiagnosticLogDetail entry={entry} localize={localize} />
-            ) : null}
+            {detailContent}
           </div>
 
           <footer className="flex items-center justify-end border-t border-(--cui-color-stroke-default) px-4 py-3">
@@ -106,20 +110,18 @@ function DiagnosticLogDetail({
   entry,
   localize,
 }: {
-  entry: DiagnosticLogEntry;
+  entry: DiagnosticLogDetailEntry;
   localize: ReturnType<typeof useLocalize>;
 }) {
+  const levelClassName = getLevelClassName(entry.level);
+
   return (
     <div className="flex flex-col gap-5 px-4 py-4" data-diagnostic-log-detail="true">
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={cn(
             'rounded-full px-2 py-0.5 text-xs font-medium',
-            entry.level === 'error'
-              ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200'
-              : entry.level === 'warning'
-                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
-                : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200',
+            levelClassName,
           )}
         >
           {localize(LEVEL_LABEL_KEYS[entry.level])}
@@ -134,7 +136,7 @@ function DiagnosticLogDetail({
         <DetailRow label={localize('com_diagnostic_logs_detail_time')}>
           <div className="flex flex-col gap-0.5">
             <span>{formatTimestamp(entry.timestamp)}</span>
-          <MonoValue value={entry.timestamp} />
+            <MonoValue value={entry.timestamp} />
           </div>
         </DetailRow>
         <DetailRow label={localize('com_diagnostic_logs_detail_request_id')}>
@@ -155,9 +157,6 @@ function DiagnosticLogDetail({
         <DetailRow label={localize('com_diagnostic_logs_detail_error_code')}>
           {entry.errorCode ?? '—'}
         </DetailRow>
-        <DetailRow label={localize('com_diagnostic_logs_detail_error_name')}>
-          {entry.errorName ?? '—'}
-        </DetailRow>
         <DetailRow label={localize('com_diagnostic_logs_detail_duration')}>
           {entry.durationMs == null ? '—' : `${entry.durationMs} ms`}
         </DetailRow>
@@ -169,19 +168,11 @@ function DiagnosticLogDetail({
         </DetailRow>
       </dl>
 
-      {entry.errorMessage && (
-        <DetailSection title={localize('com_diagnostic_logs_detail_error_message')}>
-          <p className="whitespace-pre-wrap break-words text-sm text-(--cui-color-text-default)">
-            {entry.errorMessage}
+      {entry.errorSummary && (
+        <DetailSection title={localize('com_diagnostic_logs_detail_error_summary')}>
+          <p className="whitespace-pre-wrap wrap-break-word text-sm text-(--cui-color-text-default)">
+            {entry.errorSummary}
           </p>
-        </DetailSection>
-      )}
-
-      {entry.stack && (
-        <DetailSection title={localize('com_diagnostic_logs_detail_stack')}>
-          <pre className="max-h-90 overflow-auto whitespace-pre-wrap break-words rounded-md bg-(--cui-color-background-muted) p-3 font-mono text-[11px] text-(--cui-color-text-muted)">
-            {entry.stack}
-          </pre>
         </DetailSection>
       )}
     </div>
@@ -194,9 +185,17 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
       <dt className="text-xs font-medium tracking-wide text-(--cui-color-text-muted) uppercase">
         {label}
       </dt>
-      <dd className="min-w-0 break-words text-sm text-(--cui-color-text-default)">{children}</dd>
+      <dd className="min-w-0 wrap-break-word text-sm text-(--cui-color-text-default)">{children}</dd>
     </div>
   );
+}
+
+function getLevelClassName(level: DiagnosticLogEntry['level']): string {
+  if (level === 'error') return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200';
+  if (level === 'warning') {
+    return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200';
+  }
+  return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200';
 }
 
 function DetailSection({ title, children }: { title: string; children: ReactNode }) {

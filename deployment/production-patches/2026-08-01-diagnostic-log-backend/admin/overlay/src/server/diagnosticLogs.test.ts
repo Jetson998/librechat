@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { READ_DIAGNOSTIC_LOGS_CAPABILITY } from '@/constants';
 
 const apiFetchMock = vi.fn();
-const requireCapabilityMock = vi.fn(async () => undefined);
+const requireCapabilityMock = vi.fn(async (_capability?: string) => undefined);
 
 vi.mock('./utils/api', () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
@@ -12,7 +12,7 @@ vi.mock('./utils/api', () => ({
 }));
 
 vi.mock('./capabilities', () => ({
-  requireCapability: (...args: unknown[]) => requireCapabilityMock(...args),
+  requireCapability: (capability: string) => requireCapabilityMock(capability),
 }));
 
 vi.mock('@tanstack/react-start', () => ({
@@ -90,13 +90,13 @@ describe('diagnostic log client contract', () => {
             conversationId: 'conversation-1',
             userId: 'raw-user-id-must-not-reach-admin',
             model: 'claude-opus-5',
-            errorName: 'SyntaxError',
-            errorMessage: 'line one\nline two',
+            errorSummary: 'Office pre-parse manifest is invalid.',
+            errorMessage: 'private user prompt fragment auth-secret',
             prompt: 'do not return this',
             fileContent: 'private document body',
             authorization: 'Bearer secret',
             toolOutput: 'raw tool result',
-            stack: 'raw stack must not be present in a list response',
+            stack: 'raw stack auth-secret must not be present in a response',
           },
         ],
         nextCursor: null,
@@ -112,7 +112,7 @@ describe('diagnostic log client contract', () => {
     if (!result.available) return;
     expect(result.entries[0]).toMatchObject({
       event: 'office_preparse_manifest_invalid',
-      errorMessage: 'line one line two',
+      errorSummary: 'Office pre-parse manifest is invalid.',
     });
     expect(result.entries[0]).not.toHaveProperty('prompt');
     expect(result.entries[0]).not.toHaveProperty('fileContent');
@@ -120,11 +120,10 @@ describe('diagnostic log client contract', () => {
     expect(result.entries[0]).not.toHaveProperty('toolOutput');
     expect(result.entries[0]).not.toHaveProperty('userId');
     expect(result.entries[0]).not.toHaveProperty('stack');
+    expect(result.entries[0]).not.toHaveProperty('errorMessage');
 
     expect(apiFetchMock).toHaveBeenCalledWith(
-      expect.stringContaining(
-        '/api/admin/diagnostic-events?cursor=cursor-2&limit=25',
-      ),
+      expect.stringContaining('/api/admin/diagnostic-events?cursor=cursor-2&limit=25'),
     );
     expect(requireCapabilityMock).toHaveBeenCalledWith(READ_DIAGNOSTIC_LOGS_CAPABILITY);
   });
@@ -132,30 +131,23 @@ describe('diagnostic log client contract', () => {
   it('returns a nullable detail entry for a purged event', async () => {
     apiFetchMock.mockResolvedValue(jsonResponse({ entry: null }, 200));
 
-    await expect(
-      getDiagnosticLogEntryFn({ data: { id: 'event-1' } }),
-    ).resolves.toEqual({
+    await expect(getDiagnosticLogEntryFn({ data: { id: 'event-1' } })).resolves.toEqual({
       entry: null,
     });
-    expect(apiFetchMock).toHaveBeenCalledWith(
-      '/api/admin/diagnostic-events/event-1',
-    );
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/admin/diagnostic-events/event-1');
   });
 
   it.each([
     [404, 'not_configured'],
     [503, 'unavailable'],
-  ] as const)(
-    'returns an explicit fallback for HTTP %s',
-    async (status, reason) => {
-      apiFetchMock.mockResolvedValue(new Response(null, { status }));
+  ] as const)('returns an explicit fallback for HTTP %s', async (status, reason) => {
+    apiFetchMock.mockResolvedValue(new Response(null, { status }));
 
-      await expect(getDiagnosticLogPageFn({ data: {} })).resolves.toEqual({
-        available: false,
-        reason,
-      });
-    },
-  );
+    await expect(getDiagnosticLogPageFn({ data: {} })).resolves.toEqual({
+      available: false,
+      reason,
+    });
+  });
 
   it('rejects a response with an unbounded or malformed timestamp', () => {
     expect(() =>

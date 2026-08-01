@@ -22,10 +22,7 @@ const dateOnlySchema = z
 
 const isoTimestampSchema = z
   .string()
-  .regex(
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/,
-    'Expected an ISO timestamp',
-  );
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/, 'Expected an ISO timestamp');
 
 /** Strip line breaks from operator-facing text so a backend error cannot
  * create a misleading multi-row/table layout. Unknown fields are discarded by
@@ -41,9 +38,7 @@ const boundedId = z.string().min(1).max(256);
 export const diagnosticLogFilterSchema = z.object({
   lookup: boundedText(256).optional(),
   level: z.enum(['error', 'warning', 'info']).optional(),
-  stage: z
-    .enum(['request', 'office_preparse', 'generation', 'followup'])
-    .optional(),
+  stage: z.enum(['request', 'office_preparse', 'generation', 'followup']).optional(),
   from: dateOnlySchema,
   to: dateOnlySchema,
   conversationId: boundedId.optional(),
@@ -67,15 +62,14 @@ const diagnosticLogListEntrySchema = z.object({
   messageId: boundedId.optional(),
   model: boundedText(200).optional(),
   errorCode: boundedText(160).optional(),
-  errorName: boundedText(160).optional(),
-  errorMessage: boundedText(1000).optional(),
+  errorSummary: boundedText(160).optional(),
   durationMs: z.number().int().min(0).max(86_400_000).optional(),
   release: boundedText(128).optional(),
 });
 
-const diagnosticLogDetailEntrySchema = diagnosticLogListEntrySchema.extend({
-  stack: z.string().max(6000).optional(),
-});
+// Detail responses intentionally expose the same safe metadata as list rows.
+// Raw error text and stacks are not captured by the backend at all.
+const diagnosticLogDetailEntrySchema = diagnosticLogListEntrySchema.extend({});
 
 const diagnosticLogPageResponseSchema = z.object({
   entries: z.array(diagnosticLogListEntrySchema).max(1000),
@@ -111,42 +105,34 @@ export function parseDiagnosticLogPage(value: unknown): DiagnosticLogPage {
 
 export const getDiagnosticLogPageFn = createServerFn({ method: 'GET' })
   .inputValidator(diagnosticLogFilterSchema)
-  .handler(
-    async ({
-      data,
-    }: {
-      data: DiagnosticLogFilters;
-    }): Promise<DiagnosticLogsResult> => {
-      await requireCapability(READ_DIAGNOSTIC_LOGS_CAPABILITY);
+  .handler(async ({ data }: { data: DiagnosticLogFilters }): Promise<DiagnosticLogsResult> => {
+    await requireCapability(READ_DIAGNOSTIC_LOGS_CAPABILITY);
 
-      const filters: DiagnosticLogFilters = {
-        ...data,
-        limit: data.limit ?? DIAGNOSTIC_LOG_PAGE_SIZE,
-      };
-      const response = await apiFetch(
-        `/api/admin/diagnostic-events${buildDiagnosticLogQuery(filters)}`,
-      );
+    const filters: DiagnosticLogFilters = {
+      ...data,
+      limit: data.limit ?? DIAGNOSTIC_LOG_PAGE_SIZE,
+    };
+    const response = await apiFetch(
+      `/api/admin/diagnostic-events${buildDiagnosticLogQuery(filters)}`,
+    );
 
-      if (response.status === 404) {
-        return { available: false, reason: 'not_configured' };
-      }
-      if (response.status === 503) {
-        return { available: false, reason: 'unavailable' };
-      }
-      if (!response.ok) {
-        await extractApiError(response, 'Failed to fetch diagnostic logs');
-      }
+    if (response.status === 404) {
+      return { available: false, reason: 'not_configured' };
+    }
+    if (response.status === 503) {
+      return { available: false, reason: 'unavailable' };
+    }
+    if (!response.ok) {
+      await extractApiError(response, 'Failed to fetch diagnostic logs');
+    }
 
-      return {
-        available: true,
-        ...parseDiagnosticLogPage(await response.json()),
-      };
-    },
-  );
+    return {
+      available: true,
+      ...parseDiagnosticLogPage(await response.json()),
+    };
+  });
 
-export const diagnosticLogsQueryOptions = (
-  filters: DiagnosticLogFilters = {},
-) =>
+export const diagnosticLogsQueryOptions = (filters: DiagnosticLogFilters = {}) =>
   queryOptions({
     queryKey: ['diagnosticLogs', filters] as const,
     queryFn: () => getDiagnosticLogPageFn({ data: filters }),
@@ -157,17 +143,14 @@ export const getDiagnosticLogEntryFn = createServerFn({ method: 'GET' })
   .inputValidator(diagnosticLogEntryInputSchema)
   .handler(async ({ data }: { data: { id: string } }) => {
     await requireCapability(READ_DIAGNOSTIC_LOGS_CAPABILITY);
-    const response = await apiFetch(
-      `/api/admin/diagnostic-events/${encodeURIComponent(data.id)}`,
-    );
+    const response = await apiFetch(`/api/admin/diagnostic-events/${encodeURIComponent(data.id)}`);
     if (response.status === 404) return { entry: null };
     if (!response.ok) {
       await extractApiError(response, 'Failed to fetch diagnostic log entry');
     }
     const json = await response.json();
     return {
-      entry:
-        json.entry == null ? null : diagnosticLogDetailEntrySchema.parse(json.entry),
+      entry: json.entry == null ? null : diagnosticLogDetailEntrySchema.parse(json.entry),
     };
   });
 

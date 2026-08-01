@@ -27,8 +27,8 @@ does not invent rows while the backend diagnostic-event endpoint is absent.
    end date, clear. There is no broad error-text or regex search.
 3. Summary strip: current-page events, current-page errors, latest event.
 4. Dense result table: level, event, stage, context, timestamp.
-5. Detail drawer: full diagnostic metadata and request timeline after the API
-   is available.
+5. Detail drawer: one failure event's safe diagnostic metadata and correlation
+   IDs after the API is available. It does not reconstruct a request timeline.
 
 The page uses the current Admin Panel's restrained table/filter layout. It does
 not show full prompts, uploaded file content, authorization headers, or raw
@@ -65,8 +65,7 @@ Response shape:
       "messageId": "...",
       "model": "claude-opus-5",
       "errorCode": "OFFICE_PREPARSE_INVALID_MANIFEST",
-      "errorName": "SyntaxError",
-      "errorMessage": "Unexpected non-whitespace character after JSON at position 33758",
+      "errorSummary": "Office pre-parse manifest is invalid.",
       "durationMs": 4521,
       "release": "238c8ddd"
     }
@@ -83,22 +82,27 @@ GET /api/admin/diagnostic-events/:id
 
 Use cursor pagination for large collections. Each page performs one indexed
 read (`limit + 1`) and does not run `countDocuments` or a full aggregate. The
-list endpoint explicitly excludes `stack`, raw `userId`, prompts, file
-contents, credentials, and raw tool output. The detail endpoint may add an
-already-redacted stack when an operator has the diagnostic permission.
+list endpoint explicitly excludes raw `userId`, prompts, file contents,
+credentials, filenames, raw error text, stacks, and raw tool output. The detail
+endpoint returns the same safe metadata as the list response and never adds a
+raw or redacted stack.
 
 ## Event taxonomy
 
-The initial events should cover the current incident path:
+The initial failure-event index covers the current incident path:
 
 ```text
-request_received
-files_primed
-office_preparse_started
-office_preparse_tool_result_received
 office_preparse_manifest_invalid
+office_preparse_manifest_missing
+office_preparse_manifest_incomplete
+office_preparse_file_failed
+office_preparse_timeout
+office_preparse_aborted
+office_preparse_file_reference_missing
+office_preparse_file_reference_ambiguous
+office_preparse_tool_failed
 generation_initialization_failed
-generation_completed
+generation_failed
 followup_rejected_parent_saving
 ```
 
@@ -124,22 +128,27 @@ never all tenants). The actual indexes pair the tenant and cursor sort keys:
 { expiresAt: 1 }  // TTL
 ```
 
-Do not await diagnostic persistence in the model request path. Emit structured
-stdout immediately, then enqueue a bounded asynchronous persistence operation
-for error/state-transition events. At most 256 events may be outstanding and
-at most four `Model.create()` calls run concurrently; overflow remains in
-structured stdout only.
+Do not await diagnostic persistence in the model request path. Emit only the
+allowlisted event and correlation metadata to structured stdout, then enqueue a
+bounded asynchronous persistence operation for failure/state-transition events.
+At most 256 events may be outstanding and at most four `Model.create()` calls
+run concurrently. Overflow remains in structured stdout only, with one
+rate-limited aggregate warning and a dropped-event counter; it does not emit one
+warning per dropped event.
 
 ## Acceptance
 
 - Admins with the diagnostic permission can open `/logs` and filter by time,
   stage, level, conversation, and request.
-- Rows link to a detail drawer and reconstruct one request timeline.
+- Rows link to a detail drawer for one event and its correlation IDs; no
+  success-event timeline is recorded or reconstructed.
 - A missing or unavailable diagnostic backend produces an explicit unavailable
   state, never fake rows.
 - Normal conversation success does not create a synchronous database write.
-- Logs exclude message bodies, document previews, credentials, and raw tool
-  output.
+- Logs exclude message bodies, document previews, credentials, filenames, raw
+  error text, stacks, and raw tool output. The backend uses a fixed event
+  allowlist and static summaries; it does not attempt to make arbitrary Error
+  objects safe with regular-expression redaction.
 
 ## Current implementation status
 
@@ -150,13 +159,14 @@ structured stdout only.
   output are discarded before rendering.
 - A `404` or `503` response is rendered as an explicit unavailable state, and a
   failed response never creates placeholder rows.
-- The API stores only error/state-transition events through a bounded
-  asynchronous queue, with a 14-day TTL, JSON-aware credential redaction,
-  tenant scoping, and cursor-compatible correlation indexes.
-- Office pre-parse errors carry stable diagnostic codes, including
-  `OFFICE_PREPARSE_INVALID_MANIFEST`, so classification does not depend only
-  on localized error text.
-- The Admin client uses cursor pagination and opens a detail drawer that
-  fetches the redacted stack separately from the list.
+- The API stores only allowlisted failure/state-transition events through a
+  bounded asynchronous queue, with a 14-day TTL, tenant scoping, cursor-
+  compatible correlation indexes, a four-worker write limit, and rate-limited
+  overflow accounting.
+- Office pre-parse errors carry stable diagnostic codes for invalid, missing,
+  incomplete, failed, timeout, abort, and stable-reference paths. Error text
+  from the parser and tool is not copied into the thrown diagnostic message.
+- The Admin client uses cursor pagination and opens a detail drawer for the
+  single safe event record; there is no raw stack endpoint.
 - The production API and persisted rows are not part of the existing Admin
   Panel release; deployment remains a separate approval and release task.

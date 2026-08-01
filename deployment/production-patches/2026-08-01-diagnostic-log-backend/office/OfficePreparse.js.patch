@@ -1,8 +1,8 @@
 diff --git a/deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js b/deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js
-index 82fccbe..0000000 100644
+index 82fccbe..98161cc 100644
 --- a/deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js
 +++ b/deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js
-@@ -4,7 +4,21 @@
+@@ -4,6 +4,26 @@ const OFFICE_EXTENSIONS = new Set([
  const MANIFEST_MARKER = '__LIBRECHAT_OFFICE_MANIFEST__';
  const MAX_CONTEXT_CHARS = 80_000;
  const DEFAULT_TIMEOUT_MS = 45_000;
@@ -11,8 +11,14 @@ index 82fccbe..0000000 100644
 +  OFFICE_PREPARSE_MANIFEST_MISSING: 'office_preparse_manifest_missing',
 +  OFFICE_PREPARSE_MANIFEST_INCOMPLETE: 'office_preparse_manifest_incomplete',
 +  OFFICE_PREPARSE_FILE_FAILED: 'office_preparse_file_failed',
++  OFFICE_PREPARSE_TIMEOUT: 'office_preparse_timeout',
++  OFFICE_PREPARSE_ABORTED: 'office_preparse_aborted',
++  OFFICE_PREPARSE_FILE_REFERENCE_MISSING: 'office_preparse_file_reference_missing',
++  OFFICE_PREPARSE_FILE_REFERENCE_AMBIGUOUS: 'office_preparse_file_reference_ambiguous',
++  OFFICE_PREPARSE_TOOL_FAILED: 'office_preparse_tool_failed',
++  OFFICE_PREPARSE_FAILED: 'office_preparse_failed',
 +});
- 
++
 +const createOfficePreparseError = (code, message) => {
 +  const error = new Error(message);
 +  error.code = code;
@@ -20,11 +26,65 @@ index 82fccbe..0000000 100644
 +  error.diagnosticStage = 'office_preparse';
 +  return error;
 +};
-+
+ 
  const extensionOf = (filename) => {
    const basename = typeof filename === 'string' ? (filename.split(/[\\/]/).pop() ?? '') : '';
-   const index = basename.lastIndexOf('.');
-@@ -315,14 +329,29 @@
+@@ -24,9 +44,11 @@ const selectCurrentTurnOfficeFiles = (requestFiles, primedCodeFiles) => {
+       matches.set(key, candidate);
+     }
+     if (matches.size !== 1) {
+-      const reason = matches.size > 1 ? 'ambiguous' : 'missing';
+-      throw new Error(
+-        `Office pre-parse ${reason} stable CodeAPI reference for "${file?.filename ?? 'unknown file'}".`,
++      throw createOfficePreparseError(
++        matches.size > 1
++          ? 'OFFICE_PREPARSE_FILE_REFERENCE_AMBIGUOUS'
++          : 'OFFICE_PREPARSE_FILE_REFERENCE_MISSING',
++        'Office pre-parse could not resolve a stable file reference.',
+       );
+     }
+     selected.push({
+@@ -253,11 +275,16 @@ const createOfficePreparse = ({ createBashExecutionTool, getCodeApiAuthHeaders,
+     if (selected.length === 0) return undefined;
+ 
+     const requestSignal = req?.officePreparseSignal;
+-    if (requestSignal?.aborted) throw new Error('Office pre-parse was aborted before execution.');
++    if (requestSignal?.aborted) {
++      throw createOfficePreparseError(
++        'OFFICE_PREPARSE_ABORTED',
++        'Office pre-parse was aborted before execution.',
++      );
++    }
+ 
+     logger.debug('[office-preparse] selected current-turn files', {
+       fileIds: selected.map((item) => item.file_id),
+-      filenames: selected.map((item) => item.filename),
++      count: selected.length,
+     });
+ 
+     const encoded = Buffer.from(buildParser(selected.map((item) => item.filename)), 'utf8').toString('base64');
+@@ -292,11 +319,17 @@ const createOfficePreparse = ({ createBashExecutionTool, getCodeApiAuthHeaders,
+     } catch (error) {
+       if (controller.signal.aborted) {
+         if (controller.signal.reason?.message === 'Office pre-parse timed out') {
+-          throw new Error(`Office pre-parse timed out after ${Math.round(timeoutMs / 1000)} seconds.`);
++          throw createOfficePreparseError('OFFICE_PREPARSE_TIMEOUT', 'Office pre-parse timed out.');
+         }
+-        throw new Error('Office pre-parse was aborted before completion.');
++        throw createOfficePreparseError(
++          'OFFICE_PREPARSE_ABORTED',
++          'Office pre-parse was aborted before completion.',
++        );
+       }
+-      throw error;
++      throw createOfficePreparseError(
++        'OFFICE_PREPARSE_TOOL_FAILED',
++        'Office pre-parse tool execution failed.',
++      );
+     } finally {
+       clearTimeout(timeout);
+       requestSignal?.removeEventListener?.('abort', forwardAbort);
+@@ -315,14 +348,29 @@ const createOfficePreparse = ({ createBashExecutionTool, getCodeApiAuthHeaders,
          });
        }
      } catch (error) {
@@ -32,19 +92,19 @@ index 82fccbe..0000000 100644
 +      if (error?.message === 'Office pre-parse returned no manifest.') {
 +        throw createOfficePreparseError(
 +          'OFFICE_PREPARSE_MANIFEST_MISSING',
-+          error.message,
++          'Office pre-parse did not return a manifest.',
 +        );
 +      }
 +      throw createOfficePreparseError(
 +        'OFFICE_PREPARSE_INVALID_MANIFEST',
-+        `Office pre-parse returned an invalid manifest: ${error.message}`,
++        'Office pre-parse returned an invalid manifest.',
 +      );
      }
      if (!Array.isArray(manifest?.files) || manifest.files.length !== selected.length) {
 -      throw new Error('Office pre-parse manifest did not cover every current-turn file.');
 +      throw createOfficePreparseError(
 +        'OFFICE_PREPARSE_MANIFEST_INCOMPLETE',
-+        'Office pre-parse manifest did not cover every current-turn file.',
++        'Office pre-parse manifest did not cover every selected file.',
 +      );
      }
      const failed = manifest.files.find((item) => item?.ok !== true);
@@ -52,7 +112,7 @@ index 82fccbe..0000000 100644
 -      throw new Error(`Office pre-parse failed for "${failed.filename ?? 'unknown file'}": ${failed.error ?? 'unknown parser error'}`);
 +      throw createOfficePreparseError(
 +        'OFFICE_PREPARSE_FILE_FAILED',
-+        `Office pre-parse failed for "${failed.filename ?? 'unknown file'}": ${failed.error ?? 'unknown parser error'}`,
++        'Office pre-parse could not process a selected file.',
 +      );
      }
  

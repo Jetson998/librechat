@@ -6,10 +6,9 @@ const RETENTION_DAYS = 14;
 const MAX_QUEUE_DEPTH = 256;
 const MAX_CONCURRENT_WRITES = 4;
 const MAX_QUERY_LIMIT = 100;
-const MAX_TEXT_LENGTH = 1000;
-const MAX_STACK_LENGTH = 6000;
 const MAX_CURSOR_LENGTH = 256;
 const MAX_ID_LENGTH = 256;
+const QUEUE_OVERFLOW_WARNING_INTERVAL_MS = 10_000;
 
 const LEVELS = new Set(['error', 'warning', 'info']);
 const STAGES = new Set(['request', 'office_preparse', 'generation', 'followup']);
@@ -21,6 +20,93 @@ const LOOKUP_FIELDS = [
   'event',
   'errorCode',
 ];
+
+/**
+ * The diagnostic store is deliberately an allowlist, rather than a redaction
+ * layer over arbitrary Error instances. Error messages, stacks, filenames,
+ * prompts, and tool output are all attacker- or user-controlled in practice.
+ * Only these static, reviewed summaries may enter MongoDB or diagnostic stdout.
+ */
+const DIAGNOSTIC_EVENT_DEFINITIONS = Object.freeze({
+  office_preparse_manifest_invalid: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_INVALID_MANIFEST',
+    errorSummary: 'Office pre-parse manifest is invalid.',
+  },
+  office_preparse_manifest_missing: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_MANIFEST_MISSING',
+    errorSummary: 'Office pre-parse did not return a manifest.',
+  },
+  office_preparse_manifest_incomplete: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_MANIFEST_INCOMPLETE',
+    errorSummary: 'Office pre-parse manifest did not cover every selected file.',
+  },
+  office_preparse_file_failed: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_FILE_FAILED',
+    errorSummary: 'Office pre-parse could not process a selected file.',
+  },
+  office_preparse_timeout: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_TIMEOUT',
+    errorSummary: 'Office pre-parse timed out.',
+  },
+  office_preparse_aborted: {
+    level: 'warning',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_ABORTED',
+    errorSummary: 'Office pre-parse was aborted.',
+  },
+  office_preparse_file_reference_missing: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_FILE_REFERENCE_MISSING',
+    errorSummary: 'Office pre-parse could not resolve a stable file reference.',
+  },
+  office_preparse_file_reference_ambiguous: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_FILE_REFERENCE_AMBIGUOUS',
+    errorSummary: 'Office pre-parse found multiple stable file references.',
+  },
+  office_preparse_tool_failed: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_TOOL_FAILED',
+    errorSummary: 'Office pre-parse tool execution failed.',
+  },
+  office_preparse_failed: {
+    level: 'error',
+    stage: 'office_preparse',
+    errorCode: 'OFFICE_PREPARSE_FAILED',
+    errorSummary: 'Office pre-parse failed.',
+  },
+  generation_initialization_failed: {
+    level: 'error',
+    stage: 'generation',
+    errorCode: 'GENERATION_INITIALIZATION_FAILED',
+    errorSummary: 'Generation initialization failed.',
+  },
+  generation_failed: {
+    level: 'error',
+    stage: 'generation',
+    errorCode: 'GENERATION_FAILED',
+    errorSummary: 'Generation failed.',
+  },
+  followup_rejected_parent_saving: {
+    level: 'warning',
+    stage: 'followup',
+    errorCode: 'FOLLOWUP_REJECTED_PARENT_SAVING',
+    errorSummary: 'Follow-up was rejected because the parent response is still saving.',
+  },
+});
 
 const diagnosticEventSchema = new mongoose.Schema(
   {
@@ -37,11 +123,9 @@ const diagnosticEventSchema = new mongoose.Schema(
     messageId: { type: String, required: false, immutable: true },
     model: { type: String, required: false, immutable: true },
     errorCode: { type: String, required: false, immutable: true },
-    errorName: { type: String, required: false, immutable: true },
-    errorMessage: { type: String, required: false, immutable: true },
+    errorSummary: { type: String, required: false, immutable: true },
     durationMs: { type: Number, required: false, immutable: true },
     release: { type: String, required: false, immutable: true },
-    stack: { type: String, required: false, immutable: true },
   },
   {
     collection: 'diagnostic_events',
@@ -71,72 +155,27 @@ let indexPromise;
 let pendingWrites = 0;
 let activeWrites = 0;
 let drainScheduled = false;
+let droppedWrites = 0;
+let lastReportedDroppedWrites = 0;
+let lastQueueOverflowWarningAt = 0;
 const writeQueue = [];
 
-function boundedText(value, max = MAX_TEXT_LENGTH) {
+function boundedOpaqueId(value, max = MAX_ID_LENGTH) {
   if (value == null) return undefined;
-  const text = String(value).replace(/[\r\n]+/g, ' ').trim();
-  return text ? text.slice(0, max) : undefined;
-}
-
-function boundedId(value) {
-  return boundedText(value, MAX_ID_LENGTH);
-}
-
-const SENSITIVE_CREDENTIAL_KEY = /^(?:authorization|proxy-authorization|cookie|set-cookie|password|passwd|secret|token|access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|x-api-key|client[_-]?secret|private[_-]?key|credential|credentials|jwt|session[_-]?id)$/i;
-
-function redactStructuredCredentials(value) {
-  if (Array.isArray(value)) return value.map(redactStructuredCredentials);
-  if (!value || typeof value !== 'object') return value;
-
-  return Object.fromEntries(
-    Object.entries(value).map(([key, nested]) => [
-      key,
-      SENSITIVE_CREDENTIAL_KEY.test(key) ? '[redacted]' : redactStructuredCredentials(nested),
-    ]),
-  );
-}
-
-function redactCredentialText(value) {
-  let text = String(value);
-  try {
-    text = JSON.stringify(redactStructuredCredentials(JSON.parse(text)));
-  } catch {
-    // Error text is often a sentence containing an embedded JSON fragment.
-    // The targeted replacement below handles that case without parsing user text.
+  const text = String(value).trim();
+  if (!text || text.length > max || !/^[A-Za-z0-9][A-Za-z0-9._:@-]*$/.test(text)) {
+    return undefined;
   }
-
-  return text
-    .replace(
-      /(["'])(authorization|proxy-authorization|cookie|set-cookie|password|passwd|secret|token|access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|x-api-key|client[_-]?secret|private[_-]?key|credential|credentials|jwt|session[_-]?id)\1\s*([:=])\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;}]+)/gi,
-      (_, quote, key, separator, rawValue) => {
-        const valuePlaceholder = rawValue.startsWith('"')
-          ? '"[redacted]"'
-          : rawValue.startsWith("'")
-            ? "'[redacted]'"
-            : '[redacted]';
-        return `${quote}${key}${quote}${separator}${valuePlaceholder}`;
-      },
-    )
-    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
-    .replace(/\bBasic\s+[A-Za-z0-9+/=]+/gi, 'Basic [redacted]')
-    .replace(/sk-[A-Za-z0-9_-]+/g, '[redacted-key]');
+  return text;
 }
 
-function sanitizeStack(value) {
+function boundedModel(value) {
   if (value == null) return undefined;
-  return redactCredentialText(value)
-    .replace(
-      /(api[-_]?key|token|password|secret|cookie)\s*[:=]\s*[^\s,;]+/gi,
-      (_, label) => `${label}=[redacted]`,
-    )
-    .replace(/\/mnt\/data\/[^\s)]+/g, '/mnt/data/[redacted-file]')
-    .slice(0, MAX_STACK_LENGTH);
-}
-
-function sanitizeDiagnosticText(value, max = MAX_TEXT_LENGTH) {
-  if (value == null) return undefined;
-  return boundedText(sanitizeStack(value), max);
+  const text = String(value).trim();
+  if (!text || text.length > 200 || !/^[A-Za-z0-9][A-Za-z0-9._:/@-]*$/.test(text)) {
+    return undefined;
+  }
+  return text;
 }
 
 function hashUserId(userId) {
@@ -148,11 +187,11 @@ function hashUserId(userId) {
 
 function getRequestId(req) {
   const header = req?.headers?.['x-request-id'] || req?.headers?.['x-correlation-id'];
-  return boundedText(req?.id || header, 256);
+  return boundedOpaqueId(req?.id || header);
 }
 
 function getRelease() {
-  return boundedText(
+  return boundedOpaqueId(
     process.env.LIBRECHAT_RELEASE || process.env.RELEASE_SHA || process.env.GIT_COMMIT,
     128,
   );
@@ -193,54 +232,52 @@ function encodeCursor(entry) {
 function requestContext(req, values = {}) {
   const body = req?.body || {};
   return {
-    tenantId: boundedId(values.tenantId ?? req?.user?.tenantId ?? req?.tenantId),
-    requestId: boundedId(getRequestId(req)),
+    tenantId: boundedOpaqueId(values.tenantId ?? req?.user?.tenantId ?? req?.tenantId),
+    requestId: boundedOpaqueId(getRequestId(req)),
     userIdHash: hashUserId(values.userId ?? req?.user?.id),
-    conversationId: boundedId(values.conversationId ?? body.conversationId),
-    streamId: boundedId(values.streamId ?? req?._resumableStreamId ?? body.streamId),
-    messageId: boundedId(values.messageId ?? body.messageId),
-    model: boundedText(values.model ?? body?.endpointOption?.modelOptions?.model, 200),
+    conversationId: boundedOpaqueId(values.conversationId ?? body.conversationId),
+    streamId: boundedOpaqueId(values.streamId ?? req?._resumableStreamId ?? body.streamId),
+    messageId: boundedOpaqueId(values.messageId ?? body.messageId),
+    model: boundedModel(values.model ?? body?.endpointOption?.modelOptions?.model),
   };
 }
 
-function normalizeInput(input = {}) {
+function normalizeDiagnosticEvent(input = {}) {
+  const definition = Object.prototype.hasOwnProperty.call(
+    DIAGNOSTIC_EVENT_DEFINITIONS,
+    input.event,
+  )
+    ? DIAGNOSTIC_EVENT_DEFINITIONS[input.event]
+    : undefined;
+  if (!definition) throw new Error('Diagnostic event name is not allowed');
+
   const now = new Date();
-  const error = input.error;
   const context = requestContext(input.req, input);
-  const errorMessage = sanitizeDiagnosticText(input.errorMessage ?? error?.message);
-  const stack = sanitizeStack(input.stack ?? error?.stack);
-  const event = boundedText(input.event, 160);
-  const level = LEVELS.has(input.level) ? input.level : 'error';
-  const stage = STAGES.has(input.stage) ? input.stage : 'generation';
-  const durationValue = input.durationMs ?? (input.req?.diagnosticStartedAt ? Date.now() - input.req.diagnosticStartedAt : undefined);
+  const durationValue =
+    input.durationMs ??
+    (input.req?.diagnosticStartedAt ? Date.now() - input.req.diagnosticStartedAt : undefined);
   const durationMs = Number.isFinite(Number(durationValue))
     ? Math.max(0, Math.min(Math.floor(Number(durationValue)), 86_400_000))
     : undefined;
 
-  if (!event) throw new Error('Diagnostic event name is required');
-
   return {
     timestamp: now,
     expiresAt: new Date(now.getTime() + RETENTION_DAYS * 24 * 60 * 60 * 1000),
-    level,
-    event,
-    stage,
+    level: definition.level,
+    event: input.event,
+    stage: definition.stage,
     ...context,
-    errorCode: boundedText(input.errorCode ?? error?.code, 160),
-    errorName: boundedText(input.errorName ?? error?.name, 160),
-    errorMessage,
+    errorCode: definition.errorCode,
+    errorSummary: definition.errorSummary,
     durationMs,
-    release: boundedText(input.release, 128) ?? getRelease(),
-    stack,
+    release: getRelease(),
   };
 }
 
 function logStructuredEvent(doc) {
-  const payload = { ...doc };
-  delete payload.stack;
-  if (payload.level === 'warning') logger.warn('[diagnostic-event]', payload);
-  else if (payload.level === 'info') logger.info('[diagnostic-event]', payload);
-  else logger.error('[diagnostic-event]', payload);
+  if (doc.level === 'warning') logger.warn('[diagnostic-event]', doc);
+  else if (doc.level === 'info') logger.info('[diagnostic-event]', doc);
+  else logger.error('[diagnostic-event]', doc);
 }
 
 function ensureIndexes() {
@@ -255,13 +292,26 @@ function ensureIndexes() {
   return indexPromise;
 }
 
+function reportQueueOverflow(doc) {
+  droppedWrites += 1;
+  const now = Date.now();
+  if (now - lastQueueOverflowWarningAt < QUEUE_OVERFLOW_WARNING_INTERVAL_MS) return;
+
+  const droppedSinceLastWarning = droppedWrites - lastReportedDroppedWrites;
+  lastQueueOverflowWarningAt = now;
+  lastReportedDroppedWrites = droppedWrites;
+  logger.warn('[diagnostic-event] persistence queue overflow', {
+    droppedCount: droppedWrites,
+    droppedSinceLastWarning,
+    maxQueueDepth: MAX_QUEUE_DEPTH,
+    event: doc.event,
+    stage: doc.stage,
+  });
+}
+
 function persistInBackground(doc) {
   if (pendingWrites >= MAX_QUEUE_DEPTH) {
-    logger.warn('[diagnostic-event] persistence queue full; event retained in stdout only', {
-      event: doc.event,
-      stage: doc.stage,
-      requestId: doc.requestId,
-    });
+    reportQueueOverflow(doc);
     return false;
   }
 
@@ -289,12 +339,11 @@ function drainQueue() {
         await ensureIndexes();
         await getDiagnosticEventModel().create(doc);
       })
-      .catch((error) => {
+      .catch(() => {
         logger.error('[diagnostic-event] persistence failed', {
           event: doc.event,
           stage: doc.stage,
-          requestId: doc.requestId,
-          error: error?.message ?? String(error),
+          failure: 'database_write_failed',
         });
       })
       .finally(() => {
@@ -308,9 +357,11 @@ function drainQueue() {
 function recordDiagnosticEvent(input) {
   let doc;
   try {
-    doc = normalizeInput(input);
-  } catch (error) {
-    logger.error('[diagnostic-event] rejected invalid event', { error: error?.message ?? String(error) });
+    doc = normalizeDiagnosticEvent(input);
+  } catch {
+    logger.error('[diagnostic-event] rejected invalid event', {
+      failure: 'invalid_event_definition',
+    });
     return false;
   }
   logStructuredEvent(doc);
@@ -320,18 +371,22 @@ function recordDiagnosticEvent(input) {
 function buildFilter(query = {}) {
   // Missing tenant context deliberately means the legacy, unscoped partition;
   // it never means "all tenants". Routes always pass their authenticated scope.
-  const filter = { tenantId: boundedId(query.tenantId) ?? null };
-  const lookup = boundedText(query.lookup, MAX_ID_LENGTH);
+  const filter = { tenantId: boundedOpaqueId(query.tenantId) ?? null };
+  const lookup = boundedOpaqueId(query.lookup);
   if (lookup) {
     filter.$or = LOOKUP_FIELDS.map((field) => ({ [field]: lookup }));
   }
   if (LEVELS.has(query.level)) filter.level = query.level;
   if (STAGES.has(query.stage)) filter.stage = query.stage;
-  if (query.conversationId) filter.conversationId = boundedText(query.conversationId, 256);
-  if (query.streamId) filter.streamId = boundedText(query.streamId, 256);
+  const conversationId = boundedOpaqueId(query.conversationId);
+  const streamId = boundedOpaqueId(query.streamId);
+  if (conversationId) filter.conversationId = conversationId;
+  if (streamId) filter.streamId = streamId;
   const from = normalizeDate(query.from);
   const to = normalizeDate(query.to, true);
-  if (from || to) filter.timestamp = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: to } : {}) };
+  if (from || to) {
+    filter.timestamp = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: to } : {}) };
+  }
   return filter;
 }
 
@@ -349,17 +404,9 @@ function toListEntry(doc) {
     ...(doc.messageId ? { messageId: doc.messageId } : {}),
     ...(doc.model ? { model: doc.model } : {}),
     ...(doc.errorCode ? { errorCode: doc.errorCode } : {}),
-    ...(doc.errorName ? { errorName: doc.errorName } : {}),
-    ...(doc.errorMessage ? { errorMessage: doc.errorMessage } : {}),
+    ...(doc.errorSummary ? { errorSummary: doc.errorSummary } : {}),
     ...(doc.durationMs != null ? { durationMs: doc.durationMs } : {}),
     ...(doc.release ? { release: doc.release } : {}),
-  };
-}
-
-function toDetailEntry(doc) {
-  return {
-    ...toListEntry(doc),
-    ...(doc.stack ? { stack: doc.stack } : {}),
   };
 }
 
@@ -374,14 +421,13 @@ async function listDiagnosticEventPage(query = {}) {
           { timestamp: { $lt: cursor.timestamp } },
           { timestamp: cursor.timestamp, _id: { $lt: cursor.id } },
         ],
-    }
+      }
     : null;
   const filter = cursorFilter ? { $and: [baseFilter, cursorFilter] } : baseFilter;
-  // Intentionally a single indexed read. Cursor pagination avoids per-page
-  // countDocuments calls, which would turn a diagnostic error burst into a
-  // second database load spike.
+  // Intentionally a single indexed read. The projection also shields list
+  // responses from legacy raw fields that might exist in a manually created row.
   const entries = await DiagnosticEvent.find(filter)
-    .select('-stack')
+    .select('-stack -errorMessage -errorName')
     .sort({ timestamp: -1, _id: -1 })
     .limit(limit + 1)
     .lean();
@@ -396,8 +442,26 @@ async function listDiagnosticEventPage(query = {}) {
 async function findDiagnosticEvent(id, scope = {}) {
   if (!mongoose.isValidObjectId(id)) return null;
   const filter = buildFilter({ tenantId: scope.tenantId ?? null });
-  const doc = await getDiagnosticEventModel().findOne({ _id: id, ...filter }).lean();
-  return doc ? toDetailEntry(doc) : null;
+  const doc = await getDiagnosticEventModel()
+    .findOne({ _id: id, ...filter })
+    .select('-stack -errorMessage -errorName')
+    .lean();
+  return doc ? toListEntry(doc) : null;
+}
+
+function getDiagnosticEventQueueStats() {
+  return {
+    pendingWrites,
+    activeWrites,
+    droppedWrites,
+    lastReportedDroppedWrites,
+  };
+}
+
+function resetDiagnosticEventQueueStats() {
+  droppedWrites = 0;
+  lastReportedDroppedWrites = 0;
+  lastQueueOverflowWarningAt = 0;
 }
 
 function createDiagnosticEventMethods() {
@@ -408,6 +472,7 @@ function createDiagnosticEventMethods() {
     getDiagnosticEventModel,
     buildDiagnosticFilter: buildFilter,
     getDiagnosticEventQueueDepth: () => pendingWrites,
+    getDiagnosticEventQueueStats,
   };
 }
 
@@ -415,14 +480,17 @@ module.exports = {
   RETENTION_DAYS,
   MAX_QUEUE_DEPTH,
   MAX_CONCURRENT_WRITES,
+  QUEUE_OVERFLOW_WARNING_INTERVAL_MS,
+  DIAGNOSTIC_EVENT_DEFINITIONS,
   createDiagnosticEventMethods,
   recordDiagnosticEvent,
   listDiagnosticEventPage,
   findDiagnosticEvent,
   requestContext,
-  sanitizeStack,
-  sanitizeDiagnosticText,
+  normalizeDiagnosticEvent,
   hashUserId,
   buildDiagnosticFilter: buildFilter,
   getDiagnosticEventQueueDepth: () => pendingWrites,
+  getDiagnosticEventQueueStats,
+  resetDiagnosticEventQueueStats,
 };

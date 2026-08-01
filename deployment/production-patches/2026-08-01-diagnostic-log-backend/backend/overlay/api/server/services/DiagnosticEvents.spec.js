@@ -5,12 +5,13 @@ const {
   MAX_QUEUE_DEPTH,
   buildDiagnosticFilter,
   getDiagnosticEventQueueDepth,
+  getDiagnosticEventQueueStats,
   hashUserId,
   listDiagnosticEventPage,
+  normalizeDiagnosticEvent,
   recordDiagnosticEvent,
   requestContext,
-  sanitizeDiagnosticText,
-  sanitizeStack,
+  resetDiagnosticEventQueueStats,
 } = require('./DiagnosticEvents');
 
 const waitFor = async (predicate, attempts = 400) => {
@@ -24,12 +25,14 @@ const waitFor = async (predicate, attempts = 400) => {
 describe('DiagnosticEvents', () => {
   const originalHashSecret = process.env.DIAGNOSTIC_LOG_HASH_SECRET;
   const originalJwtSecret = process.env.JWT_SECRET;
+  let errorSpy;
+  let warnSpy;
 
   beforeAll(() => {
     jest.spyOn(logger, 'debug').mockImplementation(() => {});
-    jest.spyOn(logger, 'error').mockImplementation(() => {});
+    errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
     jest.spyOn(logger, 'info').mockImplementation(() => {});
-    jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
   });
 
   afterAll(() => {
@@ -40,38 +43,49 @@ describe('DiagnosticEvents', () => {
     else process.env.JWT_SECRET = originalJwtSecret;
   });
 
-  it('redacts credentials and sandbox file paths from stack text', () => {
-    const sanitized = sanitizeStack(
-      'Bearer abc.def secret=topsecret api-key: sk-test sk-standalone /mnt/data/private.docx',
-    );
-
-    expect(sanitized).toContain('Bearer [redacted]');
-    expect(sanitized).toContain('secret=[redacted]');
-    expect(sanitized).toContain('api-key=[redacted]');
-    expect(sanitized).toContain('[redacted-key]');
-    expect(sanitized).toContain('/mnt/data/[redacted-file]');
-    expect(sanitized).not.toContain('topsecret');
-    expect(sanitized).not.toContain('private.docx');
-  });
-
-  it('redacts JSON-form credentials before any diagnostic text is persisted', () => {
-    const input = JSON.stringify({
-      password: 'secret-value',
-      access_token: 'jwt-value',
-      cookie: 'sid-value',
-      nested: { clientSecret: 'nested-secret' },
+  it('persists only a static allowlisted summary for an arbitrary Error object', () => {
+    const secrets = {
+      authToken: 'auth-secret',
+      databasePassword: 'db-secret',
+      clientToken: 'client-secret',
+      ssn: '123-45-6789',
+      prompt: 'private user prompt fragment',
+    };
+    const doc = normalizeDiagnosticEvent({
+      tenantId: 'tenant-a',
+      requestId: 'request-1',
+      userId: 'user-1',
+      conversationId: 'conversation-1',
+      streamId: 'stream-1',
+      messageId: 'message-1',
+      model: 'claude-opus-5',
+      event: 'office_preparse_file_failed',
+      error: {
+        code: 'CLIENT_TOKEN',
+        name: 'PrivatePromptError',
+        message: JSON.stringify(secrets),
+        stack: JSON.stringify(secrets),
+      },
+      errorMessage: JSON.stringify(secrets),
+      stack: JSON.stringify(secrets),
     });
-    const sanitized = sanitizeDiagnosticText(input);
-    const stack = sanitizeStack(`upstream error: ${input}`);
 
-    expect(sanitized).toContain('"password":"[redacted]"');
-    expect(sanitized).toContain('"access_token":"[redacted]"');
-    expect(sanitized).toContain('"cookie":"[redacted]"');
-    expect(sanitized).toContain('"clientSecret":"[redacted]"');
-    expect(stack).not.toContain('secret-value');
-    expect(stack).not.toContain('jwt-value');
-    expect(stack).not.toContain('sid-value');
-    expect(stack).not.toContain('nested-secret');
+    expect(doc).toMatchObject({
+      event: 'office_preparse_file_failed',
+      stage: 'office_preparse',
+      errorCode: 'OFFICE_PREPARSE_FILE_FAILED',
+      errorSummary: 'Office pre-parse could not process a selected file.',
+    });
+    expect(doc).not.toHaveProperty('errorName');
+    expect(doc).not.toHaveProperty('errorMessage');
+    expect(doc).not.toHaveProperty('stack');
+    for (const secret of Object.values(secrets)) {
+      expect(JSON.stringify(doc)).not.toContain(secret);
+    }
+    expect(() =>
+      normalizeDiagnosticEvent({ event: 'arbitrary_user_supplied_event' }),
+    ).toThrow(/not allowed/);
+    expect(() => normalizeDiagnosticEvent({ event: '__proto__' })).toThrow(/not allowed/);
   });
 
   it('uses the configured HMAC secret and omits user hashes without one', () => {
@@ -114,8 +128,8 @@ describe('DiagnosticEvents', () => {
       model: 'claude-opus-5',
     });
     expect(context).toHaveProperty('userIdHash');
-    expect(context).not.toHaveProperty('text');
-    expect(context).not.toHaveProperty('authorization');
+    expect(JSON.stringify(context)).not.toContain('private prompt');
+    expect(JSON.stringify(context)).not.toContain('should-not-be-stored');
   });
 
   it('uses exact, indexed lookups and never treats a missing tenant as global access', () => {
@@ -153,7 +167,7 @@ describe('DiagnosticEvents', () => {
     expect(buildDiagnosticFilter({ lookup: 'request-1' }).tenantId).toBeNull();
   });
 
-  it('uses one stack-free indexed list query instead of page-level counts', async () => {
+  it('uses one indexed list read and excludes legacy raw fields', async () => {
     const previousModel = mongoose.models.DiagnosticEvent;
     const lean = jest.fn().mockResolvedValue([
       {
@@ -162,7 +176,9 @@ describe('DiagnosticEvents', () => {
         level: 'error',
         event: 'office_preparse_manifest_invalid',
         stage: 'office_preparse',
-        stack: 'must not be selected for list responses',
+        errorSummary: 'Office pre-parse manifest is invalid.',
+        errorMessage: 'legacy raw error must not be returned',
+        stack: 'legacy raw stack must not be returned',
       },
     ]);
     const query = {
@@ -178,19 +194,16 @@ describe('DiagnosticEvents', () => {
       const page = await listDiagnosticEventPage({ tenantId: 'tenant-a', limit: 50 });
       expect(model.find).toHaveBeenCalledTimes(1);
       expect(model.find).toHaveBeenCalledWith({ tenantId: 'tenant-a' });
-      expect(query.select).toHaveBeenCalledWith('-stack');
+      expect(query.select).toHaveBeenCalledWith('-stack -errorMessage -errorName');
       expect(query.sort).toHaveBeenCalledWith({ timestamp: -1, _id: -1 });
       expect(query.limit).toHaveBeenCalledWith(51);
-      expect(page).toEqual({
-        entries: [
-          expect.objectContaining({
-            id: '64f000000000000000000001',
-            event: 'office_preparse_manifest_invalid',
-          }),
-        ],
-        nextCursor: null,
+      expect(page.entries[0]).toMatchObject({
+        id: '64f000000000000000000001',
+        event: 'office_preparse_manifest_invalid',
+        errorSummary: 'Office pre-parse manifest is invalid.',
       });
       expect(page.entries[0]).not.toHaveProperty('stack');
+      expect(page.entries[0]).not.toHaveProperty('errorMessage');
       expect(page).not.toHaveProperty('total');
     } finally {
       if (previousModel === undefined) delete mongoose.models.DiagnosticEvent;
@@ -198,19 +211,23 @@ describe('DiagnosticEvents', () => {
     }
   });
 
-  it('accepts at most 256 outstanding writes and runs no more than four creates at once', async () => {
+  it('rate-limits overflow warnings while bounding writes at four workers', async () => {
     const previousModel = mongoose.models.DiagnosticEvent;
+    resetDiagnosticEventQueueStats();
+    errorSpy.mockClear();
+    warnSpy.mockClear();
     let activeWrites = 0;
     let maxActiveWrites = 0;
     let creates = 0;
     const model = {
       createIndexes: jest.fn().mockResolvedValue(undefined),
       create: jest.fn(
-        () =>
+        (doc) =>
           new Promise((resolve) => {
             creates += 1;
             activeWrites += 1;
             maxActiveWrites = Math.max(maxActiveWrites, activeWrites);
+            expect(JSON.stringify(doc)).not.toContain('auth-secret');
             setImmediate(() => {
               activeWrites -= 1;
               resolve();
@@ -226,7 +243,11 @@ describe('DiagnosticEvents', () => {
           event: 'generation_failed',
           stage: 'generation',
           tenantId: 'tenant-a',
-          requestId: `request-${index}`,
+          requestId: 'request-' + index,
+          error: {
+            message: 'private user prompt fragment auth-secret 123-45-6789',
+            stack: 'private stack auth-secret',
+          },
         }),
       ).filter(Boolean).length;
 
@@ -235,6 +256,19 @@ describe('DiagnosticEvents', () => {
       expect(creates).toBe(MAX_QUEUE_DEPTH);
       expect(maxActiveWrites).toBeLessThanOrEqual(MAX_CONCURRENT_WRITES);
       expect(maxActiveWrites).toBe(MAX_CONCURRENT_WRITES);
+      expect(getDiagnosticEventQueueStats()).toMatchObject({
+        pendingWrites: 0,
+        droppedWrites: 44,
+      });
+      expect(
+        warnSpy.mock.calls.filter(([label]) => label === '[diagnostic-event] persistence queue overflow'),
+      ).toHaveLength(1);
+
+      const structuredOutput = JSON.stringify([...errorSpy.mock.calls, ...warnSpy.mock.calls]);
+      expect(structuredOutput).not.toContain('auth-secret');
+      expect(structuredOutput).not.toContain('private user prompt fragment');
+      expect(structuredOutput).not.toContain('123-45-6789');
+      expect(structuredOutput).not.toContain('private stack');
     } finally {
       if (previousModel === undefined) delete mongoose.models.DiagnosticEvent;
       else mongoose.models.DiagnosticEvent = previousModel;
