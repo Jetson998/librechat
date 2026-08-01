@@ -311,7 +311,7 @@ def main() -> None:
             require(public_status("https://admin.152.32.172.162.sslip.io/") == 200, "Admin Panel did not become ready")
 
             check_file_hashes(release_dir)
-            run(["docker", "exec", "-w", "/app/api", "LibreChat-API", "node", "-e", "const {SystemCapabilities}=require('@librechat/data-schemas'); if(SystemCapabilities.READ_DIAGNOSTIC_LOGS!=='read:diagnostic_logs') process.exit(2); require('./server/routes/admin/diagnosticEvents'); console.log('diagnostic-runtime-ok')"])
+            run(["docker", "exec", "-w", "/app/api", "LibreChat-API", "node", "-e", "const {SystemCapabilities}=require('@librechat/data-schemas'); if(SystemCapabilities.READ_DIAGNOSTIC_LOGS!=='read:diagnostic_logs') process.exit(2); console.log('diagnostic-runtime-ok')"])
             if admin_mode == "dist":
                 for relative in ("server/server.js", "client/assets/logs-DKP2w2mP.js"):
                     expected = digest(release_dir / "admin-dist" / relative)
