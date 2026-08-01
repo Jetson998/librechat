@@ -83,9 +83,9 @@ def copy_overlay(overlay_root: Path, destination_root: Path, entries: list[dict]
         verify_file(destination, entry, label)
 
 
-def archive_git_revision(repo: Path, destination: Path) -> None:
+def archive_git_revision(repo: Path, destination: Path, revision: str = "HEAD") -> None:
     archive = subprocess.run(
-        ["git", "-C", str(repo), "archive", "HEAD"],
+        ["git", "-C", str(repo), "archive", revision],
         check=True,
         capture_output=True,
     ).stdout
@@ -102,7 +102,7 @@ def verify_backend(source: Path, manifest: dict, replay_root: Path) -> None:
         raise RuntimeError("backend source must be clean for replay")
 
     replay_root.mkdir(parents=True, exist_ok=True)
-    archive_git_revision(source, replay_root)
+    archive_git_revision(source, replay_root, expected_revision)
     copy_overlay(ROOT / "backend" / "overlay", replay_root, manifest["backend_overlay"], "backend")
 
 
@@ -115,14 +115,10 @@ def verify_admin(source: Path, manifest: dict, replay_root: Path) -> None:
 
 def verify_office(governance_repo: Path, manifest: dict, replay_root: Path) -> None:
     expected_revision = manifest["bases"]["admin_and_governance"]["repository_revision"]
-    actual_revision = run("git", "-C", str(governance_repo), "rev-parse", "HEAD")
-    if actual_revision != expected_revision:
-        raise RuntimeError(
-            f"governance revision mismatch: expected={expected_revision} actual={actual_revision}"
-        )
+    run("git", "-C", str(governance_repo), "cat-file", "-e", f"{expected_revision}^{{commit}}")
 
     replay_root.mkdir(parents=True, exist_ok=True)
-    archive_git_revision(governance_repo, replay_root)
+    archive_git_revision(governance_repo, replay_root, expected_revision)
     for entry in manifest["office_patches"]:
         patch = ROOT / entry["patch"]
         require_file(patch)
