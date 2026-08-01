@@ -1,0 +1,7 @@
+interface:
+  display_name: "中文专业开发术语"
+  short_description: "以旁路方式统一中文研发汇报、流程说明和技术文档术语"
+  default_prompt: "Use $zh-cn-professional-dev-terminology to localize this finalized technical summary into professional Simplified Chinese without changing its execution semantics."
+
+policy:
+  allow_implicit_invocation: false
