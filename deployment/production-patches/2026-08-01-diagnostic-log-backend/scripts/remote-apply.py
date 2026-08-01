@@ -358,7 +358,9 @@ def main() -> None:
                 "billable_model_requests": 0,
                 "business_acceptance": "technical smoke only; no user/model request generated",
             }
-            (stage / "DEPLOY_RESULT.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            result_json = json.dumps(result, indent=2, sort_keys=True) + "\n"
+            (stage / "DEPLOY_RESULT.json").write_text(result_json, encoding="utf-8")
+            (backup_dir / "DEPLOY_RESULT.json").write_text(result_json, encoding="utf-8")
             print(json.dumps(result, sort_keys=True))
         except Exception:
             if changed:
