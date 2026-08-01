@@ -16,17 +16,16 @@ does not invent rows while the backend diagnostic-event endpoint is absent.
 - Route: `/logs`
 - Menu label: `诊断日志`
 - Icon: existing `document` icon
-- Compatibility permission gate: `read:diagnostic_logs` or the existing
-  `read:audit_log`, so the current production admin role does not lose access
-  while the backend capability is being seeded.
-- Follow-up: seed the dedicated `read:diagnostic_logs` capability in the
-  backend and remove the temporary audit-log fallback.
+- Permission gate: `read:diagnostic_logs`. The Admin BFF and backend route
+  require the same capability; there is no `read:audit_log` fallback that can
+  expose a menu followed by a backend `403`.
 
 ## Page structure
 
 1. Header: title, purpose, and refresh action.
-2. Filter row: free-text search, level, stage, start date, end date, clear.
-3. Summary strip: matching events, error events, latest event.
+2. Filter row: exact correlation/stable-code lookup, level, stage, start date,
+   end date, clear. There is no broad error-text or regex search.
+3. Summary strip: current-page events, current-page errors, latest event.
 4. Dense result table: level, event, stage, context, timestamp.
 5. Detail drawer: full diagnostic metadata and request timeline after the API
    is available.
@@ -46,7 +45,7 @@ GET /api/admin/diagnostic-events
 Query parameters:
 
 ```text
-q, level, stage, from, to, conversationId, streamId, page, limit
+lookup, level, stage, from, to, conversationId, streamId, cursor, limit
 ```
 
 Response shape:
@@ -60,7 +59,7 @@ Response shape:
       "level": "error",
       "event": "office_preparse_manifest_invalid",
       "stage": "office_preparse",
-      "userId": "6a61...80b",
+      "userIdHash": "6a61...80b",
       "conversationId": "...",
       "streamId": "...",
       "messageId": "...",
@@ -72,7 +71,6 @@ Response shape:
       "release": "238c8ddd"
     }
   ],
-  "total": 1,
   "nextCursor": null
 }
 ```
@@ -83,10 +81,11 @@ The detail endpoint can be:
 GET /api/admin/diagnostic-events/:id
 ```
 
-Use cursor pagination for large collections. The list endpoint returns only
-safe metadata; the detail endpoint may add a redacted stack when an operator
-has the diagnostic permission. Full prompts, file contents, credentials, and
-raw tool output are never stored in this collection.
+Use cursor pagination for large collections. Each page performs one indexed
+read (`limit + 1`) and does not run `countDocuments` or a full aggregate. The
+list endpoint explicitly excludes `stack`, raw `userId`, prompts, file
+contents, credentials, and raw tool output. The detail endpoint may add an
+already-redacted stack when an operator has the diagnostic permission.
 
 ## Event taxonomy
 
@@ -108,20 +107,28 @@ Each event should carry the same correlation fields: `requestId`,
 
 ## Storage and indexes
 
-Use a separate `diagnostic_events` collection with a 7-30 day TTL. Recommended
-indexes:
+Use a separate `diagnostic_events` collection with a 14-day TTL. Every query
+is constrained to its authenticated tenant (or the legacy unscoped partition,
+never all tenants). The actual indexes pair the tenant and cursor sort keys:
 
 ```text
-{ conversationId: 1, timestamp: -1 }
-{ streamId: 1 }
-{ userIdHash: 1, timestamp: -1 }
-{ event: 1, timestamp: -1 }
-{ timestamp: 1 }  // TTL
+{ tenantId: 1, timestamp: -1, _id: -1 }
+{ tenantId: 1, level: 1, timestamp: -1, _id: -1 }
+{ tenantId: 1, stage: 1, timestamp: -1, _id: -1 }
+{ tenantId: 1, conversationId: 1, timestamp: -1, _id: -1 }
+{ tenantId: 1, streamId: 1, timestamp: -1, _id: -1 }
+{ tenantId: 1, requestId: 1, timestamp: -1, _id: -1 }
+{ tenantId: 1, messageId: 1, timestamp: -1, _id: -1 }
+{ tenantId: 1, event: 1, timestamp: -1, _id: -1 }
+{ tenantId: 1, errorCode: 1, timestamp: -1, _id: -1 }
+{ expiresAt: 1 }  // TTL
 ```
 
 Do not await diagnostic persistence in the model request path. Emit structured
-stdout immediately and enqueue one bounded asynchronous persistence operation
-for error/state-transition events.
+stdout immediately, then enqueue a bounded asynchronous persistence operation
+for error/state-transition events. At most 256 events may be outstanding and
+at most four `Model.create()` calls run concurrently; overflow remains in
+structured stdout only.
 
 ## Acceptance
 
@@ -136,15 +143,16 @@ for error/state-transition events.
 
 ## Current implementation status
 
-- The Admin client now calls `GET /api/admin/diagnostic-events` with the
-  documented search, level, stage, date, page, and limit filters.
+- The Admin client now calls `GET /api/admin/diagnostic-events` with exact
+  lookup, level, stage, date, cursor, and limit filters.
 - The client validates the response with a bounded safe-metadata schema; unknown
   fields such as prompts, file contents, authorization headers, and raw tool
   output are discarded before rendering.
 - A `404` or `503` response is rendered as an explicit unavailable state, and a
   failed response never creates placeholder rows.
 - The API stores only error/state-transition events through a bounded
-  asynchronous queue, with a 14-day TTL and correlation indexes.
+  asynchronous queue, with a 14-day TTL, JSON-aware credential redaction,
+  tenant scoping, and cursor-compatible correlation indexes.
 - Office pre-parse errors carry stable diagnostic codes, including
   `OFFICE_PREPARSE_INVALID_MANIFEST`, so classification does not depend only
   on localized error text.

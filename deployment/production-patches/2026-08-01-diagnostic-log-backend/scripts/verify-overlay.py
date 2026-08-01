@@ -93,7 +93,28 @@ def archive_git_revision(repo: Path, destination: Path, revision: str = "HEAD") 
         tar.extractall(destination)
 
 
-def verify_backend(source: Path, manifest: dict, replay_root: Path) -> None:
+def archive_governance_base(repo: Path, manifest: dict, destination: Path) -> None:
+    expected_revision = manifest["bases"]["admin_and_governance"]["repository_revision"]
+    run("git", "-C", str(repo), "cat-file", "-e", f"{expected_revision}^{{commit}}")
+    archive_git_revision(repo, destination, expected_revision)
+
+
+def stage_backend_mounts(
+    governance_base: Path, replay_root: Path, entries: list[dict]
+) -> None:
+    for entry in entries:
+        source = governance_base / entry["source"]
+        verify_file(source, entry, "backend production mount source")
+        destination = replay_root / entry["path"]
+        verify_base(destination, entry, "backend production mount")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        verify_file(destination, entry, "backend production mount")
+
+
+def verify_backend(
+    source: Path, manifest: dict, replay_root: Path, governance_base: Path
+) -> None:
     expected_revision = manifest["bases"]["backend"]["local_revision"]
     actual_revision = run("git", "-C", str(source), "rev-parse", "HEAD")
     if actual_revision != expected_revision:
@@ -103,22 +124,53 @@ def verify_backend(source: Path, manifest: dict, replay_root: Path) -> None:
 
     replay_root.mkdir(parents=True, exist_ok=True)
     archive_git_revision(source, replay_root, expected_revision)
+    stage_backend_mounts(
+        governance_base,
+        replay_root,
+        manifest.get("backend_mounted_base", []),
+    )
     copy_overlay(ROOT / "backend" / "overlay", replay_root, manifest["backend_overlay"], "backend")
 
 
 def verify_admin(source: Path, manifest: dict, replay_root: Path) -> None:
     if not source.is_dir():
         raise RuntimeError(f"Admin source directory does not exist: {source}")
+
+    expected_revision = manifest["bases"]["admin_and_governance"]["repository_revision"]
+    repo_root = Path(run("git", "-C", str(source), "rev-parse", "--show-toplevel"))
+    source_prefix = run("git", "-C", str(source), "rev-parse", "--show-prefix")
+    expected_source_path = manifest["bases"]["admin_and_governance"].get("admin_source_path")
+    if expected_source_path and source_prefix.rstrip("/") != expected_source_path:
+        raise RuntimeError(
+            f"Admin source path mismatch: expected={expected_source_path} actual={source_prefix}"
+        )
+    run("git", "-C", str(repo_root), "cat-file", "-e", f"{expected_revision}^{{commit}}")
+    if run(
+        "git",
+        "-C",
+        str(repo_root),
+        "status",
+        "--porcelain",
+        "--untracked-files=all",
+        "--",
+        source_prefix,
+    ):
+        raise RuntimeError("Admin source must be clean for replay")
+    comparison = subprocess.run(
+        ["git", "-C", str(repo_root), "diff", "--quiet", expected_revision, "--", source_prefix],
+        check=False,
+    )
+    if comparison.returncode != 0:
+        raise RuntimeError(
+            f"Admin source revision mismatch: expected={expected_revision} path={source_prefix}"
+        )
     shutil.copytree(source, replay_root)
     copy_overlay(ROOT / "admin" / "overlay", replay_root, manifest["admin_overlay"], "admin")
 
 
-def verify_office(governance_repo: Path, manifest: dict, replay_root: Path) -> None:
-    expected_revision = manifest["bases"]["admin_and_governance"]["repository_revision"]
-    run("git", "-C", str(governance_repo), "cat-file", "-e", f"{expected_revision}^{{commit}}")
-
+def verify_office(governance_base: Path, manifest: dict, replay_root: Path) -> None:
     replay_root.mkdir(parents=True, exist_ok=True)
-    archive_git_revision(governance_repo, replay_root, expected_revision)
+    shutil.copytree(governance_base, replay_root, dirs_exist_ok=True)
     for entry in manifest["office_patches"]:
         patch = ROOT / entry["patch"]
         require_file(patch)
@@ -139,9 +191,16 @@ def main() -> None:
     manifest = json.loads(MANIFEST_PATH.read_text())
     with tempfile.TemporaryDirectory(prefix="diagnostic-log-overlay-") as temporary:
         temporary_root = Path(temporary)
-        verify_backend(args.backend_source, manifest, temporary_root / "backend")
+        governance_base = temporary_root / "governance-base"
+        archive_governance_base(args.governance_repo, manifest, governance_base)
+        verify_backend(
+            args.backend_source,
+            manifest,
+            temporary_root / "backend",
+            governance_base,
+        )
         verify_admin(args.admin_source, manifest, temporary_root / "admin")
-        verify_office(args.governance_repo, manifest, temporary_root / "governance")
+        verify_office(governance_base, manifest, temporary_root / "governance")
 
     print("backend_overlay_replay=passed")
     print("admin_overlay_replay=passed")

@@ -1,0 +1,59 @@
+diff --git a/deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js b/deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js
+index 82fccbe..0000000 100644
+--- a/deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js
++++ b/deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js
+@@ -4,7 +4,21 @@
+ const MANIFEST_MARKER = '__LIBRECHAT_OFFICE_MANIFEST__';
+ const MAX_CONTEXT_CHARS = 80_000;
+ const DEFAULT_TIMEOUT_MS = 45_000;
++const OFFICE_PREPARSE_DIAGNOSTIC_EVENTS = Object.freeze({
++  OFFICE_PREPARSE_INVALID_MANIFEST: 'office_preparse_manifest_invalid',
++  OFFICE_PREPARSE_MANIFEST_MISSING: 'office_preparse_manifest_missing',
++  OFFICE_PREPARSE_MANIFEST_INCOMPLETE: 'office_preparse_manifest_incomplete',
++  OFFICE_PREPARSE_FILE_FAILED: 'office_preparse_file_failed',
++});
+ 
++const createOfficePreparseError = (code, message) => {
++  const error = new Error(message);
++  error.code = code;
++  error.diagnosticEvent = OFFICE_PREPARSE_DIAGNOSTIC_EVENTS[code] ?? 'office_preparse_failed';
++  error.diagnosticStage = 'office_preparse';
++  return error;
++};
++
+ const extensionOf = (filename) => {
+   const basename = typeof filename === 'string' ? (filename.split(/[\\/]/).pop() ?? '') : '';
+   const index = basename.lastIndexOf('.');
+@@ -315,14 +329,29 @@
+         });
+       }
+     } catch (error) {
+-      throw new Error(`Office pre-parse returned an invalid manifest: ${error.message}`);
++      if (error?.message === 'Office pre-parse returned no manifest.') {
++        throw createOfficePreparseError(
++          'OFFICE_PREPARSE_MANIFEST_MISSING',
++          error.message,
++        );
++      }
++      throw createOfficePreparseError(
++        'OFFICE_PREPARSE_INVALID_MANIFEST',
++        `Office pre-parse returned an invalid manifest: ${error.message}`,
++      );
+     }
+     if (!Array.isArray(manifest?.files) || manifest.files.length !== selected.length) {
+-      throw new Error('Office pre-parse manifest did not cover every current-turn file.');
++      throw createOfficePreparseError(
++        'OFFICE_PREPARSE_MANIFEST_INCOMPLETE',
++        'Office pre-parse manifest did not cover every current-turn file.',
++      );
+     }
+     const failed = manifest.files.find((item) => item?.ok !== true);
+     if (failed) {
+-      throw new Error(`Office pre-parse failed for "${failed.filename ?? 'unknown file'}": ${failed.error ?? 'unknown parser error'}`);
++      throw createOfficePreparseError(
++        'OFFICE_PREPARSE_FILE_FAILED',
++        `Office pre-parse failed for "${failed.filename ?? 'unknown file'}": ${failed.error ?? 'unknown parser error'}`,
++      );
+     }
+ 
+     logger.debug('[office-preparse] completed current-turn files', {

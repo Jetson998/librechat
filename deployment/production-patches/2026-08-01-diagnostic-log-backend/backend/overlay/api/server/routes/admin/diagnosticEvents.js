@@ -67,7 +67,7 @@ function parseQuery(query) {
   }
 
   return {
-    q: optionalText(query.q, 200),
+    lookup: optionalText(query.lookup, 256),
     level,
     stage,
     from: validDate(optionalText(query.from, 64), 'from'),
@@ -79,9 +79,19 @@ function parseQuery(query) {
   };
 }
 
+function getTenantScope(req) {
+  const tenantId = req.user?.tenantId ?? req.tenantId;
+  if (tenantId == null) return null;
+  const normalized = String(tenantId).trim();
+  return normalized || null;
+}
+
 router.get('/', async (req, res, next) => {
   try {
-    const page = await db.listDiagnosticEventPage(parseQuery(req.query));
+    const page = await db.listDiagnosticEventPage({
+      ...parseQuery(req.query),
+      tenantId: getTenantScope(req),
+    });
     res.status(200).json(page);
   } catch (error) {
     next(error);
@@ -90,7 +100,9 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const entry = await db.findDiagnosticEvent(req.params.id);
+    const entry = await db.findDiagnosticEvent(req.params.id, {
+      tenantId: getTenantScope(req),
+    });
     if (!entry) return res.status(404).json({ error: 'Diagnostic event not found' });
     return res.status(200).json({ entry });
   } catch (error) {

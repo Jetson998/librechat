@@ -37,7 +37,7 @@ export function DiagnosticLogsPage() {
 
   const filters = useMemo<DiagnosticLogFilters>(
     () => ({
-      q: searchFilter.debouncedValue.trim() || undefined,
+      lookup: searchFilter.debouncedValue.trim() || undefined,
       level: level === 'all' ? undefined : level,
       stage: stage === 'all' ? undefined : stage,
       from: from || undefined,
@@ -52,9 +52,7 @@ export function DiagnosticLogsPage() {
   );
   const page = !isError && data?.available === true ? data : undefined;
   const entries = page?.entries ?? [];
-  const errorCount = page
-    ? page.errorCount ?? entries.filter((entry) => entry.level === 'error').length
-    : undefined;
+  const errorCount = entries.filter((entry) => entry.level === 'error').length;
   const latestTimestamp = page ? getLatestTimestamp(entries) : undefined;
 
   const clearFilters = () => {
@@ -200,11 +198,11 @@ export function DiagnosticLogsPage() {
       >
         <SummaryItem
           label={localize('com_diagnostic_logs_summary_events')}
-          value={page ? String(page.total) : '--'}
+          value={page ? String(entries.length) : '--'}
         />
         <SummaryItem
           label={localize('com_diagnostic_logs_summary_errors')}
-          value={errorCount === undefined ? '--' : String(errorCount)}
+          value={page ? String(errorCount) : '--'}
         />
         <SummaryItem
           label={localize('com_diagnostic_logs_summary_last')}
@@ -273,12 +271,11 @@ export function DiagnosticLogsPage() {
         </table>
       </section>
 
-      {page && page.total > 0 && (
+      {page && entries.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-(--cui-color-text-muted)">
           <span>
             {localize('com_diagnostic_logs_page_status', {
               page: cursorHistory.length + 1,
-              total: page.total,
             })}
           </span>
           <div className="flex items-center gap-2">

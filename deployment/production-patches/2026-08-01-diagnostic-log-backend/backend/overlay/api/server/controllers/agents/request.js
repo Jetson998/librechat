@@ -20,7 +20,8 @@ const {
 } = require('~/server/services/MCPRequestContext');
 const { handleAbortError } = require('~/server/middleware');
 const { logViolation } = require('~/cache');
-const { saveMessage, getMessages, getConvo, recordDiagnosticEvent } = require('~/models');
+const { saveMessage, saveConvo, getMessages, getConvo, recordDiagnosticEvent } = require('~/models');
+const { persistInitializationFailure } = require('./InitializationFailure');
 
 function createCloseHandler(abortController) {
   return function (manual) {
@@ -207,7 +208,7 @@ function recordAgentDiagnostic({
   });
 }
 
-function classifyAgentDiagnosticError(error) {
+function classifyOfficePreparseDiagnosticError(error) {
   const code = typeof error?.code === 'string' ? error.code : undefined;
   if (code?.startsWith('OFFICE_PREPARSE_') || error?.diagnosticStage === 'office_preparse') {
     return {
@@ -222,7 +223,16 @@ function classifyAgentDiagnosticError(error) {
   if (/Office pre-parse returned an invalid manifest/i.test(error?.message ?? '')) {
     return { event: 'office_preparse_manifest_invalid', stage: 'office_preparse' };
   }
-  return { event: 'generation_initialization_failed', stage: 'generation' };
+  return null;
+}
+
+function classifyAgentDiagnosticError(error, phase = 'initialization') {
+  return (
+    classifyOfficePreparseDiagnosticError(error) ||
+    (phase === 'generation'
+      ? { event: 'generation_failed', stage: 'generation' }
+      : { event: 'generation_initialization_failed', stage: 'generation' })
+  );
 }
 
 /**
@@ -287,6 +297,10 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
   req.body.conversationId = conversationId;
 
   let client = null;
+  const endpointIconURL = getEndpointIconURL(req, endpointOption);
+  const responseModel = getAgentResponseModel(req, endpointOption);
+  const preliminaryUserMessage = getPreliminaryUserMessage(req.body, conversationId);
+  const preliminaryResponseMessageId = getPreliminaryResponseMessageId(req.body);
 
   try {
     logger.debug(`[ResumableAgentController] Creating job`, {
@@ -307,10 +321,6 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
 
     await attachConversationCreatedAt(req, { userId, conversationId, isNewConvo });
 
-    const endpointIconURL = getEndpointIconURL(req, endpointOption);
-    const responseModel = getAgentResponseModel(req, endpointOption);
-    const preliminaryUserMessage = getPreliminaryUserMessage(req.body, conversationId);
-    const preliminaryResponseMessageId = getPreliminaryResponseMessageId(req.body);
     await GenerationJobManager.updateMetadata(streamId, {
       conversationId,
       endpoint: endpointOption.endpoint,
@@ -403,13 +413,19 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
     });
 
     /** @type {{ client: TAgentClient; userMCPAuthMap?: Record<string, Record<string, string>> }} */
-    const result = await initializeClient({
-      req,
-      res,
-      endpointOption,
-      // Use the job's abort controller signal - allows abort via GenerationJobManager.abortJob()
-      signal: job.abortController.signal,
-    });
+    let result;
+    req.officePreparseSignal = job.abortController.signal;
+    try {
+      result = await initializeClient({
+        req,
+        res,
+        endpointOption,
+        // Use the job's abort controller signal - allows abort via GenerationJobManager.abortJob()
+        signal: job.abortController.signal,
+      });
+    } finally {
+      delete req.officePreparseSignal;
+    }
 
     if (job.abortController.signal.aborted) {
       GenerationJobManager.completeJob(streamId, 'Request aborted during initialization');
@@ -903,7 +919,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
           // abortJob already handled emitDone and completeJob
         } else {
           logger.error(`[ResumableAgentController] Generation error for ${streamId}:`, error);
-          const diagnostic = classifyAgentDiagnosticError(error);
+          const diagnostic = classifyAgentDiagnosticError(error, 'generation');
           recordAgentDiagnostic({
             req,
             event: diagnostic.event,
@@ -942,7 +958,7 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
       logger.error(
         `[ResumableAgentController] Unhandled error in background generation: ${err.message}`,
       );
-      const diagnostic = classifyAgentDiagnosticError(err);
+      const diagnostic = classifyAgentDiagnosticError(err, 'generation');
       recordAgentDiagnostic({
         req,
         event: diagnostic.event,
@@ -971,13 +987,60 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
       messageId: req.body?.messageId,
       endpointOption,
     });
-    if (!res.headersSent) {
-      res.status(500).json({ error: error.message || 'Failed to start generation' });
-    } else {
-      // JSON already sent, emit error to stream so client can receive it
-      await GenerationJobManager.emitError(streamId, error.message || 'Failed to start generation');
+    let failurePersisted = false;
+    if (res.headersSent && preliminaryUserMessage && preliminaryResponseMessageId) {
+      try {
+        const failureState = await persistInitializationFailure({
+          req,
+          userId,
+          conversationId,
+          isNewConvo,
+          endpointOption,
+          endpointIconURL,
+          responseModel,
+          preliminaryUserMessage,
+          preliminaryResponseMessageId,
+          error,
+          saveMessage,
+          saveConvo,
+        });
+        const finalEvent = {
+          final: true,
+          conversation: failureState.conversation,
+          title: failureState.conversation?.title || 'New Chat',
+          requestMessage: sanitizeMessageForTransmit(failureState.userMessage),
+          responseMessage: failureState.responseMessage,
+          error: { message: error.message || 'Failed to start generation' },
+        };
+        if (!failureState.conversationPersisted) {
+          logger.warn(
+            '[ResumableAgentController] Initialization messages were saved but conversation metadata was not confirmed.',
+            { conversationId },
+          );
+        }
+        await GenerationJobManager.emitDone(streamId, finalEvent);
+        GenerationJobManager.completeJob(streamId);
+        failurePersisted = true;
+      } catch (persistError) {
+        logger.error(
+          '[ResumableAgentController] Failed to persist initialization terminal state:',
+          persistError,
+        );
+      }
     }
-    GenerationJobManager.completeJob(streamId, error.message);
+
+    if (!failurePersisted) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message || 'Failed to start generation' });
+      } else {
+        // JSON already sent, emit error to stream so client can receive it
+        await GenerationJobManager.emitError(
+          streamId,
+          error.message || 'Failed to start generation',
+        );
+      }
+      GenerationJobManager.completeJob(streamId, error.message);
+    }
     await finishResumableRequest(req, userId);
     if (client) {
       disposeClient(client);
@@ -1323,7 +1386,7 @@ const _LegacyAgentController = async (req, res, next, initializeClient, addTitle
     }
   } catch (error) {
     // Handle error without capturing much scope
-    const diagnostic = classifyAgentDiagnosticError(error);
+    const diagnostic = classifyAgentDiagnosticError(error, client ? 'generation' : 'initialization');
     recordAgentDiagnostic({
       req,
       event: diagnostic.event,

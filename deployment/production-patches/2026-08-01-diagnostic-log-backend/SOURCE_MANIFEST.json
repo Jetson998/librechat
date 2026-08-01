@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "batch_id": "2026-08-01-diagnostic-log-backend",
   "status": "development_only",
   "release_actions_performed": [],
@@ -9,9 +9,28 @@
       "upstream_revision": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
     },
     "admin_and_governance": {
-      "repository_revision": "9cf6ae6a461f68de487a9dd3ca26672eef7e1d5a"
+      "repository_revision": "9cf6ae6a461f68de487a9dd3ca26672eef7e1d5a",
+      "admin_source_path": "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source"
     }
   },
+  "backend_mounted_base": [
+    {
+      "source": "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/request.js",
+      "path": "api/server/controllers/agents/request.js",
+      "base_blob": "81213a23d9a42fde6118a7f060e07ef324046a75",
+      "result_blob": "f926be21f691b719c6781d119234e712eced4760",
+      "sha256": "74fbe28c30fd0ac34393fc01f2dda5cdcae32bee7798a81157e69f96e6fe8d38",
+      "bytes": 48749
+    },
+    {
+      "source": "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/InitializationFailure.js",
+      "path": "api/server/controllers/agents/InitializationFailure.js",
+      "base_blob": null,
+      "result_blob": "3ffedab5acfb2102513bc4d548fe3e85d310ebf9",
+      "sha256": "547bd84e25b136148cd12582e900c6b41ab85170b909b01bd14a7c37b0e78abd",
+      "bytes": 2909
+    }
+  ],
   "backend_overlay": [
     {
       "path": "api/models/index.js",
@@ -22,10 +41,17 @@
     },
     {
       "path": "api/server/controllers/agents/request.js",
-      "base_blob": "81213a23d9a42fde6118a7f060e07ef324046a75",
-      "result_blob": "a8666c84f50af443770da2a1478b297933ac8100",
-      "sha256": "e25a0a1eb669c263d095a952c46c075c352a1744187f8ddc51b1f289883ed02d",
-      "bytes": 50272
+      "base_blob": "f926be21f691b719c6781d119234e712eced4760",
+      "result_blob": "1135f426817188cebe615c5b028cd0b78501a19e",
+      "sha256": "1b1f03c8da57613c4d776f9ad14f06e887a67d10f58911412ba465d70f306780",
+      "bytes": 52402
+    },
+    {
+      "path": "api/server/controllers/agents/InitializationFailure.js",
+      "base_blob": "3ffedab5acfb2102513bc4d548fe3e85d310ebf9",
+      "result_blob": "3ffedab5acfb2102513bc4d548fe3e85d310ebf9",
+      "sha256": "547bd84e25b136148cd12582e900c6b41ab85170b909b01bd14a7c37b0e78abd",
+      "bytes": 2909
     },
     {
       "path": "api/server/index.js",
@@ -44,23 +70,23 @@
     {
       "path": "api/server/routes/admin/diagnosticEvents.js",
       "base_blob": null,
-      "result_blob": "8e6a6b0444e09684a54d6c57f02f27974b86dd94",
-      "sha256": "0da216ee61337e68fe88657c46f72c46d261cbb92e7659146f5cffc6bae75564",
-      "bytes": 3390
+      "result_blob": "14fa2e2137076fd2bd98185f65e279e6b0be37c1",
+      "sha256": "12ba3dee71a2584a0f5c6d65e960f4139c5494e2b7e1e7d001b88c747df28fd1",
+      "bytes": 3702
     },
     {
       "path": "api/server/services/DiagnosticEvents.js",
       "base_blob": null,
-      "result_blob": "2cc30b0661e2844b5e3cd37756fb10bcb0d4b98a",
-      "sha256": "b9fde11d17d3adf7a3634d01923accfbe3e84cdd35fc576afe1e2a8dc35589d1",
-      "bytes": 12364
+      "result_blob": "1f573b841b438d4883d7f06184c95bac8439330d",
+      "sha256": "269573af7ff081fd700b686157ea24a28cfaa0d1d6f2c585923fe1aa0168f25b",
+      "bytes": 15456
     },
     {
       "path": "api/server/services/DiagnosticEvents.spec.js",
       "base_blob": null,
-      "result_blob": "057cbf3597da92f553e2812a05f061eebbe06612",
-      "sha256": "7a85a15f8e5dd8d417a7e1ccb9c3859ec64ce906839fd5c58abb62693aefd9d2",
-      "bytes": 3865
+      "result_blob": "6fa0a7f6accde197a8bf2938d6b1e0973fdba5d5",
+      "sha256": "7093c70566aef2bbb102fbd774078e14dfb518b77ee9be49c8752219e0617859",
+      "bytes": 8768
     },
     {
       "path": "packages/data-schemas/src/admin/capabilities.ts",
@@ -74,9 +100,9 @@
     {
       "path": "src/components/logs/DiagnosticLogsPage.tsx",
       "base_blob": "2e0bbed84ed6bff23ffccce7c0a49a1d47f5f6eb",
-      "result_blob": "098e1f969d54382536b56c06643a7281817d294a",
-      "sha256": "3175b0ca9da2ba582431ecfaa988b851bfaf688d524336d0e738d601ca2ab9c6",
-      "bytes": 16371
+      "result_blob": "b1eb459c909c0142d1c7767561ab54f1f51113d3",
+      "sha256": "f237cd7e8199327a34381945aeab664447912545946959248fef41687890e4f9",
+      "bytes": 16285
     },
     {
       "path": "src/components/logs/DiagnosticLogDetailDrawer.tsx",
@@ -95,48 +121,40 @@
     {
       "path": "src/locales/en/translation.json",
       "base_blob": "8497c4b7ca87d2d44ca1036a084a2996c030be6a",
-      "result_blob": "2b01568b979ade9e46d5a12e354414f2aec01a4a",
-      "sha256": "f85c923d79ea20de7dc43c6de7229bb47ffeb50047392ce1797c3f409361a154",
-      "bytes": 73300
+      "result_blob": "324a4b3e047d51281c714cbb0891c982a3162ba8",
+      "sha256": "46ce38b7b4b3120588e2aba85fc6261374632911b28f73b62146d8c1beb345d0",
+      "bytes": 73299
     },
     {
       "path": "src/locales/zh-Hans/translation.json",
       "base_blob": "f1e87a8b8f7080c7b76a7871cc3ceceb18dcfbd3",
-      "result_blob": "32f1bda76f11b20dfc9e4c81f14a124145f7a725",
-      "sha256": "d9893721c1dc4753e035c719fb732d65e097d4a4f7b95a61c9d578f474bf2f66",
-      "bytes": 71189
+      "result_blob": "c29991c05371cf656aed6c766899294137af79b8",
+      "sha256": "12917329087e6402aed7bd906b0a57f518d51875348d3ea334d084ce1b55d9d9",
+      "bytes": 71176
     },
     {
       "path": "src/server/diagnosticLogs.test.ts",
       "base_blob": "3362f3b58180cb8267210a7135f3f9d3c588f761",
-      "result_blob": "50c977c05058389e919ea85a99bb11294a5d5caf",
-      "sha256": "e60e472e4d83d1e98b4c88efe39408e5ddc8142b57668f29f5bc99233f6d2937",
-      "bytes": 5071
+      "result_blob": "d38d31f0676beb829e9244aeecc10dd7ee421b8c",
+      "sha256": "71e8d0f85bd267d47111ca87a163e188636327eebb11e25a47e0a739ab19c2d0",
+      "bytes": 5224
     },
     {
       "path": "src/server/diagnosticLogs.ts",
       "base_blob": "8321b50e72158e2baabdffca47fe0a05a171078e",
-      "result_blob": "4f0301fc1ae7ea343263dc370036a2daec54097d",
-      "sha256": "95e2a97aba5caa071728f39908c913f9694397cb0c1202a645a9deee98a99ee3",
-      "bytes": 6394
+      "result_blob": "7b932680c03cf2b57197e3f0032eb259ddc4566a",
+      "sha256": "7b40f86f0dcf96714e0b6d4ab17bd9ceffa2340b28c8cba95493e790f7e286a2",
+      "bytes": 6151
     }
   ],
   "office_patches": [
     {
-      "patch": "office/api-index.cjs.patch",
-      "path": "deployment/production-patches/2026-07-10-office-ppt-deterministic-fallback/office-context-patch/api-index.cjs",
-      "base_blob": "0e2185c900a2d06d47eebf36a5b099ba2063182e",
-      "result_blob": "6454ebd08bf9594be12bc821146ce286c6640436",
-      "sha256": "18272f2a1533885a4c11054e6498664363bc79775c56b69d56aa12cbc6450f62",
-      "bytes": 2115774
-    },
-    {
-      "patch": "office/test-office-preparse-gate.js.patch",
-      "path": "deployment/production-patches/2026-07-19-office-preparse-gate/scripts/test-office-preparse-gate.js",
-      "base_blob": "eae4004b1d84a12604b292418c85a2c74ec724f3",
-      "result_blob": "9fb00a10e7e50ca852250e7260eb7132b66f391c",
-      "sha256": "d0943ca8f7874359c26ae60692cbdd8d5341579391fe7cee544b3d573c31d231",
-      "bytes": 9655
+      "patch": "office/OfficePreparse.js.patch",
+      "path": "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js",
+      "base_blob": "82fccbe4b5070d7b6e84a6b3bbb9e5499c4759ba",
+      "result_blob": "ef27b3114771b0b9b9b4fd093ecb61d8f5d3c72f",
+      "sha256": "cf9f2a610a7ce54d27235d939e855e494c18b799777f213f13ccd5096dd5acee",
+      "bytes": 14271
     }
   ]
 }
