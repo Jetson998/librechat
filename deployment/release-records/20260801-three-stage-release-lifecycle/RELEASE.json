@@ -5,8 +5,13 @@
     "status": "not_applicable"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260801-three-stage-release-lifecycle/artifacts/20260801-three-stage-release-lifecycle-2ff08ccd2109.tar.gz",
+      "manifest": ".release-state/20260801-three-stage-release-lifecycle/artifacts/manifest.json",
+      "value": "5421bd51e5f5434e6684a621c0d894f5a49c56cf94b338126b1e9a847982bc6e"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -21,8 +26,23 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "5421bd51e5f5434e6684a621c0d894f5a49c56cf94b338126b1e9a847982bc6e",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "release-governance-validation"
+    ],
+    "details": {
+      "artifact_source": "git archive from the frozen source revision",
+      "diff_check": "passed",
+      "skill_metadata_validation": "passed",
+      "validation_command": "scripts/validate-release-governance.sh",
+      "validation_tests": 34
+    },
+    "production_host": false,
+    "provider": "local release-governance validation",
+    "release_plan_sha256": "045c1323224e34695e7c1d76c5d795bfb0d76a730bd299f464ee43412d494d72",
+    "source_revision": "2ff08ccd2109fc81be243c3d53ed0919e0907d64",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The generic Skill guides AI through development, candidate, and release phases; Chinese team-facing documentation uses the approved localized status language; production checks begin only after an explicit deployment instruction.",
@@ -59,8 +79,14 @@
   "project_id": "librechat-self-host",
   "release_id": "20260801-three-stage-release-lifecycle",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "light",
+      "matched_rules": [
+        "governance"
+      ],
+      "path": ".release-state/20260801-three-stage-release-lifecycle/release-plan.json"
+    },
+    "sha256": "045c1323224e34695e7c1d76c5d795bfb0d76a730bd299f464ee43412d494d72"
   },
   "rollback_reference": {
     "details": {
@@ -76,9 +102,9 @@
   },
   "schema_version": 1,
   "source_revision": "2ff08ccd2109fc81be243c3d53ed0919e0907d64",
-  "status": "planned",
+  "status": "ready",
   "unresolved_issues": [],
-  "updated_at": "2026-08-01T11:19:31Z",
+  "updated_at": "2026-08-01T11:48:12Z",
   "validation_plan": [
     "Run scripts/validate-release-governance.sh",
     "Run git diff --check before the source commit",
