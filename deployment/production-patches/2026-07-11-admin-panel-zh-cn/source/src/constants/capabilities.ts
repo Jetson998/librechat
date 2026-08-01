@@ -9,34 +9,34 @@ export {
 
 /**
  * Forward-compat shim: the LibreChat backend gates `/api/admin/audit-log` on
- * this capability string, and the LC sibling PR adds it to
- * `SystemCapabilities` in `@librechat/data-schemas@0.0.53`. Until that version
- * is published to npm and the pin here is bumped, referencing
- * `SystemCapabilities.READ_AUDIT_LOG` directly breaks `tsc` against the
- * currently-pinned `^0.0.52`. The value is byte-identical to what the upstream
- * constant will resolve to post-publish; drop this constant in a one-line
- * follow-up once the data-schemas pin moves to `^0.0.53`.
+ * this capability string. The local literal keeps the Admin Panel build
+ * independent of which data-schemas version exposes the upstream enum member.
  */
 export const READ_AUDIT_LOG_CAPABILITY = 'read:audit_log' as const;
 
+/** Dedicated capability for runtime diagnostic events. Keep the audit-log
+ * capability as a compatibility fallback until the backend seeds this one. */
+export const READ_DIAGNOSTIC_LOGS_CAPABILITY = 'read:diagnostic_logs' as const;
+
 /**
  * Local override of the upstream `CAPABILITY_CATEGORIES` so the System
- * category surfaces `READ_AUDIT_LOG` in the grants editing UI even while the
- * dep is pinned to `data-schemas@0.0.52` (which predates the category entry).
- * Without this, only seeded admins could ever hold the capability — the
- * grants `CapabilityPanel` had no row to toggle.
+ * category surfaces the log capabilities in the grants editing UI even while
+ * the upstream package does not contain the diagnostic-log capability.
  *
- * Drops to a no-op once `0.0.53+` is pinned because the upstream array already
- * contains `READ_AUDIT_LOG`; the dedupe pass below keeps it safe to keep
- * shipped until the shim itself is removed.
+ * The audit capability can eventually be removed from this local override once
+ * the upstream category includes it; the diagnostic capability remains here
+ * until the backend/data-schemas package owns the dedicated enum and category.
  */
 export const CAPABILITY_CATEGORIES: typeof UPSTREAM_CAPABILITY_CATEGORIES =
   UPSTREAM_CAPABILITY_CATEGORIES.map((cat) => {
     if (cat.key !== 'system') return cat;
     const caps = cat.capabilities as readonly string[];
-    if (caps.includes(READ_AUDIT_LOG_CAPABILITY)) return cat;
+    const missing = [READ_AUDIT_LOG_CAPABILITY, READ_DIAGNOSTIC_LOGS_CAPABILITY].filter(
+      (cap) => !caps.includes(cap),
+    );
+    if (missing.length === 0) return cat;
     return {
       ...cat,
-      capabilities: [...cat.capabilities, READ_AUDIT_LOG_CAPABILITY],
+      capabilities: [...cat.capabilities, ...missing],
     } as typeof cat;
   });

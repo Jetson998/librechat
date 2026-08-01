@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { READ_AUDIT_LOG_CAPABILITY, READ_DIAGNOSTIC_LOGS_CAPABILITY } from '@/constants';
 import { AccessDenied, PermissionsUnavailable } from '@/components/shared';
-import { READ_AUDIT_LOG_CAPABILITY } from '@/constants';
 import { DiagnosticLogsPage } from '@/components/logs';
 import { useCapabilities } from '@/hooks';
 
@@ -13,7 +13,9 @@ function LogsRoute() {
 
   if (isLoading) return null;
   if (isError) return <PermissionsUnavailable />;
-  if (!hasCapability(READ_AUDIT_LOG_CAPABILITY)) return <AccessDenied />;
+  const canReadLogs =
+    hasCapability(READ_DIAGNOSTIC_LOGS_CAPABILITY) || hasCapability(READ_AUDIT_LOG_CAPABILITY);
+  if (!canReadLogs) return <AccessDenied />;
 
   return <DiagnosticLogsPage />;
 }

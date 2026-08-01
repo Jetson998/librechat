@@ -1,31 +1,65 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button, Icon } from '@clickhouse/click-ui';
-import { EmptyState } from '@/components/shared';
-import { useLocalize } from '@/hooks';
+import type { DiagnosticLogEntry, DiagnosticLogFilters, DiagnosticLogsResult } from '@/server';
+import { EmptyState, LoadingState } from '@/components/shared';
+import { useDebouncedFilter, useLocalize } from '@/hooks';
+import { diagnosticLogsQueryOptions } from '@/server';
 
 type LogLevel = 'all' | 'error' | 'warning' | 'info';
 type LogStage = 'all' | 'request' | 'office_preparse' | 'generation' | 'followup';
 
-/**
- * UI contract for the future diagnostic-events endpoint. The page intentionally
- * does not create sample rows: a visible empty state is safer than presenting
- * invented production events while the API is being implemented.
- */
+const LEVEL_LABEL_KEYS: Record<Exclude<LogLevel, 'all'>, string> = {
+  error: 'com_diagnostic_logs_level_error',
+  warning: 'com_diagnostic_logs_level_warning',
+  info: 'com_diagnostic_logs_level_info',
+};
+
+const STAGE_LABEL_KEYS: Record<Exclude<LogStage, 'all'>, string> = {
+  request: 'com_diagnostic_logs_stage_request',
+  office_preparse: 'com_diagnostic_logs_stage_office_preparse',
+  generation: 'com_diagnostic_logs_stage_generation',
+  followup: 'com_diagnostic_logs_stage_followup',
+};
+
 export function DiagnosticLogsPage() {
   const localize = useLocalize();
-  const [search, setSearch] = useState('');
+  const searchFilter = useDebouncedFilter('', () => undefined);
   const [level, setLevel] = useState<LogLevel>('all');
   const [stage, setStage] = useState<LogStage>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
+  const filters = useMemo<DiagnosticLogFilters>(
+    () => ({
+      q: searchFilter.debouncedValue.trim() || undefined,
+      level: level === 'all' ? undefined : level,
+      stage: stage === 'all' ? undefined : stage,
+      from: from || undefined,
+      to: to || undefined,
+    }),
+    [from, level, searchFilter.debouncedValue, stage, to],
+  );
+
+  const { data, isPending, isFetching, isError, refetch } = useQuery(
+    diagnosticLogsQueryOptions(filters),
+  );
+  const page = !isError && data?.available === true ? data : undefined;
+  const entries = page?.entries ?? [];
+  const errorCount = page
+    ? page.errorCount ?? entries.filter((entry) => entry.level === 'error').length
+    : undefined;
+  const latestTimestamp = page ? getLatestTimestamp(entries) : undefined;
+
   const clearFilters = () => {
-    setSearch('');
+    searchFilter.onChange('');
     setLevel('all');
     setStage('all');
     setFrom('');
     setTo('');
   };
+
+  const stateMessage = getStateMessage(localize, isPending, isError, data, entries);
 
   return (
     <div
@@ -45,7 +79,8 @@ export function DiagnosticLogsPage() {
           type="secondary"
           iconLeft="refresh"
           label={localize('com_diagnostic_logs_refresh')}
-          disabled
+          onClick={() => void refetch()}
+          disabled={isFetching}
         />
       </section>
 
@@ -63,8 +98,8 @@ export function DiagnosticLogsPage() {
               className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-(--cui-color-text-muted)"
             />
             <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              value={searchFilter.value}
+              onChange={(event) => searchFilter.onChange(event.target.value)}
               placeholder={localize('com_diagnostic_logs_search_placeholder')}
               className="h-9 w-full rounded-md border border-(--cui-color-stroke-default) bg-(--cui-color-background-default) pr-2.5 pl-8 text-sm text-(--cui-color-text-default) outline-none focus:border-(--cui-color-stroke-intense)"
             />
@@ -79,9 +114,9 @@ export function DiagnosticLogsPage() {
             className="h-9 rounded-md border border-(--cui-color-stroke-default) bg-(--cui-color-background-default) px-2.5 text-sm text-(--cui-color-text-default) outline-none focus:border-(--cui-color-stroke-intense)"
           >
             <option value="all">{localize('com_ui_all')}</option>
-            <option value="error">{localize('com_diagnostic_logs_level_error')}</option>
-            <option value="warning">{localize('com_diagnostic_logs_level_warning')}</option>
-            <option value="info">{localize('com_diagnostic_logs_level_info')}</option>
+            <option value="error">{localize(LEVEL_LABEL_KEYS.error)}</option>
+            <option value="warning">{localize(LEVEL_LABEL_KEYS.warning)}</option>
+            <option value="info">{localize(LEVEL_LABEL_KEYS.info)}</option>
           </select>
         </label>
 
@@ -93,12 +128,12 @@ export function DiagnosticLogsPage() {
             className="h-9 rounded-md border border-(--cui-color-stroke-default) bg-(--cui-color-background-default) px-2.5 text-sm text-(--cui-color-text-default) outline-none focus:border-(--cui-color-stroke-intense)"
           >
             <option value="all">{localize('com_ui_all')}</option>
-            <option value="request">{localize('com_diagnostic_logs_stage_request')}</option>
+            <option value="request">{localize(STAGE_LABEL_KEYS.request)}</option>
             <option value="office_preparse">
-              {localize('com_diagnostic_logs_stage_office_preparse')}
+              {localize(STAGE_LABEL_KEYS.office_preparse)}
             </option>
-            <option value="generation">{localize('com_diagnostic_logs_stage_generation')}</option>
-            <option value="followup">{localize('com_diagnostic_logs_stage_followup')}</option>
+            <option value="generation">{localize(STAGE_LABEL_KEYS.generation)}</option>
+            <option value="followup">{localize(STAGE_LABEL_KEYS.followup)}</option>
           </select>
         </label>
 
@@ -122,7 +157,7 @@ export function DiagnosticLogsPage() {
           />
         </label>
 
-        {(search || level !== 'all' || stage !== 'all' || from || to) && (
+        {(searchFilter.value || level !== 'all' || stage !== 'all' || from || to) && (
           <Button
             type="danger"
             iconLeft="cross"
@@ -136,14 +171,24 @@ export function DiagnosticLogsPage() {
         className="grid grid-cols-1 gap-3 sm:grid-cols-3"
         aria-label={localize('com_diagnostic_logs_summary')}
       >
-        <SummaryItem label={localize('com_diagnostic_logs_summary_events')} value="--" />
-        <SummaryItem label={localize('com_diagnostic_logs_summary_errors')} value="--" />
-        <SummaryItem label={localize('com_diagnostic_logs_summary_last')} value="--" />
+        <SummaryItem
+          label={localize('com_diagnostic_logs_summary_events')}
+          value={page ? String(page.total) : '--'}
+        />
+        <SummaryItem
+          label={localize('com_diagnostic_logs_summary_errors')}
+          value={errorCount === undefined ? '--' : String(errorCount)}
+        />
+        <SummaryItem
+          label={localize('com_diagnostic_logs_summary_last')}
+          value={latestTimestamp ? formatTimestamp(latestTimestamp) : '--'}
+        />
       </section>
 
       <section
         className="min-h-70 overflow-hidden rounded-lg border border-(--cui-color-stroke-default) bg-(--cui-color-background-panel)"
         aria-label={localize('com_diagnostic_logs_title')}
+        aria-busy={isFetching}
       >
         <table className="w-full text-left text-sm">
           <caption className="sr-only">{localize('com_diagnostic_logs_title')}</caption>
@@ -167,14 +212,28 @@ export function DiagnosticLogsPage() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan={5}>
-                <EmptyState
-                  className="px-4 py-12 text-center text-sm text-(--cui-color-text-muted)"
-                  message={localize('com_diagnostic_logs_not_connected')}
-                />
-              </td>
-            </tr>
+            {isPending ? (
+              <tr>
+                <td colSpan={5}>
+                  <LoadingState />
+                </td>
+              </tr>
+            ) : stateMessage ? (
+              <tr>
+                <td colSpan={5}>
+                  <div role="status">
+                    <EmptyState
+                      className="px-4 py-12 text-center text-sm text-(--cui-color-text-muted)"
+                      message={stateMessage}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              entries.map((entry) => (
+                <DiagnosticLogRow key={entry.id} entry={entry} localize={localize} />
+              ))
+            )}
           </tbody>
         </table>
       </section>
@@ -184,6 +243,94 @@ export function DiagnosticLogsPage() {
       </p>
     </div>
   );
+}
+
+function DiagnosticLogRow({
+  entry,
+  localize,
+}: {
+  entry: DiagnosticLogEntry;
+  localize: ReturnType<typeof useLocalize>;
+}) {
+  return (
+    <tr className="border-b border-(--cui-color-stroke-default) last:border-b-0">
+      <td className="px-4 py-3 align-top">
+        <span className="font-medium text-(--cui-color-text-default)">
+          {localize(LEVEL_LABEL_KEYS[entry.level])}
+        </span>
+      </td>
+      <td className="max-w-100 px-4 py-3 align-top">
+        <div className="font-mono text-xs text-(--cui-color-text-default)">{entry.event}</div>
+        {entry.errorMessage && (
+          <div
+            className="mt-1 truncate text-xs text-(--cui-color-text-muted)"
+            title={entry.errorMessage}
+          >
+            {entry.errorMessage}
+          </div>
+        )}
+      </td>
+      <td className="px-4 py-3 align-top text-xs text-(--cui-color-text-muted)">
+        {localize(STAGE_LABEL_KEYS[entry.stage])}
+      </td>
+      <td className="max-w-100 px-4 py-3 align-top font-mono text-[11px] text-(--cui-color-text-muted)">
+        {formatContext(entry)}
+      </td>
+      <td className="whitespace-nowrap px-4 py-3 align-top text-xs text-(--cui-color-text-muted)">
+        {formatTimestamp(entry.timestamp)}
+      </td>
+    </tr>
+  );
+}
+
+function formatContext(entry: DiagnosticLogEntry): string {
+  const parts = [
+    entry.requestId && `req:${entry.requestId}`,
+    entry.conversationId && `conv:${entry.conversationId}`,
+    entry.streamId && `stream:${entry.streamId}`,
+    entry.model,
+  ].filter((value): value is string => Boolean(value));
+  return parts.length > 0 ? parts.join(' · ') : '—';
+}
+
+function getStateMessage(
+  localize: ReturnType<typeof useLocalize>,
+  isPending: boolean,
+  isError: boolean,
+  data: DiagnosticLogsResult | undefined,
+  entries: DiagnosticLogEntry[],
+): string | null {
+  if (isPending) return null;
+  if (isError) return localize('com_diagnostic_logs_load_error');
+  if (data?.available === false) {
+    return data.reason === 'not_configured'
+      ? localize('com_diagnostic_logs_not_connected')
+      : localize('com_diagnostic_logs_unavailable');
+  }
+  if (entries.length === 0) return localize('com_diagnostic_logs_empty');
+  return null;
+}
+
+function getLatestTimestamp(entries: DiagnosticLogEntry[]): string | undefined {
+  return entries.reduce<string | undefined>((latest, entry) => {
+    if (!latest || entry.timestamp > latest) return entry.timestamp;
+    return latest;
+  }, undefined);
+}
+
+function formatTimestamp(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
 }
 
 function SummaryItem({ label, value }: { label: string; value: string }) {

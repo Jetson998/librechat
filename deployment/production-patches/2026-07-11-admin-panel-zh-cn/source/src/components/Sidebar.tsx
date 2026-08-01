@@ -2,8 +2,12 @@ import { useState } from 'react';
 import { Icon, Dropdown } from '@clickhouse/click-ui';
 import { Link, useRouter } from '@tanstack/react-router';
 import type * as t from '@/types';
+import {
+  READ_AUDIT_LOG_CAPABILITY,
+  READ_DIAGNOSTIC_LOGS_CAPABILITY,
+  SystemCapabilities,
+} from '@/constants';
 import { useStripAriaExpanded, useCapabilities, useLocalize } from '@/hooks';
-import { READ_AUDIT_LOG_CAPABILITY, SystemCapabilities } from '@/constants';
 import libreChatLogo from '@/assets/librechat.svg';
 import { SettingsDialog } from './SettingsDialog';
 import { getInitials, cn } from '@/utils';
@@ -15,7 +19,7 @@ const navItems: t.NavItem[] = [
     labelKey: 'com_nav_diagnostic_logs',
     path: '/logs',
     icon: 'document',
-    capability: READ_AUDIT_LOG_CAPABILITY,
+    capability: [READ_DIAGNOSTIC_LOGS_CAPABILITY, READ_AUDIT_LOG_CAPABILITY],
   },
   {
     labelKey: 'com_nav_configuration',
@@ -99,7 +103,11 @@ export function Sidebar({ user, collapsed, onToggle }: t.SidebarProps) {
       >
         <div className="flex h-14 shrink-0 items-center px-2">
           <div className="flex items-center gap-2.5 overflow-hidden px-1.5">
-            <img src={libreChatLogo} alt={localize('com_a11y_logo_alt')} className="h-6 w-6 shrink-0" />
+            <img
+              src={libreChatLogo}
+              alt={localize('com_a11y_logo_alt')}
+              className="h-6 w-6 shrink-0"
+            />
             <span className="truncate text-sm font-semibold text-(--cui-color-text-default)">
               {localize('com_auth_title')}
             </span>

@@ -16,10 +16,11 @@ does not invent rows while the backend diagnostic-event endpoint is absent.
 - Route: `/logs`
 - Menu label: `诊断日志`
 - Icon: existing `document` icon
-- Initial permission gate: `read:audit_log`, reused temporarily so the existing
-  production admin role can see the page.
-- Follow-up: add a dedicated `read:diagnostic_logs` capability in the backend
-  and replace the temporary gate in `Sidebar.tsx` and `logs.tsx`.
+- Compatibility permission gate: `read:diagnostic_logs` or the existing
+  `read:audit_log`, so the current production admin role does not lose access
+  while the backend capability is being seeded.
+- Follow-up: seed the dedicated `read:diagnostic_logs` capability in the
+  backend and remove the temporary audit-log fallback.
 
 ## Page structure
 
@@ -130,3 +131,15 @@ for error/state-transition events.
 - Normal conversation success does not create a synchronous database write.
 - Logs exclude message bodies, document previews, credentials, and raw tool
   output.
+
+## Current implementation status
+
+- The Admin client now calls `GET /api/admin/diagnostic-events` with the
+  documented search, level, stage, date, page, and limit filters.
+- The client validates the response with a bounded safe-metadata schema; unknown
+  fields such as prompts, file contents, authorization headers, and raw tool
+  output are discarded before rendering.
+- A `404` or `503` response is rendered as an explicit unavailable state, and a
+  failed response never creates placeholder rows.
+- The production API currently remains a separate backend task. Until it is
+  implemented, `/logs` is expected to show the unavailable state.
