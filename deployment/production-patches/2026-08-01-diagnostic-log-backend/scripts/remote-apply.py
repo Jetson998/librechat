@@ -28,13 +28,13 @@ PROTECTED = (
     "chat-mongodb",
 )
 API_TARGETS = {
-    "api/models/index.js": "/app/api/models/index.js",
-    "api/server/index.js": "/app/api/server/index.js",
-    "api/server/routes/index.js": "/app/api/server/routes/index.js",
-    "api/server/routes/admin/diagnosticEvents.js": "/app/api/server/routes/admin/diagnosticEvents.js",
-    "api/server/services/DiagnosticEvents.js": "/app/api/server/services/DiagnosticEvents.js",
-    "api/server/controllers/agents/request.js": "/app/api/server/controllers/agents/request.js",
-    "api/server/controllers/agents/InitializationFailure.js": "/app/api/server/controllers/agents/InitializationFailure.js",
+    "backend/api/models/index.js": "/app/api/models/index.js",
+    "backend/api/server/index.js": "/app/api/server/index.js",
+    "backend/api/server/routes/index.js": "/app/api/server/routes/index.js",
+    "backend/api/server/routes/admin/diagnosticEvents.js": "/app/api/server/routes/admin/diagnosticEvents.js",
+    "backend/api/server/services/DiagnosticEvents.js": "/app/api/server/services/DiagnosticEvents.js",
+    "backend/api/server/controllers/agents/request.js": "/app/api/server/controllers/agents/request.js",
+    "backend/api/server/controllers/agents/InitializationFailure.js": "/app/api/server/controllers/agents/InitializationFailure.js",
     "office/OfficePreparse.js": "/app/api/server/services/Files/OfficePreparse.js",
 }
 
