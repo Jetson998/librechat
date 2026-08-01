@@ -1,0 +1,89 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "reason": "Repository Skill and documentation release; no external runtime or user-facing production behavior changed.",
+    "status": "not_applicable"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "reason": "No production data, configuration, service, or persistent runtime was modified.",
+    "status": "not_applicable"
+  },
+  "baseline_reference": {
+    "details": {
+      "revision": "32e3ca37e9bce295ef7bf8c47d217fabd0e3a840",
+      "type": "previous_repository_revision"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The generic Skill guides AI through development, candidate, and release phases; Chinese team-facing documentation uses the approved localized status language; production checks begin only after an explicit deployment instruction.",
+    "functions": [
+      "Define development, candidate, and release lifecycle boundaries",
+      "Place consolidated code review after a stable reviewable commit",
+      "Pause after one trusted candidate until an explicit deployment instruction",
+      "Distinguish apply success from accepted release completion",
+      "Document Simplified Chinese team-facing phase and status labels",
+      "Add regression coverage for the three-stage guidance"
+    ],
+    "limitations": [
+      "This change updates guidance and tests only; it does not automate release status transitions or modify any production runtime."
+    ],
+    "reason": "Reduce release latency and token usage by separating ordinary development, one candidate build, and explicitly approved production release work.",
+    "risk": "Low: repository-owned Skill, documentation, metadata, and tests only.",
+    "scope": [
+      "docs/LIGHTWEIGHT_RELEASE_GOVERNANCE_ZH_CN.md",
+      "skills/lightweight-release-governance/SKILL.md",
+      "skills/lightweight-release-governance/agents/openai.yaml",
+      "tests/release-governance/test_release_gate.py"
+    ]
+  },
+  "created_at": "2026-08-01T11:17:29Z",
+  "mode": "release",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "",
+    "package_required_paths": [],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260801-three-stage-release-lifecycle",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "method": "Revert source commit 2ff08ccd2109fc81be243c3d53ed0919e0907d64",
+      "target_revision": "32e3ca37e9bce295ef7bf8c47d217fabd0e3a840"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "reason": "No external runtime deployment is part of this repository release.",
+    "status": "not_applicable"
+  },
+  "schema_version": 1,
+  "source_revision": "2ff08ccd2109fc81be243c3d53ed0919e0907d64",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-08-01T11:19:31Z",
+  "validation_plan": [
+    "Run scripts/validate-release-governance.sh",
+    "Run git diff --check before the source commit",
+    "Validate repository and personal Skill metadata",
+    "Confirm the personal Skill copy matches the repository copy",
+    "Package the exact source revision and record its SHA-256 digest"
+  ]
+}
