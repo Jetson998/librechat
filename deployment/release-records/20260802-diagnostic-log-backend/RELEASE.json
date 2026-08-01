@@ -61,7 +61,8 @@
     ],
     "protected_services": [
       "LibreChat-API",
-      "LibreChat-Admin-Panel"
+      "LibreChat-Admin-Panel",
+      "LibreChat-CodeAPI"
     ],
     "release_kind": "batch",
     "release_plan": "computed-from-change-summary.scope-at-verify"
