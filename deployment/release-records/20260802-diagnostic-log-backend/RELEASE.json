@@ -1,0 +1,124 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "admin_release": "20260731-admin-diagnostic-logs",
+      "api_office_release_commit": "eaf723cb73114aef7ff8a7e8e7ce31fb53321ec4",
+      "api_office_source": "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix",
+      "codeapi_release": "20260731-office-codeapi-process-reaper",
+      "description": "The candidate composes the accepted 2026-07-31 Office mounted Agent files with the reviewed diagnostic overlay, and builds the Admin overlay from the deployed Admin Panel source baseline."
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "A replayable, privacy-safe diagnostic event index is prepared for LibreChat: bounded failure-only events, tenant-scoped Admin retrieval, stable Office classifications, and an Admin diagnostic-log interface. No production system is changed during candidate preparation.",
+    "functions": [
+      "Preserve terminal initialization-failure persistence and Office pre-parse signal propagation",
+      "Record allowlisted diagnostic failure summaries with HMAC user correlation, tenant boundaries, TTL retention, bounded queue concurrency, and overflow rate limiting",
+      "Expose tenant-safe Admin list and detail routes under read:diagnostic_logs",
+      "Apply stable Office pre-parse error classifications without raw tool output",
+      "Compose the Admin diagnostic-log page from the deployed Admin source baseline"
+    ],
+    "limitations": [
+      "This candidate is a versioned source-and-replay artifact only: it contains no production preflight, backup, restart, deployment, or production acceptance evidence.",
+      "A unified production deployment runner is intentionally not included in the reviewed diagnostic source batch; a later deployment operation must be separately reviewed and approved before this candidate can be applied.",
+      "The focused backend test suite, overlay composition, Admin complete quality gate, and Sol review passed at the frozen revision; a full API Jest run remains unclaimed because an inherited integration timeout and Node heap ceiling prevented completion."
+    ],
+    "reason": "Provide privacy-safe evidence for diagnosing Office pre-parse failures, initialization persistence failures, and follow-up parent-saving conflicts without recording prompts, credentials, raw tool output, or stacks.",
+    "risk": "Enhanced: this candidate affects the API, Admin Panel, Office pre-parse error path, diagnostic collection indexes, permissions, and tenant isolation. Candidate preparation performs no production write.",
+    "scope": [
+      "deployment/production-patches/2026-08-01-diagnostic-log-backend",
+      "docs/ADMIN_DIAGNOSTIC_LOG_DESIGN.md"
+    ]
+  },
+  "created_at": "2026-08-01T16:07:19Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "",
+    "package_required_paths": [
+      "deployment/production-patches/2026-07-11-admin-panel-zh-cn/SOURCE_TREE_SHA256",
+      "deployment/production-patches/2026-07-11-admin-panel-zh-cn/source",
+      "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/InitializationFailure.js",
+      "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/OfficePreparse.js",
+      "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/request.js",
+      "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/scripts/test-office-preparse-result-contract.js"
+    ],
+    "protected_services": [
+      "LibreChat-API",
+      "LibreChat-Admin-Panel"
+    ],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260802-diagnostic-log-backend",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "method": "Before any later apply, capture the active Compose override, exact API mount sources, and Admin image/container identifiers; restore those sources and recreate only LibreChat-API and LibreChat-Admin-Panel if post-write checks fail.",
+      "non_destructive_data_behavior": "Do not drop diagnostic_events during rollback. The collection is TTL-bounded and the prior API simply stops writing or reading it.",
+      "reference_releases": [
+        "20260731-admin-diagnostic-logs",
+        "20260731-office-codeapi-process-reaper",
+        "eaf723cb73114aef7ff8a7e8e7ce31fb53321ec4"
+      ],
+      "stop_condition": "Do not deploy until the versioned runner proves its backup and protected-service invariants in a fresh read-only target preflight."
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "d44feb7eb4b0779fbadbb60dfaafa84cbb8f08b7",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-08-01T16:08:56Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-08-01-diagnostic-log-backend/scripts/test-diagnostic-events.js",
+      "expected": "Privacy allowlist, credential redaction, tenant boundary, bounded writer behavior, and correlation tests pass.",
+      "type": "local"
+    },
+    {
+      "command": "node deployment/production-patches/2026-08-01-diagnostic-log-backend/scripts/test-composed-overlay.js",
+      "expected": "The 2026-07-31 mounted Agent contract, diagnostic overlay, Admin permission boundary, and patched Office error codes compose without regressing initialization persistence.",
+      "type": "local"
+    },
+    {
+      "command": "python3 deployment/production-patches/2026-08-01-diagnostic-log-backend/scripts/verify-overlay.py --backend-source <clean e3496b4 checkout> --admin-source deployment/production-patches/2026-07-11-admin-panel-zh-cn/source --governance-repo .",
+      "expected": "Backend, Admin, Office, and source-manifest replay results match the recorded base and result hashes.",
+      "type": "replay"
+    },
+    {
+      "command": "Admin complete quality gate at frozen revision",
+      "expected": "Pinned source hash, locale parity, Prettier/import baselines, lint, typecheck, Vitest, and production build pass.",
+      "type": "local"
+    },
+    {
+      "command": "scripts/validate-release-governance.sh && git diff --check",
+      "expected": "Governance config, 34 release-governance tests, Skill validation, and whitespace checks pass.",
+      "type": "local"
+    }
+  ]
+}
