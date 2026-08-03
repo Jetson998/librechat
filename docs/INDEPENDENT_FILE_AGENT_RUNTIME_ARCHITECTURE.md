@@ -23,6 +23,10 @@ non-production process wiring and production routing have not started. Records:
 `docs/FILE_AGENT_RUNTIME_PHASE3B_IMPLEMENTATION.md`. Host wiring record:
 `docs/FILE_AGENT_RUNTIME_PHASE3B_HOST_WIRING.md`.
 
+The product boundary, comparison with Claude Code and Codex CLI, code execution
+maturity, and per-format Office scope are defined in
+`docs/FILE_AGENT_RUNTIME_CLI_COMPARISON_AND_EXECUTION_SCOPE.md`.
+
 ## 一、决策摘要
 
 采用低耦合混合架构：LibreChat 继续负责聊天产品，复杂 Office 和文件任务交给

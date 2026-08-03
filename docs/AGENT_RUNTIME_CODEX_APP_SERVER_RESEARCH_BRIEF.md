@@ -9,6 +9,9 @@ Codex CLI / app-server 可参考的架构方向，以及进入开发前必须完
 app-server 只作为架构参考，不复用、不嵌入，也不增加为运行时依赖。详细设计见
 `docs/INDEPENDENT_FILE_AGENT_RUNTIME_ARCHITECTURE.md`。
 
+与 Claude Code、Codex CLI 的产品边界，以及代码和 Office 文件的当前/目标执行
+程度，统一以 `docs/FILE_AGENT_RUNTIME_CLI_COMPARISON_AND_EXECUTION_SCOPE.md` 为准。
+
 ## 二、问题样本与已确认事实
 
 问题样本：
