@@ -6,6 +6,10 @@ Status: architecture decision. This document defines product positioning,
 execution maturity, Office scope, and production gates. It does not approve a
 production deployment.
 
+The implementation-ready functional requirements, data contracts, module map,
+tests, milestones, and acceptance gates are defined in
+`docs/FILE_AGENT_RUNTIME_IMPLEMENTATION_REQUIREMENTS.md`.
+
 ## 一、决策摘要
 
 File Agent Runtime 不复制 Claude Code 或 Codex CLI，也不以通用代码 Agent 的能力
