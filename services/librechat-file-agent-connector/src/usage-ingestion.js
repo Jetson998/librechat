@@ -6,16 +6,25 @@ function nonNegativeInteger(value, name) {
 }
 
 export class UsageIngestion {
-  constructor({ store, ports }) {
+  constructor({ store, ports, activeTaskStore = null }) {
     this.store = store;
     this.ports = ports;
+    this.activeTaskStore = activeTaskStore;
   }
 
-  async ingest(deliveryId, usage) {
+  async ingest(deliveryId, usage, { taskId = null } = {}) {
     const delivery = await this.store.get(deliveryId);
     const usageEventId = usage?.usageEventId;
     if (typeof usageEventId !== 'string' || usageEventId === '') {
       throw new TypeError('Runtime usageEventId is required');
+    }
+    const activeTask = this.activeTaskStore && taskId
+      ? await this.activeTaskStore.getByTaskId(taskId)
+      : null;
+    if (activeTask?.usageReceipts[usageEventId] === 'completed') {
+      return this.store.mutate(deliveryId, (draft) => {
+        draft.usageReceipts = { ...activeTask.usageReceipts };
+      });
     }
     if (delivery.usageReceipts[usageEventId] === 'completed') {
       return delivery;
@@ -31,8 +40,14 @@ export class UsageIngestion {
       outputTokens: nonNegativeInteger(usage.outputTokens, 'outputTokens'),
     };
     await this.ports.writeUsageTransactions({ usageEventId, usage: normalized, delivery });
+    const updatedTask = this.activeTaskStore && taskId
+      ? await this.activeTaskStore.markUsageReceipt(taskId, usageEventId)
+      : null;
     return this.store.mutate(deliveryId, (draft) => {
       draft.usageReceipts[usageEventId] = 'completed';
+      if (updatedTask) {
+        draft.usageReceipts = { ...updatedTask.usageReceipts };
+      }
     });
   }
 }

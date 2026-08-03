@@ -14,6 +14,7 @@ export class MemoryDeliveryStore {
   constructor() {
     this.records = new Map();
     this.byIdempotencyHash = new Map();
+    this.byMessageIdentity = new Map();
   }
 
   async createOrGet({ idempotencyKey, manifest, record }) {
@@ -23,6 +24,23 @@ export class MemoryDeliveryStore {
     if (existingId) {
       const existing = this.records.get(existingId);
       if (existing.manifestDigest !== manifestDigest) {
+        throw new DeliveryConflictError();
+      }
+      return { created: false, delivery: clone(existing) };
+    }
+    const messageIdentity = record?.conversationId && record?.userMessageId &&
+      record?.taskContractVersion
+      ? [record.conversationId, record.userMessageId, record.taskContractVersion].join('\0')
+      : null;
+    const existingMessageId = messageIdentity
+      ? this.byMessageIdentity.get(messageIdentity)
+      : null;
+    if (existingMessageId) {
+      const existing = this.records.get(existingMessageId);
+      if (
+        existing.idempotencyKeyHash !== idempotencyKeyHash ||
+        existing.manifestDigest !== manifestDigest
+      ) {
         throw new DeliveryConflictError();
       }
       return { created: false, delivery: clone(existing) };
@@ -51,6 +69,9 @@ export class MemoryDeliveryStore {
     };
     this.records.set(delivery.deliveryId, delivery);
     this.byIdempotencyHash.set(idempotencyKeyHash, delivery.deliveryId);
+    if (messageIdentity) {
+      this.byMessageIdentity.set(messageIdentity, delivery.deliveryId);
+    }
     return { created: true, delivery: clone(delivery) };
   }
 

@@ -59,6 +59,72 @@ function unwrapProviderValue(result) {
   return result?.value ?? result;
 }
 
+function clone(value) {
+  return structuredClone(value);
+}
+
+function normalizeInputRebind(task, inputRebind) {
+  if (!inputRebind || typeof inputRebind !== 'object' || Array.isArray(inputRebind)) {
+    throw new TypeError('inputRebind must be an object');
+  }
+  if (inputRebind.schemaVersion !== '1.0') {
+    throw new TypeError('inputRebind schemaVersion must be "1.0"');
+  }
+  if (inputRebind.taskId !== task.taskId) {
+    throw new TaskStateConflictError('Input rebind taskId does not match the Runtime task');
+  }
+  const originalInputs = task.manifest.inputs;
+  if (!Array.isArray(originalInputs) || !Array.isArray(inputRebind.inputs)) {
+    throw new TypeError('Runtime task inputs are required for rebind');
+  }
+  if (inputRebind.inputs.length !== originalInputs.length) {
+    throw new TaskStateConflictError('Input rebind must preserve the task input set');
+  }
+  const originalByRef = new Map(
+    originalInputs.map((input) => [input.librechatFileRef, input]),
+  );
+  const seen = new Set();
+  const rebound = inputRebind.inputs.map((input) => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      throw new TypeError('Each rebound input must be an object');
+    }
+    const original = originalByRef.get(input.librechatFileRef);
+    if (!original || seen.has(input.librechatFileRef)) {
+      throw new TaskStateConflictError('Input rebind must preserve authorized input references');
+    }
+    seen.add(input.librechatFileRef);
+    if (
+      input.logicalName !== original.logicalName ||
+      input.sha256 !== original.sha256 ||
+      input.mimeType !== original.mimeType
+    ) {
+      throw new TaskStateConflictError('Input rebind cannot change authorized file identity');
+    }
+    const originalCodeEnvRef = original.codeEnvRef;
+    const codeEnvRef = input.codeEnvRef;
+    if (
+      !codeEnvRef ||
+      codeEnvRef.kind !== originalCodeEnvRef?.kind ||
+      codeEnvRef.id !== originalCodeEnvRef?.id ||
+      typeof codeEnvRef.storage_session_id !== 'string' ||
+      codeEnvRef.storage_session_id.trim() === '' ||
+      typeof codeEnvRef.file_id !== 'string' ||
+      codeEnvRef.file_id.trim() === ''
+    ) {
+      throw new TaskStateConflictError('Input rebind CodeAPI scope does not match the task');
+    }
+    return {
+      ...clone(original),
+      codeEnvRef: {
+        ...clone(originalCodeEnvRef),
+        storage_session_id: codeEnvRef.storage_session_id.trim(),
+        file_id: codeEnvRef.file_id.trim(),
+      },
+    };
+  });
+  return rebound.sort((left, right) => left.librechatFileRef.localeCompare(right.librechatFileRef));
+}
+
 function persistProviderMetadata(task, emit, result, itemId) {
   const call = result?.call;
   const usage = result?.usage;
@@ -175,10 +241,15 @@ export class FileAgentRuntime {
       throw new TypeError('Steer instruction text is required');
     }
 
+    const taskBeforeSteer = await this.store.requireTask(taskId);
+    const reboundInputs = instruction.inputRebind
+      ? normalizeInputRebind(taskBeforeSteer, instruction.inputRebind)
+      : null;
     const normalized = {
       instructionId: instruction.instructionId ?? randomUUID(),
       text: instruction.text.trim(),
       createdAt: instruction.createdAt ?? new Date().toISOString(),
+      ...(reboundInputs ? { inputRebind: { schemaVersion: '1.0', taskId, inputs: reboundInputs } } : {}),
     };
 
     const mutation = await this.store.mutateTask(taskId, (task, emit) => {
@@ -191,6 +262,20 @@ export class FileAgentRuntime {
 
       task.instructions.push(normalized);
       task.instructionRevision += 1;
+      if (normalized.inputRebind) {
+        task.manifest = {
+          ...task.manifest,
+          inputs: clone(normalized.inputRebind.inputs),
+        };
+        task.inputRebindRevision = (task.inputRebindRevision ?? 0) + 1;
+        emit({
+          type: 'task.input_rebound',
+          data: {
+            inputRebindRevision: task.inputRebindRevision,
+            inputCount: normalized.inputRebind.inputs.length,
+          },
+        });
+      }
       emit({
         type: 'task.steered',
         data: {

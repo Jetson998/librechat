@@ -99,6 +99,70 @@ test('host turn constraints can return native before Runtime capability discover
   });
 });
 
+test('an explicit continuation steers the only active task without creating a new billing snapshot', async () => {
+  const calls = [];
+  const bridge = new FileAgentControllerBridge({
+    connector: {
+      prepareRoute: async () => {
+        throw new Error('prepareRoute must not run for a continuation');
+      },
+      submit: async () => {
+        throw new Error('submit must not run for a continuation');
+      },
+      listActiveTasks: async (scope) => {
+        calls.push(['list', scope]);
+        return [{
+          activeTaskId: 'active-task-1',
+          taskId: 'task-1',
+          capabilityProfile: 'word-edit-v1',
+          status: 'needs_input',
+          runtimePhase: 'needs_input',
+          updatedAt: '2026-08-03T00:00:00.000Z',
+        }];
+      },
+      submitTurn: async (submitted, options) => {
+        calls.push(['turn', submitted, options]);
+        return {
+          accepted: true,
+          suppressNativeAgent: true,
+          delivery: { deliveryId: 'delivery-turn-1' },
+          taskId: 'task-1',
+        };
+      },
+    },
+    prepareRequest: async () => ({
+      route: 'continuation_candidate',
+      userId: 'user-1',
+      tenantId: 'tenant-1',
+      conversationId: 'conversation-1',
+      userMessageId: 'message-2',
+      assistantMessageId: 'message-2_',
+      streamId: 'stream-2',
+      instruction: '继续执行。',
+    }),
+    persistUserTurn: async ({ request }) => {
+      calls.push(['persist', request.userMessageId]);
+      return {
+        userMessage: { messageId: request.userMessageId, conversationId: request.conversationId },
+        conversation: { conversationId: request.conversationId, title: 'Existing' },
+      };
+    },
+    createBillingSnapshot: async () => {
+      throw new Error('continuation must reuse the active task billing snapshot');
+    },
+    scheduleReconcile: async ({ submission }) => {
+      calls.push(['schedule', submission.delivery.deliveryId]);
+    },
+  });
+
+  const result = await bridge.tryRoute({ req: {} });
+
+  assert.equal(result.routed, true);
+  assert.equal(result.taskId, 'task-1');
+  assert.deepEqual(calls.map((entry) => entry[0]), ['list', 'persist', 'turn', 'schedule']);
+  assert.equal(calls[2][2].activeTaskId, 'active-task-1');
+});
+
 test('eligible work persists before snapshot and Runtime submission', async () => {
   const calls = [];
   const preparedRoute = {

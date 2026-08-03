@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import { MAX_VISIBLE_ARTIFACTS, MIME_EXTENSIONS } from './constants.js';
+import { clone } from './stable.js';
 
 export class ArtifactPolicyError extends Error {
   constructor(message) {
@@ -36,14 +37,23 @@ function validateArtifact(artifact, allowedOutputMimeTypes) {
 }
 
 export class ArtifactDelivery {
-  constructor({ store, ports }) {
+  constructor({ store, ports, activeTaskStore = null }) {
     this.store = store;
     this.ports = ports;
+    this.activeTaskStore = activeTaskStore;
   }
 
-  async deliver(deliveryId, artifact, runtimeTask) {
+  async deliver(deliveryId, artifact, runtimeTask, { taskId = null } = {}) {
     const delivery = await this.store.get(deliveryId);
     const artifactId = artifact?.codeEnvRef?.file_id;
+    const activeTask = this.activeTaskStore && taskId
+      ? await this.activeTaskStore.getByTaskId(taskId)
+      : null;
+    if (activeTask?.artifactReceipts[artifactId]?.status === 'completed') {
+      return this.store.mutate(deliveryId, (draft) => {
+        draft.artifactReceipts = clone(activeTask.artifactReceipts);
+      });
+    }
     if (artifactId && delivery.artifactReceipts[artifactId]?.status === 'completed') {
       return delivery;
     }
@@ -51,20 +61,29 @@ export class ArtifactDelivery {
       throw new ArtifactPolicyError('Runtime artifact cannot be delivered before verification passes');
     }
     validateArtifact(artifact, delivery.allowedOutputMimeTypes);
-    const completedCount = Object.values(delivery.artifactReceipts)
+    const receipts = activeTask?.artifactReceipts ?? delivery.artifactReceipts;
+    const completedCount = Object.values(receipts)
       .filter((receipt) => receipt.status === 'completed').length;
-    const limit = delivery.maxVisibleArtifacts ?? MAX_VISIBLE_ARTIFACTS;
+    const limit = activeTask?.maxVisibleArtifacts ?? delivery.maxVisibleArtifacts ?? MAX_VISIBLE_ARTIFACTS;
     if (completedCount >= limit) {
       throw new ArtifactPolicyError(`Runtime produced more than ${limit} visible artifacts`);
     }
     const file = await this.ports.processCodeOutput({ artifactId, artifact, delivery });
+    const receipt = {
+      status: 'completed',
+      fileId: file.fileId,
+      name: artifact.name,
+      toolCallId: file.toolCallId ?? file.file?.toolCallId ?? `file-agent:${artifactId}`,
+    };
+    const updatedTask = this.activeTaskStore && taskId
+      ? await this.activeTaskStore.markArtifactReceipt(taskId, artifactId, receipt)
+      : null;
     return this.store.mutate(deliveryId, (draft) => {
-      draft.artifactReceipts[artifactId] = {
-        status: 'completed',
-        fileId: file.fileId,
-        name: artifact.name,
-        toolCallId: file.toolCallId ?? file.file?.toolCallId ?? `file-agent:${artifactId}`,
-      };
+      if (updatedTask) {
+        draft.artifactReceipts = clone(updatedTask.artifactReceipts);
+      } else {
+        draft.artifactReceipts[artifactId] = receipt;
+      }
     });
   }
 }

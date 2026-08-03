@@ -1,4 +1,5 @@
 import { LibreChatFileAgentConnector } from './connector.js';
+import { MongoActiveTaskStore } from './active-task-store.js';
 import { MongoBillingSnapshotStore } from './mongo-billing-snapshot-store.js';
 import { MongoDeliveryStore } from './mongo-delivery-store.js';
 import { NativeLibreChatPorts } from './native-ports.js';
@@ -205,6 +206,7 @@ export function createLibreChatFinalEventBuilder({
 
 export function createLibreChatHostIntegration({
   collections,
+  activeTaskStore = null,
   runtimeClient = null,
   runtimeBaseUrl = null,
   runtimeFetch = globalThis.fetch,
@@ -248,6 +250,11 @@ export function createLibreChatHostIntegration({
   const billingSnapshotStore = new MongoBillingSnapshotStore({
     collection: billingSnapshotCollection,
   });
+  const resolvedActiveTaskStore = activeTaskStore ?? (
+    collections?.activeTasks
+      ? new MongoActiveTaskStore({ collection: collections.activeTasks })
+      : null
+  );
   const buildMessage = createLibreChatMessageBuilder({
     getFilesByIds: native.getFilesByIds,
     sanitizeFileForTransmit: native.sanitizeFileForTransmit,
@@ -283,6 +290,7 @@ export function createLibreChatHostIntegration({
     allowlistedUserIds,
     ...(reconcilerId ? { reconcilerId } : {}),
     ...(leaseTtlMs ? { leaseTtlMs } : {}),
+    ...(resolvedActiveTaskStore ? { activeTaskStore: resolvedActiveTaskStore } : {}),
   });
   const reconciler = new FileAgentReconciler({
     connector,
@@ -295,9 +303,17 @@ export function createLibreChatHostIntegration({
     reconciler,
     ports,
     runtimeClient: resolvedRuntimeClient,
-    stores: { deliveryStore, billingSnapshotStore },
+    stores: {
+      deliveryStore,
+      billingSnapshotStore,
+      ...(resolvedActiveTaskStore ? { activeTaskStore: resolvedActiveTaskStore } : {}),
+    },
     async init() {
-      await Promise.all([deliveryStore.init(), billingSnapshotStore.init()]);
+      await Promise.all([
+        deliveryStore.init(),
+        billingSnapshotStore.init(),
+        resolvedActiveTaskStore?.init?.(),
+      ]);
       return integration;
     },
     async stop() {

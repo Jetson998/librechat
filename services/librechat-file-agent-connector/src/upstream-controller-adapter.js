@@ -2,6 +2,7 @@ import { FileAgentControllerBridge } from './controller-bridge.js';
 import { clone, sha256 } from './stable.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const CONTINUATION_INTENT = /(?:继续|接着|刚才|上一轮|上一个任务|按刚才|按之前|resume|continue|same task)/i;
 
 function valueString(value) {
   if (value == null) {
@@ -84,7 +85,23 @@ export function createUpstreamRuntimeRequestResolver({
 
     const requestFiles = Array.isArray(context.req?.body?.files) ? context.req.body.files : [];
     if (requestFiles.length === 0) {
-      return native('no_current_request_files');
+      if (!CONTINUATION_INTENT.test(context.text ?? '')) {
+        return native('no_current_request_files');
+      }
+      const userId = requiredString(context.userId, 'userId');
+      return {
+        route: 'continuation_candidate',
+        userId,
+        tenantId: valueString(context.req?.user?.tenantId),
+        conversationId: requiredString(context.conversationId, 'conversationId'),
+        userMessageId: requiredString(context.userMessageId, 'userMessageId'),
+        assistantMessageId: requiredString(context.assistantMessageId, 'assistantMessageId'),
+        streamId: requiredString(context.streamId, 'streamId'),
+        instruction: requiredString(context.text, 'instruction'),
+        activeTaskId: valueString(
+          context.activeTaskId ?? context.req?.body?.activeTaskId,
+        ),
+      };
     }
     const requestFileIds = requestFiles
       .map((file) => valueString(file?.file_id))
@@ -297,6 +314,7 @@ export function createUpstreamMongoCollections({
   deliveryCollectionName,
   billingSnapshotCollectionName,
   transactionCollectionName,
+  activeTaskCollectionName = 'file_agent_active_tasks',
 }) {
   if (!database || typeof database.collection !== 'function') {
     throw new TypeError('Mongo database.collection is required');
@@ -310,6 +328,9 @@ export function createUpstreamMongoCollections({
     ),
     transactions: database.collection(
       requiredString(transactionCollectionName, 'transactionCollectionName'),
+    ),
+    activeTasks: database.collection(
+      requiredString(activeTaskCollectionName, 'activeTaskCollectionName'),
     ),
   };
 }

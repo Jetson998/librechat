@@ -51,6 +51,7 @@ async function install(config, { app, appConfig }) {
       'billingSnapshotCollectionName',
     ),
     transactionCollectionName: 'transactions',
+    activeTaskCollectionName: config.activeTaskCollectionName ?? 'file_agent_active_tasks',
   });
 
   const resolveRequest = async ({ delivery }) => {

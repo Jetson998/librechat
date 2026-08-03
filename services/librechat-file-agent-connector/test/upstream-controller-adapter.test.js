@@ -78,6 +78,47 @@ test('upstream request resolver uses initialized current-request attachments', a
   assert.equal(request.files[0].sha256, codeEnvObjectDigest(attachment()));
 });
 
+test('upstream request resolver marks explicit continuation turns without current files', async () => {
+  const resolve = createUpstreamRuntimeRequestResolver({
+    modelRouteId: 'file-agent-primary',
+  });
+  const result = await resolve(context({
+    req: {
+      user: { id: 'user-1', tenantId: 'tenant-1' },
+      body: { files: [], activeTaskId: 'active-task-1' },
+      config: {},
+    },
+    text: '继续按刚才的要求修改文件',
+  }));
+
+  assert.deepEqual(result, {
+    route: 'continuation_candidate',
+    userId: 'user-1',
+    tenantId: 'tenant-1',
+    conversationId: 'conversation-1',
+    userMessageId: 'message-1',
+    assistantMessageId: 'message-1_',
+    streamId: 'conversation-1',
+    instruction: '继续按刚才的要求修改文件',
+    activeTaskId: 'active-task-1',
+  });
+});
+
+test('ordinary no-file chat remains native instead of becoming a Runtime continuation', async () => {
+  const resolve = createUpstreamRuntimeRequestResolver({
+    modelRouteId: 'file-agent-primary',
+  });
+  const result = await resolve(context({
+    req: {
+      user: { id: 'user-1', tenantId: 'tenant-1' },
+      body: { files: [] },
+      config: {},
+    },
+    text: '请解释一下这个功能',
+  }));
+  assert.deepEqual(result, { route: 'native', reason: 'no_current_request_files' });
+});
+
 test('upstream request resolver rejects files not authorized by initialized LibreChat context', async () => {
   const resolve = createUpstreamRuntimeRequestResolver({
     modelRouteId: 'file-agent-primary',
@@ -225,13 +266,16 @@ test('upstream Mongo collection names and Express bridge installation are explic
     deliveryCollectionName: 'file_agent_nonprod_deliveries',
     billingSnapshotCollectionName: 'file_agent_nonprod_billing_snapshots',
     transactionCollectionName: 'transactions',
+    activeTaskCollectionName: 'file_agent_nonprod_active_tasks',
   });
   assert.deepEqual(requestedNames, [
     'file_agent_nonprod_deliveries',
     'file_agent_nonprod_billing_snapshots',
     'transactions',
+    'file_agent_nonprod_active_tasks',
   ]);
   assert.equal(collections.deliveries.name, 'file_agent_nonprod_deliveries');
+  assert.equal(collections.activeTasks.name, 'file_agent_nonprod_active_tasks');
 
   const app = { locals: {} };
   const bridge = { tryRoute: async () => ({ suppressNativeAgent: false }) };

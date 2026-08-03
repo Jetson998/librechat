@@ -10,8 +10,10 @@ import {
   decideFileAgentPreflight,
   decideFileAgentRoute,
 } from './task-router.js';
-import { digestJson } from './stable.js';
 import { UsageIngestion } from './usage-ingestion.js';
+import { buildRebindTurn, buildSteerTurn } from './turn-delivery.js';
+import { clone, digestJson, opaqueRef, requiredString } from './stable.js';
+import { ActiveTaskSelectionRequiredError } from './active-task-store.js';
 
 function routeKey(request) {
   return digestJson({
@@ -40,6 +42,7 @@ export class LibreChatFileAgentConnector {
     allowlistedUserIds = new Set(),
     reconcilerId = randomUUID(),
     leaseTtlMs = 30_000,
+    activeTaskStore = null,
   }) {
     this.store = store;
     this.runtimeClient = runtimeClient;
@@ -48,6 +51,20 @@ export class LibreChatFileAgentConnector {
     this.allowlistedUserIds = allowlistedUserIds;
     this.reconcilerId = reconcilerId;
     this.leaseTtlMs = leaseTtlMs;
+    if (activeTaskStore && (
+      typeof activeTaskStore.getByTaskId !== 'function' ||
+      typeof activeTaskStore.create !== 'function' ||
+      typeof activeTaskStore.attachTurn !== 'function' ||
+      typeof activeTaskStore.recordEvent !== 'function' ||
+      typeof activeTaskStore.markUsageReceipt !== 'function' ||
+      typeof activeTaskStore.markArtifactReceipt !== 'function' ||
+      typeof activeTaskStore.get !== 'function' ||
+      typeof activeTaskStore.listActive !== 'function' ||
+      typeof activeTaskStore.mutateByTaskId !== 'function'
+    )) {
+      throw new TypeError('activeTaskStore must implement the task binding contract');
+    }
+    this.activeTaskStore = activeTaskStore;
     this.preparedRoutes = new WeakMap();
     const finalizer = new MessageFinalizer({ store, ports });
     this.finalizer = finalizer;
@@ -55,9 +72,10 @@ export class LibreChatFileAgentConnector {
       store,
       runtimeClient,
       ports,
-      usageIngestion: new UsageIngestion({ store, ports }),
-      artifactDelivery: new ArtifactDelivery({ store, ports }),
+      usageIngestion: new UsageIngestion({ store, ports, activeTaskStore }),
+      artifactDelivery: new ArtifactDelivery({ store, ports, activeTaskStore }),
       finalizer,
+      activeTaskStore,
     });
   }
 
@@ -133,6 +151,8 @@ export class LibreChatFileAgentConnector {
         streamId: request.streamId,
         billingSnapshotRef: request.billingSnapshotRef,
         modelRouteId: request.modelRouteId,
+        capabilityProfile: submission.manifest.model.capabilityProfile,
+        inputRefs: submission.manifest.inputs,
         allowedOutputMimeTypes: [...capabilities.outputMimeTypes],
         maxVisibleArtifacts: submission.manifest.limits.maxVisibleArtifacts,
       },
@@ -149,10 +169,12 @@ export class LibreChatFileAgentConnector {
           suppressNativeAgent: true,
           decision,
           delivery,
-          taskId: null,
+          taskId: delivery.taskId ?? null,
           error: { name: error.name, message: error.message },
         };
       }
+    } else if (this.activeTaskStore) {
+      delivery = await this.#ensureActiveTask(delivery);
     }
     return {
       accepted: Boolean(delivery.taskId),
@@ -167,6 +189,9 @@ export class LibreChatFileAgentConnector {
     let delivery = await this.store.get(deliveryId);
     if (delivery.status === 'submitting' && !delivery.taskId) {
       delivery = await this.#submitDelivery(deliveryId);
+    }
+    if (this.activeTaskStore && delivery.taskId) {
+      delivery = await this.#ensureActiveTask(delivery);
     }
     try {
       return await this.consumer.consume(deliveryId);
@@ -226,33 +251,166 @@ export class LibreChatFileAgentConnector {
     if (!delivery?.taskId) {
       throw new Error('Cannot cancel a delivery before Runtime acceptance');
     }
+    if (this.activeTaskStore) {
+      await this.#ensureActiveTask(delivery);
+    }
     await this.runtimeClient.cancel(delivery.taskId);
     return this.consumer.consume(deliveryId);
   }
 
   async steer(deliveryId, { instructionId = randomUUID(), text }) {
+    return this.steerTurn(deliveryId, { instructionId, text });
+  }
+
+  async steerTurn(deliveryId, {
+    instructionId = randomUUID(),
+    text,
+    inputRebind = null,
+  }) {
     const delivery = await this.store.get(deliveryId);
     if (!delivery?.taskId) {
       throw new Error('Cannot steer a delivery before Runtime acceptance');
     }
-    await this.runtimeClient.steer(delivery.taskId, { instructionId, text });
+    if (this.activeTaskStore) {
+      await this.#ensureActiveTask(delivery);
+    }
+    const instruction = {
+      instructionId,
+      text,
+      ...(inputRebind ? { inputRebind: clone(inputRebind) } : {}),
+    };
+    await this.runtimeClient.steer(delivery.taskId, instruction, {
+      idempotencyKey: delivery.submission?.idempotencyKey,
+    });
+    if (this.activeTaskStore && inputRebind) {
+      await this.activeTaskStore.mutateByTaskId(delivery.taskId, (draft) => {
+        draft.inputRefs = clone(inputRebind.inputs);
+        return true;
+      });
+    }
     await this.store.mutate(deliveryId, (draft) => {
       if (draft.status === 'needs_input') {
         draft.status = 'running';
       }
+      draft.steer = {
+        instructionId,
+        submitted: true,
+      };
     });
     return { instructionId, delivery: await this.consumer.consume(deliveryId) };
+  }
+
+  async listActiveTasks({ userId, tenantId = null, conversationId }) {
+    if (!this.activeTaskStore) {
+      return [];
+    }
+    return this.activeTaskStore.listActive({
+      user: requiredString(userId, 'userId'),
+      tenantId,
+      conversationId: requiredString(conversationId, 'conversationId'),
+    });
+  }
+
+  async submitTurn(request, { activeTaskId = null, taskId = null } = {}) {
+    if (!this.activeTaskStore) {
+      throw new Error('activeTaskStore is required for cross-turn task routing');
+    }
+    const activeTask = await this.#resolveActiveTask({
+      userId: request.userId,
+      tenantId: request.tenantId ?? null,
+      conversationId: request.conversationId,
+      activeTaskId,
+      taskId,
+    });
+    const descriptor = buildSteerTurn({
+      activeTask,
+      userId: request.userId,
+      tenantId: request.tenantId ?? null,
+      conversationId: request.conversationId,
+      userMessageId: request.userMessageId,
+      assistantMessageId: request.assistantMessageId,
+      streamId: request.streamId,
+      instructionId: request.instructionId,
+      instruction: request.instruction,
+      billingSnapshotRef: request.billingSnapshotRef,
+      modelRouteId: request.modelRouteId,
+    });
+    const created = await this.store.createOrGet({
+      idempotencyKey: descriptor.idempotencyKey,
+      manifest: descriptor.manifest,
+      record: descriptor.record,
+    });
+    let delivery = created.delivery;
+    descriptor.turn.deliveryId = delivery.deliveryId;
+    delivery = await this.#ensureActiveTask(delivery, activeTask);
+    const steered = await this.steerTurn(delivery.deliveryId, {
+      instructionId: descriptor.instruction.instructionId,
+      text: descriptor.instruction.text,
+    });
+    return {
+      accepted: true,
+      suppressNativeAgent: true,
+      turnType: 'steer',
+      decision: { route: 'runtime', reason: 'active_runtime_task_turn' },
+      activeTask: await this.activeTaskStore.getByTaskId(activeTask.taskId),
+      delivery: steered.delivery,
+      taskId: activeTask.taskId,
+    };
+  }
+
+  async rebindTurn(request, { activeTaskId = null, taskId = null } = {}) {
+    if (!this.activeTaskStore) {
+      throw new Error('activeTaskStore is required for cross-turn task routing');
+    }
+    const activeTask = await this.#resolveActiveTask({
+      userId: request.userId,
+      tenantId: request.tenantId ?? null,
+      conversationId: request.conversationId,
+      activeTaskId,
+      taskId,
+    });
+    const descriptor = buildRebindTurn({
+      activeTask,
+      userId: request.userId,
+      tenantId: request.tenantId ?? null,
+      conversationId: request.conversationId,
+      userMessageId: request.userMessageId,
+      assistantMessageId: request.assistantMessageId,
+      streamId: request.streamId,
+      instructionId: request.instructionId,
+      instruction: request.instruction,
+      files: request.files,
+    });
+    const created = await this.store.createOrGet({
+      idempotencyKey: descriptor.idempotencyKey,
+      manifest: descriptor.manifest,
+      record: descriptor.record,
+    });
+    let delivery = created.delivery;
+    descriptor.turn.deliveryId = delivery.deliveryId;
+    delivery = await this.#ensureActiveTask(delivery, activeTask);
+    const steered = await this.steerTurn(delivery.deliveryId, descriptor.instruction);
+    return {
+      accepted: true,
+      suppressNativeAgent: true,
+      turnType: 'rebind',
+      decision: { route: 'runtime', reason: 'active_runtime_task_rebind' },
+      activeTask: await this.activeTaskStore.getByTaskId(activeTask.taskId),
+      delivery: steered.delivery,
+      taskId: activeTask.taskId,
+    };
   }
 
   async #submitDelivery(deliveryId) {
     const delivery = await this.store.get(deliveryId);
     try {
       const submitted = await this.runtimeClient.submit(delivery.submission);
-      return this.store.mutate(deliveryId, (draft) => {
+      const updated = await this.store.mutate(deliveryId, (draft) => {
         draft.taskId = submitted.task.taskId;
         draft.status = 'running';
         draft.retry.lastErrorCode = null;
       });
+      return this.#ensureActiveTask(updated, submitted.task);
     } catch (error) {
       await this.store.mutate(deliveryId, (draft) => {
         draft.retry.attempts += 1;
@@ -260,5 +418,128 @@ export class LibreChatFileAgentConnector {
       });
       throw error;
     }
+  }
+
+  async #resolveActiveTask({
+    userId,
+    tenantId,
+    conversationId,
+    activeTaskId,
+    taskId,
+  }) {
+    const scope = {
+      user: requiredString(userId, 'userId'),
+      tenantId,
+      conversationId: requiredString(conversationId, 'conversationId'),
+    };
+    if (activeTaskId) {
+      const candidate = await this.activeTaskStore.get(activeTaskId);
+      if (!candidate) {
+        throw new Error(`Active Runtime task not found: ${activeTaskId}`);
+      }
+      this.#assertActiveTaskScope(candidate, scope);
+      return candidate;
+    }
+    if (taskId) {
+      const candidate = await this.activeTaskStore.getByTaskId(taskId);
+      if (!candidate) {
+        throw new Error(`Active Runtime task not found: ${taskId}`);
+      }
+      this.#assertActiveTaskScope(candidate, scope);
+      return candidate;
+    }
+    const candidates = await this.activeTaskStore.listActive(scope);
+    if (candidates.length === 0) {
+      throw new Error(`No active Runtime task for conversation: ${scope.conversationId}`);
+    }
+    if (candidates.length > 1) {
+      throw new ActiveTaskSelectionRequiredError(candidates);
+    }
+    return candidates[0];
+  }
+
+  #assertActiveTaskScope(activeTask, scope) {
+    if (
+      activeTask.user !== scope.user ||
+      (activeTask.tenantId ?? null) !== (scope.tenantId ?? null) ||
+      activeTask.conversationId !== scope.conversationId
+    ) {
+      const error = new Error('Runtime task is owned by a different user, tenant, or conversation');
+      error.name = 'ActiveTaskConflictError';
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
+  async #ensureActiveTask(delivery, runtimeTask = null) {
+    if (!this.activeTaskStore || !delivery?.taskId) {
+      return delivery;
+    }
+    let activeTask = await this.activeTaskStore.getByTaskId(delivery.taskId);
+    const turn = {
+      deliveryId: delivery.deliveryId,
+      userMessageId: delivery.userMessageId,
+      assistantMessageId: delivery.assistantMessageId,
+      streamId: delivery.streamId,
+      turnType: delivery.turnType ?? 'submit',
+    };
+    if (!activeTask) {
+      const manifest = runtimeTask?.manifest ?? delivery.submission?.manifest ?? {};
+      const workspaceSeed = `${delivery.taskId}:${manifest.execution?.sessionId ?? 'session'}`;
+      const created = await this.activeTaskStore.create({
+        taskId: delivery.taskId,
+        user: delivery.user,
+        tenantId: delivery.tenantId ?? null,
+        conversationId: delivery.conversationId,
+        taskContractVersion: delivery.taskContractVersion,
+        capabilityProfile: delivery.capabilityProfile ?? manifest.model?.capabilityProfile ?? 'unknown',
+        billingSnapshotRef: delivery.billingSnapshotRef,
+        modelRouteId: delivery.modelRouteId,
+        workspaceRef: opaqueRef('workspace', workspaceSeed),
+        inputRefs: manifest.inputs ?? delivery.inputRefs ?? [],
+        allowedOutputMimeTypes: delivery.allowedOutputMimeTypes ?? [],
+        maxVisibleArtifacts: delivery.maxVisibleArtifacts ?? 1,
+        runtimePhase: runtimeTask?.phase ?? runtimeTask?.status ?? 'accepted',
+        turn,
+      });
+      activeTask = created.activeTask;
+    } else {
+      this.#assertActiveTaskScope(activeTask, {
+        user: delivery.user,
+        tenantId: delivery.tenantId ?? null,
+        conversationId: delivery.conversationId,
+      });
+      for (const field of [
+        'taskContractVersion',
+        'capabilityProfile',
+        'billingSnapshotRef',
+        'modelRouteId',
+      ]) {
+        if (delivery[field] && delivery[field] !== activeTask[field]) {
+          const error = new Error(`Runtime task ${field} does not match the bound task`);
+          error.name = 'ActiveTaskConflictError';
+          error.statusCode = 409;
+          throw error;
+        }
+      }
+      if (!activeTask.turnDeliveryIds.includes(delivery.deliveryId)) {
+        activeTask = await this.activeTaskStore.attachTurn({
+          taskId: delivery.taskId,
+          scope: {
+            user: delivery.user,
+            tenantId: delivery.tenantId ?? null,
+            conversationId: delivery.conversationId,
+          },
+          turn,
+        });
+      }
+    }
+    return this.store.mutate(delivery.deliveryId, (draft) => {
+      draft.activeTaskId = activeTask.activeTaskId;
+      draft.lastSequence = activeTask.latestSequence;
+      draft.usageReceipts = clone(activeTask.usageReceipts);
+      draft.artifactReceipts = clone(activeTask.artifactReceipts);
+      draft.runtimePhase = activeTask.runtimePhase;
+    });
   }
 }

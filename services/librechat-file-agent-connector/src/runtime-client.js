@@ -51,8 +51,13 @@ export class RuntimeClient {
       .then((value) => value.task);
   }
 
-  steer(taskId, instruction) {
-    return this.#request(`/v1/tasks/${taskId}/steer`, { method: 'POST', body: instruction })
+  steer(taskId, instruction, { idempotencyKey = null } = {}) {
+    const headers = idempotencyKey ? { 'idempotency-key': idempotencyKey } : {};
+    return this.#request(`/v1/tasks/${taskId}/steer`, {
+      method: 'POST',
+      headers,
+      body: instruction,
+    })
       .then((value) => value.task);
   }
 

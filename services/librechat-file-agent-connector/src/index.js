@@ -13,12 +13,21 @@ export {
 } from './task-router.js';
 export { SequenceGapError } from './event-consumer.js';
 export { ArtifactPolicyError } from './artifact-delivery.js';
+export { buildRebindTurn, buildSteerTurn } from './turn-delivery.js';
 export {
   ServiceScopeError,
   ServiceScopeSigner,
   createRuntimeAuthorizer,
 } from './service-scope.js';
 export { MongoDeliveryStore } from './mongo-delivery-store.js';
+export {
+  ActiveTaskConflictError,
+  ActiveTaskNotFoundError,
+  ActiveTaskSelectionRequiredError,
+  ActiveTaskSequenceGapError,
+  MemoryActiveTaskStore,
+  MongoActiveTaskStore,
+} from './active-task-store.js';
 export { MongoBillingSnapshotStore } from './mongo-billing-snapshot-store.js';
 export {
   NativeLibreChatPorts,

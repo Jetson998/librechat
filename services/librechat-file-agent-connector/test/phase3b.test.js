@@ -294,6 +294,28 @@ test('Mongo delivery mutation retries optimistic conflicts and preserves the con
   assert.equal(updated.version, 3);
 });
 
+test('Mongo delivery store preserves an already-bound task turn', async () => {
+  const collection = new FakeMongoCollection();
+  const store = new MongoDeliveryStore({ collection });
+  await store.init();
+  const created = await createMemoryDelivery(store, {
+    idempotencyKey: 'turn-idempotency-1',
+    record: deliveryRecord({
+      taskId: 'runtime-task-1',
+      status: 'running',
+      lastSequence: 18,
+      usageReceipts: { 'usage-1': 'completed' },
+      artifactReceipts: { 'artifact-1': { status: 'completed' } },
+    }),
+  });
+  const loaded = await store.get(created.delivery.deliveryId);
+  assert.equal(loaded.taskId, 'runtime-task-1');
+  assert.equal(loaded.status, 'running');
+  assert.equal(loaded.lastSequence, 18);
+  assert.equal(loaded.usageReceipts['usage-1'], 'completed');
+  assert.equal(loaded.artifactReceipts['artifact-1'].status, 'completed');
+});
+
 test('Mongo delivery lease excludes another owner and allows takeover after expiry', async () => {
   const collection = new FakeMongoCollection();
   const store = new MongoDeliveryStore({ collection });
@@ -842,6 +864,7 @@ test('Mongo transaction finder scopes stable IDs to the delivery owner', async (
 test('host integration composes stores and native dependencies without production access', async () => {
   const collections = {
     deliveries: new FakeMongoCollection(),
+    activeTasks: new FakeMongoCollection(),
     billingSnapshots: new FakeMongoCollection(),
     transactions: new FakeMongoCollection(),
   };
@@ -873,6 +896,8 @@ test('host integration composes stores and native dependencies without productio
   const initialized = await integration.init();
   assert.equal(initialized, integration);
   assert.ok(collections.deliveries.indexes.some((entry) => entry.options.unique));
+  assert.ok(collections.activeTasks.indexes.some((entry) => entry.options.unique));
   assert.ok(collections.billingSnapshots.indexes.some((entry) => entry.options.unique));
   assert.equal(integration.connector.featureEnabled, true);
+  assert.ok(integration.stores.activeTaskStore);
 });

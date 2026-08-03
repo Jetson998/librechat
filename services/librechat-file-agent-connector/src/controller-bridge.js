@@ -56,6 +56,9 @@ export class FileAgentControllerBridge {
         decision: request,
       };
     }
+    if (request?.route === 'continuation_candidate') {
+      return this.#tryContinuation(context, request);
+    }
     const preparedRoute = await this.connector.prepareRoute(request);
     if (preparedRoute.suppressNativeAgent !== true) {
       return {
@@ -65,23 +68,7 @@ export class FileAgentControllerBridge {
       };
     }
 
-    let persisted;
-    try {
-      persisted = await this.persistUserTurn({ ...context, request });
-      if (!persisted?.userMessage || !persisted?.conversation) {
-        throw new TypeError('persistUserTurn must return userMessage and conversation');
-      }
-      if (persisted.userMessage.messageId !== request.userMessageId) {
-        throw new TypeError('Persisted user message does not match the prepared message identity');
-      }
-      if (persisted.conversation.conversationId !== request.conversationId) {
-        throw new TypeError('Persisted conversation does not match the prepared conversation');
-      }
-    } catch (error) {
-      throw new FileAgentHandoffError('Failed to persist the Runtime user turn', {
-        cause: error,
-      });
-    }
+    const persisted = await this.#persistUserTurn(context, request);
 
     try {
       const billingSnapshot = await this.createBillingSnapshot({
@@ -125,6 +112,110 @@ export class FileAgentControllerBridge {
         cause: error,
         userTurnPersisted: true,
       });
+    }
+  }
+
+  async #persistUserTurn(context, request) {
+    try {
+      const persisted = await this.persistUserTurn({ ...context, request });
+      if (!persisted?.userMessage || !persisted?.conversation) {
+        throw new TypeError('persistUserTurn must return userMessage and conversation');
+      }
+      if (persisted.userMessage.messageId !== request.userMessageId) {
+        throw new TypeError('Persisted user message does not match the prepared message identity');
+      }
+      if (persisted.conversation.conversationId !== request.conversationId) {
+        throw new TypeError('Persisted conversation does not match the prepared conversation');
+      }
+      return persisted;
+    } catch (error) {
+      throw new FileAgentHandoffError('Failed to persist the Runtime user turn', {
+        cause: error,
+      });
+    }
+  }
+
+  async #tryContinuation(context, request) {
+    if (
+      typeof this.connector.listActiveTasks !== 'function' ||
+      typeof this.connector.submitTurn !== 'function'
+    ) {
+      return {
+        routed: false,
+        suppressNativeAgent: false,
+        decision: { route: 'native', reason: 'cross_turn_runtime_unavailable' },
+      };
+    }
+    const candidates = await this.connector.listActiveTasks({
+      userId: request.userId,
+      tenantId: request.tenantId ?? null,
+      conversationId: request.conversationId,
+    });
+    if (candidates.length === 0) {
+      return {
+        routed: false,
+        suppressNativeAgent: false,
+        decision: { route: 'native', reason: 'no_active_runtime_task' },
+      };
+    }
+    const selected = request.activeTaskId
+      ? candidates.find((candidate) => candidate.activeTaskId === request.activeTaskId)
+      : candidates.length === 1
+        ? candidates[0]
+        : null;
+    if (!selected) {
+      return {
+        routed: false,
+        suppressNativeAgent: true,
+        requiresTaskSelection: true,
+        decision: {
+          route: 'active_task_selection_required',
+          candidates: candidates.map((candidate) => ({
+            activeTaskId: candidate.activeTaskId,
+            taskId: candidate.taskId,
+            capabilityProfile: candidate.capabilityProfile,
+            status: candidate.status,
+            runtimePhase: candidate.runtimePhase,
+            updatedAt: candidate.updatedAt,
+          })),
+        },
+      };
+    }
+
+    const persisted = await this.#persistUserTurn(context, request);
+    try {
+      const submission = await this.connector.submitTurn(request, {
+        activeTaskId: selected.activeTaskId,
+      });
+      if (submission.suppressNativeAgent !== true || !submission.delivery?.deliveryId) {
+        throw new Error('Connector declined the active Runtime turn after user persistence');
+      }
+      let scheduleError = null;
+      try {
+        await this.scheduleReconcile({
+          ...context,
+          request,
+          persisted,
+          submission,
+        });
+      } catch (error) {
+        scheduleError = { name: error.name, message: error.message };
+      }
+      return {
+        routed: true,
+        suppressNativeAgent: true,
+        decision: { route: 'runtime', reason: 'active_runtime_task_turn' },
+        deliveryId: submission.delivery.deliveryId,
+        taskId: submission.taskId,
+        pending: submission.pending === true,
+        scheduleError,
+        persisted,
+      };
+    } catch (error) {
+      throw new FileAgentHandoffError(
+        'Runtime continuation handoff failed after user turn persistence',
+        { cause: error, userTurnPersisted: true },
+      );
     }
   }
 }

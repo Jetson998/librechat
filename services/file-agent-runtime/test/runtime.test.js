@@ -123,6 +123,57 @@ test('needs_input task resumes after an idempotent steer instruction', async (t)
   assert.ok(completed.planRevision >= 2);
 });
 
+test('controlled input rebind preserves task identity and only rotates CodeAPI refs', async (t) => {
+  const { runtime } = await createHarness(t);
+  const { task } = await runtime.submit({
+    idempotencyKey: 'input-rebind',
+    manifest: manifest({
+      testScenario: 'needs_input',
+      inputs: [{
+        logicalName: 'source.xlsx',
+        librechatFileRef: 'file_source',
+        sha256: 'a'.repeat(64),
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        codeEnvRef: {
+          kind: 'user',
+          id: 'user_ref',
+          storage_session_id: 'session-1',
+          file_id: 'file-1',
+        },
+      }],
+    }),
+  });
+  await runtime.waitFor(task.taskId, (current) => current.status === 'needs_input');
+
+  await runtime.steer(task.taskId, {
+    instructionId: 'rebind-1',
+    text: 'Continue after re-priming the input.',
+    inputRebind: {
+      schemaVersion: '1.0',
+      taskId: task.taskId,
+      inputs: [{
+        logicalName: 'source.xlsx',
+        librechatFileRef: 'file_source',
+        sha256: 'a'.repeat(64),
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        codeEnvRef: {
+          kind: 'user',
+          id: 'user_ref',
+          storage_session_id: 'session-2',
+          file_id: 'file-2',
+        },
+      }],
+    },
+  });
+
+  const completed = await runtime.waitFor(task.taskId, (current) => current.status === 'completed');
+  assert.equal(completed.taskId, task.taskId);
+  assert.equal(completed.manifest.inputs[0].codeEnvRef.storage_session_id, 'session-2');
+  assert.equal(completed.manifest.inputs[0].codeEnvRef.file_id, 'file-2');
+  assert.equal(completed.manifest.inputs[0].sha256, 'a'.repeat(64));
+  assert.equal(completed.events.filter((event) => event.type === 'task.input_rebound').length, 1);
+});
+
 test('cancel is terminal and stops the in-flight fake executor', async (t) => {
   const { runtime } = await createHarness(t, { executorDelayMs: 100 });
   const { task } = await runtime.submit({ idempotencyKey: 'cancel-task', manifest: manifest() });
