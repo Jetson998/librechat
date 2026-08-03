@@ -1,0 +1,110 @@
+{
+  "acceptance_result": {
+    "details": {
+      "required_operator_gate": "Run the isolated non-production validation documented in OPS_HANDOFF.md before any production-integration work is proposed."
+    },
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "reason": "This source-only candidate does not modify a runtime, data store, configuration, image, or production host.",
+    "status": "not_applicable"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Pre-M3 File Agent Runtime source baseline. The candidate is an overlay for this exact clean source revision, not a production deployment baseline.",
+      "revision": "db4e10717d88d27eaf6b11b3903e445588c483e3"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "An immutable M3 File Agent source candidate is available for Operations to validate in an isolated non-production environment. It contains the reviewed DOCX Word worker and LibreChat connector source, manifests, tests, and release provenance; it does not claim a deployable production image or an active production integration.",
+    "functions": [
+      "Provide the versioned word-edit-v1 DOCX task contract, deterministic inspect/transform/verify/publish worker, and independent acceptance assertions.",
+      "Provide the non-production LibreChat controller handoff, attachment content identity checks, idempotent delivery, usage receipt, and recovery contracts.",
+      "Fail closed on unsupported or partially consumed Word instructions and on multiple document-delivery intents.",
+      "Package the complete File Agent Runtime and Connector source subtrees with their focused tests and M3 design document."
+    ],
+    "limitations": [
+      "M3 has no production LibreChat startup wiring, feature flag, Runtime secret source, production CodeAPI protocol mapping, production container, or deployment runner.",
+      "Only the controlled DOCX Word capability is in scope; PPT, PDF, and additional Office workers are not included.",
+      "The candidate must be validated with isolated MongoDB, Runtime, CodeAPI, and recorded model relay fixtures before a separate production-integration batch is designed.",
+      "No OCI image, production preflight, production write, or user-facing production acceptance is part of this candidate."
+    ],
+    "reason": "Hand Operations a small, reproducible M3 source candidate for isolated validation without transferring the complete LibreChat repository or risking a premature production deployment.",
+    "risk": "Source-only candidate: unpacking the archive on the wrong source baseline could create an inconsistent test environment. The manifest, SHA-256, exact source and baseline revisions, and fail-closed operator instructions mitigate that risk. No production service or data is changed.",
+    "scope": [
+      "services/file-agent-runtime",
+      "services/librechat-file-agent-connector"
+    ]
+  },
+  "created_at": "2026-08-03T17:08:39Z",
+  "mode": "release",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "",
+    "package_required_paths": [
+      "docs/FILE_AGENT_RUNTIME_WORD_M3_DESIGN.md"
+    ],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260804-file-agent-runtime-m3-source-candidate",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "method": "Discard the isolated candidate workspace or restore the clean source checkout to db4e10717d88d27eaf6b11b3903e445588c483e3. No service, image, database, uploaded file, conversation, or production configuration is changed by this source-candidate release.",
+      "target_revision": "db4e10717d88d27eaf6b11b3903e445588c483e3"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "reason": "No target runtime is read or changed during source-candidate preparation.",
+    "status": "not_applicable"
+  },
+  "schema_version": 1,
+  "source_revision": "a2624f8b18597e292fb83e8b2cfb71de1e1e7d9e",
+  "status": "planned",
+  "unresolved_issues": [
+    "operations_isolated_validation_pending",
+    "production_wiring_feature_flags_secrets_and_deployment_runner_not_implemented",
+    "no_oci_image_is_claimed_for_m3"
+  ],
+  "updated_at": "2026-08-03T17:08:39Z",
+  "validation_plan": [
+    {
+      "command": "cd services/file-agent-runtime && npm run check && npm test",
+      "expected": "Runtime source syntax and focused test suite pass without production or remote model access.",
+      "type": "local"
+    },
+    {
+      "command": "cd services/librechat-file-agent-connector && npm run check && npm test",
+      "expected": "Connector source syntax and focused test suite pass, including the DOCX handoff harness and fail-closed acceptance resolver cases.",
+      "type": "local"
+    },
+    {
+      "command": "FILE_AGENT_PHASE3D_SCOPE=non-production FILE_AGENT_PHASE3D_CONFIRM=ONE_ISOLATED_NON_PRODUCTION_TASK FILE_AGENT_PHASE3D_MONGO_MODE=memory-server FILE_AGENT_PHASE3D_NODE_MODULES=<isolated-node-modules> npm run phase3d:accept",
+      "expected": "Operations isolated validation proves one DOCX Runtime handoff, one verified generated file, durable delivery/usage receipts, and replay without duplicate delivery. No production MongoDB, CodeAPI, model relay, customer file, or credential is used.",
+      "type": "isolated-operations"
+    },
+    {
+      "command": "sha256sum -c SHA256SUMS && inspect manifest.json before extraction",
+      "expected": "The artifact SHA-256, source revision, baseline revision, and packaged path inventory match this release record before any isolated staging action.",
+      "type": "operator"
+    }
+  ]
+}
