@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { copyFile, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { DOCX_MIME } from '../src/deterministic-word.js';
 import { XLSX_MIME } from '../src/deterministic-xlsx.js';
 
 const BODY_LIMIT = 1024 * 1024;
@@ -141,6 +142,7 @@ export class IsolatedCodeApiServer {
     this.artifactFiles = new Map();
     this.actualExecutions = new Map();
     this.requests = [];
+    this.responses = new Map();
     this.uploads = [];
     this.server = createServer((request, response) => this.#handle(request, response));
   }
@@ -214,6 +216,7 @@ export class IsolatedCodeApiServer {
       const resultPath = path.join(this.resultsDir, `${sha256(itemId)}.json`);
       const cached = await readJson(resultPath);
       if (cached) {
+        this.responses.set(itemId, structuredClone({ ...cached, replayed: true }));
         respond(response, 200, { ...cached, replayed: true });
         return;
       }
@@ -236,6 +239,7 @@ export class IsolatedCodeApiServer {
         replayed: false,
       };
       await atomicWriteJson(resultPath, result);
+      this.responses.set(itemId, structuredClone(result));
       respond(response, 200, result);
     } catch (error) {
       respond(response, 500, { error: error?.message ?? String(error) });
@@ -326,7 +330,11 @@ export class IsolatedCodeApiServer {
       }
       artifacts.push({
         name: path.posix.basename(virtualPath),
-        mimeType: virtualPath.toLowerCase().endsWith('.xlsx') ? XLSX_MIME : 'application/octet-stream',
+      mimeType: virtualPath.toLowerCase().endsWith('.xlsx')
+        ? XLSX_MIME
+        : virtualPath.toLowerCase().endsWith('.docx')
+          ? DOCX_MIME
+          : 'application/octet-stream',
         size: info.size,
         codeEnvRef: {
           storage_session_id: sessionId,

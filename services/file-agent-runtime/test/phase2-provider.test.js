@@ -8,6 +8,7 @@ import test from 'node:test';
 import { ContextProjector } from '../src/context-projector.js';
 import { CodeApiHttpTransport } from '../src/codeapi-transport.js';
 import { CodeApiXlsxExecutor, XLSX_MIME } from '../src/deterministic-xlsx.js';
+import { DOCX_MIME, WORD_VERIFIER_PROFILE } from '../src/deterministic-word.js';
 import { ExecutorAdapter } from '../src/executor-adapter.js';
 import { FakeExecutor } from '../src/fake-adapters.js';
 import { FileModelCallJournal } from '../src/model-call-journal.js';
@@ -52,6 +53,35 @@ function modelManifest(overrides = {}) {
       modelRouteId: 'file-agent-primary',
       capabilityProfile: 'office-planner-v1',
     },
+    ...overrides,
+  };
+}
+
+function wordModelManifest(overrides = {}) {
+  return {
+    schemaVersion: '1.0',
+    taskContractVersion: 'office-file-agent.v1.1',
+    taskType: 'office_transform',
+    intent: 'Modify one authorized Word document',
+    acceptance: ['Return one verified DOCX artifact'],
+    model: {
+      modelRouteId: 'file-agent-word',
+      capabilityProfile: 'word-edit-v1',
+    },
+    execution: {
+      executor: 'codeapi',
+      sessionId: 'word-provider-session',
+    },
+    inputs: [{
+      logicalName: 'source.docx',
+      mimeType: DOCX_MIME,
+      sha256: 'a'.repeat(64),
+      codeEnvRef: {
+        storage_session_id: 'word-provider-session',
+        file_id: 'word-provider-file',
+      },
+    }],
+    limits: { maxVisibleArtifacts: 1 },
     ...overrides,
   };
 }
@@ -560,6 +590,102 @@ test('Strict JSON Schema forbids extra fields and cached_creation_tokens maps to
   );
   assert.equal(result.usage.cacheReadTokens, 120);
   assert.equal(result.usage.cacheWriteTokens, 45);
+});
+
+test('Word provider emits the bounded worker schema and validates a v1.1 plan', async (t) => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-word-provider-'));
+  t.after(() => rm(rootDir, { recursive: true, force: true }));
+  let requestBody;
+  const transport = new OpenAiChatTransport({
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return new Response(JSON.stringify({
+        model: 'word-provider-model',
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              schemaVersion: '1.0',
+              summary: 'Inspect and append one paragraph',
+              needsInput: false,
+              question: null,
+              actions: [
+                {
+                  schemaVersion: '1.0',
+                  objective: 'Inspect the authorized Word document',
+                  worker: 'word.inspect.v1',
+                  inputRefs: ['input:source-docx'],
+                  targetRef: 'candidate:working-docx',
+                  parameters: { operation: 'inspect' },
+                  expectedChange: ['document.structure'],
+                  verificationProfile: WORD_VERIFIER_PROFILE,
+                  onFailure: 'replan',
+                  summary: 'Inspect the Word document',
+                },
+                {
+                  schemaVersion: '1.0',
+                  objective: 'Append a bounded paragraph',
+                  worker: 'word.transform.v1',
+                  inputRefs: ['input:source-docx'],
+                  targetRef: 'candidate:working-docx',
+                  parameters: { operation: 'append_paragraph', text: 'Provider output' },
+                  expectedChange: ['document.paragraph'],
+                  verificationProfile: WORD_VERIFIER_PROFILE,
+                  onFailure: 'replan',
+                  summary: 'Append the paragraph',
+                },
+              ],
+            }),
+          },
+        }],
+        usage: {
+          prompt_tokens: 320,
+          completion_tokens: 80,
+          prompt_tokens_details: { cached_tokens: 40 },
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    },
+  });
+  const provider = new SingleModelAgentProvider({
+    routes: {
+      'file-agent-word': {
+        baseUrl: 'https://word-provider.example.invalid',
+        model: 'word-provider-model',
+        capabilityProfile: 'word-edit-v1',
+        supportsIdempotency: true,
+        outputBudgetTokens: 256,
+        structuredOutputMode: 'json_schema',
+      },
+    },
+    transport,
+    journal: new FileModelCallJournal(path.join(rootDir, 'provider-journal')),
+    projector: new ContextProjector(),
+  });
+
+  const result = await provider.plan({
+    callId: 'word-provider-plan',
+    task: {
+      taskId: 'word-provider-task',
+      manifest: wordModelManifest(),
+      phase: 'planning',
+      planRevision: 0,
+      instructionRevision: 0,
+      events: [],
+      itemResults: {},
+      progress: {},
+    },
+  });
+
+  assert.equal(result.value.actions.length, 2);
+  assert.equal(result.value.actions[1].parameters.operation, 'append_paragraph');
+  assert.equal(requestBody.response_format.type, 'json_schema');
+  assert.equal(requestBody.response_format.json_schema.schema.properties.actions.maxItems, 4);
+  assert.ok(
+    requestBody.response_format.json_schema.schema.properties.actions.items.properties.worker.enum.includes('word.patch.v1'),
+  );
+  assert.equal(
+    requestBody.response_format.json_schema.schema.properties.actions.items.properties.targetRef.const,
+    'candidate:working-docx',
+  );
 });
 
 test('Invalid plan receipt persistence failure becomes ambiguous', async () => {

@@ -1,4 +1,6 @@
-import { actionSignature } from './action-envelope.js';
+import { createHash } from 'node:crypto';
+
+import { canonicalActionForSignature } from './action-envelope.js';
 import { normalizeVerificationResult } from './verification-result.js';
 
 function sortedUnique(values) {
@@ -73,5 +75,17 @@ export function evaluateProgress(previous, current) {
 }
 
 export function repairActionSignature(plan) {
-  return actionSignature(plan);
+  const actions = Array.isArray(plan) ? plan : plan?.actions;
+  if (!Array.isArray(actions)) {
+    throw new TypeError('Plan actions must be an array');
+  }
+  const canonical = actions.map((action) => {
+    const normalized = canonicalActionForSignature(action);
+    if (normalized.worker === 'word.patch.v1' && normalized.parameters) {
+      const { expectedBaseSha256: _expectedBaseSha256, ...parameters } = normalized.parameters;
+      return { ...normalized, parameters };
+    }
+    return normalized;
+  });
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }

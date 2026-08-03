@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { canTransition, isTerminal, SUPPORTED_TASK_CONTRACT_VERSIONS } from './constants.js';
-import { actionSignature } from './action-envelope.js';
+import {
+  canTransition,
+  DOCX_MIME,
+  isTerminal,
+  SUPPORTED_TASK_CONTRACT_VERSIONS,
+  TASK_CONTRACT_VERSION_V1_1,
+  WORD_CAPABILITY_PROFILE,
+} from './constants.js';
 import { assertExecutorAdapter, isAbortError } from './executor-adapter.js';
-import { buildProgressVector, evaluateProgress } from './progress-evaluator.js';
+import { buildProgressVector, evaluateProgress, repairActionSignature } from './progress-evaluator.js';
 import { assertProviderAdapter } from './provider-adapter.js';
 import { normalizeVerificationResult, verificationFingerprint } from './verification-result.js';
 
@@ -37,6 +43,27 @@ export function validateTaskManifest(manifest) {
   }
   if (!SUPPORTED_TASK_CONTRACT_VERSIONS.has(manifest.taskContractVersion)) {
     throw new TypeError(`Unsupported task contract version: ${manifest.taskContractVersion}`);
+  }
+  const capabilityProfile = manifest.model?.capabilityProfile;
+  const hasDocxInput = Array.isArray(manifest.inputs)
+    && manifest.inputs.some((input) => input?.mimeType === DOCX_MIME);
+  if (hasDocxInput && manifest.taskContractVersion !== TASK_CONTRACT_VERSION_V1_1) {
+    throw new TypeError('DOCX inputs require office-file-agent.v1.1 and the Word capability profile');
+  }
+  if (manifest.taskContractVersion === TASK_CONTRACT_VERSION_V1_1) {
+    if (capabilityProfile !== WORD_CAPABILITY_PROFILE) {
+      throw new TypeError('office-file-agent.v1.1 requires the Word capability profile');
+    }
+    if (
+      !Array.isArray(manifest.inputs) ||
+      manifest.inputs.length !== 1 ||
+      manifest.inputs[0]?.mimeType !== DOCX_MIME
+    ) {
+      throw new TypeError('Word task contract requires exactly one DOCX input');
+    }
+  }
+  if (capabilityProfile === WORD_CAPABILITY_PROFILE && manifest.taskContractVersion !== 'office-file-agent.v1.1') {
+    throw new TypeError('The Word capability profile requires office-file-agent.v1.1');
   }
 }
 
@@ -582,7 +609,7 @@ export class FileAgentRuntime {
       current.plan = plan;
       current.executionCursor = 0;
       current.appliedInstructionRevision = current.instructionRevision;
-      const nextActionSignature = actionSignature(plan);
+      const nextActionSignature = repairActionSignature(plan);
       emit({
         type: 'plan.updated',
         data: { planRevision: nextPlanRevision, actionCount: plan.actions?.length ?? 0, repair: true },

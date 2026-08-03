@@ -20,6 +20,7 @@ import {
   SequenceGapError,
   buildTaskSubmission,
 } from '../src/index.js';
+import { DOCX_MIME } from '../src/constants.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -221,7 +222,7 @@ test('Phase 3A routes only eligible allowlisted file work and ordinary chat neve
   const harness = await createHarness(t);
   const capabilities = await harness.runtimeClient.discoverCapabilities();
   assert.ok(capabilities.taskContractVersions.includes('office-file-agent.v1'));
-  assert.deepEqual(capabilities.inputMimeTypes, [XLSX_MIME]);
+  assert.deepEqual(capabilities.inputMimeTypes, [XLSX_MIME, DOCX_MIME]);
 
   let runtimeCalls = 0;
   const offlineConnector = new LibreChatFileAgentConnector({

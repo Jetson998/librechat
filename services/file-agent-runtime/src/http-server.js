@@ -10,14 +10,16 @@ const BODY_LIMIT_BYTES = 1024 * 1024;
 
 export const DEFAULT_RUNTIME_CAPABILITIES = Object.freeze({
   schemaVersion: '1.0',
-  taskContractVersions: ['office-file-agent.v1'],
+  taskContractVersions: ['office-file-agent.v1', 'office-file-agent.v1.1'],
   taskTypes: ['office_transform'],
-  capabilityProfiles: ['office-planner-v1'],
+  capabilityProfiles: ['office-planner-v1', 'word-edit-v1'],
   inputMimeTypes: [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ],
   outputMimeTypes: [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ],
   maxInputFiles: 1,
   maxVisibleArtifacts: 3,

@@ -7,8 +7,13 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { FakeExecutor, FakeProvider } from '../src/fake-adapters.js';
 import { handleRuntimeFetch } from '../src/http-server.js';
-import { FileAgentRuntime } from '../src/runtime.js';
+import { FileAgentRuntime, validateTaskManifest } from '../src/runtime.js';
 import { FileTaskStore } from '../src/task-store.js';
+import {
+  DOCX_MIME,
+  TASK_CONTRACT_VERSION_V1_1,
+  WORD_CAPABILITY_PROFILE,
+} from '../src/constants.js';
 
 function manifest(overrides = {}) {
   return {
@@ -19,6 +24,18 @@ function manifest(overrides = {}) {
     ...overrides,
   };
 }
+
+test('Runtime requires the versioned Word contract for DOCX inputs', () => {
+  assert.throws(
+    () => validateTaskManifest(manifest({ inputs: [{ mimeType: DOCX_MIME }] })),
+    /DOCX inputs require office-file-agent.v1.1/,
+  );
+  assert.doesNotThrow(() => validateTaskManifest(manifest({
+    taskContractVersion: TASK_CONTRACT_VERSION_V1_1,
+    model: { capabilityProfile: WORD_CAPABILITY_PROFILE },
+    inputs: [{ mimeType: DOCX_MIME }],
+  })));
+});
 
 async function createHarness(
   t,

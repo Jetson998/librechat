@@ -7,6 +7,7 @@ export const SUPPORTED_TASK_CONTRACT_VERSIONS = new Set([
   TASK_CONTRACT_VERSION_V1_1,
 ]);
 export const WORD_CAPABILITY_PROFILE = 'word-edit-v1';
+export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 export const STATUS_TRANSITIONS = Object.freeze({
   accepted: new Set(['preparing', 'canceled', 'failed']),

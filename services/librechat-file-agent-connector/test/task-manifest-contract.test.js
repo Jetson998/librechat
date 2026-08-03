@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { DEFAULT_RUNTIME_CAPABILITIES } from '../../file-agent-runtime/src/http-server.js';
 import {
+  DOCX_MIME,
   TASK_CONTRACT_VERSION,
   TASK_CONTRACT_VERSION_V1_1,
   WORD_CAPABILITY_PROFILE,
 } from '../src/constants.js';
 import { buildTaskSubmission } from '../src/task-manifest-builder.js';
+import { decideFileAgentCapabilityRoute } from '../src/task-router.js';
 
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 function request(overrides = {}) {
   return {
@@ -46,7 +49,12 @@ test('Word task manifest uses v1.1 only with the Word capability profile', () =>
   assert.equal(built.manifest.model.capabilityProfile, WORD_CAPABILITY_PROFILE);
   assert.notEqual(
     built.idempotencyKey,
-    buildTaskSubmission({ ...request(), taskContractVersion: TASK_CONTRACT_VERSION }).idempotencyKey,
+    buildTaskSubmission({
+      ...request({
+        files: [{ ...request().files[0], name: 'source.xlsx', mimeType: XLSX_MIME }],
+      }),
+      taskContractVersion: TASK_CONTRACT_VERSION,
+    }).idempotencyKey,
   );
 });
 
@@ -64,5 +72,60 @@ test('Task manifest builder rejects contract/profile mismatches', () => {
       capabilityProfile: WORD_CAPABILITY_PROFILE,
     }),
     /incompatible/,
+  );
+  assert.throws(
+    () => buildTaskSubmission({
+      ...request({ files: [{ ...request().files[0], name: 'source.xlsx' }] }),
+      taskContractVersion: TASK_CONTRACT_VERSION_V1_1,
+      capabilityProfile: WORD_CAPABILITY_PROFILE,
+    }),
+    /exactly one DOCX file/,
+  );
+  assert.throws(
+    () => buildTaskSubmission(request()),
+    /DOCX inputs require office-file-agent.v1.1/,
+  );
+});
+
+test('Word capability routing requires the v1.1 contract and DOCX output support', () => {
+  const files = [{ mimeType: DOCX_MIME }];
+  assert.deepEqual(
+    decideFileAgentCapabilityRoute({
+      files,
+      capabilities: DEFAULT_RUNTIME_CAPABILITIES,
+    }),
+    { route: 'native', reason: 'word_capability_profile_required' },
+  );
+  assert.deepEqual(
+    decideFileAgentCapabilityRoute({
+      files,
+      capabilityProfile: WORD_CAPABILITY_PROFILE,
+      capabilities: DEFAULT_RUNTIME_CAPABILITIES,
+    }),
+    { route: 'runtime', reason: 'eligible_complex_file_task' },
+  );
+  assert.deepEqual(
+    decideFileAgentCapabilityRoute({
+      files,
+      capabilityProfile: WORD_CAPABILITY_PROFILE,
+      capabilities: { ...DEFAULT_RUNTIME_CAPABILITIES, taskContractVersions: [TASK_CONTRACT_VERSION] },
+    }),
+    { route: 'native', reason: 'runtime_contract_unsupported' },
+  );
+  assert.deepEqual(
+    decideFileAgentCapabilityRoute({
+      files,
+      capabilityProfile: WORD_CAPABILITY_PROFILE,
+      capabilities: { ...DEFAULT_RUNTIME_CAPABILITIES, outputMimeTypes: [] },
+    }),
+    { route: 'native', reason: 'runtime_output_type_unsupported' },
+  );
+  assert.deepEqual(
+    decideFileAgentCapabilityRoute({
+      files: [{ mimeType: XLSX_MIME }],
+      capabilityProfile: WORD_CAPABILITY_PROFILE,
+      capabilities: DEFAULT_RUNTIME_CAPABILITIES,
+    }),
+    { route: 'native', reason: 'word_input_contract_unsupported' },
   );
 });

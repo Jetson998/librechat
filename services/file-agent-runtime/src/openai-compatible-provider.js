@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { normalizeWordAction, WORD_WORKER_IDS, WORD_VERIFIER_PROFILE } from './deterministic-word.js';
 import {
   ProviderAmbiguousCommitError,
   ProviderCanceledError,
@@ -9,8 +10,15 @@ import {
   ProviderTransportError,
 } from './provider-adapter.js';
 
-const PROFILE_ACTIONS = Object.freeze({
-  'office-planner-v1': new Set(['xlsx_transform', 'xlsx_patch_and_transform']),
+const PROFILE_CONFIG = Object.freeze({
+  'office-planner-v1': Object.freeze({
+    legacyActions: new Set(['xlsx_transform', 'xlsx_patch_and_transform']),
+    maxActions: 2,
+  }),
+  'word-edit-v1': Object.freeze({
+    workers: new Set(WORD_WORKER_IDS),
+    maxActions: 4,
+  }),
 });
 const MAX_ACTIONS = 2;
 const MAX_SUMMARY_CHARS = 500;
@@ -59,6 +67,103 @@ function responseFormatFor(route, operation) {
   }
   if (mode !== 'json_schema') {
     throw new ProviderRouteError(`Unsupported structured output mode: ${mode}`);
+  }
+  if (route.capabilityProfile === 'word-edit-v1') {
+    return {
+      type: 'json_schema',
+      json_schema: {
+        name: `word_${operation}_plan`,
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            schemaVersion: { type: 'string', const: '1.0' },
+            summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+            needsInput: { type: 'boolean' },
+            question: {
+              anyOf: [
+                { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+                { type: 'null' },
+              ],
+            },
+            actions: {
+              type: 'array',
+              minItems: 0,
+              maxItems: 4,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  schemaVersion: { type: 'string', const: '1.0' },
+                  objective: { type: 'string', minLength: 1, maxLength: 1_000 },
+                  worker: { type: 'string', enum: WORD_WORKER_IDS },
+                  inputRefs: {
+                    type: 'array',
+                    minItems: 1,
+                    maxItems: 20,
+                    items: { type: 'string' },
+                  },
+                  targetRef: { type: 'string', const: 'candidate:working-docx' },
+                  parameters: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      operation: {
+                        type: 'string',
+                        enum: ['inspect', 'validate', 'replace_text', 'append_paragraph', 'replace_table_cell'],
+                      },
+                      find: { anyOf: [{ type: 'string', maxLength: 4_000 }, { type: 'null' }] },
+                      replace: { anyOf: [{ type: 'string', maxLength: 4_000 }, { type: 'null' }] },
+                      text: { anyOf: [{ type: 'string', maxLength: 4_000 }, { type: 'null' }] },
+                      occurrence: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }] },
+                      tableIndex: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'null' }] },
+                      rowIndex: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'null' }] },
+                      columnIndex: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'null' }] },
+                      style: { anyOf: [{ type: 'string', maxLength: 64 }, { type: 'null' }] },
+                      expectedBaseSha256: { anyOf: [{ type: 'string', pattern: '^[a-fA-F0-9]{64}$' }, { type: 'null' }] },
+                    },
+                    required: [
+                      'operation',
+                      'find',
+                      'replace',
+                      'text',
+                      'occurrence',
+                      'tableIndex',
+                      'rowIndex',
+                      'columnIndex',
+                      'style',
+                      'expectedBaseSha256',
+                    ],
+                  },
+                  expectedChange: {
+                    type: 'array',
+                    maxItems: 20,
+                    items: { type: 'string', minLength: 1, maxLength: 240 },
+                  },
+                  verificationProfile: { type: 'string', const: WORD_VERIFIER_PROFILE },
+                  onFailure: { type: 'string', enum: ['replan', 'needs_input', 'fail'] },
+                  summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+                },
+                required: [
+                  'schemaVersion',
+                  'objective',
+                  'worker',
+                  'inputRefs',
+                  'targetRef',
+                  'parameters',
+                  'expectedChange',
+                  'verificationProfile',
+                  'onFailure',
+                  'summary',
+                ],
+              },
+            },
+          },
+          required: ['schemaVersion', 'summary', 'needsInput', 'question', 'actions'],
+        },
+      },
+    };
   }
   const actionKind = operation === 'repair' ? 'xlsx_patch_and_transform' : 'xlsx_transform';
   return {
@@ -135,6 +240,22 @@ function validateAction(action, allowedActions, operation) {
   return { kind: action.kind, summary: action.summary.trim() };
 }
 
+function validateWordPlanAction(action, operation) {
+  let normalized;
+  try {
+    normalized = normalizeWordAction(action);
+  } catch (error) {
+    throw new ProviderProtocolError(error.message, { cause: error });
+  }
+  if (operation === 'plan' && !['word.inspect.v1', 'word.transform.v1', 'word.validate.v1'].includes(normalized.worker)) {
+    throw new ProviderProtocolError('Initial Word plan cannot use word.patch.v1');
+  }
+  if (operation === 'repair' && normalized.worker === 'word.inspect.v1') {
+    throw new ProviderProtocolError('Word repair plan cannot use word.inspect.v1');
+  }
+  return normalized;
+}
+
 function validatePlan(value, { capabilityProfile, operation }) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new ProviderProtocolError('Provider plan must be a JSON object');
@@ -168,15 +289,23 @@ function validatePlan(value, { capabilityProfile, operation }) {
       actions: [],
     };
   }
-  if (!Array.isArray(value.actions) || value.actions.length === 0 || value.actions.length > MAX_ACTIONS) {
-    throw new ProviderProtocolError(`Provider plan actions must contain 1-${MAX_ACTIONS} entries`);
+  if (!Array.isArray(value.actions) || value.actions.length === 0) {
+    throw new ProviderProtocolError('Provider plan actions must contain at least one entry');
   }
-  const allowedActions = PROFILE_ACTIONS[capabilityProfile];
-  if (!allowedActions) {
+  const profile = PROFILE_CONFIG[capabilityProfile];
+  if (!profile) {
     throw new ProviderRouteError(`Unsupported capability profile: ${capabilityProfile}`);
   }
-  const actions = value.actions.map((action) => validateAction(action, allowedActions, operation));
-  if (new Set(actions.map((action) => action.kind)).size !== actions.length) {
+  if (value.actions.length > profile.maxActions) {
+    throw new ProviderProtocolError(`Provider plan actions must contain 1-${profile.maxActions} entries`);
+  }
+  const actions = capabilityProfile === 'word-edit-v1'
+    ? value.actions.map((action) => validateWordPlanAction(action, operation))
+    : value.actions.map((action) => validateAction(action, profile.legacyActions, operation));
+  const signatures = actions.map((entry) => capabilityProfile === 'word-edit-v1'
+    ? JSON.stringify({ worker: entry.worker, parameters: entry.parameters, targetRef: entry.targetRef })
+    : entry.kind);
+  if (new Set(signatures).size !== actions.length) {
     throw new ProviderProtocolError('Provider plan contains duplicate actions');
   }
   return {
@@ -317,7 +446,7 @@ export class SingleModelAgentProvider {
     if (route.capabilityProfile !== capabilityProfile) {
       throw new ProviderRouteError('Task capability profile does not match the configured route');
     }
-    if (!PROFILE_ACTIONS[capabilityProfile]) {
+    if (!PROFILE_CONFIG[capabilityProfile]) {
       throw new ProviderRouteError(`Unsupported capability profile: ${capabilityProfile}`);
     }
     if (

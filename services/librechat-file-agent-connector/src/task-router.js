@@ -1,7 +1,10 @@
 import {
   DEFAULT_CAPABILITY_PROFILE,
+  DOCX_MIME,
   TASK_CONTRACT_VERSION,
+  TASK_CONTRACT_VERSION_V1_1,
   TASK_TYPE,
+  WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 
 const COMPLEX_FILE_INTENT = /(?:修改|生成|转换|汇总|导出|交付|制作|整理|重排|合并|拆分|modify|generate|convert|transform|summari[sz]e|export|deliver|create)/i;
@@ -84,9 +87,22 @@ export function decideFileAgentCapabilityRoute({
   capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
   capabilities,
 }) {
+  const hasDocxInput = files.some((file) => file?.mimeType === DOCX_MIME);
+  if (hasDocxInput && capabilityProfile !== WORD_CAPABILITY_PROFILE) {
+    return native('word_capability_profile_required');
+  }
+  if (
+    capabilityProfile === WORD_CAPABILITY_PROFILE &&
+    (files.length !== 1 || files[0]?.mimeType !== DOCX_MIME)
+  ) {
+    return native('word_input_contract_unsupported');
+  }
+  const requiredContractVersion = capabilityProfile === WORD_CAPABILITY_PROFILE
+    ? TASK_CONTRACT_VERSION_V1_1
+    : TASK_CONTRACT_VERSION;
   if (
     !capabilities ||
-    !capabilities.taskContractVersions?.includes(TASK_CONTRACT_VERSION) ||
+    !capabilities.taskContractVersions?.includes(requiredContractVersion) ||
     !capabilities.taskTypes?.includes(TASK_TYPE) ||
     !capabilities.capabilityProfiles?.includes(capabilityProfile) ||
     !Array.isArray(capabilities.inputMimeTypes) ||
@@ -96,6 +112,9 @@ export function decideFileAgentCapabilityRoute({
   }
   if (files.some((file) => !capabilities.inputMimeTypes?.includes(file.mimeType))) {
     return native('runtime_file_type_unsupported');
+  }
+  if (files.some((file) => !capabilities.outputMimeTypes?.includes(file.mimeType))) {
+    return native('runtime_output_type_unsupported');
   }
   if (
     Number.isSafeInteger(capabilities.maxInputFiles) &&

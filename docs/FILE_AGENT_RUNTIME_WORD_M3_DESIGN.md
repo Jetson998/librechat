@@ -1,0 +1,81 @@
+# File Agent Runtime Word M3 设计记录
+
+Date: 2026-08-03
+Status: development-only implementation record
+
+本记录只授权仓库内 Word Worker/Verifier 的实现与非生产测试，不授权打包、预检、部署、
+生产流量或客户文件验收。
+
+## 1. 能力边界
+
+M3 只支持一个 `.docx` 输入和一个 `.docx` 输出，使用 `word-edit-v1` capability profile
+和 `office-file-agent.v1.1` task contract。XLSX 继续使用现有
+`office-planner-v1`/`office-file-agent.v1` 路径，两个能力不共享 Worker 脚本或输出目录。
+
+不支持 `.doc`、`.docm`、宏、嵌入可执行对象、未经专项 Verifier 的批注/修订痕迹保证、
+像素级 Word 桌面端一致性和多版本候选交付。
+
+## 2. Workspace 契约
+
+每个 task 固定使用以下路径：
+
+```text
+/mnt/data/.agent/<taskId>/
+  input/source.docx              # 初始化后只读
+  scripts/word_worker.py         # 固定 Worker revision
+  scripts/word_verifier.py       # 固定 Verifier revision
+  internal/worker-history.json   # 参数摘要、before/after hash
+  internal/verification/*.json   # 详细断言证据
+  internal/render/*.pdf          # 渲染缓存，不发布
+  output/working.docx            # 唯一候选/最终 artifact
+```
+
+Worker 只在 `input/` 的复制品或当前 `output/working.docx` 上工作，禁止就地修改原始
+输入。`word.patch.v1` 必须携带当前候选的 SHA-256，hash 不匹配时以稳定冲突错误结束。
+
+## 3. Action 契约
+
+允许的 Worker ID：
+
+```text
+word.inspect.v1
+word.transform.v1
+word.patch.v1
+word.validate.v1
+```
+
+普通 Action signature 保留规范化参数；repair semantic signature 对
+`word.patch.v1.parameters.expectedBaseSha256` 视为当前候选的并发保护令牌而忽略，避免同一
+个修复策略因候选 hash 变化被错误识别为新策略。实际 patch 仍必须携带并校验该 hash。
+
+参数只允许结构化操作：`replace_text`、`append_paragraph`、`replace_table_cell`，以及
+有限的索引和文本字段；不接受 shell、脚本、路径、URL、凭据或任意 XML。Action 的
+`summary` 只用于展示，不能参与幂等签名或进展判断。
+
+## 4. Deterministic Verifier 契约
+
+`word-structure-v1@1.0.0` 固定执行以下断言：
+
+```text
+ooxml.zip.valid
+ooxml.content_types.valid
+xml.parts.parseable
+word.document.present
+word.relationships.resolved
+word.comments.no_orphans
+word.required_changes.applied
+word.render.succeeded
+```
+
+Verifier 将详细证据写入 `internal/verification/`，向 Runtime 只返回
+`Verification Result v1.0`。结构断言、业务断言和渲染断言任一失败都不能进入
+`publishing`；渲染不可用也按失败处理，不以“可打开”替代渲染通过。
+
+## 5. 发布和测试门
+
+- `publish` 只请求 `output/working.docx`，并校验返回的 MIME、扩展名和唯一 artifact。
+- 原始输入 hash 必须在执行前后保持不变。
+- 六类 fixture 覆盖普通段落表格、多表格页眉页脚图片、损坏 relationship、孤儿评论、
+  渲染失败和事故回放。
+- M3 完成前只运行 Runtime/Connector 本地测试；真实 relay、真实 CodeAPI 和生产文件
+  属于 M4，不能用本地模拟结果替代联合验收。

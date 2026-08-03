@@ -11,6 +11,7 @@ import {
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_ERROR_TEXT = 2_000;
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 function boundedText(value) {
   return typeof value === 'string' ? value.slice(0, MAX_ERROR_TEXT) : '';
@@ -58,9 +59,14 @@ function normalizeInjectedFile(file, defaults) {
 }
 
 function mimeTypeFor(filename) {
-  return path.posix.extname(filename).toLowerCase() === '.xlsx'
-    ? XLSX_MIME
-    : 'application/octet-stream';
+  const extension = path.posix.extname(filename).toLowerCase();
+  if (extension === '.xlsx') {
+    return XLSX_MIME;
+  }
+  if (extension === '.docx') {
+    return DOCX_MIME;
+  }
+  return 'application/octet-stream';
 }
 
 function normalizeOutputFiles(value, request, responseSessionId) {

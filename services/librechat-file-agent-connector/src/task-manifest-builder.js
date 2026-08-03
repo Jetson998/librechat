@@ -1,5 +1,6 @@
 import {
   DEFAULT_CAPABILITY_PROFILE,
+  DOCX_MIME,
   MAX_VISIBLE_ARTIFACTS,
   TASK_CONTRACT_VERSION,
   TASK_CONTRACT_VERSION_V1_1,
@@ -72,17 +73,39 @@ export function buildTaskSubmission({
   if (!Array.isArray(files) || files.length === 0) {
     throw new TypeError('At least one task file is required');
   }
+  if (
+    files.some((file) => file?.mimeType === DOCX_MIME) &&
+    (taskContractVersion !== TASK_CONTRACT_VERSION_V1_1 || capabilityProfile !== WORD_CAPABILITY_PROFILE)
+  ) {
+    throw new TypeError('DOCX inputs require office-file-agent.v1.1 and the Word capability profile');
+  }
+  if (taskContractVersion === TASK_CONTRACT_VERSION_V1_1) {
+    if (
+      files.length !== 1 ||
+      files[0]?.mimeType !== DOCX_MIME ||
+      typeof files[0]?.name !== 'string' ||
+      !files[0].name.toLowerCase().endsWith('.docx')
+    ) {
+      throw new TypeError('Word task contract requires exactly one DOCX file');
+    }
+  }
 
   const inputs = files
     .map((file) => normalizeFile(file, { conversationId, sessionId, userId }))
     .sort((left, right) => left.librechatFileRef.localeCompare(right.librechatFileRef));
-  const maxVisibleArtifacts = limits.maxVisibleArtifacts ?? MAX_VISIBLE_ARTIFACTS;
+  const requestedVisibleArtifacts = limits.maxVisibleArtifacts;
+  const maxVisibleArtifacts = capabilityProfile === WORD_CAPABILITY_PROFILE
+    ? requestedVisibleArtifacts ?? 1
+    : requestedVisibleArtifacts ?? MAX_VISIBLE_ARTIFACTS;
   if (
     !Number.isSafeInteger(maxVisibleArtifacts) ||
     maxVisibleArtifacts < 1 ||
     maxVisibleArtifacts > MAX_VISIBLE_ARTIFACTS
   ) {
     throw new TypeError(`limits.maxVisibleArtifacts must be between 1 and ${MAX_VISIBLE_ARTIFACTS}`);
+  }
+  if (capabilityProfile === WORD_CAPABILITY_PROFILE && maxVisibleArtifacts !== 1) {
+    throw new TypeError('Word tasks allow exactly one visible artifact');
   }
   const idempotencyKey = sha256([
     conversationId,
