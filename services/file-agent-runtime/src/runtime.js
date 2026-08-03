@@ -1,9 +1,12 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { canTransition, isTerminal } from './constants.js';
+import { canTransition, isTerminal, SUPPORTED_TASK_CONTRACT_VERSIONS } from './constants.js';
+import { actionSignature } from './action-envelope.js';
 import { assertExecutorAdapter, isAbortError } from './executor-adapter.js';
+import { buildProgressVector, evaluateProgress } from './progress-evaluator.js';
 import { assertProviderAdapter } from './provider-adapter.js';
+import { normalizeVerificationResult, verificationFingerprint } from './verification-result.js';
 
 export class RuntimeShutdownError extends Error {
   constructor() {
@@ -32,42 +35,28 @@ export function validateTaskManifest(manifest) {
       throw new TypeError(`Task manifest ${field} is required`);
     }
   }
+  if (!SUPPORTED_TASK_CONTRACT_VERSIONS.has(manifest.taskContractVersion)) {
+    throw new TypeError(`Unsupported task contract version: ${manifest.taskContractVersion}`);
+  }
 }
 
 function errorRecord(error) {
   const record = {
     name: error?.name ?? 'Error',
-    message: error?.message ?? String(error),
+    code: typeof error?.code === 'string' ? error.code : 'RUNTIME_ERROR',
+    retryable: error?.retryable === true,
   };
-  if (typeof error?.code === 'string') {
-    record.code = error.code;
+  if (typeof error?.safeSummary === 'string' && error.safeSummary.trim() !== '') {
+    record.summary = error.safeSummary.trim().slice(0, 500);
+  } else if (typeof error?.message === 'string' && error.message.trim() !== '') {
+    record.summary = error.message.trim().slice(0, 500);
   }
-  if (typeof error?.retryable === 'boolean') {
-    record.retryable = error.retryable;
-  }
+  record.message = record.summary ?? record.code;
   return record;
-}
-
-function hashJson(value) {
-  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
 function unwrapProviderValue(result) {
   return result?.value ?? result;
-}
-
-function actionSignature(plan) {
-  return hashJson((plan?.actions ?? []).map((action) => ({ kind: action.kind })));
-}
-
-function verificationFingerprint(verification) {
-  return hashJson({
-    passed: verification?.passed === true,
-    summary: verification?.summary ?? '',
-    repairMarker: verification?.repairMarker ?? null,
-    outputHash: verification?.outputHash ?? null,
-    errorSignature: verification?.errorSignature ?? null,
-  });
 }
 
 function persistProviderMetadata(task, emit, result, itemId) {
@@ -428,7 +417,7 @@ export class FileAgentRuntime {
   }
 
   async #verify(task, signal) {
-    const verification = await this.#runItem({
+    const rawVerification = await this.#runItem({
       task,
       itemId: `${task.taskId}:verify:${task.planRevision}`,
       kind: 'artifact_verification',
@@ -436,21 +425,40 @@ export class FileAgentRuntime {
       signal,
       operation: (itemId) => this.executor.verify({ itemId, task, signal }),
     });
+    const verification = normalizeVerificationResult(rawVerification);
 
     await this.store.mutateTask(task.taskId, (current, emit) => {
       if (current.status !== 'verifying' || current.planRevision !== task.planRevision) {
         return false;
       }
       const fingerprint = verificationFingerprint(verification);
+      const previousVector = current.progress.vector;
+      const vector = buildProgressVector({
+        phase: current.phase,
+        verification,
+        closedPlanNodeIds: previousVector?.closedPlanNodeIds ?? [],
+        scriptHash: rawVerification?.scriptHash,
+        artifactHash: rawVerification?.outputHash ?? rawVerification?.artifact?.sha256,
+      });
+      const progressDecision = evaluateProgress(previousVector, vector);
       current.verification = { ...verification, fingerprint };
+      current.progress.vector = vector;
       if (verification.passed) {
         current.progress.stagnationCount = 0;
         current.progress.lastFailedVerificationFingerprint = null;
-      } else if (current.progress.lastFailedVerificationFingerprint === fingerprint) {
+      } else if (
+        !progressDecision.progressed &&
+        (previousVector || current.progress.lastFailedVerificationFingerprint === fingerprint)
+      ) {
         current.progress.stagnationCount += 1;
+        current.progress.lastFailedVerificationFingerprint = fingerprint;
         emit({
           type: 'progress.stalled',
-          data: { fingerprint, stagnationCount: current.progress.stagnationCount },
+          data: {
+            fingerprint,
+            reason: progressDecision.reason,
+            stagnationCount: current.progress.stagnationCount,
+          },
         });
       } else {
         current.progress.stagnationCount = 0;

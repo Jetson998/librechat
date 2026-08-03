@@ -43,7 +43,9 @@ function applyTaskDefaults(task) {
     stagnationCount: 0,
     lastFailedVerificationFingerprint: null,
     lastRepairActionSignature: null,
+    vector: null,
   };
+  task.progress.vector ??= null;
   return task;
 }
 
@@ -131,6 +133,7 @@ export class FileTaskStore {
           stagnationCount: 0,
           lastFailedVerificationFingerprint: null,
           lastRepairActionSignature: null,
+          vector: null,
         },
         result: null,
         error: null,

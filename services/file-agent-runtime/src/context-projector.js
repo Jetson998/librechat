@@ -25,7 +25,17 @@ function projectAcceptance(values) {
     if (remaining <= 0 || projected.length >= 20) {
       break;
     }
-    const item = truncate(value, Math.min(500, remaining));
+    const item = typeof value === 'string'
+      ? truncate(value, Math.min(500, remaining))
+      : truncate(
+          JSON.stringify({
+            code: value?.code,
+            class: value?.class,
+            summary: value?.summary,
+            expected: value?.expected,
+          }),
+          Math.min(500, remaining),
+        );
     if (item) {
       projected.push(item);
       remaining -= item.length;
@@ -111,7 +121,16 @@ export class ContextProjector {
       recentItems: recent.items,
       verification: task.verification
         ? {
+            profile: task.verification.profile ?? null,
+            profileVersion: task.verification.profileVersion ?? null,
             passed: task.verification.passed === true,
+            passedAssertionCodes: task.verification.passedAssertionCodes ?? [],
+            failedAssertionCodes: (task.verification.failedAssertions ?? [])
+              .map((assertion) => assertion.code)
+              .filter(Boolean),
+            artifactLogicalId: task.verification.artifact?.logicalId ?? null,
+            metrics: task.verification.metrics ?? {},
+            errorClass: task.verification.errorClass ?? null,
             summary: truncate(task.verification.summary ?? '', 1_500),
             fingerprint: task.verification.fingerprint ?? null,
           }
@@ -119,6 +138,7 @@ export class ContextProjector {
       progress: {
         stagnationCount: task.progress?.stagnationCount ?? 0,
         lastFingerprint: task.progress?.lastFailedVerificationFingerprint ?? null,
+        vector: task.progress?.vector ?? null,
       },
       constraints: [
         'Reuse the persisted script and workspace.',

@@ -1,4 +1,7 @@
-export const TASK_CONTRACT_VERSION = 'office-file-agent.v1';
+export const TASK_CONTRACT_VERSION_V1 = 'office-file-agent.v1';
+export const TASK_CONTRACT_VERSION_V1_1 = 'office-file-agent.v1.1';
+export const TASK_CONTRACT_VERSION = TASK_CONTRACT_VERSION_V1;
+export const WORD_CAPABILITY_PROFILE = 'word-edit-v1';
 export const TASK_TYPE = 'office_transform';
 export const DEFAULT_CAPABILITY_PROFILE = 'office-planner-v1';
 export const MAX_VISIBLE_ARTIFACTS = 3;

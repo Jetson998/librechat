@@ -2,7 +2,9 @@ import {
   DEFAULT_CAPABILITY_PROFILE,
   MAX_VISIBLE_ARTIFACTS,
   TASK_CONTRACT_VERSION,
+  TASK_CONTRACT_VERSION_V1_1,
   TASK_TYPE,
+  WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 import { digestJson, opaqueRef, requiredString, sha256 } from './stable.js';
 
@@ -47,6 +49,7 @@ export function buildTaskSubmission({
   modelRouteId,
   billingSnapshotRef,
   capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
+  taskContractVersion = TASK_CONTRACT_VERSION,
   acceptance = [],
   limits = {},
 }) {
@@ -57,6 +60,15 @@ export function buildTaskSubmission({
   sessionId = requiredString(sessionId, 'sessionId');
   modelRouteId = requiredString(modelRouteId, 'modelRouteId');
   billingSnapshotRef = requiredString(billingSnapshotRef, 'billingSnapshotRef');
+  if (![TASK_CONTRACT_VERSION, TASK_CONTRACT_VERSION_V1_1].includes(taskContractVersion)) {
+    throw new TypeError(`Unsupported task contract version: ${taskContractVersion}`);
+  }
+  if (
+    (taskContractVersion === TASK_CONTRACT_VERSION_V1_1 && capabilityProfile !== WORD_CAPABILITY_PROFILE) ||
+    (taskContractVersion === TASK_CONTRACT_VERSION && capabilityProfile === WORD_CAPABILITY_PROFILE)
+  ) {
+    throw new TypeError('Task contract version and capability profile are incompatible');
+  }
   if (!Array.isArray(files) || files.length === 0) {
     throw new TypeError('At least one task file is required');
   }
@@ -76,11 +88,11 @@ export function buildTaskSubmission({
     conversationId,
     userMessageId,
     ...inputs.map((input) => `${input.librechatFileRef}:${input.sha256}`),
-    TASK_CONTRACT_VERSION,
+    taskContractVersion,
   ].join('\0'));
   const manifest = {
     schemaVersion: '1.0',
-    taskContractVersion: TASK_CONTRACT_VERSION,
+    taskContractVersion,
     taskType: TASK_TYPE,
     intent: instruction,
     acceptance: acceptance.length > 0
