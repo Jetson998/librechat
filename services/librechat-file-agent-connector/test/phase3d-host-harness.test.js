@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -7,11 +8,19 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { ExecutorAdapter } from '../../file-agent-runtime/src/executor-adapter.js';
 import {
+  CodeApiWordExecutor,
+  DOCX_MIME,
+  DeterministicWordProvider,
+  getWordTaskPaths,
+} from '../../file-agent-runtime/src/deterministic-word.js';
+import {
   DEFAULT_RUNTIME_CAPABILITIES,
   handleRuntimeFetch,
 } from '../../file-agent-runtime/src/http-server.js';
+import { CodeApiHttpTransport } from '../../file-agent-runtime/src/codeapi-transport.js';
 import { FileAgentRuntime } from '../../file-agent-runtime/src/runtime.js';
 import { FileTaskStore } from '../../file-agent-runtime/src/task-store.js';
+import { IsolatedCodeApiServer } from '../../file-agent-runtime/test/isolated-codeapi.js';
 import {
   FileAgentReconciler,
   LibreChatFileAgentConnector,
@@ -19,10 +28,16 @@ import {
   RecordedLibreChatPorts,
   RuntimeClient,
   createUpstreamControllerBridge,
+  createStorageBackedFileDigest,
   installUpstreamControllerBridge,
 } from '../src/index.js';
+import { writeWordFixture } from '../../file-agent-runtime/test/word-fixtures.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+function sha256(value) {
+  return createHash('sha256').update(value).digest('hex');
+}
 
 class HarnessProvider {
   async plan({ callId }) {
@@ -236,4 +251,183 @@ test('Phase 3D host harness completes one source-level Runtime handoff', async (
     cacheRead: 0.06,
     cacheWrite: 0.75,
   });
+});
+
+test('Phase 3D host harness completes a real DOCX handoff with storage-backed content identity', async (t) => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'phase3d-word-host-'));
+  const fixturePath = path.join(rootDir, 'source.docx');
+  await writeWordFixture(fixturePath, 'normal');
+  const source = await readFile(fixturePath);
+  const codeApi = await new IsolatedCodeApiServer(path.join(rootDir, 'codeapi')).start();
+  const sessionId = 'phase3d-word-session';
+  const codeFileId = 'phase3d-word-input';
+  await codeApi.registerFile({
+    sessionId,
+    fileId: codeFileId,
+    name: 'source.docx',
+    sourcePath: fixturePath,
+  });
+  const runtime = new FileAgentRuntime({
+    store: new FileTaskStore(path.join(rootDir, 'runtime')),
+    provider: new DeterministicWordProvider(),
+    executor: new CodeApiWordExecutor({
+      transport: new CodeApiHttpTransport({
+        baseUrl: codeApi.baseUrl,
+      }),
+      renderBin: 'soffice',
+    }),
+    maxConcurrentTasks: 1,
+  });
+  await runtime.start();
+  t.after(async () => {
+    await runtime.stop();
+    await codeApi.stop();
+    await rm(rootDir, { recursive: true, force: true });
+  });
+
+  const runtimeClient = new RuntimeClient({
+    baseUrl: 'http://runtime.phase3d-word',
+    fetchImpl: (url, init) => handleRuntimeFetch(
+      runtime,
+      new Request(url, init),
+      { capabilities: DEFAULT_RUNTIME_CAPABILITIES },
+    ),
+  });
+  const deliveryStore = new MemoryDeliveryStore();
+  const ports = new RecordedLibreChatPorts();
+  const connector = new LibreChatFileAgentConnector({
+    store: deliveryStore,
+    runtimeClient,
+    ports,
+    featureEnabled: true,
+    allowlistedUserIds: new Set(['user-1']),
+  });
+  const reconciler = new FileAgentReconciler({ connector, intervalMs: 50 });
+  reconciler.start();
+  t.after(() => reconciler.stop());
+
+  const metadataWrites = [];
+  let storageReads = 0;
+  const computeFileDigest = createStorageBackedFileDigest({
+    readStorageStream: async ({ file, context }) => {
+      storageReads += 1;
+      assert.equal(file.filepath, '/api/files/phase3d-word-file');
+      assert.equal(context.req.user.id, 'user-1');
+      const bytes = await readFile(fixturePath);
+      return (async function* storageStream() {
+        yield bytes.subarray(0, Math.ceil(bytes.length / 2));
+        yield bytes.subarray(Math.ceil(bytes.length / 2));
+      }());
+    },
+    persistFileMetadata: async ({ file, metadata }) => {
+      metadataWrites.push({ fileId: file.file_id, metadata: structuredClone(metadata) });
+    },
+  });
+  const billingSnapshotStore = new MemoryBillingSnapshots();
+  const bridge = createUpstreamControllerBridge({
+    connector,
+    billingSnapshotStore,
+    modelRouteId: 'file-agent-word',
+    getBalanceConfig: () => ({ enabled: true }),
+    getTransactionsConfig: () => ({ enabled: true }),
+    getMultiplier: ({ tokenType }) => tokenType === 'prompt' ? 0.6 : 3.6,
+    getCacheMultiplier: ({ cacheType }) => cacheType === 'read' ? 0.06 : 0.75,
+    acceptanceAssertions: [{
+      type: 'word.paragraph_append.v1',
+      text: 'File Agent Runtime Word output',
+    }],
+    computeFileDigest,
+    scheduleReconcile: ({ submission }) => reconciler.wake(submission.delivery.deliveryId),
+  });
+  const app = { locals: {} };
+  const uninstall = installUpstreamControllerBridge({ app, bridge });
+  t.after(uninstall);
+
+  let persistenceCalls = 0;
+  const result = await app.locals.fileAgentRuntimeBridge.tryRoute({
+    req: {
+      app,
+      user: { id: 'user-1', tenantId: 'tenant-1' },
+      body: { files: [{ file_id: 'phase3d-word-file' }] },
+      config: {},
+    },
+    client: {
+      options: {
+        endpoint: 'agents',
+        endpointTokenConfig: {
+          'gpt-5.6-sol': { prompt: 0.6, completion: 3.6, read: 0.06, write: 0.75 },
+        },
+        agent: { endpoint: 'custom', model: 'gpt-5.6-sol' },
+        attachments: [{
+          file_id: 'phase3d-word-file',
+          user: 'user-1',
+          tenantId: 'tenant-1',
+          filename: 'source.docx',
+          bytes: source.length,
+          type: DOCX_MIME,
+          filepath: '/api/files/phase3d-word-file',
+          metadata: {
+            codeEnvRef: {
+              kind: 'user',
+              id: 'user-1',
+              storage_session_id: sessionId,
+              file_id: codeFileId,
+            },
+          },
+        }],
+      },
+    },
+    userId: 'user-1',
+    conversationId: 'phase3d-word-conversation',
+    userMessageId: 'phase3d-word-message',
+    assistantMessageId: 'phase3d-word-message_',
+    streamId: 'phase3d-word-conversation',
+    text: '修改当前 Word 文档并交付经过验证的 DOCX',
+    persistUserTurn: async () => {
+      persistenceCalls += 1;
+      return {
+        userMessage: {
+          messageId: 'phase3d-word-message',
+          conversationId: 'phase3d-word-conversation',
+        },
+        conversation: {
+          conversationId: 'phase3d-word-conversation',
+          title: 'New Chat',
+        },
+      };
+    },
+  });
+
+  assert.equal(result.suppressNativeAgent, true);
+  assert.equal(persistenceCalls, 1);
+  assert.equal(storageReads, 1);
+  assert.equal(metadataWrites.length, 1);
+  assert.equal(metadataWrites[0].fileId, 'phase3d-word-file');
+  assert.equal(metadataWrites[0].metadata.contentSha256, sha256(source));
+  assert.equal(metadataWrites[0].metadata.contentSha256Source, 'librechat-storage-v1');
+
+  const completed = await runtime.waitFor(result.taskId, (task) => task.status === 'completed', {
+    timeoutMs: 30_000,
+  });
+  const delivery = await waitForDelivery(deliveryStore, result.deliveryId, 'completed', 30_000);
+  assert.equal(delivery.assistantMessageId, 'phase3d-word-message_');
+  assert.equal(completed.manifest.taskContractVersion, 'office-file-agent.v1.1');
+  assert.equal(completed.manifest.model.capabilityProfile, 'word-edit-v1');
+  assert.equal(completed.manifest.inputs[0].sha256, sha256(source));
+  assert.equal(completed.verification.passed, true);
+  assert.equal(completed.verification.requiredAssertionCount, 9);
+  assert.ok(completed.events.some(
+    (event) => event.type === 'item.started' && event.item?.kind === 'word.inspect.v1',
+  ));
+  assert.ok(completed.events.some(
+    (event) => event.type === 'item.started' && event.item?.kind === 'word.transform.v1',
+  ));
+  assert.equal(completed.result.artifacts[0].mimeType, DOCX_MIME);
+  assert.equal(completed.result.artifacts[0].name, 'working.docx');
+  const outputPath = codeApi.virtualPath(
+    sessionId,
+    getWordTaskPaths(completed).outputPath,
+  );
+  const output = await readFile(outputPath);
+  assert.equal(output.subarray(0, 2).toString('hex'), '504b');
 });

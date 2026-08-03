@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -9,6 +11,11 @@ import { promisify } from 'node:util';
 
 import { CodeApiHttpTransport } from '../../file-agent-runtime/src/codeapi-transport.js';
 import { ContextProjector } from '../../file-agent-runtime/src/context-projector.js';
+import {
+  CodeApiWordExecutor,
+  DOCX_MIME,
+  WORD_VERIFIER_PROFILE,
+} from '../../file-agent-runtime/src/deterministic-word.js';
 import { CodeApiXlsxExecutor, XLSX_MIME } from '../../file-agent-runtime/src/deterministic-xlsx.js';
 import { createRuntimeHttpServer } from '../../file-agent-runtime/src/http-server.js';
 import { FileModelCallJournal } from '../../file-agent-runtime/src/model-call-journal.js';
@@ -20,6 +27,7 @@ import { FileAgentRuntime } from '../../file-agent-runtime/src/runtime.js';
 import { FileTaskStore } from '../../file-agent-runtime/src/task-store.js';
 import { IsolatedCodeApiServer } from '../../file-agent-runtime/test/isolated-codeapi.js';
 import { IsolatedModelRelay } from '../../file-agent-runtime/test/isolated-model-relay.js';
+import { writeWordFixture } from '../../file-agent-runtime/test/word-fixtures.js';
 import {
   FileAgentReconciler,
   LibreChatFileAgentConnector,
@@ -28,11 +36,65 @@ import {
   RecordedLibreChatPorts,
   RuntimeClient,
   createUpstreamControllerBridge,
+  createStorageBackedFileDigest,
   installUpstreamControllerBridge,
 } from '../src/index.js';
 
 const execFileAsync = promisify(execFile);
 const CONFIRMATION = 'ONE_ISOLATED_NON_PRODUCTION_TASK';
+const WORD_OUTPUT_TEXT = 'File Agent Runtime Word output';
+
+function sha256(value) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function wordAction(worker, parameters, expectedChange, summary) {
+  return {
+    schemaVersion: '1.0',
+    objective: 'Apply the requested bounded Word change',
+    worker,
+    inputRefs: ['input:source-docx'],
+    targetRef: 'candidate:working-docx',
+    parameters,
+    expectedChange,
+    verificationProfile: WORD_VERIFIER_PROFILE,
+    onFailure: 'replan',
+    summary,
+  };
+}
+
+function wordPlan(operation, context) {
+  if (operation === 'repair') {
+    return {
+      schemaVersion: '1.0',
+      summary: 'Stop for explicit guidance after a failed Word verification',
+      needsInput: true,
+      question: 'The deterministic Word verification requires explicit guidance.',
+      actions: [],
+    };
+  }
+  const inspected = context?.document != null;
+  return {
+    schemaVersion: '1.0',
+    summary: inspected
+      ? 'Apply the frozen Word acceptance change'
+      : 'Inspect the authorized DOCX before planning modifications',
+    needsInput: false,
+    actions: inspected
+      ? [wordAction(
+          'word.transform.v1',
+          { operation: 'append_paragraph', text: WORD_OUTPUT_TEXT },
+          ['document.paragraph'],
+          'Append the frozen Word acceptance paragraph',
+        )]
+      : [wordAction(
+          'word.inspect.v1',
+          { operation: 'inspect' },
+          ['document.structure'],
+          'Inspect the authorized DOCX',
+        )],
+  };
+}
 
 function requiredEnvironment(name) {
   const value = process.env[name];
@@ -159,20 +221,44 @@ function closeServer(server) {
   });
 }
 
-async function createIsolatedDependencies({ rootDir, fixturePath }) {
+async function createIsolatedDependencies({ rootDir, fixturePath, fileKind = 'xlsx' }) {
   const codeApi = await new IsolatedCodeApiServer(path.join(rootDir, 'codeapi')).start();
-  const relay = await new IsolatedModelRelay().start();
   const sessionId = 'phase3d-isolated-session';
-  const codeFileId = 'phase3d-input-xlsx';
+  const isWord = fileKind === 'docx';
+  const relay = await new IsolatedModelRelay({
+    responseFor: isWord ? ({ operation, context }) => wordPlan(operation, context) : undefined,
+  }).start();
+  const inputName = isWord ? 'source.docx' : 'source.xlsx';
+  const codeFileId = isWord ? 'phase3d-input-docx' : 'phase3d-input-xlsx';
   await codeApi.registerFile({
     sessionId,
     fileId: codeFileId,
-    name: 'source.xlsx',
+    name: inputName,
     sourcePath: fixturePath,
   });
+  const metadataWrites = [];
+  const computeFileDigest = isWord
+    ? createStorageBackedFileDigest({
+        readStorageStream: async () => createReadStream(fixturePath),
+        persistFileMetadata: async ({ file, metadata }) => {
+          metadataWrites.push({ fileId: file.file_id, metadata: structuredClone(metadata) });
+        },
+      })
+    : undefined;
   return {
     sessionId,
     codeFileId,
+    fileKind,
+    inputName,
+    inputMimeType: isWord ? DOCX_MIME : XLSX_MIME,
+    outputName: isWord ? 'working.docx' : 'phase1-output.xlsx',
+    acceptanceAssertions: isWord ? [{
+      type: 'word.paragraph_append.v1',
+      text: WORD_OUTPUT_TEXT,
+    }] : null,
+    filePathReference: isWord ? '/api/files/phase3d-librechat-file' : fixturePath,
+    computeFileDigest,
+    metadataWrites,
     resourceKind: 'user',
     resourceId: 'phase3d-user',
     billingModel: 'gpt-5.6-sol',
@@ -180,7 +266,7 @@ async function createIsolatedDependencies({ rootDir, fixturePath }) {
       baseUrl: relay.baseUrl,
       model: 'recorded-office-planner',
       apiKey: 'isolated-non-production-key',
-      capabilityProfile: 'office-planner-v1',
+      capabilityProfile: isWord ? 'word-edit-v1' : 'office-planner-v1',
       supportsIdempotency: true,
       outputBudgetTokens: 500,
     },
@@ -193,6 +279,7 @@ async function createIsolatedDependencies({ rootDir, fixturePath }) {
     report: {
       modelRelay: 'isolated-recorded',
       codeApi: 'isolated-execution-server',
+      fileKind,
     },
     async stop() {
       await relay.stop();
@@ -219,9 +306,13 @@ export async function runPhase3DAcceptance({
     : createRequire(import.meta.url);
   const { MongoClient } = loadMongoDriver();
   const mongoEnvironment = await resolveMongoEnvironment(require);
+  const fileKind = process.env.FILE_AGENT_PHASE3D_FILE_KIND ?? 'xlsx';
+  if (!['xlsx', 'docx'].includes(fileKind)) {
+    throw new Error('FILE_AGENT_PHASE3D_FILE_KIND must equal xlsx or docx');
+  }
   const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-phase3d-acceptance-'));
   const databaseName = `file_agent_phase3d_${Date.now()}_${process.pid}`;
-  const fixturePath = path.join(rootDir, 'source.xlsx');
+  const fixturePath = path.join(rootDir, fileKind === 'docx' ? 'source.docx' : 'source.xlsx');
   const mongo = new MongoClient(mongoEnvironment.uri, { serverSelectionTimeoutMS: 5_000 });
   let runtime;
   let runtimeServer;
@@ -229,7 +320,11 @@ export async function runPhase3DAcceptance({
   let reconciler;
 
   try {
-    await createWorkbook(fixturePath);
+    if (fileKind === 'docx') {
+      await writeWordFixture(fixturePath, 'normal');
+    } else {
+      await createWorkbook(fixturePath);
+    }
     await mongo.connect();
     const database = mongo.db(databaseName);
     const deliveryStore = new MongoDeliveryStore({ collection: database.collection('deliveries') });
@@ -238,7 +333,7 @@ export async function runPhase3DAcceptance({
     });
     await Promise.all([deliveryStore.init(), billingSnapshotStore.init()]);
 
-    dependencies = await createDependencies({ rootDir, fixturePath });
+    dependencies = await createDependencies({ rootDir, fixturePath, fileKind });
     const {
       sessionId,
       codeFileId,
@@ -248,6 +343,13 @@ export async function runPhase3DAcceptance({
     } = dependencies;
     const userId = dependencies.userId ?? 'phase3d-user';
     const tenantId = dependencies.tenantId ?? 'phase3d-tenant';
+    const inputName = dependencies.inputName
+      ?? (fileKind === 'docx' ? 'source.docx' : 'source.xlsx');
+    const inputMimeType = dependencies.inputMimeType
+      ?? (fileKind === 'docx' ? DOCX_MIME : XLSX_MIME);
+    const outputName = dependencies.outputName
+      ?? (fileKind === 'docx' ? 'working.docx' : 'phase1-output.xlsx');
+    const filePathReference = dependencies.filePathReference ?? fixturePath;
     let provider = new SingleModelAgentProvider({
       routes: { 'file-agent-primary': providerRoute },
       transport: providerTransport,
@@ -261,10 +363,15 @@ export async function runPhase3DAcceptance({
     runtime = new FileAgentRuntime({
       store: new FileTaskStore(path.join(rootDir, 'runtime')),
       provider,
-      executor: new CodeApiXlsxExecutor({
-        transport: executorTransport,
-        timeoutMs: dependencies.executorTimeoutMs ?? 120_000,
-      }),
+      executor: fileKind === 'docx'
+        ? new CodeApiWordExecutor({
+            transport: executorTransport,
+            timeoutMs: dependencies.executorTimeoutMs ?? 120_000,
+          })
+        : new CodeApiXlsxExecutor({
+            transport: executorTransport,
+            timeoutMs: dependencies.executorTimeoutMs ?? 120_000,
+          }),
       maxConcurrentTasks: 1,
     });
     await runtime.start();
@@ -294,6 +401,8 @@ export async function runPhase3DAcceptance({
       getTransactionsConfig: () => ({ enabled: true }),
       getMultiplier: ({ tokenType }) => (tokenType === 'prompt' ? 0.6 : 3.6),
       getCacheMultiplier: ({ cacheType }) => (cacheType === 'read' ? 0.06 : 0.75),
+      acceptanceAssertions: dependencies.acceptanceAssertions,
+      computeFileDigest: dependencies.computeFileDigest,
       scheduleReconcile: ({ submission }) => reconciler.wake(submission.delivery.deliveryId),
     });
     const app = { locals: {} };
@@ -322,10 +431,12 @@ export async function runPhase3DAcceptance({
             file_id: 'phase3d-librechat-file',
             user: userId,
             tenantId,
-            filename: 'source.xlsx',
+            filename: inputName,
             bytes: 4_096,
-            type: XLSX_MIME,
-            path: fixturePath,
+            type: inputMimeType,
+            ...(filePathReference.startsWith('/api/')
+              ? { filepath: filePathReference }
+              : { path: filePathReference }),
             metadata: {
               codeEnvRef: {
                 kind: dependencies.resourceKind,
@@ -342,7 +453,9 @@ export async function runPhase3DAcceptance({
       userMessageId: 'phase3d-message',
       assistantMessageId: 'phase3d-message_',
       streamId: 'phase3d-conversation',
-      text: '读取工作簿并生成一个经过验证的汇总 Excel',
+      text: fileKind === 'docx'
+        ? '修改当前 Word 文档并交付经过验证的 DOCX'
+        : '读取工作簿并生成一个经过验证的汇总 Excel',
       persistUserTurn: async () => {
         persistenceCalls += 1;
         return {
@@ -358,7 +471,7 @@ export async function runPhase3DAcceptance({
 
     assert.equal(result.suppressNativeAgent, true);
     assert.equal(persistenceCalls, 1);
-    await runtime.waitFor(result.taskId, (task) => task.status === 'completed', {
+    const completedTask = await runtime.waitFor(result.taskId, (task) => task.status === 'completed', {
       timeoutMs: taskTimeoutMs,
     });
     const delivery = await waitForDelivery(
@@ -371,6 +484,26 @@ export async function runPhase3DAcceptance({
     await connector.reconcile(result.deliveryId);
 
     assert.equal(delivery.assistantMessageId, 'phase3d-message_');
+    assert.equal(completedTask.result.artifacts[0].name, outputName);
+    assert.equal(
+      completedTask.result.artifacts[0].mimeType,
+      fileKind === 'docx' ? DOCX_MIME : XLSX_MIME,
+    );
+    if (fileKind === 'docx') {
+      assert.equal(completedTask.manifest.taskContractVersion, 'office-file-agent.v1.1');
+      assert.equal(completedTask.manifest.model.capabilityProfile, 'word-edit-v1');
+      assert.ok(completedTask.events.some(
+        (event) => event.type === 'item.started' && event.item?.kind === 'word.inspect.v1',
+      ));
+      assert.ok(completedTask.events.some(
+        (event) => event.type === 'item.started' && event.item?.kind === 'word.transform.v1',
+      ));
+      assert.equal(dependencies.metadataWrites?.length, 1);
+      assert.equal(
+        dependencies.metadataWrites[0].metadata.contentSha256,
+        sha256(await readFile(fixturePath)),
+      );
+    }
     assert.deepEqual(ports.operations, operationsBeforeReplay);
     assert.equal(ports.transactions.size, 4);
     assert.equal(ports.files.size, 1);
@@ -389,6 +522,7 @@ export async function runPhase3DAcceptance({
       delivery,
       ports,
       result,
+      task: completedTask,
       rootDir,
       runtime,
     });
@@ -405,6 +539,7 @@ export async function runPhase3DAcceptance({
       generatedFiles: ports.files.size,
       replayProducedDuplicates: false,
       runtimeCapacity: runtime.getCapacity(),
+      fileKind,
     };
   } finally {
     await reconciler?.stop().catch(() => {});

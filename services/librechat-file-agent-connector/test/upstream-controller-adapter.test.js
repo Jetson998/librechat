@@ -9,6 +9,7 @@ import {
   createUpstreamBillingSnapshotCreator,
   createUpstreamMongoCollections,
   createUpstreamRuntimeRequestResolver,
+  createStorageBackedFileDigest,
   installUpstreamControllerBridge,
   startUpstreamLibreChatHostIntegration,
 } from '../src/upstream-controller-adapter.js';
@@ -86,6 +87,11 @@ test('upstream request resolver uses initialized current-request attachments', a
 test('upstream Word resolver creates the v1.1 task contract from real attachment bytes', async () => {
   const resolve = createUpstreamRuntimeRequestResolver({
     modelRouteId: 'file-agent-word',
+    acceptanceAssertions: [{
+      type: 'word.text_replace.v1',
+      find: 'Source paragraph',
+      replace: 'Updated paragraph',
+    }],
   });
   const base = context();
   const word = attachment({
@@ -111,11 +117,86 @@ test('upstream Word resolver creates the v1.1 task contract from real attachment
   assert.deepEqual(request.acceptance, [
     'Produce one verified DOCX artifact from the authorized current-turn Word document',
   ]);
+  assert.equal(request.acceptanceAssertions[0].type, 'word.text_replace.v1');
+});
+
+test('Word resolver fails closed when no independent acceptance assertions are supplied', async () => {
+  const resolve = createUpstreamRuntimeRequestResolver({ modelRouteId: 'file-agent-word' });
+  const base = context();
+  const result = await resolve({
+    ...base,
+    text: '修改这个 Word 文档并交付修订版',
+    client: {
+      ...base.client,
+      options: {
+        ...base.client.options,
+        attachments: [attachment({ filename: 'source.docx', type: DOCX_MIME })],
+      },
+    },
+  });
+  assert.deepEqual(result, { route: 'native', reason: 'word_acceptance_assertions_unavailable' });
+});
+
+test('storage-backed digest reads the storage stream for API paths and persists a trusted hash', async () => {
+  const file = attachment({
+    content: undefined,
+    filepath: '/api/files/file-1',
+    metadata: {
+      ...attachment().metadata,
+    },
+  });
+  const persisted = [];
+  const digest = createStorageBackedFileDigest({
+    readStorageStream: async ({ file: source }) => {
+      assert.equal(source.filepath, '/api/files/file-1');
+      return (async function* stream() {
+        yield Buffer.from('xlsx-');
+        yield Buffer.from('content-fixture');
+      }());
+    },
+    persistFileMetadata: async (value) => persisted.push(value),
+  });
+
+  const actual = await digest(file, { req: { id: 'request-1' } });
+
+  assert.equal(actual, await contentSha256(attachment()));
+  assert.equal(persisted.length, 1);
+  assert.equal(persisted[0].metadata.contentSha256, actual);
+  assert.equal(persisted[0].metadata.contentSha256Source, 'librechat-storage-v1');
+  assert.equal(file.metadata.contentSha256, actual);
+});
+
+test('untrusted persisted hash is not accepted as file content identity', async () => {
+  await assert.rejects(
+    contentSha256(attachment({
+      content: undefined,
+      metadata: {
+        ...attachment().metadata,
+        contentSha256: 'a'.repeat(64),
+      },
+    })),
+    (error) => error?.code === 'FILE_CONTENT_HASH_UNAVAILABLE',
+  );
+});
+
+test('contentSha256 does not treat an API download reference as a local file path', async () => {
+  await assert.rejects(
+    contentSha256({ filepath: '/api/files/file-1' }),
+    (error) => error?.code === 'FILE_CONTENT_HASH_UNAVAILABLE',
+  );
+  await assert.rejects(
+    contentSha256({ filepath: 'https://files.example.invalid/file-1' }),
+    (error) => error?.code === 'FILE_CONTENT_HASH_UNAVAILABLE',
+  );
 });
 
 test('upstream resolver fails closed when an attachment has no verified content hash source', async () => {
   const resolve = createUpstreamRuntimeRequestResolver({
     modelRouteId: 'file-agent-word',
+    acceptanceAssertions: [{
+      type: 'word.paragraph_append.v1',
+      text: 'Requested paragraph',
+    }],
   });
   const base = context();
   const attachmentWithoutContent = attachment({

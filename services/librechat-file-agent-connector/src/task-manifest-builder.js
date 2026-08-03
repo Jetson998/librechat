@@ -8,6 +8,7 @@ import {
   WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 import { digestJson, opaqueRef, requiredString, sha256 } from './stable.js';
+import { normalizeWordAcceptanceAssertions } from '../../file-agent-runtime/src/word-acceptance.js';
 
 function normalizeFile(file, { conversationId, sessionId, userId }) {
   if (!file || typeof file !== 'object' || Array.isArray(file)) {
@@ -54,6 +55,7 @@ export function buildTaskSubmission({
     ? TASK_CONTRACT_VERSION_V1_1
     : TASK_CONTRACT_VERSION,
   acceptance = [],
+  acceptanceAssertions = null,
   limits = {},
 }) {
   userId = requiredString(userId, 'userId');
@@ -92,6 +94,10 @@ export function buildTaskSubmission({
     }
   }
 
+  const normalizedAcceptanceAssertions = capabilityProfile === WORD_CAPABILITY_PROFILE
+    ? normalizeWordAcceptanceAssertions(acceptanceAssertions)
+    : null;
+
   const inputs = files
     .map((file) => normalizeFile(file, { conversationId, sessionId, userId }))
     .sort((left, right) => left.librechatFileRef.localeCompare(right.librechatFileRef));
@@ -114,6 +120,7 @@ export function buildTaskSubmission({
     userMessageId,
     ...inputs.map((input) => `${input.librechatFileRef}:${input.sha256}`),
     taskContractVersion,
+    normalizedAcceptanceAssertions ? digestJson(normalizedAcceptanceAssertions) : '',
   ].join('\0'));
   const manifest = {
     schemaVersion: '1.0',
@@ -123,6 +130,9 @@ export function buildTaskSubmission({
     acceptance: acceptance.length > 0
       ? acceptance.map((entry) => requiredString(entry, 'acceptance'))
       : ['Produce only verified final artifacts from the authorized input files'],
+    ...(normalizedAcceptanceAssertions
+      ? { acceptanceAssertions: structuredClone(normalizedAcceptanceAssertions) }
+      : {}),
     identity: {
       tenantScope: tenantId ? opaqueRef('tenant', tenantId) : null,
       userScope: opaqueRef('user', userId),

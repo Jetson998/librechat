@@ -21,6 +21,8 @@ import { FileTaskStore } from '../src/task-store.js';
 import { IsolatedCodeApiServer } from './isolated-codeapi.js';
 import { writeWordFixture } from './word-fixtures.js';
 
+const DEFAULT_WORD_OUTPUT = 'File Agent Runtime Word output';
+
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -40,7 +42,44 @@ function wordAction(worker, parameters, expectedChange, summary = 'Word fixture 
   });
 }
 
-function taskManifest({ sessionId, fileId, inputHash, wordPlan, intent = 'Modify the authorized Word document' }) {
+function acceptanceAssertionsForPlan(wordPlan) {
+  const actions = wordPlan ?? [
+    wordAction(
+      'word.transform.v1',
+      { operation: 'append_paragraph', text: DEFAULT_WORD_OUTPUT },
+      ['document.paragraph'],
+    ),
+  ];
+  return actions
+    .filter((entry) => entry.worker !== 'word.inspect.v1')
+    .map((entry) => {
+      const { operation } = entry.parameters;
+      if (operation === 'replace_text') {
+        return {
+          type: 'word.text_replace.v1',
+          find: entry.parameters.find,
+          replace: entry.parameters.replace,
+          ...(entry.parameters.occurrence != null ? { occurrence: entry.parameters.occurrence } : {}),
+        };
+      }
+      if (operation === 'replace_table_cell') {
+        return {
+          type: 'word.table_cell_replace.v1',
+          tableIndex: entry.parameters.tableIndex,
+          rowIndex: entry.parameters.rowIndex,
+          columnIndex: entry.parameters.columnIndex,
+          text: entry.parameters.text,
+        };
+      }
+      return {
+        type: 'word.paragraph_append.v1',
+        text: entry.parameters.text,
+        ...(entry.parameters.style ? { style: entry.parameters.style } : {}),
+      };
+    });
+}
+
+function taskManifest({ sessionId, fileId, inputHash, wordPlan, acceptanceAssertions, intent = 'Modify the authorized Word document' }) {
   return {
     schemaVersion: '1.0',
     taskContractVersion: 'office-file-agent.v1.1',
@@ -67,6 +106,7 @@ function taskManifest({ sessionId, fileId, inputHash, wordPlan, intent = 'Modify
     limits: {
       maxVisibleArtifacts: 1,
     },
+    acceptanceAssertions: acceptanceAssertions ?? acceptanceAssertionsForPlan(wordPlan),
     ...(wordPlan ? { wordPlan } : {}),
   };
 }
@@ -95,7 +135,13 @@ class NoRepairProvider extends DeterministicWordProvider {
 
 async function createHarness(
   t,
-  { fixtureKind = 'normal', renderBin = 'soffice', wordPlan, provider = new DeterministicWordProvider() } = {},
+  {
+    fixtureKind = 'normal',
+    renderBin = 'soffice',
+    wordPlan,
+    acceptanceAssertions,
+    provider = new DeterministicWordProvider(),
+  } = {},
 ) {
   const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-word-'));
   const fixturePath = path.join(rootDir, `${fixtureKind}.docx`);
@@ -126,6 +172,7 @@ async function createHarness(
     fileId,
     inputHash: sha256(source),
     wordPlan,
+    acceptanceAssertions,
   });
   return { codeApi, executor, fixturePath, manifest, rootDir, runtime, sessionId, source, store };
 }
@@ -144,8 +191,8 @@ test('Word Worker transforms and publishes one deterministically verified DOCX',
 
   assert.equal(completed.verification.passed, true);
   assert.equal(completed.verification.profile, WORD_VERIFIER_PROFILE);
-  assert.equal(completed.verification.requiredAssertionCount, 8);
-  assert.equal(completed.verification.passedAssertionCodes.length, 8);
+  assert.equal(completed.verification.requiredAssertionCount, 9);
+  assert.equal(completed.verification.passedAssertionCodes.length, 9);
   assert.equal(completed.result.artifacts.length, 1);
   assert.ok(
     completed.events.some(
@@ -371,6 +418,42 @@ test('Word verifier enforces the requested text occurrence instead of accepting 
   assert.equal(verification.passed, false);
   assert.ok(
     verification.failedAssertions.some((entry) => entry.code === 'word.required_changes.applied'),
+  );
+});
+
+test('Word verifier rejects a model plan that ignores the frozen user acceptance assertion', async (t) => {
+  const plan = [
+    wordAction('word.inspect.v1', { operation: 'inspect' }, ['document.structure'], 'Inspect source'),
+    wordAction(
+      'word.transform.v1',
+      { operation: 'append_paragraph', text: 'Model-chosen unrelated output' },
+      ['document.paragraph'],
+      'Append an unrelated paragraph',
+    ),
+  ];
+  const harness = await createHarness(t, {
+    wordPlan: plan,
+    provider: new NoRepairProvider(),
+    acceptanceAssertions: [{
+      type: 'word.text_replace.v1',
+      find: 'Source paragraph',
+      replace: 'User-requested paragraph',
+    }],
+  });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'word-independent-acceptance',
+    manifest: harness.manifest,
+  });
+  const terminal = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => task.status === 'needs_input' || task.status === 'failed' || task.status === 'completed',
+    { timeoutMs: 20_000 },
+  );
+  assert.notEqual(terminal.status, 'completed');
+  assert.ok(
+    terminal.verification.failedAssertions.some(
+      (entry) => entry.code === 'word.required_changes.applied',
+    ),
   );
 });
 

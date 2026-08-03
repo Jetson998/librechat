@@ -64,6 +64,10 @@ function wordModelManifest(overrides = {}) {
     taskType: 'office_transform',
     intent: 'Modify one authorized Word document',
     acceptance: ['Return one verified DOCX artifact'],
+    acceptanceAssertions: [{
+      type: 'word.paragraph_append.v1',
+      text: 'Provider output',
+    }],
     model: {
       modelRouteId: 'file-agent-word',
       capabilityProfile: 'word-edit-v1',
@@ -715,6 +719,10 @@ test('Word context projection includes bounded inspected document content for re
     manifest: {
       intent: 'Modify the authorized Word document',
       acceptance: ['Return one verified DOCX artifact'],
+      acceptanceAssertions: [{
+        type: 'word.paragraph_append.v1',
+        text: 'Requested paragraph',
+      }],
       inputs: [{ logicalName: 'source.docx', mimeType: DOCX_MIME, sha256: 'a'.repeat(64) }],
     },
     phase: 'planning',
@@ -744,6 +752,11 @@ test('Word context projection includes bounded inspected document content for re
   assert.deepEqual(projection.context.document.tables[0].rows[0].cells, ['Cell A1', 'Cell A2']);
   assert.equal(projection.context.document.headers[0].paragraphs[0], 'Header text');
   assert.equal(projection.context.document.footers[0].paragraphs[0], 'Footer text');
+  assert.deepEqual(projection.context.wordAcceptanceAssertions, [{
+    schemaVersion: '1.0',
+    type: 'word.paragraph_append.v1',
+    text: 'Requested paragraph',
+  }]);
   assert.ok(projection.characters <= 12_000);
 });
 

@@ -34,7 +34,147 @@ test('Runtime requires the versioned Word contract for DOCX inputs', () => {
     taskContractVersion: TASK_CONTRACT_VERSION_V1_1,
     model: { capabilityProfile: WORD_CAPABILITY_PROFILE },
     inputs: [{ mimeType: DOCX_MIME }],
+    acceptanceAssertions: [{
+      type: 'word.paragraph_append.v1',
+      text: 'Runtime test output',
+    }],
   })));
+});
+
+class InvalidWordPlanProvider {
+  async plan() {
+    return {
+      needsInput: false,
+      actions: [
+        { worker: 'word.transform.v1' },
+        { worker: 'word.inspect.v1' },
+      ],
+    };
+  }
+
+  async repair() {
+    return { needsInput: true, actions: [] };
+  }
+}
+
+class WordInspectBypassProvider {
+  constructor() {
+    this.planCalls = 0;
+  }
+
+  async plan() {
+    this.planCalls += 1;
+    return this.planCalls === 1
+      ? { needsInput: true, actions: [] }
+      : { needsInput: false, actions: [{ worker: 'word.transform.v1' }] };
+  }
+
+  async repair() {
+    return { needsInput: true, actions: [] };
+  }
+}
+
+test('Runtime rejects a Word plan that mutates before its only initial inspect action', async (t) => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-runtime-word-order-'));
+  const store = new FileTaskStore(rootDir);
+  const runtime = new FileAgentRuntime({
+    store,
+    executor: new FakeExecutor(),
+    provider: new InvalidWordPlanProvider(),
+  });
+  await runtime.start();
+  t.after(async () => {
+    await runtime.stop();
+    await rm(rootDir, { recursive: true, force: true });
+  });
+
+  const submitted = await runtime.submit({
+    idempotencyKey: 'word-invalid-initial-order',
+    manifest: manifest({
+      taskContractVersion: TASK_CONTRACT_VERSION_V1_1,
+      model: { capabilityProfile: WORD_CAPABILITY_PROFILE },
+      execution: { sessionId: 'word-order-session' },
+      inputs: [{
+        logicalName: 'source.docx',
+        mimeType: DOCX_MIME,
+        sha256: 'a'.repeat(64),
+        codeEnvRef: {
+          storage_session_id: 'word-order-session',
+          file_id: 'word-order-file',
+        },
+      }],
+      acceptanceAssertions: [{
+        type: 'word.paragraph_append.v1',
+        text: 'Requested paragraph',
+      }],
+    }),
+  });
+  const failed = await runtime.waitFor(
+    submitted.task.taskId,
+    (task) => task.status === 'failed',
+  );
+  assert.match(failed.error.message, /initial Word plan must contain exactly one first action/);
+  assert.equal(
+    failed.events.some(
+      (event) => event.type === 'item.started' && event.item?.kind === 'word.transform.v1',
+    ),
+    false,
+  );
+});
+
+test('Runtime does not allow a steered Word task to bypass the required inspect', async (t) => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-runtime-word-steer-order-'));
+  const store = new FileTaskStore(rootDir);
+  const runtime = new FileAgentRuntime({
+    store,
+    executor: new FakeExecutor(),
+    provider: new WordInspectBypassProvider(),
+  });
+  await runtime.start();
+  t.after(async () => {
+    await runtime.stop();
+    await rm(rootDir, { recursive: true, force: true });
+  });
+
+  const submitted = await runtime.submit({
+    idempotencyKey: 'word-steered-inspect-bypass',
+    manifest: manifest({
+      taskContractVersion: TASK_CONTRACT_VERSION_V1_1,
+      model: { capabilityProfile: WORD_CAPABILITY_PROFILE },
+      execution: { sessionId: 'word-steer-order-session' },
+      inputs: [{
+        logicalName: 'source.docx',
+        mimeType: DOCX_MIME,
+        sha256: 'a'.repeat(64),
+        codeEnvRef: {
+          storage_session_id: 'word-steer-order-session',
+          file_id: 'word-steer-order-file',
+        },
+      }],
+      acceptanceAssertions: [{
+        type: 'word.paragraph_append.v1',
+        text: 'Requested paragraph',
+      }],
+    }),
+  });
+
+  await runtime.waitFor(submitted.task.taskId, (task) => task.status === 'needs_input');
+  await runtime.steer(submitted.task.taskId, {
+    instructionId: 'word-steer-1',
+    text: 'Continue with the requested Word change.',
+  });
+  const failed = await runtime.waitFor(
+    submitted.task.taskId,
+    (task) => task.status === 'failed',
+  );
+
+  assert.match(failed.error.message, /initial Word plan must contain exactly one first action/);
+  assert.equal(
+    failed.events.some(
+      (event) => event.type === 'item.started' && event.item?.kind === 'word.transform.v1',
+    ),
+    false,
+  );
 });
 
 async function createHarness(

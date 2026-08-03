@@ -10,7 +10,12 @@ import { promisify } from 'node:util';
 
 import { CodeApiHttpTransport } from '../../file-agent-runtime/src/codeapi-transport.js';
 import { ContextProjector } from '../../file-agent-runtime/src/context-projector.js';
-import { CodeApiXlsxExecutor } from '../../file-agent-runtime/src/deterministic-xlsx.js';
+import {
+  CodeApiWordExecutor,
+  DOCX_MIME,
+  WORD_VERIFIER_PROFILE,
+} from '../../file-agent-runtime/src/deterministic-word.js';
+import { CodeApiXlsxExecutor, XLSX_MIME } from '../../file-agent-runtime/src/deterministic-xlsx.js';
 import { createRuntimeHttpServer } from '../../file-agent-runtime/src/http-server.js';
 import { FileModelCallJournal } from '../../file-agent-runtime/src/model-call-journal.js';
 import {
@@ -21,6 +26,7 @@ import { FileAgentRuntime } from '../../file-agent-runtime/src/runtime.js';
 import { FileTaskStore } from '../../file-agent-runtime/src/task-store.js';
 import { IsolatedCodeApiServer } from '../../file-agent-runtime/test/isolated-codeapi.js';
 import { IsolatedModelRelay } from '../../file-agent-runtime/test/isolated-model-relay.js';
+import { writeWordFixture } from '../../file-agent-runtime/test/word-fixtures.js';
 
 const execFileAsync = promisify(execFile);
 const CONFIRMATION = 'FULL_ISOLATED_LIBRECHAT_ACCEPTANCE';
@@ -28,7 +34,75 @@ const UPSTREAM_PIN = '60eba76375213dafc1874d943e41371201c300ab';
 const AGENT_NAME = 'Phase 3D-B File Agent';
 const MOCK_ENDPOINT = 'Mock Provider A';
 const MOCK_MODEL = 'mock-model-a';
-const OUTPUT_NAME = 'phase1-output.xlsx';
+const FILE_KIND = process.env.FILE_AGENT_PHASE3DB_FILE_KIND ?? 'xlsx';
+if (!['xlsx', 'docx'].includes(FILE_KIND)) {
+  throw new Error('FILE_AGENT_PHASE3DB_FILE_KIND must equal xlsx or docx');
+}
+const IS_WORD = FILE_KIND === 'docx';
+const OUTPUT_NAME = IS_WORD ? 'working.docx' : 'phase1-output.xlsx';
+const WORD_OUTPUT_TEXT = 'File Agent Runtime Word output';
+
+function wordAction(worker, parameters, expectedChange, summary) {
+  return {
+    schemaVersion: '1.0',
+    objective: 'Apply the bounded Word acceptance change',
+    worker,
+    inputRefs: ['input:source-docx'],
+    targetRef: 'candidate:working-docx',
+    parameters,
+    expectedChange,
+    verificationProfile: WORD_VERIFIER_PROFILE,
+    onFailure: 'replan',
+    summary,
+  };
+}
+
+function runtimePlan(operation, context) {
+  if (IS_WORD) {
+    if (operation === 'repair') {
+      return {
+        schemaVersion: '1.0',
+        summary: 'Stop after failed Word verification',
+        needsInput: true,
+        question: 'The Word verification requires explicit guidance.',
+        actions: [],
+      };
+    }
+    const inspected = context?.document != null;
+    return {
+      schemaVersion: '1.0',
+      summary: inspected ? 'Apply the frozen Word acceptance change' : 'Inspect the authorized DOCX',
+      needsInput: false,
+      actions: inspected
+        ? [wordAction(
+            'word.transform.v1',
+            { operation: 'append_paragraph', text: WORD_OUTPUT_TEXT },
+            ['document.paragraph'],
+            'Append the frozen Word acceptance paragraph',
+          )]
+        : [wordAction(
+            'word.inspect.v1',
+            { operation: 'inspect' },
+            ['document.structure'],
+            'Inspect the authorized DOCX',
+          )],
+    };
+  }
+  if (operation === 'repair') {
+    return {
+      schemaVersion: '1.0',
+      summary: 'Patch the persisted workbook worker',
+      needsInput: false,
+      actions: [{ kind: 'xlsx_patch_and_transform', summary: 'Apply one bounded worker patch' }],
+    };
+  }
+  return {
+    schemaVersion: '1.0',
+    summary: 'Run the persisted workbook worker',
+    needsInput: false,
+    actions: [{ kind: 'xlsx_transform', summary: 'Run the stable workbook transform' }],
+  };
+}
 
 function requiredEnvironment(name) {
   const value = process.env[name];
@@ -136,24 +210,13 @@ async function createWorkbook(filePath, marker) {
   await execFileAsync('python3', ['-c', source, filePath]);
 }
 
-function runtimePlan(operation) {
-  if (operation === 'repair') {
-    return {
-      schemaVersion: '1.0',
-      summary: 'Patch the persisted workbook worker',
-      needsInput: false,
-      actions: [{ kind: 'xlsx_patch_and_transform', summary: 'Apply one bounded worker patch' }],
-    };
-  }
-  return {
-    schemaVersion: '1.0',
-    summary: 'Run the persisted workbook worker',
-    needsInput: false,
-    actions: [{ kind: 'xlsx_transform', summary: 'Run the stable workbook transform' }],
-  };
-}
-
-function createRuntimeFactory({ rootDir, relay, codeApi, runtimePort, requestCounts }) {
+function createRuntimeFactory({
+  rootDir,
+  relay,
+  codeApi,
+  runtimePort,
+  requestCounts,
+}) {
   const storePath = path.join(rootDir, 'runtime-store');
   const journalPath = path.join(rootDir, 'provider-journal');
   let runtime = null;
@@ -168,7 +231,7 @@ function createRuntimeFactory({ rootDir, relay, codeApi, runtimePort, requestCou
             baseUrl: relay.baseUrl,
             model: 'recorded-office-planner',
             apiKey: 'isolated-non-production-key',
-            capabilityProfile: 'office-planner-v1',
+            capabilityProfile: IS_WORD ? 'word-edit-v1' : 'office-planner-v1',
             supportsIdempotency: true,
             outputBudgetTokens: 500,
           },
@@ -177,9 +240,13 @@ function createRuntimeFactory({ rootDir, relay, codeApi, runtimePort, requestCou
         journal: new FileModelCallJournal(journalPath),
         projector: new ContextProjector({ maxChars: 8_000 }),
       }),
-      executor: new CodeApiXlsxExecutor({
-        transport: new CodeApiHttpTransport({ baseUrl: codeApi.baseUrl }),
-      }),
+      executor: IS_WORD
+        ? new CodeApiWordExecutor({
+            transport: new CodeApiHttpTransport({ baseUrl: codeApi.baseUrl }),
+          })
+        : new CodeApiXlsxExecutor({
+            transport: new CodeApiHttpTransport({ baseUrl: codeApi.baseUrl }),
+          }),
       maxConcurrentTasks: 1,
     });
     await runtime.start();
@@ -252,7 +319,13 @@ function apiEnvironment({ upstreamRoot, configPath, mongoUri, codeApiBaseUrl, ap
   };
 }
 
-function createApiController({ repositoryRoot, upstreamRoot, environment, runtimeBaseUrl }) {
+function createApiController({
+  repositoryRoot,
+  upstreamRoot,
+  environment,
+  runtimeBaseUrl,
+  acceptanceAssertions,
+}) {
   let child = null;
   let stdoutLogs = [];
   let stderrLogs = [];
@@ -295,7 +368,8 @@ function createApiController({ repositoryRoot, upstreamRoot, environment, runtim
         reconcilerId: `phase3db-api-${randomUUID()}`,
         reconcileIntervalMs: 250,
         modelRouteId: 'file-agent-primary',
-        limits: { maxVisibleArtifacts: 3 },
+        limits: { maxVisibleArtifacts: IS_WORD ? 1 : 3 },
+        acceptanceAssertions,
       });
     }
 
@@ -521,9 +595,9 @@ async function main() {
     email: `phase3db-${Date.now()}@example.local`,
     password: `Phase3DB-${randomBytes(12).toString('hex')}!`,
   };
-  const workbookA = path.join(rootDir, 'runtime-restart.xlsx');
-  const workbookB = path.join(rootDir, 'api-restart.xlsx');
-  const workbookC = path.join(rootDir, 'native-fallback.xlsx');
+  const workbookA = path.join(rootDir, IS_WORD ? 'runtime-restart.docx' : 'runtime-restart.xlsx');
+  const workbookB = path.join(rootDir, IS_WORD ? 'api-restart.docx' : 'api-restart.xlsx');
+  const workbookC = path.join(rootDir, IS_WORD ? 'native-fallback.docx' : 'native-fallback.xlsx');
   let mongoServer;
   let mongo;
   let database;
@@ -539,11 +613,19 @@ async function main() {
 
   try {
     await mkdir(rootDir, { recursive: true });
-    await Promise.all([
-      createWorkbook(workbookA, 'runtime-restart'),
-      createWorkbook(workbookB, 'api-restart'),
-      createWorkbook(workbookC, 'native-fallback'),
-    ]);
+    if (IS_WORD) {
+      await Promise.all([
+        writeWordFixture(workbookA, 'normal'),
+        writeWordFixture(workbookB, 'normal'),
+        writeWordFixture(workbookC, 'normal'),
+      ]);
+    } else {
+      await Promise.all([
+        createWorkbook(workbookA, 'runtime-restart'),
+        createWorkbook(workbookB, 'api-restart'),
+        createWorkbook(workbookC, 'native-fallback'),
+      ]);
+    }
     await writeFile(configPath, `version: 1.3.11
 cache: false
 balance:
@@ -586,9 +668,9 @@ modelSpecs:
 
     codeApi = await new IsolatedCodeApiServer(path.join(rootDir, 'codeapi')).start();
     relay = await new IsolatedModelRelay({
-      responseFor: async ({ operation }) => {
+      responseFor: async ({ operation, context }) => {
         await sleep(1_500);
-        return runtimePlan(operation);
+        return runtimePlan(operation, context);
       },
     }).start();
     runtimeFactory = createRuntimeFactory({
@@ -612,6 +694,10 @@ modelSpecs:
       upstreamRoot,
       environment,
       runtimeBaseUrl: `http://127.0.0.1:${runtimePort}`,
+      acceptanceAssertions: IS_WORD ? [{
+        type: 'word.paragraph_append.v1',
+        text: WORD_OUTPUT_TEXT,
+      }] : null,
     });
 
     process.stdout.write('phase=bootstrap-native-api\n');
@@ -666,10 +752,15 @@ modelSpecs:
     await waitForMessageText(page, 'E2E reply phase3db-ordinary');
     assert.equal(runtimeRequestCounts.get('POST /v1/tasks') ?? 0, runtimeSubmitsBeforeChat);
 
-    process.stdout.write('phase=runtime-restart-workbook\n');
+    process.stdout.write(`phase=runtime-restart-${FILE_KIND}\n`);
     await page.goto(`${baseUrl}/c/new?agent_id=${encodeURIComponent(agent.id)}`, { timeout: 30_000 });
     await uploadWorkbook(page, workbookA);
-    const firstStart = await sendMessage(page, '读取当前工作簿并生成一个经过验证的 Excel 文件');
+    const firstStart = await sendMessage(
+      page,
+      IS_WORD
+        ? '修改当前 Word 文档并交付经过验证的 DOCX 文件'
+        : '读取当前工作簿并生成一个经过验证的 Excel 文件',
+    );
     assert.ok(firstStart.body.conversationId);
     await waitFor(
       () => (runtimeRequestCounts.get('POST /v1/tasks') ?? 0) === 1,
@@ -686,10 +777,15 @@ modelSpecs:
     const firstDelivery = await waitForDelivery(database, firstStart.body.conversationId);
     assert.equal(firstDelivery.taskId, firstTask.taskId);
 
-    process.stdout.write('phase=api-restart-workbook\n');
+    process.stdout.write(`phase=api-restart-${FILE_KIND}\n`);
     await page.goto(`${baseUrl}/c/new?agent_id=${encodeURIComponent(agent.id)}`, { timeout: 30_000 });
     await uploadWorkbook(page, workbookB);
-    const secondStart = await sendMessage(page, '读取第二个工作簿并生成一个经过验证的 Excel 文件');
+    const secondStart = await sendMessage(
+      page,
+      IS_WORD
+        ? '修改第二个 Word 文档并交付经过验证的 DOCX 文件'
+        : '读取第二个工作簿并生成一个经过验证的 Excel 文件',
+    );
     assert.ok(secondStart.body.conversationId);
     await waitFor(
       () => (runtimeRequestCounts.get('POST /v1/tasks') ?? 0) === 2,
@@ -759,6 +855,11 @@ modelSpecs:
       completionWithoutRefresh: true,
       nativeDownloadCard: true,
       nativeFallbackAfterBridgeRemoval: true,
+      inputKind: FILE_KIND,
+      wordAcceptanceAssertions: IS_WORD ? [{
+        type: 'word.paragraph_append.v1',
+        text: WORD_OUTPUT_TEXT,
+      }] : [],
       duplicateCheck: countsAfterRecovery,
     }, null, 2)}\n`);
   } catch (error) {

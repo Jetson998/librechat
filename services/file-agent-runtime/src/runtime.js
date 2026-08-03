@@ -13,6 +13,7 @@ import { assertExecutorAdapter, isAbortError } from './executor-adapter.js';
 import { buildProgressVector, evaluateProgress, repairActionSignature } from './progress-evaluator.js';
 import { assertProviderAdapter } from './provider-adapter.js';
 import { normalizeVerificationResult, verificationFingerprint } from './verification-result.js';
+import { normalizeWordAcceptanceAssertions } from './word-acceptance.js';
 
 export class RuntimeShutdownError extends Error {
   constructor() {
@@ -65,6 +66,31 @@ export function validateTaskManifest(manifest) {
   if (capabilityProfile === WORD_CAPABILITY_PROFILE && manifest.taskContractVersion !== TASK_CONTRACT_VERSION_V1_1) {
     throw new TypeError('The Word capability profile requires office-file-agent.v1.1');
   }
+  if (capabilityProfile === WORD_CAPABILITY_PROFILE) {
+    normalizeWordAcceptanceAssertions(manifest.acceptanceAssertions);
+  }
+}
+
+function deepFreeze(value) {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) {
+    return value;
+  }
+  Object.freeze(value);
+  for (const child of Object.values(value)) {
+    deepFreeze(child);
+  }
+  return value;
+}
+
+export function normalizeTaskManifest(manifest) {
+  validateTaskManifest(manifest);
+  const normalized = clone(manifest);
+  if (normalized.model?.capabilityProfile === WORD_CAPABILITY_PROFILE) {
+    normalized.acceptanceAssertions = normalizeWordAcceptanceAssertions(
+      normalized.acceptanceAssertions,
+    );
+  }
+  return deepFreeze(normalized);
 }
 
 function errorRecord(error) {
@@ -92,6 +118,12 @@ function clone(value) {
 
 function isWordTask(task) {
   return task?.manifest?.model?.capabilityProfile === WORD_CAPABILITY_PROFILE;
+}
+
+function hasCompletedWordInspection(task) {
+  return Object.values(task?.itemResults ?? {}).some(
+    (result) => result?.operation === 'inspect',
+  );
 }
 
 function wordLedgerEntry(action, planRevision, itemId) {
@@ -263,8 +295,11 @@ export class FileAgentRuntime {
   }
 
   async submit({ idempotencyKey, manifest }) {
-    validateTaskManifest(manifest);
-    const result = await this.store.createTask({ idempotencyKey, manifest });
+    const normalizedManifest = normalizeTaskManifest(manifest);
+    const result = await this.store.createTask({
+      idempotencyKey,
+      manifest: normalizedManifest,
+    });
     if (!isTerminal(result.task.status)) {
       this.#schedule(result.task.taskId);
     }
@@ -499,11 +534,17 @@ export class FileAgentRuntime {
 
     if (
       isWordTask(task) &&
-      nextPlanRevision === 1 &&
+      !hasCompletedWordInspection(task) &&
       plan?.needsInput !== true &&
-      !plan?.actions?.some((action) => action?.worker === 'word.inspect.v1')
+      (
+        !Array.isArray(plan?.actions) ||
+        plan.actions.length !== 1 ||
+        plan.actions[0]?.worker !== 'word.inspect.v1'
+      )
     ) {
-      throw new TypeError('The initial Word plan must inspect the document before modifying it');
+      throw new TypeError(
+        'The initial Word plan must contain exactly one first action: word.inspect.v1',
+      );
     }
 
     await this.store.mutateTask(task.taskId, (current, emit) => {
@@ -557,7 +598,7 @@ export class FileAgentRuntime {
     const actionKind = action.worker ?? action.kind ?? 'unknown';
     const actionSummary = action.summary ?? action.objective ?? `Execute ${actionKind}`;
     const shouldReplanAfterInspection = isWordTask(task)
-      && task.planRevision === 1
+      && !hasCompletedWordInspection(task)
       && action.worker === 'word.inspect.v1';
     await this.#runItem({
       task,

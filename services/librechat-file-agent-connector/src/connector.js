@@ -29,6 +29,7 @@ function routeKey(request) {
     modelRouteId: request.modelRouteId,
     capabilityProfile: request.capabilityProfile,
     acceptance: request.acceptance,
+    acceptanceAssertions: request.acceptanceAssertions,
     limits: request.limits,
   });
 }

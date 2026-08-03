@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { FileAgentControllerBridge } from './controller-bridge.js';
 import {
@@ -13,6 +15,7 @@ import { clone, sha256 } from './stable.js';
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const CONTINUATION_INTENT = /(?:继续|接着|刚才|上一轮|上一个任务|按刚才|按之前|resume|continue|same task)/i;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
+const REMOTE_FILE_REFERENCE = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 
 function valueString(value) {
   if (value == null) {
@@ -102,10 +105,46 @@ function binaryContent(value) {
   return null;
 }
 
-export async function contentSha256(file) {
-  const declared = file?.contentSha256 ?? file?.metadata?.contentSha256;
-  if (typeof declared === 'string' && SHA256_PATTERN.test(declared)) {
+function trustedContentHash(file) {
+  const metadata = file?.metadata;
+  const declared = file?.contentSha256 ?? metadata?.contentSha256;
+  if (
+    typeof declared === 'string' &&
+    SHA256_PATTERN.test(declared) &&
+    metadata?.contentSha256Source === 'librechat-storage-v1'
+  ) {
     return declared.toLowerCase();
+  }
+  return null;
+}
+
+async function digestContent(value) {
+  const content = binaryContent(value);
+  if (content) {
+    return sha256(content);
+  }
+  if (!value || typeof value[Symbol.asyncIterator] !== 'function') {
+    const error = new Error('The storage strategy did not return a readable file stream');
+    error.code = 'FILE_CONTENT_STREAM_UNAVAILABLE';
+    throw error;
+  }
+  const digest = createHash('sha256');
+  for await (const chunk of value) {
+    const buffer = binaryContent(chunk);
+    if (!buffer) {
+      const error = new Error('The storage strategy returned a non-binary file chunk');
+      error.code = 'FILE_CONTENT_STREAM_INVALID';
+      throw error;
+    }
+    digest.update(buffer);
+  }
+  return digest.digest('hex');
+}
+
+export async function contentSha256(file) {
+  const trusted = trustedContentHash(file);
+  if (trusted) {
+    return trusted;
   }
 
   const content = binaryContent(file?.content ?? file?.buffer);
@@ -113,10 +152,25 @@ export async function contentSha256(file) {
     return sha256(content);
   }
 
-  const sourcePath = [file?.path, file?.filepath, file?.localPath]
-    .find((value) => typeof value === 'string' && value.trim() !== '');
+  const sourcePath = [file?.path, file?.localPath, file?.filepath]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .find((value) => (
+      value !== ''
+      && path.isAbsolute(value)
+      && !value.startsWith('/api/')
+      && !REMOTE_FILE_REFERENCE.test(value)
+    ));
   if (sourcePath) {
-    return sha256(await readFile(sourcePath));
+    try {
+      return sha256(await readFile(sourcePath));
+    } catch (cause) {
+      const error = new Error(
+        'The upstream attachment local content could not be read for hashing',
+        { cause },
+      );
+      error.code = 'FILE_CONTENT_HASH_UNAVAILABLE';
+      throw error;
+    }
   }
 
   const error = new Error(
@@ -126,6 +180,70 @@ export async function contentSha256(file) {
   throw error;
 }
 
+export function createStorageBackedFileDigest({
+  readStorageStream,
+  persistFileMetadata,
+} = {}) {
+  requiredFunction(readStorageStream, 'readStorageStream');
+  if (persistFileMetadata != null) {
+    requiredFunction(persistFileMetadata, 'persistFileMetadata');
+  }
+
+  return async (file, context) => {
+    const trusted = trustedContentHash(file);
+    if (trusted) {
+      return trusted;
+    }
+
+    const content = binaryContent(file?.content ?? file?.buffer);
+    if (content) {
+      return sha256(content);
+    }
+
+    let stream;
+    try {
+      stream = await readStorageStream({ file, context });
+    } catch (error) {
+      const wrapped = new Error('The LibreChat storage strategy could not read the attachment', {
+        cause: error,
+      });
+      wrapped.code = 'FILE_CONTENT_HASH_UNAVAILABLE';
+      throw wrapped;
+    }
+
+    let digest;
+    try {
+      digest = await digestContent(stream);
+    } catch (error) {
+      if (error?.code === 'FILE_CONTENT_STREAM_UNAVAILABLE') {
+        error.code = 'FILE_CONTENT_HASH_UNAVAILABLE';
+      }
+      throw error;
+    }
+
+    if (persistFileMetadata) {
+      const metadata = {
+        ...(file?.metadata ?? {}),
+        contentSha256: digest,
+        contentSha256Source: 'librechat-storage-v1',
+      };
+      try {
+        await persistFileMetadata({ file, metadata, context });
+      } catch (error) {
+        const wrapped = new Error('The LibreChat attachment hash could not be persisted', {
+          cause: error,
+        });
+        wrapped.code = 'FILE_CONTENT_HASH_PERSIST_FAILED';
+        throw wrapped;
+      }
+      if (file && typeof file === 'object') {
+        file.metadata = metadata;
+      }
+    }
+    return digest;
+  };
+}
+
 export function createUpstreamRuntimeRequestResolver({
   modelRouteId,
   capabilityProfile,
@@ -133,8 +251,13 @@ export function createUpstreamRuntimeRequestResolver({
   acceptance,
   limits = {},
   computeFileDigest = contentSha256,
+  acceptanceAssertions = null,
+  resolveAcceptanceAssertions = null,
 } = {}) {
   requiredFunction(computeFileDigest, 'computeFileDigest');
+  if (resolveAcceptanceAssertions != null) {
+    requiredFunction(resolveAcceptanceAssertions, 'resolveAcceptanceAssertions');
+  }
   return async (context) => {
     const constraint = resolveTurnConstraint(context.req);
     if (constraint) {
@@ -221,6 +344,19 @@ export function createUpstreamRuntimeRequestResolver({
       ? ['Produce one verified DOCX artifact from the authorized current-turn Word document']
       : ['Produce one verified XLSX artifact from the authorized current-turn workbook'];
     const resolvedAcceptance = acceptance ?? defaultAcceptance;
+    const resolvedAcceptanceAssertions = resolveAcceptanceAssertions
+      ? await resolveAcceptanceAssertions({
+          context,
+          files: authorized,
+          instruction: context.text,
+        })
+      : acceptanceAssertions;
+    if (
+      resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE &&
+      !Array.isArray(resolvedAcceptanceAssertions)
+    ) {
+      return native('word_acceptance_assertions_unavailable');
+    }
 
     let files;
     try {
@@ -252,8 +388,15 @@ export function createUpstreamRuntimeRequestResolver({
         };
       }));
     } catch (error) {
-      if (error?.code === 'FILE_CONTENT_HASH_UNAVAILABLE') {
-        return native('input_content_hash_unavailable');
+      if (
+        error?.code === 'FILE_CONTENT_HASH_UNAVAILABLE' ||
+        error?.code === 'FILE_CONTENT_HASH_PERSIST_FAILED'
+      ) {
+        return native(
+          error.code === 'FILE_CONTENT_HASH_PERSIST_FAILED'
+            ? 'input_content_hash_persistence_failed'
+            : 'input_content_hash_unavailable',
+        );
       }
       throw error;
     }
@@ -272,6 +415,9 @@ export function createUpstreamRuntimeRequestResolver({
       capabilityProfile: resolvedCapabilityProfile,
       taskContractVersion: resolvedTaskContractVersion,
       acceptance: [...resolvedAcceptance],
+      ...(resolvedAcceptanceAssertions
+        ? { acceptanceAssertions: clone(resolvedAcceptanceAssertions) }
+        : {}),
       limits: clone(limits),
     };
   };
@@ -379,6 +525,8 @@ export function createUpstreamControllerBridge({
   acceptance,
   limits,
   computeFileDigest,
+  acceptanceAssertions,
+  resolveAcceptanceAssertions,
 }) {
   return new FileAgentControllerBridge({
     connector,
@@ -387,6 +535,8 @@ export function createUpstreamControllerBridge({
       capabilityProfile,
       taskContractVersion,
       acceptance,
+      acceptanceAssertions,
+      resolveAcceptanceAssertions,
       limits,
       computeFileDigest,
     }),

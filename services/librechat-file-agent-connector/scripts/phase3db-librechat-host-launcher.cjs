@@ -32,6 +32,10 @@ async function install(config, { app, appConfig }) {
   const { processCodeOutput } = requireUpstream(
     path.join(upstreamRoot, 'api/server/services/Files/Code/process'),
   );
+  const { getStrategyFunctions } = requireUpstream(
+    path.join(upstreamRoot, 'api/server/services/Files/strategies'),
+  );
+  const { FileSources } = requireUpstream('librechat-data-provider');
   const connector = await import(
     pathToFileURL(path.join(repositoryRoot, 'services/librechat-file-agent-connector/src/index.js'))
   );
@@ -40,6 +44,25 @@ async function install(config, { app, appConfig }) {
   if (!database) {
     throw new Error('LibreChat Mongo database is not connected');
   }
+
+  const computeFileDigest = connector.createStorageBackedFileDigest({
+    readStorageStream: async ({ file, context }) => {
+      const source = file.source ?? FileSources.local;
+      const strategy = getStrategyFunctions(source);
+      if (typeof strategy?.getDownloadStream !== 'function') {
+        throw new Error(`LibreChat storage source does not support download streams: ${source}`);
+      }
+      const storageReference = file.storageKey ?? file.filepath;
+      if (typeof storageReference !== 'string' || storageReference.trim() === '') {
+        throw new Error('LibreChat attachment has no storage reference');
+      }
+      return strategy.getDownloadStream(context.req, storageReference);
+    },
+    persistFileMetadata: ({ file, metadata }) => db.updateFile({
+      file_id: file.file_id,
+      metadata,
+    }),
+  });
   const collections = connector.createUpstreamMongoCollections({
     database,
     deliveryCollectionName: requiredString(
@@ -155,6 +178,8 @@ async function install(config, { app, appConfig }) {
       getMultiplier: db.getMultiplier,
       getCacheMultiplier: db.getCacheMultiplier,
       limits: config.limits ?? {},
+      acceptanceAssertions: config.acceptanceAssertions ?? null,
+      computeFileDigest,
     },
   });
   api.registerShutdownTask('non-production file agent host', host.stop);

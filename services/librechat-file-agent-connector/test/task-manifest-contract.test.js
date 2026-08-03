@@ -27,10 +27,15 @@ function request(overrides = {}) {
       sha256: 'a'.repeat(64),
       conversationId: 'conversation-1',
       ownershipVerified: true,
-      codeEnvRef: {
-        storage_session_id: 'session-1',
-        file_id: 'codeapi-file-1',
-      },
+    codeEnvRef: {
+      storage_session_id: 'session-1',
+      file_id: 'codeapi-file-1',
+    },
+  }],
+    acceptanceAssertions: [{
+      type: 'word.text_replace.v1',
+      find: 'Source paragraph',
+      replace: 'Updated paragraph',
     }],
     sessionId: 'session-1',
     modelRouteId: 'file-agent-primary',

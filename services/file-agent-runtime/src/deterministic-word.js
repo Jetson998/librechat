@@ -9,11 +9,15 @@ import {
 } from './executor-adapter.js';
 import { normalizeActionEnvelope } from './action-envelope.js';
 import { DOCX_MIME as DOCX_MIME_CONSTANT, WORD_CAPABILITY_PROFILE } from './constants.js';
+import {
+  isWordChangeAssertion,
+  normalizeWordAcceptanceAssertions,
+} from './word-acceptance.js';
 
 export const DOCX_MIME = DOCX_MIME_CONSTANT;
 export const WORD_WORKER_VERSION = 'word-worker-v1.0.0';
 export const WORD_VERIFIER_PROFILE = 'word-structure-v1';
-export const WORD_VERIFIER_VERSION = '1.0.0';
+export const WORD_VERIFIER_VERSION = '1.1.0';
 
 export const WORD_WORKER_IDS = Object.freeze([
   'word.inspect.v1',
@@ -222,24 +226,12 @@ function action(worker, parameters, expectedChange, summary) {
   });
 }
 
-function requiredChangesForTask(task) {
-  if (Array.isArray(task.acceptanceLedger) && task.acceptanceLedger.length > 0) {
-    return task.acceptanceLedger.map((entry) => ({
-      worker: entry.worker,
-      parameters: entry.parameters,
-      expectedChange: entry.expectedChange ?? [],
-    }));
-  }
-  const executedActions = Object.values(task.itemResults ?? {})
-    .map((result) => result?.action)
-    .filter((entry) => entry?.worker === 'word.transform.v1' || entry?.worker === 'word.patch.v1');
-  const fallbackActions = executedActions.length > 0
-    ? executedActions
-    : (Array.isArray(task.plan?.actions) ? task.plan.actions : []);
-  return fallbackActions
-    .filter((entry) => entry?.worker === 'word.transform.v1' || entry?.worker === 'word.patch.v1')
-    .map((entry) => normalizeWordAction(entry))
-    .map(({ worker, parameters, expectedChange }) => ({ worker, parameters, expectedChange }));
+function acceptanceAssertionsForTask(task) {
+  return normalizeWordAcceptanceAssertions(task?.manifest?.acceptanceAssertions);
+}
+
+function changeAcceptanceAssertionsForTask(task) {
+  return acceptanceAssertionsForTask(task).filter(isWordChangeAssertion);
 }
 
 export class DeterministicWordProvider {
@@ -248,9 +240,21 @@ export class DeterministicWordProvider {
       .some((result) => result?.operation === 'inspect');
     const configured = task.manifest.wordPlan;
     if (Array.isArray(configured) && configured.length > 0) {
-      const actions = configured
-        .map((entry) => normalizeWordAction(entry))
-        .filter((entry) => !inspected || entry.worker !== 'word.inspect.v1');
+      const configuredActions = configured.map((entry) => normalizeWordAction(entry));
+      if (!inspected) {
+        const inspectActions = configuredActions.filter(
+          (entry) => entry.worker === 'word.inspect.v1',
+        );
+        if (inspectActions.length !== 1) {
+          throw new TypeError('The configured Word plan must contain one inspect action');
+        }
+        return {
+          needsInput: false,
+          summary: 'Inspect the authorized DOCX before planning modifications',
+          actions: [inspectActions[0]],
+        };
+      }
+      const actions = configuredActions.filter((entry) => entry.worker !== 'word.inspect.v1');
       if (actions.length === 0) {
         return {
           needsInput: true,
@@ -279,15 +283,9 @@ export class DeterministicWordProvider {
         }
       : {
           needsInput: false,
-          summary: 'Inspect and append one deterministic Word paragraph',
+          summary: 'Inspect the authorized DOCX before planning modifications',
           actions: [
             action('word.inspect.v1', { operation: 'inspect' }, ['document.structure'], 'Inspect the authorized DOCX'),
-            action(
-              'word.transform.v1',
-              { operation: 'append_paragraph', text: 'File Agent Runtime Word output' },
-              ['document.paragraph'],
-              'Append the deterministic Word output paragraph',
-            ),
           ],
         };
   }
@@ -861,6 +859,46 @@ def replace_expected_table_cell(model, parameters):
     except (KeyError, IndexError, TypeError):
         return False
 
+def apply_acceptance_assertions(model, assertions):
+    changed = True
+    for assertion in assertions:
+        assertion_type = assertion.get("type")
+        if assertion_type == "word.text_replace.v1":
+            applied = replace_nth_paragraph(
+                model,
+                assertion.get("find"),
+                assertion.get("replace", ""),
+                assertion.get("occurrence", 1),
+            )
+        elif assertion_type == "word.paragraph_append.v1":
+            applied = append_expected_paragraph(
+                model,
+                assertion.get("text"),
+                assertion.get("style"),
+            )
+        elif assertion_type == "word.table_cell_replace.v1":
+            applied = replace_expected_table_cell(model, assertion)
+        elif assertion_type == "word.artifact.v1":
+            applied = True
+        else:
+            applied = False
+        changed = applied and changed
+    return changed
+
+def artifact_acceptance_ok(output, assertions):
+    artifact_assertions = [
+        assertion for assertion in assertions
+        if assertion.get("type") == "word.artifact.v1"
+    ]
+    return (
+        len(artifact_assertions) == 1
+        and output.is_file()
+        and output.suffix.lower() == ".docx"
+        and artifact_assertions[0].get("logicalId") == "candidate:working-docx"
+        and artifact_assertions[0].get("mimeType") == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        and artifact_assertions[0].get("maxCount") == 1
+    )
+
 def models_match(expected, actual):
     if len(expected["paragraphs"]) != len(actual["paragraphs"]):
         return False
@@ -897,9 +935,9 @@ def main():
     render_dir = scoped_path(render_dir, lexical_root, resolved_root)
     render_bin = os.environ.get("FILE_AGENT_RENDER_BIN", "soffice")
     try:
-        required_changes = json.loads(base64.b64decode(os.environ["FILE_AGENT_REQUIRED_CHANGES_B64"]).decode("utf-8"))
+        acceptance_assertions = json.loads(base64.b64decode(os.environ["FILE_AGENT_ACCEPTANCE_ASSERTIONS_B64"]).decode("utf-8"))
     except Exception:
-        required_changes = []
+        acceptance_assertions = []
     failed = []
     passed = []
     package = None
@@ -992,34 +1030,18 @@ def main():
         else:
             fail("word.comments.no_orphans", "Word comments contain an orphan or unresolved reference", failed)
 
-        changes_ok = bool(required_changes) and document_root is not None
+        change_assertions = [
+            assertion for assertion in acceptance_assertions
+            if assertion.get("type") != "word.artifact.v1"
+        ]
+        changes_ok = bool(change_assertions) and document_root is not None
         if changes_ok:
             try:
                 with zipfile.ZipFile(input_path, "r") as source_package:
                     source_root = ET.fromstring(source_package.read("word/document.xml"))
                 expected_model = document_model(source_root)
                 actual_model = document_model(document_root)
-                for change in required_changes:
-                    parameters = change.get("parameters", {})
-                    operation = parameters.get("operation")
-                    if operation == "replace_text":
-                        occurrence = parameters.get("occurrence", 1)
-                        changes_ok = replace_nth_paragraph(
-                            expected_model,
-                            parameters.get("find"),
-                            parameters.get("replace", ""),
-                            occurrence,
-                        ) and changes_ok
-                    elif operation == "append_paragraph":
-                        changes_ok = append_expected_paragraph(
-                            expected_model,
-                            parameters.get("text"),
-                            parameters.get("style"),
-                        ) and changes_ok
-                    elif operation == "replace_table_cell":
-                        changes_ok = replace_expected_table_cell(expected_model, parameters) and changes_ok
-                    else:
-                        changes_ok = False
+                changes_ok = apply_acceptance_assertions(expected_model, acceptance_assertions)
                 changes_ok = changes_ok and models_match(expected_model, actual_model)
             except Exception:
                 changes_ok = False
@@ -1027,6 +1049,11 @@ def main():
             passed.append("word.required_changes.applied")
         else:
             fail("word.required_changes.applied", "The declared Word change is not present in the candidate", failed, "CONTENT")
+
+        if artifact_acceptance_ok(output, acceptance_assertions):
+            passed.append("word.artifact.contract")
+        else:
+            fail("word.artifact.contract", "The DOCX artifact does not satisfy the frozen output contract", failed, "ARTIFACT")
 
     else:
         for code, summary in [
@@ -1036,6 +1063,7 @@ def main():
             ("word.relationships.resolved", "The Word relationships cannot be inspected"),
             ("word.comments.no_orphans", "The Word comments cannot be inspected"),
             ("word.required_changes.applied", "The Word change cannot be inspected"),
+            ("word.artifact.contract", "The DOCX artifact contract cannot be inspected"),
         ]:
             fail(code, summary, failed)
 
@@ -1061,12 +1089,13 @@ def main():
     if package is not None:
         package.close()
     failed_codes = {item["code"] for item in failed}
+    required_codes = set(passed) | failed_codes
     result = {
         "schemaVersion": "1.0",
         "profile": "word-structure-v1",
         "profileVersion": "1.0.0",
-        "passed": len(failed) == 0 and len(passed) == 8,
-        "requiredAssertionCount": 8,
+        "passed": len(failed) == 0 and len(passed) == len(required_codes),
+        "requiredAssertionCount": len(required_codes),
         "passedAssertionCodes": sorted(set(passed)),
         "failedAssertions": [
             {"code": item["code"], "class": item["class"], "summary": item["summary"], "evidenceRef": "workspace://verification/current.json"}
@@ -1080,7 +1109,7 @@ def main():
         },
         "metrics": metrics,
         "errorClass": None if not failed else "WORD_" + sorted(failed_codes)[0].replace(".", "_").upper(),
-        "summary": "Word structure, required changes, and render passed" if not failed else "Word verification failed",
+        "summary": "Word structure, frozen acceptance, artifact contract, and render passed" if not failed else "Word verification failed",
     }
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     evidence_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -1089,7 +1118,7 @@ def main():
 try:
     main()
 except Exception:
-    emit({"schemaVersion": "1.0", "profile": "word-structure-v1", "profileVersion": "1.0.0", "passed": False, "requiredAssertionCount": 8, "passedAssertionCodes": [], "failedAssertions": [{"code": "word.verifier.failed", "class": "VERIFIER", "summary": "The deterministic Word verifier failed", "evidenceRef": "workspace://verification/current.json"}], "artifact": {"logicalId": "candidate:working-docx", "revision": 0}, "metrics": {}, "errorClass": "WORD_VERIFIER_FAILED", "summary": "Word verification failed"})
+    emit({"schemaVersion": "1.0", "profile": "word-structure-v1", "profileVersion": "1.1.0", "passed": False, "requiredAssertionCount": 9, "passedAssertionCodes": [], "failedAssertions": [{"code": "word.verifier.failed", "class": "VERIFIER", "summary": "The deterministic Word verifier failed", "evidenceRef": "workspace://verification/current.json"}], "artifact": {"logicalId": "candidate:working-docx", "revision": 0}, "metrics": {}, "errorClass": "WORD_VERIFIER_FAILED", "summary": "Word verification failed"})
 `;
 
 function environment(entries) {
@@ -1219,8 +1248,8 @@ export class CodeApiWordExecutor extends ExecutorAdapter {
 
   async verify({ itemId, task, signal }) {
     const contract = resolveWordContract(task);
-    const requiredChanges = requiredChangesForTask(task);
-    const requirementsB64 = Buffer.from(JSON.stringify(requiredChanges), 'utf8').toString('base64');
+    const acceptanceAssertions = acceptanceAssertionsForTask(task);
+    const assertionsB64 = Buffer.from(JSON.stringify(acceptanceAssertions), 'utf8').toString('base64');
     const command = [
       environment([
         ['FILE_AGENT_MNT_DATA', '/mnt/data'],
@@ -1230,7 +1259,7 @@ export class CodeApiWordExecutor extends ExecutorAdapter {
         ['FILE_AGENT_VERIFICATION_PATH', contract.verificationPath],
         ['FILE_AGENT_RENDER_DIR', contract.renderDir],
         ['FILE_AGENT_RENDER_BIN', this.renderBin],
-        ['FILE_AGENT_REQUIRED_CHANGES_B64', requirementsB64],
+        ['FILE_AGENT_ACCEPTANCE_ASSERTIONS_B64', assertionsB64],
         ['FILE_AGENT_PLAN_REVISION', String(task.planRevision)],
       ]),
       `python3 ${shellQuote(contract.verifierPath)}`,
