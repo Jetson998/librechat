@@ -77,6 +77,10 @@
   "deployment_handoff": {
     "artifact": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/20260804-file-agent-runtime-m3-source-candidate-a2624f8b1859.tar.gz",
     "artifact_sha256": "e3a17ed0b50588eb37b3406aa0266a52c7e0cceaae97d5ccaf6fd41dfaa3d235",
+    "bundle": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/20260804-file-agent-runtime-m3-source-candidate-ops-handoff.tar.gz",
+    "bundle_sha256": "e88b16b17e006afa76b670bb291479d847186d1e707ad2c6f3b150149c63aa92",
+    "bundle_size_bytes": 205792,
+    "bundle_sha256_sidecar": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/20260804-file-agent-runtime-m3-source-candidate-ops-handoff.tar.gz.sha256",
     "manifest": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/manifest.json",
     "operator_guide": "deployment/release-records/20260804-file-agent-runtime-m3-source-candidate/OPS_HANDOFF.md",
     "sha256sums": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/SHA256SUMS",
@@ -120,7 +124,7 @@
     "production_wiring_feature_flags_secrets_and_deployment_runner_not_implemented",
     "no_oci_image_is_claimed_for_m3"
   ],
-  "updated_at": "2026-08-03T17:17:46Z",
+  "updated_at": "2026-08-03T17:27:17Z",
   "validation_plan": [
     {
       "command": "cd services/file-agent-runtime && npm run check && npm test",

@@ -27,6 +27,18 @@ release-plan SHA-256: c8187cec043af365c2e456d27be66bfd545f157983a95f6ef22fdc69ba
 artifact size: 195429 bytes
 ```
 
+For transfer, use the outer handoff bundle rather than sending files one by
+one:
+
+```text
+20260804-file-agent-runtime-m3-source-candidate-ops-handoff.tar.gz
+SHA-256: e88b16b17e006afa76b670bb291479d847186d1e707ad2c6f3b150149c63aa92
+size: 205792 bytes
+```
+
+Its `.sha256` sidecar validates the transfer bundle. After extraction, run the
+inner `SHA256SUMS` validation before using the source archive.
+
 ## Scope
 
 The archive contains the complete tracked source subtrees:
