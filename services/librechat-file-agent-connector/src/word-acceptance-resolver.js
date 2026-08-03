@@ -11,13 +11,16 @@ const MAX_BUSINESS_ASSERTIONS = 4;
 const QUOTED_CAPTURE = String.raw`(?:"([^"\r\n]+)"|“([^”\r\n]+)”|「([^」\r\n]+)」|『([^』\r\n]+)』|\x60([^\x60\r\n]+)\x60)`;
 const QUOTED_TEXT = /"[^"\r\n]+"|“[^”\r\n]+”|「[^」\r\n]+」|『[^』\r\n]+』|`[^`\r\n]+`/gu;
 const CLAUSE_SEPARATOR = /[，,；;。、]|并且|同时|然后|而且|以及|并|\band\b|\bthen\b|\balso\b/giu;
-const ALLOWED_REMAINDER_CHINESE_WORD = '请|帮我|麻烦|当前|这个|该|文档|文件|一个|一份|一|的|最终|修订版|经过|验证|已验证|交付|提交|输出|返回|提供|下载|保存|生成';
-const ALLOWED_REMAINDER_ENGLISH_WORD = 'word|docx|document|file|paragraph|artifact|the|an|a|one|verified|revised|final|deliver|submit|output|return|provide|download|save|produce';
-const ALLOWED_REMAINDER_WORD = new RegExp(
-  String.raw`(?:${ALLOWED_REMAINDER_CHINESE_WORD}|(?<![A-Za-z0-9_])(?:${ALLOWED_REMAINDER_ENGLISH_WORD})(?![A-Za-z0-9_]))`,
-  'giu',
+const DELIVERY_PADDING = String.raw`[\s:：!！?？、。；;，,（）()【】\[\]{}]`;
+const NON_ACTION_PADDING = new RegExp(String.raw`^(?:${DELIVERY_PADDING})*$`, 'u');
+const CHINESE_DELIVERY_CLAUSE = new RegExp(
+  String.raw`^${DELIVERY_PADDING}*(?:请|帮我|麻烦)?\s*(?:交付|提交|输出|返回|提供|下载|保存|生成)\s*(?:一个|一份|一)?\s*(?:经过验证的|已验证的|验证的|最终|修订版)?\s*(?:DOCX\s*(?:文件)?|Word\s*(?:文档|文件)|文档|文件)${DELIVERY_PADDING}*$`,
+  'iu',
 );
-const ALLOWED_REMAINDER_PUNCTUATION = /[\s:：!！?？、。；;，,（）()【】\[\]{}]/gu;
+const ENGLISH_DELIVERY_CLAUSE = new RegExp(
+  String.raw`^${DELIVERY_PADDING}*(?:please|kindly)?\s*(?:deliver|submit|output|return|provide|download|save|produce)\s+(?:(?:a|an|one|the)\s+)?(?:(?:verified|validated|revised|final)\s+)?(?:docx(?:\s+file)?|word\s+(?:document|file)|document|file|artifact)${DELIVERY_PADDING}*$`,
+  'iu',
+);
 
 function quotedValue(match, start) {
   return match.slice(start, start + 5).find((value) => typeof value === 'string') ?? null;
@@ -49,16 +52,19 @@ function splitIntoClauses(instruction) {
   return clauses;
 }
 
-function remainderIsNonAction(value) {
-  const remaining = value
-    .replace(ALLOWED_REMAINDER_WORD, ' ')
-    .replace(ALLOWED_REMAINDER_PUNCTUATION, '')
-    .replace(/\s+/gu, '');
-  return remaining === '';
+function remainderKind(value) {
+  if (NON_ACTION_PADDING.test(value)) {
+    return 'padding';
+  }
+  if (CHINESE_DELIVERY_CLAUSE.test(value) || ENGLISH_DELIVERY_CLAUSE.test(value)) {
+    return 'delivery';
+  }
+  return null;
 }
 
 function completeInstructionConsumption(instruction, matches) {
   const usedMatches = new Set();
+  let deliveryIntentCount = 0;
   for (const clause of splitIntoClauses(instruction)) {
     const clauseMatches = matches.filter(
       (match) => match.start >= clause.start && match.end <= clause.end,
@@ -77,7 +83,11 @@ function completeInstructionConsumption(instruction, matches) {
       usedMatches.add(match);
     }
     remainder.push(instruction.slice(cursor, clause.end));
-    if (!remainderIsNonAction(remainder.join(' '))) {
+    const kind = remainderKind(remainder.join(' '));
+    if (kind == null) {
+      return false;
+    }
+    if (kind === 'delivery' && ++deliveryIntentCount > 1) {
       return false;
     }
   }

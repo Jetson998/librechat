@@ -152,6 +152,10 @@ test('Word acceptance resolver consumes supported action clauses and rejects mix
       instruction: '将第1个表格第2行第3列替换为“Updated cell”，并交付 DOCX',
       type: 'word.table_cell_replace.v1',
     },
+    {
+      instruction: 'replace "a" with "b" and provide one final document',
+      type: 'word.text_replace.v1',
+    },
   ];
 
   for (const { instruction, type } of supported) {
@@ -180,6 +184,9 @@ test('Word acceptance resolver consumes supported action clauses and rejects mix
     '将“甲”替换为“乙”，并提供“带页码的版本”',
     '将“甲”替换为“乙”，输出“同时删除页眉的修订版”',
     'replace "a" with "b" and provide "a version with page numbers"',
+    '将“甲”替换为“乙”，并提供一个最终文档，同时提供一个修订版文档',
+    '将“甲”替换为“乙”，并生成一个文档以及一个文件',
+    'replace "a" with "b" and provide one final document and provide one revised file',
     '将“甲”替换为“乙”，and add a heading',
     'replace "a" with "b"，并翻译第二段',
     '在文档末尾追加段落：“结论”，and add a heading',
