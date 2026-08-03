@@ -9,26 +9,80 @@ export const WORD_ACCEPTANCE_RESOLVER_VERSION = '1.0.0';
 const MAX_INSTRUCTION_CHARS = 8_000;
 const MAX_BUSINESS_ASSERTIONS = 4;
 const QUOTED_CAPTURE = String.raw`(?:"([^"\r\n]+)"|“([^”\r\n]+)”|「([^」\r\n]+)」|『([^』\r\n]+)』|\x60([^\x60\r\n]+)\x60)`;
-const UNSUPPORTED_ACTION_CUE = /(?:删除|删掉|移动|重排|格式化|加粗|斜体|下划线|批注|修订痕迹|修订模式|delete|remove|move|reorder|format|bold|italic|underline|comment|track changes)/iu;
+const QUOTED_TEXT = /"[^"\r\n]+"|“[^”\r\n]+”|「[^」\r\n]+」|『[^』\r\n]+』|`[^`\r\n]+`/gu;
+const CLAUSE_SEPARATOR = /[，,；;。、]|并且|同时|然后|而且|以及|并|\band\b|\bthen\b|\balso\b/giu;
+const ALLOWED_REMAINDER_CHINESE_WORD = '请|帮我|麻烦|当前|这个|该|文档|文件|一个|一份|一|的|最终|修订版|经过|验证|已验证|交付|提交|输出|返回|提供|下载|保存|生成';
+const ALLOWED_REMAINDER_ENGLISH_WORD = 'word|docx|document|file|paragraph|artifact|the|an|a|one|verified|revised|final|deliver|submit|output|return|provide|download|save|produce';
+const ALLOWED_REMAINDER_WORD = new RegExp(
+  String.raw`(?:${ALLOWED_REMAINDER_CHINESE_WORD}|(?<![A-Za-z0-9_])(?:${ALLOWED_REMAINDER_ENGLISH_WORD})(?![A-Za-z0-9_]))`,
+  'giu',
+);
+const ALLOWED_REMAINDER_PUNCTUATION = /[\s:：!！?？、。；;，,（）()【】\[\]{}]/gu;
 
 function quotedValue(match, start) {
   return match.slice(start, start + 5).find((value) => typeof value === 'string') ?? null;
 }
 
-function instructionWithoutQuotedText(instruction) {
-  return instruction
-    .replace(/"[^"\r\n]+"|“[^”\r\n]+”|「[^」\r\n]+」|『[^』\r\n]+』|`[^`\r\n]+`/gu, ' ')
-    .replace(/\s+/gu, ' ')
-    .trim();
-}
-
-function addAssertion(assertions, seen, assertion, index) {
-  const key = JSON.stringify(assertion);
+function addAssertion(assertions, seen, assertion, start, end) {
+  const key = `${start}:${JSON.stringify(assertion)}`;
   if (seen.has(key)) {
     return;
   }
   seen.add(key);
-  assertions.push({ assertion, index });
+  assertions.push({ assertion, start, end });
+}
+
+function maskQuotedText(instruction) {
+  return instruction.replace(QUOTED_TEXT, (value) => value.replace(/[^\r\n]/gu, ' '));
+}
+
+function splitIntoClauses(instruction) {
+  const masked = maskQuotedText(instruction);
+  const clauses = [];
+  let cursor = 0;
+  for (const separator of masked.matchAll(CLAUSE_SEPARATOR)) {
+    const separatorStart = separator.index ?? cursor;
+    clauses.push({ start: cursor, end: separatorStart });
+    cursor = separatorStart + separator[0].length;
+  }
+  clauses.push({ start: cursor, end: instruction.length });
+  return clauses;
+}
+
+function remainderIsNonAction(value) {
+  const remaining = value
+    .replace(QUOTED_TEXT, ' ')
+    .replace(ALLOWED_REMAINDER_WORD, ' ')
+    .replace(ALLOWED_REMAINDER_PUNCTUATION, '')
+    .replace(/\s+/gu, '');
+  return remaining === '';
+}
+
+function completeInstructionConsumption(instruction, matches) {
+  const usedMatches = new Set();
+  for (const clause of splitIntoClauses(instruction)) {
+    const clauseMatches = matches.filter(
+      (match) => match.start >= clause.start && match.end <= clause.end,
+    );
+    if (clauseMatches.length > 1) {
+      return false;
+    }
+    let cursor = clause.start;
+    const remainder = [];
+    for (const match of clauseMatches) {
+      if (match.start < cursor) {
+        return false;
+      }
+      remainder.push(instruction.slice(cursor, match.start));
+      cursor = match.end;
+      usedMatches.add(match);
+    }
+    remainder.push(instruction.slice(cursor, clause.end));
+    if (!remainderIsNonAction(remainder.join(' '))) {
+      return false;
+    }
+  }
+  return usedMatches.size === matches.length;
 }
 
 function parseTextReplacements(instruction, assertions, seen) {
@@ -54,6 +108,7 @@ function parseTextReplacements(instruction, assertions, seen) {
         occurrence,
       },
       match.index ?? 0,
+      (match.index ?? 0) + match[0].length,
     );
   }
 
@@ -78,6 +133,7 @@ function parseTextReplacements(instruction, assertions, seen) {
         occurrence: 1,
       },
       match.index ?? 0,
+      (match.index ?? 0) + match[0].length,
     );
   }
 }
@@ -101,6 +157,7 @@ function parseParagraphAppends(instruction, assertions, seen) {
         text,
       },
       match.index ?? 0,
+      (match.index ?? 0) + match[0].length,
     );
   }
 
@@ -122,6 +179,7 @@ function parseParagraphAppends(instruction, assertions, seen) {
         text,
       },
       match.index ?? 0,
+      (match.index ?? 0) + match[0].length,
     );
   }
 }
@@ -156,6 +214,7 @@ function parseTableCellReplacements(instruction, assertions, seen) {
         text,
       },
       match.index ?? 0,
+      (match.index ?? 0) + match[0].length,
     );
   }
 
@@ -188,6 +247,7 @@ function parseTableCellReplacements(instruction, assertions, seen) {
         text,
       },
       match.index ?? 0,
+      (match.index ?? 0) + match[0].length,
     );
   }
 }
@@ -210,12 +270,12 @@ export function resolveWordAcceptanceAssertions({ instruction, files } = {}) {
   parseTextReplacements(instruction, assertions, seen);
   parseTableCellReplacements(instruction, assertions, seen);
   parseParagraphAppends(instruction, assertions, seen);
-  assertions.sort((left, right) => left.index - right.index);
+  assertions.sort((left, right) => left.start - right.start);
 
   if (
     assertions.length === 0
     || assertions.length > MAX_BUSINESS_ASSERTIONS
-    || UNSUPPORTED_ACTION_CUE.test(instructionWithoutQuotedText(instruction))
+    || !completeInstructionConsumption(instruction, assertions)
   ) {
     return null;
   }

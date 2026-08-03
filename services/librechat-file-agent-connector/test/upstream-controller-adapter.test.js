@@ -137,6 +137,61 @@ test('Word acceptance resolver fails closed for an ambiguous or unsupported inst
   );
 });
 
+test('Word acceptance resolver consumes supported action clauses and rejects mixed unsupported actions', () => {
+  const file = attachment({ filename: 'source.docx', type: DOCX_MIME });
+  const supported = [
+    {
+      instruction: '将“Source paragraph”替换为“Updated paragraph”，并交付修订版 Word 文档',
+      type: 'word.text_replace.v1',
+    },
+    {
+      instruction: '在文档末尾追加段落：“Conclusion”，并交付经过验证的 DOCX',
+      type: 'word.paragraph_append.v1',
+    },
+    {
+      instruction: '将第1个表格第2行第3列替换为“Updated cell”，并交付 DOCX',
+      type: 'word.table_cell_replace.v1',
+    },
+  ];
+
+  for (const { instruction, type } of supported) {
+    const result = resolveWordAcceptanceAssertions({ files: [file], instruction });
+    assert.ok(result);
+    assert.equal(result[0].type, type);
+    assert.equal(result.at(-1).type, 'word.artifact.v1');
+  }
+
+  const composite = resolveWordAcceptanceAssertions({
+    files: [file],
+    instruction: 'replace "a" with "b" and append a paragraph "done" and deliver a verified DOCX file',
+  });
+  assert.deepEqual(composite?.map((assertion) => assertion.type), [
+    'word.text_replace.v1',
+    'word.paragraph_append.v1',
+    'word.artifact.v1',
+  ]);
+
+  const mixedUnsupported = [
+    '将“甲”替换为“乙”，并调整行距',
+    '在文档末尾追加段落：“结论”，同时添加页码',
+    '将“甲”替换为“乙”，并翻译第二段',
+    'replace "a" with "b" and add a heading',
+    '将“甲”替换为“乙”，and add a heading',
+    'replace "a" with "b"，并翻译第二段',
+    '在文档末尾追加段落：“结论”，and add a heading',
+    '将“甲”替换为“乙”，编辑文档',
+    '将“甲”替换为“乙”，完成修改',
+  ];
+
+  for (const instruction of mixedUnsupported) {
+    assert.equal(
+      resolveWordAcceptanceAssertions({ files: [file], instruction }),
+      null,
+      instruction,
+    );
+  }
+});
+
 test('Word resolver fails closed when no independent acceptance assertions are supplied', async () => {
   const resolve = createUpstreamRuntimeRequestResolver({ modelRouteId: 'file-agent-word' });
   const base = context();
