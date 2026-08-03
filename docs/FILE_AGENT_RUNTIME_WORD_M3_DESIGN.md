@@ -104,9 +104,11 @@ LibreChat Host 在创建 Word task 前调用版本化的
 
 ## 7. 后续边界
 
+- M3-R：只对 Word M3 做受控发布准备，不增加能力范围；
+- M3.1：新增 Excel、PowerPoint 和 Office Compose 确定性 Worker，Word v1 保持冻结；
 - M4：受控动态脚本核心，复用 M3 状态机、Workspace、Verifier、Progress Vector 和交付；
-- M5：真实非生产 relay、CodeAPI 和完整 LibreChat 联合验收；
-- M6：生产组合、任务状态 UI、持久化拓扑与独立发布候选。
+- M5：完整产品真实非生产联合验收；
+- M6：扩大范围前的生产组合、任务状态 UI、持久化拓扑与独立发布候选。
 
 后续阶段不得修改 M3 已冻结的 `office-file-agent.v1.1` / `word-edit-v1` 语义；需要新增
 能力时提升 contract/profile 版本，并保持 M3 全量回归通过。

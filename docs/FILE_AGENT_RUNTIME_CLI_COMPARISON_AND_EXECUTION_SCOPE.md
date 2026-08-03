@@ -12,6 +12,10 @@ The implementation-ready functional requirements, data contracts, module map,
 tests, milestones, and acceptance gates are defined in
 `docs/FILE_AGENT_RUNTIME_IMPLEMENTATION_REQUIREMENTS.md`.
 
+The M3.1 Office Worker Suite architecture and development tasks are defined in
+`docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_ARCHITECTURE.md` and
+`docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_DEVELOPMENT_TASKS.md`.
+
 ## 一、决策摘要
 
 File Agent Runtime 不复制 Claude Code 或 Codex CLI，也不以通用代码 Agent 的能力
@@ -220,9 +224,9 @@ Word M3 已完成并冻结为首个确定性 Worker 基线，因为已确认的�
 
 修订痕迹、批注完整性和接受/拒绝全部修订必须有专项 Verifier 后才能加入支持范围。
 
-### 6.4 Excel 生产目标
+### 6.4 Excel M3.1 目标
 
-首版生产范围建议限定 `.xlsx`：
+M3.1 首个候选范围限定 `.xlsx`：
 
 - 读取 Sheet、单元格类型、公式、命名区域、合并单元格和关键样式；
 - 在保留公式和未授权区域的前提下修改数据、公式、样式和工作表；
@@ -233,9 +237,9 @@ Word M3 已完成并冻结为首个确定性 Worker 基线，因为已确认的�
 `.xls`、`.xlsm`、VBA、外部数据连接、Power Query 和复杂透视表不自动继承 `.xlsx`
 支持结论，必须分别增加 Worker、fixture 和验收。
 
-### 6.5 PowerPoint 生产目标
+### 6.5 PowerPoint M3.1 目标
 
-PPTX 在 Word 试点稳定后接入：
+PPTX 在 M3.1 作为独立 Worker/Verifier 接入：
 
 - 修改已有 PPTX 的文字、表格、图片、顺序和基础布局；
 - 根据已授权 Office 数据生成一个完整 PPTX，而不是多个单页文件；
@@ -247,7 +251,21 @@ PPTX 在 Word 试点稳定后接入：
 首版不把“可打开”升级为“设计质量已达到专业演示标准”。内容正确性、版式验证和
 视觉质量必须分开记录。
 
-### 6.6 PDF 边界
+### 6.6 Office Compose M3.1 目标
+
+咨询办公的首批跨格式组合限定为：
+
+- XLSX -> PPTX；
+- DOCX -> PPTX；
+- XLSX + DOCX -> PPTX；
+- 最多三个已授权输入，一个主要输出；
+- 来源数据、目标章节和关键数值必须形成冻结映射并由 Verifier 检查；
+- 只生成一个完整 PPTX，不生成逐页文件、不调用图片生成、不提供 ZIP fallback。
+
+M3.1 只组合已注册 Worker，不包含任务级动态 Script。详细范围见
+`docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_ARCHITECTURE.md`。
+
+### 6.7 PDF 边界
 
 PDF 首版只作为输入、预览或转换来源，不作为优先编辑格式：
 
@@ -341,19 +359,22 @@ artifact count: 1
 - 当前状态不得描述为“已经具备 Claude Code/Codex 同等执行能力”或“Office 全格式
   已由 Runtime 支持”。
 
-进入受控试用前必须完成：
+M3-R Word 受控试用前必须完成：
 
 1. 保持已完成的 Action Envelope、进展向量、跨轮次任务和 Word M3 契约冻结；
-2. 实现并独立评审 Worker 优先、Script 降级的受控动态代码里程碑；
-3. 完成真实非生产 model relay、CodeAPI 和完整 LibreChat 联合验收；
+2. 完成真实非生产 Word model relay、CodeAPI 和完整 LibreChat 联合验收；
+3. 完成生产组合入口、持久化拓扑、feature flag 和回滚设计；
 4. 验证 Runtime、LibreChat、CodeAPI 和浏览器分别中断后的恢复；
 5. 验证普通聊天不创建 Runtime task；
 6. 使用 `vip998` 和显式 feature flag 做单任务受控试用；
 7. 通过独立生产发布、回滚和业务验收后再扩大账号范围。
 
+M3-R 不宣称 Excel、PPTX、Compose 或 Script 已可用。M3.1 和 M4 分别完成开发与各自的
+非生产验收后，才扩大到完整咨询办公场景和陌生复杂任务。
+
 ## 十、最终产品边界
 
-首版明确接纳：
+完整产品目标接纳：
 
 - LibreChat 复杂 Office 文件任务的持久状态、计划、执行、验证、恢复和交付；
 - 一个任务内的多步执行和有进展的修复；
@@ -361,7 +382,13 @@ artifact count: 1
 - Worker 无法覆盖时的任务级受控 Script 模式；
 - 原生 Token 计费、生成文件和下载卡。
 
-首版明确延后：
+当前 M3-R 明确延后：
+
+- Excel、PowerPoint 和 Office Compose Runtime Worker；
+- 任务级受控 Script 模式；
+- 面向外部客户的完整 Office 能力声明。
+
+完整产品仍明确延后：
 
 - 通用仓库编码 Agent；
 - 任意 Shell、Web、MCP 和多 Agent 编排；

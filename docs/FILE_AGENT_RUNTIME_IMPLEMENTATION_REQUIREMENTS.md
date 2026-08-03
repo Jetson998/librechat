@@ -7,8 +7,9 @@ Updated: 2026-08-04
 Status: approved for repository development. This document authorizes scoped
 non-production implementation and testing only. It does not authorize a
 production package, deployment, customer traffic, or customer-file acceptance.
-Milestones 1-3 are implemented and frozen. Controlled task-level scripting is
-the next core milestone and requires its own reviewed design before code changes.
+Milestones 1-3 are implemented and frozen. M3-R is a separate controlled Word
+release track. Office M3.1 is the next product-development milestone; controlled
+task-level scripting remains M4 and must not be mixed into M3.1.
 
 ## 一、项目背景
 
@@ -39,14 +40,24 @@ the next core milestone and requires its own reviewed design before code changes
 6. Runtime、LibreChat、CodeAPI 或浏览器中断后可以恢复，且不重复计费和生成产物。
 7. 普通聊天、轻量文件问答和未支持的文件类型保持现有 LibreChat 原生路径。
 
-### 2.2 首个试点目标
+### 2.2 M3-R 受控试点目标
 
-首个生产候选只试点“上传一个 DOCX 后修改并交付一个 DOCX”。执行采用 Worker 优先、
-受控 Script 降级：高频标准操作使用版本化 Word Worker；Worker 无法覆盖但已有独立
-Verifier 的任务，才允许在当前 task workspace 创建和增量修改任务脚本。Excel、PPTX、
-PDF 和通用工程代码任务继续保留现有路径，后续按独立 capability 扩展。
+M3-R 只试点“上传一个 DOCX 后使用 `word-edit-v1` 修改并交付一个 DOCX”。它不包含
+Excel、PPTX、跨格式 Compose 或动态 Script。只有真实非生产 Word 联合验收、生产组合、
+持久化、feature flag、回滚和发布门禁分别通过后，才可对 `vip998` 受控开放。
 
-### 2.3 非目标
+### 2.3 M3.1 产品目标
+
+M3.1 面向咨询公司办公场景，在不修改 M3 Word 契约的前提下新增正式 Excel、PowerPoint
+和跨格式 Office Compose Worker/Verifier。架构和任务清单分别见：
+
+- `docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_ARCHITECTURE.md`；
+- `docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_DEVELOPMENT_TASKS.md`。
+
+M3.1 的 Office 格式范围仅为 `.docx`、`.xlsx` 和 `.pptx`；旧 `.doc`、`.xls`、`.ppt`
+及含宏格式不自动继承支持结论。
+
+### 2.4 非目标
 
 - 不复制 Claude Code、Codex CLI 或 Codex app-server；
 - 不在 LibreChat API 进程内重写完整 Runtime；
@@ -144,7 +155,16 @@ flowchart LR
 - 结构验证、任务断言和渲染验证；
 - 一个最终 DOCX artifact。
 
-### P1 下一里程碑：受控脚本能力
+### P1 下一里程碑：Office M3.1 Worker Suite
+
+- 保持 `word-edit-v1` 全量回归和语义冻结；
+- 将 XLSX 固定 POC 升级为 `xlsx-edit-v1` Worker/Verifier；
+- 新增 `pptx-edit-v1` Worker/Verifier；
+- 新增 `office-compose-v1`，支持 Excel/Word 数据生成一个完整 PPTX；
+- 新增 Office feature scanner、统一 Inspector、source facts 和 format-specific Verifier；
+- Excel、PPTX、Compose 使用独立 feature flag 和非生产验收报告。
+
+### P1 后续里程碑：受控脚本能力
 
 - Worker 优先、Script 降级的确定性路由；
 - 版本化 `script.create.v1` / `script.patch.v1`；
@@ -153,7 +173,7 @@ flowchart LR
 - 动态脚本输出接入已有独立 Verifier、Progress Vector 和 artifact 交付；
 - 相同输入与脚本不重复执行，等价 patch 在 CodeAPI 副作用前停止。
 
-该能力是完整 File Agent Runtime 产品目标的一部分，也是进入生产候选前的阻塞项，
+该能力是完整 File Agent Runtime 产品目标的一部分，也是扩大到陌生复杂任务前的阻塞项，
 但不回填或扩大已冻结的 Word M3 范围。
 
 ### P1 后续：任务状态 UI
@@ -636,6 +656,27 @@ script.execute.v1
 - Worker 和 Script 共享 Runtime task、Progress Vector、usage、artifact 和恢复契约，
   不创建第二套 Agent Runtime。
 
+### FR-017 Office M3.1 Worker Suite
+
+M3.1 使用 `office-file-agent.v1.2`，新增 `xlsx-edit-v1`、`pptx-edit-v1` 和
+`office-compose-v1`。`office-file-agent.v1.1` / `word-edit-v1` 保持兼容和冻结。
+
+统一要求：
+
+- 最多三个已授权 Office 输入，首个候选只交付一个主要输出；
+- task 接受前完成 MIME、扩展名、所有权、storage-backed hash 和 unsupported feature 检查；
+- Excel 支持结构检查、值/公式/样式/工作表和基础表格图表修改，并验证未授权区域；
+- PPTX 支持文字、表格、已有图片、页面顺序、基础 layout、完整演示文稿生成和全页渲染；
+- Compose 首版支持 XLSX -> PPTX、DOCX -> PPTX、XLSX + DOCX -> PPTX；
+- 不生成图片，不生成逐页 PPTX，不提供 ZIP fallback；
+- `.xls`、`.xlsm`、VBA、外部连接、复杂透视表、Power Query、复杂动画和嵌入程序不
+  自动继承支持结论；
+- 结构、业务断言、来源映射和渲染必须分别验证；“可打开”不能替代内容正确性；
+- 所有用户可见产物继续通过 `processCodeOutput()` 进入 LibreChat。
+
+详细契约、能力矩阵、Workspace 和发布边界以
+`docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_ARCHITECTURE.md` 为准。
+
 ## 七、非功能需求
 
 ### NFR-001 安全
@@ -810,6 +851,18 @@ BaseClient 主循环。
 - Runtime 重启后复用相同 script revision、execution receipt 和 candidate；
 - Word M3、XLSX POC、普通聊天和 Connector 全量回归保持通过。
 
+### 9.6 Office M3.1 测试
+
+- v1/v1.1/v1.2 capability discovery 和 contract 兼容；
+- Word M3 全量测试保持通过且输出语义不变；
+- XLSX 值、公式、样式、Sheet、Table、基础图表和未授权区域保护；
+- PPTX 文字、表格、已有图片、页面顺序、基础 layout、全页渲染和溢出风险；
+- XLSX -> PPTX、DOCX -> PPTX、XLSX + DOCX -> PPTX 来源映射；
+- 宏、外部连接、复杂透视表、Power Query、复杂动画和嵌入对象在副作用前失败关闭；
+- 一个完整 PPTX 只产生一个用户 artifact，不产生逐页 PPTX 或 ZIP；
+- Runtime/Connector 重启、stale ref rebind、usage/artifact/message/final 重放不重复；
+- 普通聊天、图片理解和不支持格式不创建 Runtime task。
+
 ## 十、开发阶段与交付物
 
 ### Milestone 1 已完成：契约与进展判断
@@ -853,6 +906,29 @@ XLSX 回归失败。
 M3 只包含确定性 Word Worker。`word.patch.v1` 是候选 DOCX 的结构化修改动作，不等于
 `script.patch.v1`，不得在 M3 发布批次中补入动态脚本实现。
 
+### Release Track M3-R：Word 受控发布
+
+M3-R 不增加开发范围。发布前必须完成真实非生产 Word 联合验收、生产组合入口、持久化
+拓扑、任务开关、回滚和业务验收。只允许 `vip998` / 内部白名单，不宣称 Excel、PPTX
+或完整 Office Runtime 已可用。
+
+### Milestone 3.1：Office Worker Suite
+
+交付：
+
+- `office-file-agent.v1.2` 和格式能力矩阵；
+- 公共 Office Inspector、unsupported feature scanner 和 OOXML/render 基础层；
+- `xlsx-edit-v1` Worker/Verifier；
+- `pptx-edit-v1` Worker/Verifier；
+- `office-compose-v1` 与来源映射；
+- Connector resolver、manifest、feature flags、billing 和 artifact delivery；
+- Runtime/Connector 全量回归、事故回放和非生产验收计划。
+
+停止条件：必须破坏 M3 Word 契约、只能依赖旧 PPT 历史链路、无法独立验证 Excel/PPT
+候选，或不支持 Office 特性会被静默丢失。
+
+详细开发拆分见 `docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_DEVELOPMENT_TASKS.md`。
+
 ### Milestone 4：受控动态脚本核心
 
 交付：
@@ -868,7 +944,7 @@ M3 只包含确定性 Word Worker。`word.patch.v1` 是候选 DOCX 的结构化�
 停止条件：必须开放宿主任意 Shell/网络/凭据、无法保证输入只读、无法独立验证产物，
 或修复必须重复提交完整脚本。
 
-### Milestone 5：真实非生产联合验收
+### Milestone 5：完整产品真实非生产联合验收
 
 交付：
 
@@ -878,8 +954,9 @@ M3 只包含确定性 Word Worker。`word.patch.v1` 是候选 DOCX 的结构化�
 - secret persistence 扫描；
 - 与原生 Agent 路线的同 fixture 对比。
 
-验收至少覆盖一个 Worker 任务和一个受控 Script 任务；已有 XLSX Phase 3D-C 工具只能
-作为 Worker 路径证据，不能替代 Script 路径或 Word 产品链路验收。
+验收至少覆盖 Word、Excel、PPTX、Compose Worker 和一个受控 Script 任务；已有 XLSX
+Phase 3D-C 工具只能作为早期 Worker 路径证据，不能替代 M3.1 或 Script 验收。M3-R 和
+M3.1 各自形成候选时仍必须先执行该版本自己的非生产联合验收，不能等待本里程碑补证。
 
 停止条件：需要生产 Key、生产客户文件或生产写入才能完成验收。
 
@@ -901,10 +978,11 @@ LibreChat release governance，不得把开发批准视为部署批准。
 7. Runtime/API/browser 重启不重复模型请求、transaction、file 或 message；
 8. 原始 DOCX hash 不变；
 9. 只有 Verifier passed 的一个 DOCX 进入下载卡；
-10. Worker 优先、Script 降级及受控脚本安全测试通过；
-11. 真实非生产 Worker 与 Script 联合验收通过；
-12. 仓库中没有 Key、Authorization、客户正文或原始模型回复；
-13. 形成实现记录、测试报告、已知限制和回滚说明。
+10. M3.1 Excel、PPTX、Compose Worker/Verifier 和 unsupported feature 测试通过；
+11. Worker 优先、Script 降级及受控脚本安全测试通过；
+12. 真实非生产 Word、Excel、PPTX、Compose 与 Script 联合验收通过；
+13. 仓库中没有 Key、Authorization、客户正文或原始模型回复；
+14. 形成实现记录、测试报告、已知限制和回滚说明。
 
 ## 十二、开发提交要求
 

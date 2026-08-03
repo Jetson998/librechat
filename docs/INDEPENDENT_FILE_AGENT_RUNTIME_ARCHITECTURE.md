@@ -7,10 +7,11 @@ Updated: 2026-08-04
 Status: architecture approved. Runtime and Connector foundations, cross-turn
 recovery, and the deterministic Word M1-M3 vertical slice are implemented and
 locally verified. Runtime tests are 61/61 and Connector tests are 79/79 at the
-frozen M3 source revision. Controlled task-level scripting is the next core
-milestone; real external non-production joint acceptance and production wiring
-have not started. There is no production package, deployment, or customer
-traffic authorization. Historical records:
+frozen M3 source revision. M3-R is the controlled Word release track; Office
+M3.1 is the next product-development milestone, followed by controlled
+task-level scripting in M4. Real external non-production joint acceptance and
+production wiring have not started. There is no production package, deployment,
+or customer traffic authorization. Historical records:
 `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`,
 `docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`, and
 `docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`. Phase 2B harness record:
@@ -414,8 +415,9 @@ Script mode
   script.execute.v1
 ```
 
-当前已实现 Worker mode；Script mode 属于下一里程碑，尚未实现。模型不能调用 LibreChat
-的 `create_file`、`processCodeOutput`、数据库接口或任意 `run_command`。
+当前已实现 Word Worker mode；M3.1 将扩展 Excel、PowerPoint 和 Office Compose Worker。
+Script mode 属于后续 M4，尚未实现。模型不能调用 LibreChat 的 `create_file`、
+`processCodeOutput`、数据库接口或任意 `run_command`。
 
 执行规则：
 
@@ -752,7 +754,27 @@ task contract 返回明确 4xx；双方保留 requestId、taskId 和 eventId。
 
 这些结果是开发和隔离验收证据，不等于真实外部非生产或生产可用。
 
-### Milestone 4 下一步：受控动态脚本核心
+### Release Track M3-R：Word 受控发布
+
+- 不增加 M3 开发范围；
+- 先完成真实非生产 Word 联合验收和生产组合设计；
+- 独立执行打包、回滚和业务验收；
+- 只对 `vip998` / 内部白名单开放，不宣称完整 Office 能力。
+
+### Milestone 3.1 下一步：Office Worker Suite
+
+- 保持 `word-edit-v1` 冻结；
+- 新增 `office-file-agent.v1.2`、`xlsx-edit-v1` 和 `pptx-edit-v1`；
+- 新增 `office-compose-v1`，支持 Excel/Word 数据生成一个完整 PPTX；
+- 建设公共 Inspector、unsupported feature scanner、OOXML/render 基础层；
+- 每个格式使用独立 Worker、Verifier、feature flag 和非生产验收报告。
+
+详细设计和任务：
+
+- `docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_ARCHITECTURE.md`；
+- `docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_DEVELOPMENT_TASKS.md`。
+
+### Milestone 4：受控动态脚本核心
 
 - Worker 优先，只有 capability 不覆盖时才进入 Script；
 - 新版本 task contract 和 Script capability profile；
@@ -761,10 +783,10 @@ task contract 返回明确 4xx；双方保留 requestId、taskId 和 eventId。
 - 默认无网络、无凭据、无临时安装的任务级执行策略；
 - 复用已有 Verifier、Progress Vector、恢复、计费和 artifact 交付。
 
-### Milestone 5：真实非生产联合验收
+### Milestone 5：完整产品真实非生产联合验收
 
 - 使用真实非生产 relay、CodeAPI 和完整 LibreChat；
-- 至少完成一个 Worker 任务和一个 Script 任务；
+- 完成 Word、Excel、PPTX、Compose Worker 和一个 Script 任务；
 - 记录调用次数、Token、耗时、artifact hash、恢复和 secret 扫描；
 - 与原生 Agent 路线使用同一 fixture 和验收条件对比。
 
@@ -821,5 +843,7 @@ Codex app-server 包装层。
 - `docs/CONTEXT_SAFETY_PLAN.md`
 - `docs/PUBLIC_CODE_TOOL_CONTRACT_PLAN.md`
 - `docs/AGENT_RUNTIME_CODEX_APP_SERVER_RESEARCH_BRIEF.md`
+- `docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_ARCHITECTURE.md`
+- `docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_DEVELOPMENT_TASKS.md`
 - https://learn.chatgpt.com/docs/app-server#api-overview
 - https://learn.chatgpt.com/docs/app-server#items
