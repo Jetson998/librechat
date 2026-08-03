@@ -51,7 +51,6 @@ function splitIntoClauses(instruction) {
 
 function remainderIsNonAction(value) {
   const remaining = value
-    .replace(QUOTED_TEXT, ' ')
     .replace(ALLOWED_REMAINDER_WORD, ' ')
     .replace(ALLOWED_REMAINDER_PUNCTUATION, '')
     .replace(/\s+/gu, '');
