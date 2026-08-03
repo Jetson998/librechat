@@ -51,6 +51,30 @@ files needed to validate the candidate's provenance. It deliberately excludes
 `node_modules`, credentials, production configuration, downloaded user files,
 and unrelated LibreChat source.
 
+## Recorded isolated validation result
+
+Operations completed the guarded Phase 3D acceptance on
+`2026-08-03T17:47:15Z` against the exact source revision and inner source
+artifact above. The immutable report is:
+
+```text
+.release-state/20260804-file-agent-runtime-m3-source-candidate/
+isolated-operations-phase3d-docx-report.json
+SHA-256: 1b10cac9e8f73231f1b240433757651ffe46e9676003de731e7d419f5150073d
+```
+
+The result passed using only a loopback MongoDB memory server, loopback Runtime
+HTTP, an isolated CodeAPI execution server, and a recorded model relay:
+
+- one DOCX output was generated and delivery completed;
+- two usage events were recorded;
+- replay produced no duplicate delivery;
+- Runtime capacity returned to zero running and queued tasks.
+
+This validates the source candidate only in an isolated non-production
+environment. It does not authorize an OCI build, production feature flag or
+secret wiring, deployment, restart, or production acceptance.
+
 ## Isolated validation procedure
 
 1. Stage a clean non-production source checkout at the baseline revision, or

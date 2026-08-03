@@ -1,7 +1,7 @@
 {
   "acceptance_result": {
     "details": {},
-    "reason": "No production target or user-facing runtime is in scope for this source-only candidate. Isolated Operations validation remains a required handoff gate before a separate production-integration batch is proposed.",
+    "reason": "No production target or user-facing runtime is in scope for this source-only candidate. The isolated Operations validation passed, but a separate production-integration batch remains required before any production release can be proposed.",
     "status": "not_applicable"
   },
   "artifact_digest": {
@@ -43,7 +43,7 @@
         "release-package manifest and SHA-256 inventory passed",
         "repository gate passed against origin/main with matching service scope digest"
       ],
-      "isolated_operations_validation": "pending; follow OPS_HANDOFF.md with an isolated MongoDB, Runtime, CodeAPI fixture, and recorded model relay",
+      "isolated_operations_validation": "passed; see isolated_operations_acceptance and .release-state/20260804-file-agent-runtime-m3-source-candidate/isolated-operations-phase3d-docx-report.json",
       "production_write_attempts": 0
     },
     "production_host": false,
@@ -84,8 +84,36 @@
     "manifest": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/manifest.json",
     "operator_guide": "deployment/release-records/20260804-file-agent-runtime-m3-source-candidate/OPS_HANDOFF.md",
     "sha256sums": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/SHA256SUMS",
-    "status": "ready_for_isolated_validation",
+    "isolated_validation_report": ".release-state/20260804-file-agent-runtime-m3-source-candidate/isolated-operations-phase3d-docx-report.json",
+    "isolated_validation_report_sha256": "1b10cac9e8f73231f1b240433757651ffe46e9676003de731e7d419f5150073d",
+    "status": "isolated_validation_passed",
     "production_deployment_authorized": false
+  },
+  "isolated_operations_acceptance": {
+    "details": {
+      "artifact_sha256": "e3a17ed0b50588eb37b3406aa0266a52c7e0cceaae97d5ccaf6fd41dfaa3d235",
+      "code_api": "isolated-execution-server",
+      "database": "mongodb-memory-server-loopback",
+      "delivery_status": "completed",
+      "executed_at": "2026-08-03T17:47:15Z",
+      "file_kind": "docx",
+      "generated_files": 1,
+      "model_relay": "isolated-recorded",
+      "replay_produced_duplicates": false,
+      "report": ".release-state/20260804-file-agent-runtime-m3-source-candidate/isolated-operations-phase3d-docx-report.json",
+      "report_sha256": "1b10cac9e8f73231f1b240433757651ffe46e9676003de731e7d419f5150073d",
+      "runtime_capacity_after_completion": {
+        "max_concurrent_tasks": 1,
+        "queued_tasks": 0,
+        "running_tasks": 0
+      },
+      "runtime_transport": "loopback-http",
+      "scope": "non-production",
+      "source_revision": "a2624f8b18597e292fb83e8b2cfb71de1e1e7d9e",
+      "usage_events": 2
+    },
+    "reason": "One guarded Phase 3D DOCX task completed in a fully isolated non-production environment. No production MongoDB, Runtime, CodeAPI, model relay, customer file, credential, image build, deployment, or service restart was used.",
+    "status": "passed"
   },
   "mode": "release",
   "project_adapter": {
@@ -120,11 +148,10 @@
   "source_revision": "a2624f8b18597e292fb83e8b2cfb71de1e1e7d9e",
   "status": "ready",
   "unresolved_issues": [
-    "operations_isolated_validation_pending",
     "production_wiring_feature_flags_secrets_and_deployment_runner_not_implemented",
     "no_oci_image_is_claimed_for_m3"
   ],
-  "updated_at": "2026-08-03T17:27:17Z",
+  "updated_at": "2026-08-03T17:50:03Z",
   "validation_plan": [
     {
       "command": "cd services/file-agent-runtime && npm run check && npm test",
