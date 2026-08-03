@@ -756,8 +756,35 @@ test('Word context projection includes bounded inspected document content for re
     schemaVersion: '1.0',
     type: 'word.paragraph_append.v1',
     text: 'Requested paragraph',
+  }, {
+    schemaVersion: '1.0',
+    type: 'word.artifact.v1',
+    logicalId: 'candidate:working-docx',
+    mimeType: DOCX_MIME,
+    maxCount: 1,
   }]);
   assert.ok(projection.characters <= 12_000);
+});
+
+test('Word context projection preserves a long accepted value exactly', () => {
+  const text = 'x'.repeat(700);
+  const projection = new ContextProjector().project({
+    manifest: {
+      intent: 'Modify the authorized Word document',
+      acceptance: ['Return one verified DOCX artifact'],
+      acceptanceAssertions: [{ type: 'word.paragraph_append.v1', text }],
+      inputs: [],
+    },
+    phase: 'planning',
+    planRevision: 1,
+    instructionRevision: 0,
+    itemResults: {},
+    events: [],
+    progress: {},
+  });
+
+  assert.equal(projection.context.wordAcceptanceAssertions[0].text, text);
+  assert.equal(projection.context.wordAcceptanceAssertions[0].text.includes('...'), false);
 });
 
 test('Invalid plan receipt persistence failure becomes ambiguous', async () => {

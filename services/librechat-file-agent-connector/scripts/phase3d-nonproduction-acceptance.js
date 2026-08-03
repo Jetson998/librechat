@@ -38,6 +38,7 @@ import {
   createUpstreamControllerBridge,
   createStorageBackedFileDigest,
   installUpstreamControllerBridge,
+  resolveWordAcceptanceAssertions,
 } from '../src/index.js';
 
 const execFileAsync = promisify(execFile);
@@ -74,6 +75,12 @@ function wordPlan(operation, context) {
     };
   }
   const inspected = context?.document != null;
+  const paragraphAssertion = context?.wordAcceptanceAssertions?.find(
+    (assertion) => assertion.type === 'word.paragraph_append.v1',
+  );
+  if (inspected && !paragraphAssertion?.text) {
+    throw new Error('The isolated Word planner did not receive the resolved paragraph assertion');
+  }
   return {
     schemaVersion: '1.0',
     summary: inspected
@@ -83,7 +90,7 @@ function wordPlan(operation, context) {
     actions: inspected
       ? [wordAction(
           'word.transform.v1',
-          { operation: 'append_paragraph', text: WORD_OUTPUT_TEXT },
+          { operation: 'append_paragraph', text: paragraphAssertion.text },
           ['document.paragraph'],
           'Append the frozen Word acceptance paragraph',
         )]
@@ -252,10 +259,6 @@ async function createIsolatedDependencies({ rootDir, fixturePath, fileKind = 'xl
     inputName,
     inputMimeType: isWord ? DOCX_MIME : XLSX_MIME,
     outputName: isWord ? 'working.docx' : 'phase1-output.xlsx',
-    acceptanceAssertions: isWord ? [{
-      type: 'word.paragraph_append.v1',
-      text: WORD_OUTPUT_TEXT,
-    }] : null,
     filePathReference: isWord ? '/api/files/phase3d-librechat-file' : fixturePath,
     computeFileDigest,
     metadataWrites,
@@ -401,7 +404,7 @@ export async function runPhase3DAcceptance({
       getTransactionsConfig: () => ({ enabled: true }),
       getMultiplier: ({ tokenType }) => (tokenType === 'prompt' ? 0.6 : 3.6),
       getCacheMultiplier: ({ cacheType }) => (cacheType === 'read' ? 0.06 : 0.75),
-      acceptanceAssertions: dependencies.acceptanceAssertions,
+      resolveAcceptanceAssertions: resolveWordAcceptanceAssertions,
       computeFileDigest: dependencies.computeFileDigest,
       scheduleReconcile: ({ submission }) => reconciler.wake(submission.delivery.deliveryId),
     });
@@ -454,7 +457,7 @@ export async function runPhase3DAcceptance({
       assistantMessageId: 'phase3d-message_',
       streamId: 'phase3d-conversation',
       text: fileKind === 'docx'
-        ? '修改当前 Word 文档并交付经过验证的 DOCX'
+        ? `在文档末尾追加段落：“${WORD_OUTPUT_TEXT}”，并交付经过验证的 DOCX`
         : '读取工作簿并生成一个经过验证的汇总 Excel',
       persistUserTurn: async () => {
         persistenceCalls += 1;

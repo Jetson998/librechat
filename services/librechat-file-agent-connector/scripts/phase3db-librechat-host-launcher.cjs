@@ -178,7 +178,7 @@ async function install(config, { app, appConfig }) {
       getMultiplier: db.getMultiplier,
       getCacheMultiplier: db.getCacheMultiplier,
       limits: config.limits ?? {},
-      acceptanceAssertions: config.acceptanceAssertions ?? null,
+      resolveAcceptanceAssertions: connector.resolveWordAcceptanceAssertions,
       computeFileDigest,
     },
   });

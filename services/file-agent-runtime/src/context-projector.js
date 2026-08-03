@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { normalizeWordAcceptanceAssertions } from './word-acceptance.js';
+
 const DEFAULT_TOTAL_CHARS = 12_000;
 const OBJECTIVE_CHARS = 2_000;
 const ACCEPTANCE_CHARS = 2_000;
@@ -7,7 +9,6 @@ const ITEM_SUMMARY_CHARS = 500;
 const MAX_RECENT_ITEMS = 8;
 const RESOURCE_CHARS = 3_000;
 const DOCUMENT_CHARS = 6_000;
-const WORD_ACCEPTANCE_CHARS = 3_000;
 
 function truncate(value, maxChars) {
   if (typeof value !== 'string') {
@@ -167,48 +168,7 @@ function projectWordAcceptanceAssertions(task) {
   if (!Array.isArray(assertions)) {
     return [];
   }
-  const projected = assertions.slice(0, 16).map((assertion) => {
-    if (assertion?.type === 'word.text_replace.v1') {
-      return {
-        schemaVersion: assertion.schemaVersion ?? '1.0',
-        type: assertion.type,
-        find: truncate(assertion.find ?? '', 500),
-        replace: truncate(assertion.replace ?? '', 500),
-        occurrence: assertion.occurrence ?? 1,
-      };
-    }
-    if (assertion?.type === 'word.paragraph_append.v1') {
-      return {
-        schemaVersion: assertion.schemaVersion ?? '1.0',
-        type: assertion.type,
-        text: truncate(assertion.text ?? '', 500),
-        ...(assertion.style ? { style: truncate(assertion.style, 80) } : {}),
-      };
-    }
-    if (assertion?.type === 'word.table_cell_replace.v1') {
-      return {
-        schemaVersion: assertion.schemaVersion ?? '1.0',
-        type: assertion.type,
-        tableIndex: assertion.tableIndex,
-        rowIndex: assertion.rowIndex,
-        columnIndex: assertion.columnIndex,
-        text: truncate(assertion.text ?? '', 500),
-      };
-    }
-    return {
-      schemaVersion: assertion?.schemaVersion ?? '1.0',
-      type: assertion?.type ?? null,
-      logicalId: assertion?.logicalId ?? null,
-      mimeType: assertion?.mimeType ?? null,
-      maxCount: assertion?.maxCount ?? null,
-    };
-  });
-  let serialized = JSON.stringify(projected);
-  while (serialized.length > WORD_ACCEPTANCE_CHARS && projected.length > 1) {
-    projected.pop();
-    serialized = JSON.stringify(projected);
-  }
-  return projected;
+  return structuredClone(normalizeWordAcceptanceAssertions(assertions));
 }
 
 export class ContextProjector {

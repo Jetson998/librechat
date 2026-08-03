@@ -7,6 +7,8 @@ export const WORD_ACCEPTANCE_TYPES = Object.freeze({
   TABLE_CELL_REPLACE: 'word.table_cell_replace.v1',
   ARTIFACT: 'word.artifact.v1',
 });
+export const WORD_ARTIFACT_LOGICAL_ID = 'candidate:working-docx';
+export const WORD_ACCEPTANCE_MAX_SERIALIZED_CHARS = 8_000;
 
 const MAX_TEXT_CHARS = 4_000;
 
@@ -101,9 +103,14 @@ function normalizeAssertion(assertion, index) {
     };
   }
 
-  const logicalId = assertion.logicalId ?? 'candidate:working-docx';
+  const logicalId = assertion.logicalId ?? WORD_ARTIFACT_LOGICAL_ID;
   if (typeof logicalId !== 'string' || logicalId.trim() === '') {
     throw new TypeError(`acceptanceAssertions[${index}].logicalId is required`);
+  }
+  if (logicalId.trim() !== WORD_ARTIFACT_LOGICAL_ID) {
+    throw new TypeError(
+      `acceptanceAssertions[${index}].logicalId must be ${WORD_ARTIFACT_LOGICAL_ID}`,
+    );
   }
   if ((assertion.mimeType ?? DOCX_MIME) !== DOCX_MIME) {
     throw new TypeError('Word artifact acceptance must require a DOCX MIME type');
@@ -115,7 +122,7 @@ function normalizeAssertion(assertion, index) {
   return {
     schemaVersion: WORD_ACCEPTANCE_SCHEMA_VERSION,
     type,
-    logicalId: logicalId.trim(),
+    logicalId: WORD_ARTIFACT_LOGICAL_ID,
     mimeType: DOCX_MIME,
     maxCount: 1,
   };
@@ -144,10 +151,15 @@ export function normalizeWordAcceptanceAssertions(
     normalized.push({
       schemaVersion: WORD_ACCEPTANCE_SCHEMA_VERSION,
       type: WORD_ACCEPTANCE_TYPES.ARTIFACT,
-      logicalId: 'candidate:working-docx',
+      logicalId: WORD_ARTIFACT_LOGICAL_ID,
       mimeType: DOCX_MIME,
       maxCount: 1,
     });
+  }
+  if (JSON.stringify(normalized).length > WORD_ACCEPTANCE_MAX_SERIALIZED_CHARS) {
+    throw new TypeError(
+      `Word acceptanceAssertions exceed ${WORD_ACCEPTANCE_MAX_SERIALIZED_CHARS} serialized characters`,
+    );
   }
   return deepFreeze(normalized);
 }

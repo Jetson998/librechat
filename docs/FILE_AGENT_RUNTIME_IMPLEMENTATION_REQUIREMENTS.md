@@ -341,7 +341,7 @@ Verifier 必须返回结构化结果：
 {
   "schemaVersion": "1.0",
   "profile": "word-structure-v1",
-  "profileVersion": "1.0.0",
+  "profileVersion": "1.1.0",
   "passed": false,
   "requiredAssertionCount": 8,
   "passedAssertionCodes": ["ooxml.zip", "xml.parse"],

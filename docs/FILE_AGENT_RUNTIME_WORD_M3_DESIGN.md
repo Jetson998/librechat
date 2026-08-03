@@ -54,7 +54,7 @@ word.validate.v1
 
 ## 4. Deterministic Verifier 契约
 
-`word-structure-v1@1.0.0` 固定执行以下断言：
+`word-structure-v1@1.1.0` 固定执行以下断言：
 
 ```text
 ooxml.zip.valid
@@ -71,7 +71,19 @@ Verifier 将详细证据写入 `internal/verification/`，向 Runtime 只返回
 `Verification Result v1.0`。结构断言、业务断言和渲染断言任一失败都不能进入
 `publishing`；渲染不可用也按失败处理，不以“可打开”替代渲染通过。
 
-## 5. 发布和测试门
+## 5. 独立业务断言解析
+
+LibreChat Host 在创建 Word task 前调用版本化的
+`resolveWordAcceptanceAssertions`，从当前用户指令编译冻结的结构化业务断言；Host 和
+验收脚本不得注入固定断言。M3 resolver 只接受无歧义的受控表达：带引号的文本替换、
+带引号的段落追加，以及明确的一基表格/行/列单元格替换。无法解析、包含未支持的
+修改动作、超过数量或字段预算的指令返回原生路径，禁止猜测、静态复用或让模型自证。
+
+断言在进入 Runtime 前固定为 `word-acceptance` schema，artifact logical ID 必须是
+`candidate:working-docx`。断言投影保留完整结构化值；超过聚合或上下文预算时任务失败
+关闭，不截断字段后继续执行。
+
+## 6. 发布和测试门
 
 - `publish` 只请求 `output/working.docx`，并校验返回的 MIME、扩展名和唯一 artifact。
 - 原始输入 hash 必须在执行前后保持不变。

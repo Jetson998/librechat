@@ -13,6 +13,7 @@ import {
   installUpstreamControllerBridge,
   startUpstreamLibreChatHostIntegration,
 } from '../src/upstream-controller-adapter.js';
+import { resolveWordAcceptanceAssertions } from '../src/word-acceptance-resolver.js';
 
 function attachment(overrides = {}) {
   return {
@@ -87,11 +88,7 @@ test('upstream request resolver uses initialized current-request attachments', a
 test('upstream Word resolver creates the v1.1 task contract from real attachment bytes', async () => {
   const resolve = createUpstreamRuntimeRequestResolver({
     modelRouteId: 'file-agent-word',
-    acceptanceAssertions: [{
-      type: 'word.text_replace.v1',
-      find: 'Source paragraph',
-      replace: 'Updated paragraph',
-    }],
+    resolveAcceptanceAssertions: resolveWordAcceptanceAssertions,
   });
   const base = context();
   const word = attachment({
@@ -101,7 +98,7 @@ test('upstream Word resolver creates the v1.1 task contract from real attachment
   });
   const request = await resolve({
     ...base,
-    text: '修改这个 Word 文档并交付修订版',
+    text: '将“Source paragraph”替换为“Updated paragraph”，并交付修订版 Word 文档',
     client: {
       ...base.client,
       options: {
@@ -118,6 +115,26 @@ test('upstream Word resolver creates the v1.1 task contract from real attachment
     'Produce one verified DOCX artifact from the authorized current-turn Word document',
   ]);
   assert.equal(request.acceptanceAssertions[0].type, 'word.text_replace.v1');
+  assert.equal(request.acceptanceAssertions[0].find, 'Source paragraph');
+  assert.equal(request.acceptanceAssertions[0].replace, 'Updated paragraph');
+});
+
+test('Word acceptance resolver fails closed for an ambiguous or unsupported instruction', () => {
+  const file = attachment({ filename: 'source.docx', type: DOCX_MIME });
+  assert.deepEqual(
+    resolveWordAcceptanceAssertions({
+      files: [file],
+      instruction: '修改这个 Word 文档并交付修订版',
+    }),
+    null,
+  );
+  assert.deepEqual(
+    resolveWordAcceptanceAssertions({
+      files: [file],
+      instruction: '将“Source paragraph”替换为“Updated paragraph”，然后删除页眉',
+    }),
+    null,
+  );
 });
 
 test('Word resolver fails closed when no independent acceptance assertions are supplied', async () => {
@@ -193,10 +210,7 @@ test('contentSha256 does not treat an API download reference as a local file pat
 test('upstream resolver fails closed when an attachment has no verified content hash source', async () => {
   const resolve = createUpstreamRuntimeRequestResolver({
     modelRouteId: 'file-agent-word',
-    acceptanceAssertions: [{
-      type: 'word.paragraph_append.v1',
-      text: 'Requested paragraph',
-    }],
+    resolveAcceptanceAssertions: resolveWordAcceptanceAssertions,
   });
   const base = context();
   const attachmentWithoutContent = attachment({
@@ -210,7 +224,7 @@ test('upstream resolver fails closed when an attachment has no verified content 
   });
   const result = await resolve({
     ...base,
-    text: '修改这个 Word 文档并交付修订版',
+    text: '在文档末尾追加段落：“Requested paragraph”，并交付修订版 Word 文档',
     client: {
       ...base.client,
       options: {

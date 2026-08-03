@@ -14,6 +14,7 @@ import {
   getWordTaskPaths,
   normalizeWordAction,
   WORD_VERIFIER_PROFILE,
+  WORD_VERIFIER_VERSION,
 } from '../src/deterministic-word.js';
 import { ExecutorExecutionError, ExecutorRejectedError } from '../src/executor-adapter.js';
 import { FileAgentRuntime } from '../src/runtime.js';
@@ -191,6 +192,7 @@ test('Word Worker transforms and publishes one deterministically verified DOCX',
 
   assert.equal(completed.verification.passed, true);
   assert.equal(completed.verification.profile, WORD_VERIFIER_PROFILE);
+  assert.equal(completed.verification.profileVersion, WORD_VERIFIER_VERSION);
   assert.equal(completed.verification.requiredAssertionCount, 9);
   assert.equal(completed.verification.passedAssertionCodes.length, 9);
   assert.equal(completed.result.artifacts.length, 1);

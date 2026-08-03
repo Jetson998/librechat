@@ -30,6 +30,7 @@ import {
   createUpstreamControllerBridge,
   createStorageBackedFileDigest,
   installUpstreamControllerBridge,
+  resolveWordAcceptanceAssertions,
 } from '../src/index.js';
 import { writeWordFixture } from '../../file-agent-runtime/test/word-fixtures.js';
 
@@ -332,10 +333,7 @@ test('Phase 3D host harness completes a real DOCX handoff with storage-backed co
     getTransactionsConfig: () => ({ enabled: true }),
     getMultiplier: ({ tokenType }) => tokenType === 'prompt' ? 0.6 : 3.6,
     getCacheMultiplier: ({ cacheType }) => cacheType === 'read' ? 0.06 : 0.75,
-    acceptanceAssertions: [{
-      type: 'word.paragraph_append.v1',
-      text: 'File Agent Runtime Word output',
-    }],
+    resolveAcceptanceAssertions: resolveWordAcceptanceAssertions,
     computeFileDigest,
     scheduleReconcile: ({ submission }) => reconciler.wake(submission.delivery.deliveryId),
   });
@@ -382,7 +380,7 @@ test('Phase 3D host harness completes a real DOCX handoff with storage-backed co
     userMessageId: 'phase3d-word-message',
     assistantMessageId: 'phase3d-word-message_',
     streamId: 'phase3d-word-conversation',
-    text: '修改当前 Word 文档并交付经过验证的 DOCX',
+    text: '在文档末尾追加段落：“File Agent Runtime Word output”，并交付经过验证的 DOCX',
     persistUserTurn: async () => {
       persistenceCalls += 1;
       return {

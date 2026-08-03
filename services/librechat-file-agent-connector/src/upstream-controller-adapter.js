@@ -251,7 +251,6 @@ export function createUpstreamRuntimeRequestResolver({
   acceptance,
   limits = {},
   computeFileDigest = contentSha256,
-  acceptanceAssertions = null,
   resolveAcceptanceAssertions = null,
 } = {}) {
   requiredFunction(computeFileDigest, 'computeFileDigest');
@@ -350,7 +349,7 @@ export function createUpstreamRuntimeRequestResolver({
           files: authorized,
           instruction: context.text,
         })
-      : acceptanceAssertions;
+      : null;
     if (
       resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE &&
       !Array.isArray(resolvedAcceptanceAssertions)
@@ -525,7 +524,6 @@ export function createUpstreamControllerBridge({
   acceptance,
   limits,
   computeFileDigest,
-  acceptanceAssertions,
   resolveAcceptanceAssertions,
 }) {
   return new FileAgentControllerBridge({
@@ -535,7 +533,6 @@ export function createUpstreamControllerBridge({
       capabilityProfile,
       taskContractVersion,
       acceptance,
-      acceptanceAssertions,
       resolveAcceptanceAssertions,
       limits,
       computeFileDigest,

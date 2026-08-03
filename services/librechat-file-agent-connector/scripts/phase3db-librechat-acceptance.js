@@ -69,6 +69,12 @@ function runtimePlan(operation, context) {
       };
     }
     const inspected = context?.document != null;
+    const paragraphAssertion = context?.wordAcceptanceAssertions?.find(
+      (assertion) => assertion.type === 'word.paragraph_append.v1',
+    );
+    if (inspected && !paragraphAssertion?.text) {
+      throw new Error('The isolated Word planner did not receive the resolved paragraph assertion');
+    }
     return {
       schemaVersion: '1.0',
       summary: inspected ? 'Apply the frozen Word acceptance change' : 'Inspect the authorized DOCX',
@@ -76,7 +82,7 @@ function runtimePlan(operation, context) {
       actions: inspected
         ? [wordAction(
             'word.transform.v1',
-            { operation: 'append_paragraph', text: WORD_OUTPUT_TEXT },
+            { operation: 'append_paragraph', text: paragraphAssertion.text },
             ['document.paragraph'],
             'Append the frozen Word acceptance paragraph',
           )]
@@ -324,7 +330,6 @@ function createApiController({
   upstreamRoot,
   environment,
   runtimeBaseUrl,
-  acceptanceAssertions,
 }) {
   let child = null;
   let stdoutLogs = [];
@@ -369,7 +374,6 @@ function createApiController({
         reconcileIntervalMs: 250,
         modelRouteId: 'file-agent-primary',
         limits: { maxVisibleArtifacts: IS_WORD ? 1 : 3 },
-        acceptanceAssertions,
       });
     }
 
@@ -694,10 +698,6 @@ modelSpecs:
       upstreamRoot,
       environment,
       runtimeBaseUrl: `http://127.0.0.1:${runtimePort}`,
-      acceptanceAssertions: IS_WORD ? [{
-        type: 'word.paragraph_append.v1',
-        text: WORD_OUTPUT_TEXT,
-      }] : null,
     });
 
     process.stdout.write('phase=bootstrap-native-api\n');
@@ -758,7 +758,7 @@ modelSpecs:
     const firstStart = await sendMessage(
       page,
       IS_WORD
-        ? '修改当前 Word 文档并交付经过验证的 DOCX 文件'
+        ? `在文档末尾追加段落：“${WORD_OUTPUT_TEXT}”，并交付经过验证的 DOCX 文件`
         : '读取当前工作簿并生成一个经过验证的 Excel 文件',
     );
     assert.ok(firstStart.body.conversationId);
@@ -783,7 +783,7 @@ modelSpecs:
     const secondStart = await sendMessage(
       page,
       IS_WORD
-        ? '修改第二个 Word 文档并交付经过验证的 DOCX 文件'
+        ? `在文档末尾追加段落：“${WORD_OUTPUT_TEXT}”，并交付经过验证的 DOCX 文件`
         : '读取第二个工作簿并生成一个经过验证的 Excel 文件',
     );
     assert.ok(secondStart.body.conversationId);

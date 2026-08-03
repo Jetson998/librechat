@@ -1093,7 +1093,7 @@ def main():
     result = {
         "schemaVersion": "1.0",
         "profile": "word-structure-v1",
-        "profileVersion": "1.0.0",
+        "profileVersion": "1.1.0",
         "passed": len(failed) == 0 and len(passed) == len(required_codes),
         "requiredAssertionCount": len(required_codes),
         "passedAssertionCodes": sorted(set(passed)),

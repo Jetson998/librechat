@@ -51,3 +51,7 @@ export {
   installUpstreamControllerBridge,
   startUpstreamLibreChatHostIntegration,
 } from './upstream-controller-adapter.js';
+export {
+  WORD_ACCEPTANCE_RESOLVER_VERSION,
+  resolveWordAcceptanceAssertions,
+} from './word-acceptance-resolver.js';
