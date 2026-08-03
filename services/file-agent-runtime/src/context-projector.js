@@ -6,6 +6,7 @@ const ACCEPTANCE_CHARS = 2_000;
 const ITEM_SUMMARY_CHARS = 500;
 const MAX_RECENT_ITEMS = 8;
 const RESOURCE_CHARS = 3_000;
+const DOCUMENT_CHARS = 6_000;
 
 function truncate(value, maxChars) {
   if (typeof value !== 'string') {
@@ -98,6 +99,68 @@ function projectRecentItems(task) {
   };
 }
 
+function projectWordDocument(task) {
+  const inspection = Object.values(task.itemResults ?? {})
+    .reverse()
+    .find((result) => result?.operation === 'inspect');
+  if (!inspection) {
+    return null;
+  }
+
+  const document = {
+    sha256: inspection.sha256 ?? null,
+    paragraphCount: inspection.paragraphCount ?? 0,
+    tableCount: inspection.tableCount ?? 0,
+    styleCount: inspection.styleCount ?? 0,
+    headerCount: inspection.headerCount ?? 0,
+    footerCount: inspection.footerCount ?? 0,
+    paragraphs: (inspection.paragraphs ?? []).slice(0, 40).map((entry) => ({
+      index: entry.index,
+      text: truncate(entry.text ?? '', 400),
+      style: truncate(entry.style ?? '', 80) || null,
+      location: entry.location ?? 'body',
+    })),
+    tables: (inspection.tables ?? []).slice(0, 12).map((table) => ({
+      index: table.index,
+      rows: (table.rows ?? []).slice(0, 20).map((row) => ({
+        index: row.index,
+        cells: (row.cells ?? []).slice(0, 20).map((cell) => truncate(cell ?? '', 400)),
+      })),
+    })),
+    headers: (inspection.headers ?? []).slice(0, 12).map((entry) => ({
+      name: entry.name,
+      paragraphs: (entry.paragraphs ?? []).slice(0, 12).map((paragraph) => truncate(paragraph, 400)),
+    })),
+    footers: (inspection.footers ?? []).slice(0, 12).map((entry) => ({
+      name: entry.name,
+      paragraphs: (entry.paragraphs ?? []).slice(0, 12).map((paragraph) => truncate(paragraph, 400)),
+    })),
+    styles: (inspection.styles ?? []).slice(0, 80).map((entry) => ({
+      id: entry.id,
+      name: truncate(entry.name ?? '', 120) || null,
+    })),
+  };
+
+  let serialized = JSON.stringify(document);
+  while (serialized.length > DOCUMENT_CHARS) {
+    if (document.paragraphs.length > 0) {
+      document.paragraphs.pop();
+    } else if (document.tables.length > 0) {
+      document.tables.pop();
+    } else if (document.headers.length > 0) {
+      document.headers.pop();
+    } else if (document.footers.length > 0) {
+      document.footers.pop();
+    } else if (document.styles.length > 0) {
+      document.styles.pop();
+    } else {
+      break;
+    }
+    serialized = JSON.stringify(document);
+  }
+  return document;
+}
+
 export class ContextProjector {
   constructor({ maxChars = DEFAULT_TOTAL_CHARS } = {}) {
     if (!Number.isInteger(maxChars) || maxChars < 2_000) {
@@ -118,6 +181,7 @@ export class ContextProjector {
         instructionRevision: task.instructionRevision,
       },
       resources: projectResources(task),
+      document: projectWordDocument(task),
       recentItems: recent.items,
       verification: task.verification
         ? {
@@ -152,6 +216,22 @@ export class ContextProjector {
     while (serialized.length > this.maxChars && context.recentItems.length > 0) {
       context.recentItems.shift();
       additionallyOmitted += 1;
+      serialized = JSON.stringify(context);
+    }
+    while (serialized.length > this.maxChars && context.document) {
+      if (context.document.paragraphs.length > 0) {
+        context.document.paragraphs.pop();
+      } else if (context.document.tables.length > 0) {
+        context.document.tables.pop();
+      } else if (context.document.headers.length > 0) {
+        context.document.headers.pop();
+      } else if (context.document.footers.length > 0) {
+        context.document.footers.pop();
+      } else if (context.document.styles.length > 0) {
+        context.document.styles.pop();
+      } else {
+        context.document = null;
+      }
       serialized = JSON.stringify(context);
     }
     if (serialized.length > this.maxChars) {

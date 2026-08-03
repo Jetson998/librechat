@@ -50,7 +50,9 @@ export function buildTaskSubmission({
   modelRouteId,
   billingSnapshotRef,
   capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
-  taskContractVersion = TASK_CONTRACT_VERSION,
+  taskContractVersion = capabilityProfile === WORD_CAPABILITY_PROFILE
+    ? TASK_CONTRACT_VERSION_V1_1
+    : TASK_CONTRACT_VERSION,
   acceptance = [],
   limits = {},
 }) {

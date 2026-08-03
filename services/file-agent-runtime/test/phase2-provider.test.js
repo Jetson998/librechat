@@ -615,7 +615,18 @@ test('Word provider emits the bounded worker schema and validates a v1.1 plan', 
                   worker: 'word.inspect.v1',
                   inputRefs: ['input:source-docx'],
                   targetRef: 'candidate:working-docx',
-                  parameters: { operation: 'inspect' },
+                  parameters: {
+                    operation: 'inspect',
+                    find: null,
+                    replace: null,
+                    text: null,
+                    occurrence: null,
+                    tableIndex: null,
+                    rowIndex: null,
+                    columnIndex: null,
+                    style: null,
+                    expectedBaseSha256: null,
+                  },
                   expectedChange: ['document.structure'],
                   verificationProfile: WORD_VERIFIER_PROFILE,
                   onFailure: 'replan',
@@ -627,7 +638,18 @@ test('Word provider emits the bounded worker schema and validates a v1.1 plan', 
                   worker: 'word.transform.v1',
                   inputRefs: ['input:source-docx'],
                   targetRef: 'candidate:working-docx',
-                  parameters: { operation: 'append_paragraph', text: 'Provider output' },
+                  parameters: {
+                    operation: 'append_paragraph',
+                    find: null,
+                    replace: null,
+                    text: 'Provider output',
+                    occurrence: null,
+                    tableIndex: null,
+                    rowIndex: null,
+                    columnIndex: null,
+                    style: null,
+                    expectedBaseSha256: null,
+                  },
                   expectedChange: ['document.paragraph'],
                   verificationProfile: WORD_VERIFIER_PROFILE,
                   onFailure: 'replan',
@@ -686,6 +708,43 @@ test('Word provider emits the bounded worker schema and validates a v1.1 plan', 
     requestBody.response_format.json_schema.schema.properties.actions.items.properties.targetRef.const,
     'candidate:working-docx',
   );
+});
+
+test('Word context projection includes bounded inspected document content for replanning', () => {
+  const projection = new ContextProjector().project({
+    manifest: {
+      intent: 'Modify the authorized Word document',
+      acceptance: ['Return one verified DOCX artifact'],
+      inputs: [{ logicalName: 'source.docx', mimeType: DOCX_MIME, sha256: 'a'.repeat(64) }],
+    },
+    phase: 'planning',
+    planRevision: 1,
+    instructionRevision: 0,
+    itemResults: {
+      inspect: {
+        operation: 'inspect',
+        sha256: 'b'.repeat(64),
+        paragraphCount: 2,
+        tableCount: 1,
+        styleCount: 1,
+        headerCount: 1,
+        footerCount: 1,
+        paragraphs: [{ index: 0, text: 'Source paragraph', style: 'Normal', location: 'body' }],
+        tables: [{ index: 0, rows: [{ index: 0, cells: ['Cell A1', 'Cell A2'] }] }],
+        headers: [{ name: 'word/header1.xml', paragraphs: ['Header text'] }],
+        footers: [{ name: 'word/footer1.xml', paragraphs: ['Footer text'] }],
+        styles: [{ id: 'Heading1', name: 'heading 1' }],
+      },
+    },
+    events: [],
+    progress: {},
+  });
+
+  assert.equal(projection.context.document.paragraphs[0].text, 'Source paragraph');
+  assert.deepEqual(projection.context.document.tables[0].rows[0].cells, ['Cell A1', 'Cell A2']);
+  assert.equal(projection.context.document.headers[0].paragraphs[0], 'Header text');
+  assert.equal(projection.context.document.footers[0].paragraphs[0], 'Footer text');
+  assert.ok(projection.characters <= 12_000);
 });
 
 test('Invalid plan receipt persistence failure becomes ambiguous', async () => {

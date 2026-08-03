@@ -39,6 +39,7 @@ function applyTaskDefaults(task) {
   task.recordedUsageEventIds ??= [];
   task.usageRecords ??= [];
   task.recordedCompactionIds ??= [];
+  task.acceptanceLedger ??= [];
   task.progress ??= {
     stagnationCount: 0,
     lastFailedVerificationFingerprint: null,
@@ -125,6 +126,7 @@ export class FileTaskStore {
         executionCursor: 0,
         completedItemIds: [],
         itemResults: {},
+        acceptanceLedger: [],
         activeItem: null,
         recordedUsageEventIds: [],
         usageRecords: [],

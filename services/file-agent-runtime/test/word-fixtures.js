@@ -112,7 +112,14 @@ function tableXml(label = 'A') {
     + `<w:tc><w:p><w:r><w:t>Cell ${label}2</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
 }
 
-function documentXml({ rich = false, text = 'Source paragraph', table = false, comments = false, splitText = false } = {}) {
+function documentXml({
+  rich = false,
+  text = 'Source paragraph',
+  table = false,
+  comments = false,
+  splitText = false,
+  repeatText = false,
+} = {}) {
   const references = rich
     ? '<w:sectPr><w:headerReference w:type="default" r:id="rIdHeader"/><w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>'
     : '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>';
@@ -124,7 +131,8 @@ function documentXml({ rich = false, text = 'Source paragraph', table = false, c
     : '';
   const tables = table ? `${tableXml('A')}${rich ? tableXml('B') : ''}` : '';
   const paragraph = splitText ? splitTextParagraph() : textParagraph(text);
-  return xml(`<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${paragraph}${tables}${image}${comment}${references}</w:body></w:document>`);
+  const repeatedParagraph = repeatText ? textParagraph(text) : '';
+  return xml(`<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${paragraph}${repeatedParagraph}${tables}${image}${comment}${references}</w:body></w:document>`);
 }
 
 function contentTypes({ rich = false, comments = false } = {}) {
@@ -193,6 +201,7 @@ export async function writeWordFixture(filePath, kind = 'normal') {
     comments: kind === 'comments' || kind === 'orphan-comments' || kind === 'accident-replay',
     orphanComments: kind === 'orphan-comments' || kind === 'accident-replay',
     splitText: kind === 'split-text',
+    repeatText: kind === 'repeated-text',
     text: kind === 'accident-replay' ? 'Repeated repair target' : 'Source paragraph',
   };
   await writeFile(filePath, createStoredZip(baseEntries(options)));

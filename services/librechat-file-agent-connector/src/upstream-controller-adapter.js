@@ -1,8 +1,18 @@
+import { readFile } from 'node:fs/promises';
+
 import { FileAgentControllerBridge } from './controller-bridge.js';
+import {
+  DEFAULT_CAPABILITY_PROFILE,
+  DOCX_MIME,
+  TASK_CONTRACT_VERSION,
+  TASK_CONTRACT_VERSION_V1_1,
+  WORD_CAPABILITY_PROFILE,
+} from './constants.js';
 import { clone, sha256 } from './stable.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const CONTINUATION_INTENT = /(?:继续|接着|刚才|上一轮|上一个任务|按刚才|按之前|resume|continue|same task)/i;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 
 function valueString(value) {
   if (value == null) {
@@ -39,6 +49,16 @@ function resolveModelRouteId(value, context) {
   return requiredString(resolved, 'modelRouteId');
 }
 
+function resolveCapabilityProfile(value, context, files) {
+  const resolved = typeof value === 'function' ? value(context) : value;
+  if (resolved == null) {
+    return files.some((file) => file.type === DOCX_MIME)
+      ? WORD_CAPABILITY_PROFILE
+      : DEFAULT_CAPABILITY_PROFILE;
+  }
+  return requiredString(resolved, 'capabilityProfile');
+}
+
 function resolveTurnConstraint(req) {
   if (req?.body?.isTemporary === true) {
     return native('temporary_chat_unsupported');
@@ -69,12 +89,50 @@ export function codeEnvObjectDigest(file) {
   ].join('\0'));
 }
 
+function binaryContent(value) {
+  if (Buffer.isBuffer(value)) {
+    return value;
+  }
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value);
+  }
+  if (value instanceof ArrayBuffer) {
+    return Buffer.from(value);
+  }
+  return null;
+}
+
+export async function contentSha256(file) {
+  const declared = file?.contentSha256 ?? file?.metadata?.contentSha256;
+  if (typeof declared === 'string' && SHA256_PATTERN.test(declared)) {
+    return declared.toLowerCase();
+  }
+
+  const content = binaryContent(file?.content ?? file?.buffer);
+  if (content) {
+    return sha256(content);
+  }
+
+  const sourcePath = [file?.path, file?.filepath, file?.localPath]
+    .find((value) => typeof value === 'string' && value.trim() !== '');
+  if (sourcePath) {
+    return sha256(await readFile(sourcePath));
+  }
+
+  const error = new Error(
+    'The upstream attachment does not expose verified DOCX bytes or a content SHA-256',
+  );
+  error.code = 'FILE_CONTENT_HASH_UNAVAILABLE';
+  throw error;
+}
+
 export function createUpstreamRuntimeRequestResolver({
   modelRouteId,
-  capabilityProfile = 'office-planner-v1',
-  acceptance = ['Produce one verified XLSX artifact from the authorized current-turn workbook'],
+  capabilityProfile,
+  taskContractVersion,
+  acceptance,
   limits = {},
-  computeFileDigest = codeEnvObjectDigest,
+  computeFileDigest = contentSha256,
 } = {}) {
   requiredFunction(computeFileDigest, 'computeFileDigest');
   return async (context) => {
@@ -149,24 +207,56 @@ export function createUpstreamRuntimeRequestResolver({
       return native('multiple_codeapi_storage_sessions_unsupported');
     }
 
-    const files = await Promise.all(authorized.map(async (file) => ({
-      fileId: requiredString(valueString(file.file_id), 'file.fileId'),
-      name: requiredString(file.filename, 'file.filename'),
-      mimeType: requiredString(file.type, 'file.type'),
-      sha256: requiredString(await computeFileDigest(file), 'file.sha256'),
-      conversationId: requiredString(context.conversationId, 'conversationId'),
-      ownershipVerified: true,
-      codeEnvRef: {
-        storage_session_id: requiredString(
-          valueString(file.metadata.codeEnvRef.storage_session_id),
-          'file.codeEnvRef.storage_session_id',
-        ),
-        file_id: requiredString(
-          valueString(file.metadata.codeEnvRef.file_id),
-          'file.codeEnvRef.file_id',
-        ),
-      },
-    })));
+    const resolvedCapabilityProfile = resolveCapabilityProfile(
+      capabilityProfile,
+      context,
+      authorized,
+    );
+    const resolvedTaskContractVersion = taskContractVersion ?? (
+      resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE
+        ? TASK_CONTRACT_VERSION_V1_1
+        : TASK_CONTRACT_VERSION
+    );
+    const defaultAcceptance = resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE
+      ? ['Produce one verified DOCX artifact from the authorized current-turn Word document']
+      : ['Produce one verified XLSX artifact from the authorized current-turn workbook'];
+    const resolvedAcceptance = acceptance ?? defaultAcceptance;
+
+    let files;
+    try {
+      files = await Promise.all(authorized.map(async (file) => {
+        const fileSha256 = requiredString(
+          await computeFileDigest(file, context),
+          'file.sha256',
+        ).toLowerCase();
+        if (!SHA256_PATTERN.test(fileSha256)) {
+          throw new TypeError('file.sha256 must be a SHA-256 digest of the file contents');
+        }
+        return {
+          fileId: requiredString(valueString(file.file_id), 'file.fileId'),
+          name: requiredString(file.filename, 'file.filename'),
+          mimeType: requiredString(file.type, 'file.type'),
+          sha256: fileSha256,
+          conversationId: requiredString(context.conversationId, 'conversationId'),
+          ownershipVerified: true,
+          codeEnvRef: {
+            storage_session_id: requiredString(
+              valueString(file.metadata.codeEnvRef.storage_session_id),
+              'file.codeEnvRef.storage_session_id',
+            ),
+            file_id: requiredString(
+              valueString(file.metadata.codeEnvRef.file_id),
+              'file.codeEnvRef.file_id',
+            ),
+          },
+        };
+      }));
+    } catch (error) {
+      if (error?.code === 'FILE_CONTENT_HASH_UNAVAILABLE') {
+        return native('input_content_hash_unavailable');
+      }
+      throw error;
+    }
 
     return {
       userId,
@@ -179,8 +269,9 @@ export function createUpstreamRuntimeRequestResolver({
       files,
       sessionId: [...sessionIds][0],
       modelRouteId: resolveModelRouteId(modelRouteId, context),
-      capabilityProfile,
-      acceptance: [...acceptance],
+      capabilityProfile: resolvedCapabilityProfile,
+      taskContractVersion: resolvedTaskContractVersion,
+      acceptance: [...resolvedAcceptance],
       limits: clone(limits),
     };
   };
@@ -284,6 +375,7 @@ export function createUpstreamControllerBridge({
   getCacheMultiplier,
   scheduleReconcile,
   capabilityProfile,
+  taskContractVersion,
   acceptance,
   limits,
   computeFileDigest,
@@ -293,6 +385,7 @@ export function createUpstreamControllerBridge({
     prepareRequest: createUpstreamRuntimeRequestResolver({
       modelRouteId,
       capabilityProfile,
+      taskContractVersion,
       acceptance,
       limits,
       computeFileDigest,
@@ -394,4 +487,4 @@ export async function startUpstreamLibreChatHostIntegration({
   };
 }
 
-export { XLSX_MIME };
+export { DOCX_MIME, XLSX_MIME };

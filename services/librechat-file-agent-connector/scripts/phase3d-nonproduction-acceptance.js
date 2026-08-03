@@ -325,6 +325,7 @@ export async function runPhase3DAcceptance({
             filename: 'source.xlsx',
             bytes: 4_096,
             type: XLSX_MIME,
+            path: fixturePath,
             metadata: {
               codeEnvRef: {
                 kind: dependencies.resourceKind,

@@ -154,11 +154,12 @@ function normalizeWordParameters(parameters, worker) {
   const normalized = { operation };
   if (operation === 'replace_text') {
     normalized.find = normalizedText(parameters.find, 'parameters.find');
-    if (typeof parameters.replace !== 'string' || parameters.replace.length > MAX_WORD_TEXT_CHARS) {
+    const replacement = parameters.replace ?? '';
+    if (typeof replacement !== 'string' || replacement.length > MAX_WORD_TEXT_CHARS) {
       throw new TypeError('parameters.replace must be a string within the Word text limit');
     }
-    normalized.replace = parameters.replace;
-    if (parameters.occurrence !== undefined) {
+    normalized.replace = replacement;
+    if (parameters.occurrence != null) {
       if (!Number.isSafeInteger(parameters.occurrence) || parameters.occurrence < 1) {
         throw new TypeError('parameters.occurrence must be a positive integer');
       }
@@ -166,7 +167,7 @@ function normalizeWordParameters(parameters, worker) {
     }
   } else if (operation === 'append_paragraph') {
     normalized.text = normalizedText(parameters.text, 'parameters.text');
-    if (parameters.style !== undefined) {
+    if (parameters.style != null) {
       if (
         typeof parameters.style !== 'string' ||
         !/^[A-Za-z][A-Za-z0-9_ -]{0,63}$/.test(parameters.style)
@@ -222,8 +223,20 @@ function action(worker, parameters, expectedChange, summary) {
 }
 
 function requiredChangesForTask(task) {
-  const actions = Array.isArray(task.plan?.actions) ? task.plan.actions : [];
-  return actions
+  if (Array.isArray(task.acceptanceLedger) && task.acceptanceLedger.length > 0) {
+    return task.acceptanceLedger.map((entry) => ({
+      worker: entry.worker,
+      parameters: entry.parameters,
+      expectedChange: entry.expectedChange ?? [],
+    }));
+  }
+  const executedActions = Object.values(task.itemResults ?? {})
+    .map((result) => result?.action)
+    .filter((entry) => entry?.worker === 'word.transform.v1' || entry?.worker === 'word.patch.v1');
+  const fallbackActions = executedActions.length > 0
+    ? executedActions
+    : (Array.isArray(task.plan?.actions) ? task.plan.actions : []);
+  return fallbackActions
     .filter((entry) => entry?.worker === 'word.transform.v1' || entry?.worker === 'word.patch.v1')
     .map((entry) => normalizeWordAction(entry))
     .map(({ worker, parameters, expectedChange }) => ({ worker, parameters, expectedChange }));
@@ -231,28 +244,52 @@ function requiredChangesForTask(task) {
 
 export class DeterministicWordProvider {
   async plan({ task }) {
+    const inspected = Object.values(task.itemResults ?? {})
+      .some((result) => result?.operation === 'inspect');
     const configured = task.manifest.wordPlan;
     if (Array.isArray(configured) && configured.length > 0) {
-      const actions = configured.map((entry) => normalizeWordAction(entry));
+      const actions = configured
+        .map((entry) => normalizeWordAction(entry))
+        .filter((entry) => !inspected || entry.worker !== 'word.inspect.v1');
+      if (actions.length === 0) {
+        return {
+          needsInput: true,
+          question: 'The Word inspection completed but no bounded modification was provided.',
+          actions: [],
+        };
+      }
       return {
         needsInput: false,
         summary: 'Run the declared deterministic Word plan',
         actions,
       };
     }
-    return {
-      needsInput: false,
-      summary: 'Inspect and append one deterministic Word paragraph',
-      actions: [
-        action('word.inspect.v1', { operation: 'inspect' }, ['document.structure'], 'Inspect the authorized DOCX'),
-        action(
-          'word.transform.v1',
-          { operation: 'append_paragraph', text: 'File Agent Runtime Word output' },
-          ['document.paragraph'],
-          'Append the deterministic Word output paragraph',
-        ),
-      ],
-    };
+    return inspected
+      ? {
+          needsInput: false,
+          summary: 'Append one deterministic Word paragraph after inspection',
+          actions: [
+            action(
+              'word.transform.v1',
+              { operation: 'append_paragraph', text: 'File Agent Runtime Word output' },
+              ['document.paragraph'],
+              'Append the deterministic Word output paragraph',
+            ),
+          ],
+        }
+      : {
+          needsInput: false,
+          summary: 'Inspect and append one deterministic Word paragraph',
+          actions: [
+            action('word.inspect.v1', { operation: 'inspect' }, ['document.structure'], 'Inspect the authorized DOCX'),
+            action(
+              'word.transform.v1',
+              { operation: 'append_paragraph', text: 'File Agent Runtime Word output' },
+              ['document.paragraph'],
+              'Append the deterministic Word output paragraph',
+            ),
+          ],
+        };
   }
 
   async repair({ task, verification }) {
@@ -315,15 +352,33 @@ def fail(code, summary):
     emit({"ok": False, "code": code, "summary": summary})
     raise SystemExit(0)
 
-def root_path():
-    return Path(os.environ["FILE_AGENT_MNT_DATA"])
+def data_root():
+    return Path(os.environ["FILE_AGENT_MNT_DATA"]).resolve()
+
+def task_root():
+    value = Path(os.environ["FILE_AGENT_TASK_ROOT"])
+    if value.is_symlink():
+        fail("WORD_PATH_SYMLINK", "The Word task root cannot be a symbolic link")
+    root = value.resolve()
+    data = data_root()
+    if root != data and data not in root.parents:
+        fail("WORD_PATH_SCOPE", "Word task root escaped the CodeAPI data root")
+    return root
+
+def reject_symlink_components(value, root):
+    current = value
+    while current != root:
+        if current.is_symlink():
+            fail("WORD_PATH_SYMLINK", "Word Worker paths cannot traverse symbolic links")
+        current = current.parent
 
 def task_path(name):
     value = Path(os.environ[name])
-    root = root_path().resolve()
+    root = task_root()
     resolved = value.resolve()
     if resolved != root and root not in resolved.parents:
         fail("WORD_PATH_SCOPE", "Word Worker path escaped the task workspace")
+    reject_symlink_components(value, Path(os.environ["FILE_AGENT_TASK_ROOT"]))
     return value
 
 def digest_file(path):
@@ -343,10 +398,12 @@ def read_xml(package, name):
         fail("WORD_XML_INVALID", "A required Word XML part could not be parsed")
 
 def copy_input():
-    root = root_path()
+    root = data_root()
     source = root / os.environ["FILE_AGENT_INPUT_NAME"]
     if not source.is_file():
         fail("WORD_INPUT_MISSING", "The authorized DOCX input is not available")
+    if source.is_symlink() or root not in source.resolve().parents:
+        fail("WORD_INPUT_SYMLINK", "The authorized DOCX input traverses a symbolic link")
     input_path = task_path("FILE_AGENT_INPUT_PATH")
     input_path.parent.mkdir(parents=True, exist_ok=True)
     expected = os.environ["FILE_AGENT_INPUT_SHA256"].lower()
@@ -545,21 +602,91 @@ def transform(action, source, output, history_path):
 
 def inspect(path):
     ensure_package(path)
+
+    def clip(value, limit=320):
+        value = value or ""
+        return value if len(value) <= limit else value[:limit - 3] + "..."
+
+    def paragraph_text(paragraph):
+        return "".join(node.text or "" for node in paragraph.findall(".//w:t", NS))
+
+    def paragraph_style(paragraph):
+        properties = paragraph.find("w:pPr", NS)
+        style = properties.find("w:pStyle", NS) if properties is not None else None
+        return style.attrib.get("{" + W_NS + "}val") if style is not None else None
+
+    def paragraph_records(root, location):
+        records = []
+        for index, paragraph in enumerate(root.findall(".//w:p", NS)):
+            if len(records) >= 40:
+                break
+            records.append({
+                "index": index,
+                "location": location,
+                "text": clip(paragraph_text(paragraph)),
+                "style": paragraph_style(paragraph),
+            })
+        return records
+
+    def table_records(root):
+        records = []
+        for table_index, table in enumerate(root.findall(".//w:tbl", NS)):
+            if len(records) >= 8:
+                break
+            rows = []
+            for row_index, row in enumerate(table.findall("./w:tr", NS)):
+                if len(rows) >= 12:
+                    break
+                cells = []
+                for cell in row.findall("./w:tc", NS)[:12]:
+                    cells.append(clip(paragraph_text(cell), 240))
+                rows.append({"index": row_index, "cells": cells})
+            records.append({"index": table_index, "rows": rows})
+        return records
+
+    def part_records(package, names, prefix):
+        records = []
+        for name in names:
+            if not name.startswith(prefix) or not name.endswith(".xml"):
+                continue
+            try:
+                part_root = ET.fromstring(package.read(name))
+            except Exception:
+                continue
+            records.append({
+                "name": name,
+                "paragraphs": [entry["text"] for entry in paragraph_records(part_root, name)[:20]],
+            })
+        return records
+
     with zipfile.ZipFile(path, "r") as package:
         names = sorted(package.namelist())
         root = ET.fromstring(package.read("word/document.xml"))
         paragraphs = len(root.findall(".//w:p", NS))
         tables = len(root.findall(".//w:tbl", NS))
-        styles = 0
+        style_records = []
         if "word/styles.xml" in names:
-            styles = len(ET.fromstring(package.read("word/styles.xml")).findall(".//w:style", NS))
+            styles_root = ET.fromstring(package.read("word/styles.xml"))
+            for style in styles_root.findall(".//w:style", NS)[:80]:
+                name = style.find("w:name", NS)
+                style_records.append({
+                    "id": style.attrib.get("{" + W_NS + "}styleId"),
+                    "name": name.attrib.get("{" + W_NS + "}val") if name is not None else None,
+                })
+        header_records = part_records(package, names, "word/header")
+        footer_records = part_records(package, names, "word/footer")
     return {
         "ok": True,
         "operation": "inspect",
         "parts": names,
         "paragraphCount": paragraphs,
         "tableCount": tables,
-        "styleCount": styles,
+        "styleCount": len(style_records),
+        "paragraphs": paragraph_records(root, "body"),
+        "tables": table_records(root),
+        "styles": style_records,
+        "headers": header_records,
+        "footers": footer_records,
         "headerCount": len([name for name in names if name.startswith("word/header") and name.endswith(".xml")]),
         "footerCount": len([name for name in names if name.startswith("word/footer") and name.endswith(".xml")]),
         "imageCount": len([name for name in names if name.startswith("word/media/")]),
@@ -591,7 +718,7 @@ def main():
         fail("WORD_OPERATION_UNSUPPORTED", "The Word Worker operation is not supported")
     if worker == "patch" and not output_path.exists():
         fail("WORD_PATCH_CANDIDATE_MISSING", "The Word patch candidate does not exist")
-    base_path = output_path if worker == "patch" else input_path
+    base_path = output_path if output_path.exists() else input_path
     result = transform(action, base_path, output_path, history_path)
     emit(result)
 
@@ -640,10 +767,134 @@ def part_target(name, target):
         base = name.split("/_rels/", 1)[0]
     return str(Path(base, target).as_posix()).lstrip("./")
 
+def scoped_path(value, lexical_root, resolved_root):
+    value = Path(value)
+    if lexical_root.is_symlink():
+        raise ValueError("Word verifier task root cannot be a symbolic link")
+    if not value.is_absolute():
+        raise ValueError("Word verifier paths must be absolute")
+    if value != lexical_root and lexical_root not in value.parents:
+        raise ValueError("Word verifier path escaped the task workspace")
+    current = value
+    while current != lexical_root:
+        if current.is_symlink():
+            raise ValueError("Word verifier paths cannot traverse symbolic links")
+        parent = current.parent
+        if parent == current:
+            raise ValueError("Word verifier path did not reach the task workspace")
+        current = parent
+    resolved = value.resolve()
+    if resolved != resolved_root and resolved_root not in resolved.parents:
+        raise ValueError("Word verifier path escaped the task workspace")
+    return resolved
+
+def paragraph_text(paragraph):
+    return "".join(node.text or "" for node in paragraph.findall(".//w:t", NS))
+
+def paragraph_style(paragraph):
+    properties = paragraph.find("w:pPr", NS)
+    style = properties.find("w:pStyle", NS) if properties is not None else None
+    return style.attrib.get("{" + W_NS + "}val") if style is not None else None
+
+def document_model(root):
+    paragraphs = []
+    records = {}
+    for paragraph in root.findall(".//w:p", NS):
+        record = {"text": paragraph_text(paragraph), "style": paragraph_style(paragraph)}
+        records[id(paragraph)] = record
+        paragraphs.append(record)
+
+    body = root.find(".//w:body", NS)
+    body_paragraphs = []
+    if body is not None:
+        body_paragraphs = [records[id(paragraph)] for paragraph in body.findall("./w:p", NS)]
+
+    tables = []
+    for table in root.findall(".//w:tbl", NS):
+        rows = []
+        for row in table.findall("./w:tr", NS):
+            cells = []
+            for cell in row.findall("./w:tc", NS):
+                cell_paragraphs = [records[id(paragraph)] for paragraph in cell.findall(".//w:p", NS)]
+                cells.append({"paragraphs": cell_paragraphs})
+            rows.append({"cells": cells})
+        tables.append({"rows": rows})
+    return {"paragraphs": paragraphs, "bodyParagraphs": body_paragraphs, "tables": tables}
+
+def replace_nth_paragraph(model, find, replacement, occurrence):
+    if not isinstance(find, str) or find == "" or not isinstance(replacement, str):
+        return False
+    if not isinstance(occurrence, int) or occurrence < 1:
+        return False
+    matches = 0
+    for record in model["paragraphs"]:
+        start = 0
+        while True:
+            index = record["text"].find(find, start)
+            if index < 0:
+                break
+            matches += 1
+            if matches == occurrence:
+                record["text"] = record["text"][:index] + replacement + record["text"][index + len(find):]
+                return True
+            start = index + len(find)
+    return False
+
+def append_expected_paragraph(model, text, style):
+    record = {"text": text, "style": style}
+    model["paragraphs"].append(record)
+    model["bodyParagraphs"].append(record)
+    return True
+
+def replace_expected_table_cell(model, parameters):
+    try:
+        table = model["tables"][parameters["tableIndex"]]
+        row = table["rows"][parameters["rowIndex"]]
+        cell = row["cells"][parameters["columnIndex"]]
+        paragraphs = cell["paragraphs"]
+        if not paragraphs:
+            return False
+        paragraphs[0]["text"] = parameters["text"]
+        for paragraph in paragraphs[1:]:
+            paragraph["text"] = ""
+        return True
+    except (KeyError, IndexError, TypeError):
+        return False
+
+def models_match(expected, actual):
+    if len(expected["paragraphs"]) != len(actual["paragraphs"]):
+        return False
+    if any(left != right for left, right in zip(expected["paragraphs"], actual["paragraphs"])):
+        return False
+    if len(expected["bodyParagraphs"]) != len(actual["bodyParagraphs"]):
+        return False
+    if any(left != right for left, right in zip(expected["bodyParagraphs"], actual["bodyParagraphs"])):
+        return False
+    if len(expected["tables"]) != len(actual["tables"]):
+        return False
+    for expected_table, actual_table in zip(expected["tables"], actual["tables"]):
+        if len(expected_table["rows"]) != len(actual_table["rows"]):
+            return False
+        for expected_row, actual_row in zip(expected_table["rows"], actual_table["rows"]):
+            if len(expected_row["cells"]) != len(actual_row["cells"]):
+                return False
+            for expected_cell, actual_cell in zip(expected_row["cells"], actual_row["cells"]):
+                expected_text = "".join(paragraph["text"] for paragraph in expected_cell["paragraphs"])
+                actual_text = "".join(paragraph["text"] for paragraph in actual_cell["paragraphs"])
+                if expected_text != actual_text:
+                    return False
+    return True
+
 def main():
     output = Path(os.environ["FILE_AGENT_OUTPUT_PATH"])
     evidence_path = Path(os.environ["FILE_AGENT_VERIFICATION_PATH"])
     render_dir = Path(os.environ["FILE_AGENT_RENDER_DIR"])
+    lexical_root = Path(os.environ["FILE_AGENT_TASK_ROOT"])
+    resolved_root = lexical_root.resolve()
+    input_path = scoped_path(os.environ["FILE_AGENT_INPUT_PATH"], lexical_root, resolved_root)
+    output = scoped_path(output, lexical_root, resolved_root)
+    evidence_path = scoped_path(evidence_path, lexical_root, resolved_root)
+    render_dir = scoped_path(render_dir, lexical_root, resolved_root)
     render_bin = os.environ.get("FILE_AGENT_RENDER_BIN", "soffice")
     try:
         required_changes = json.loads(base64.b64decode(os.environ["FILE_AGENT_REQUIRED_CHANGES_B64"]).decode("utf-8"))
@@ -742,19 +993,35 @@ def main():
             fail("word.comments.no_orphans", "Word comments contain an orphan or unresolved reference", failed)
 
         changes_ok = bool(required_changes) and document_root is not None
-        body_text = ""
-        if document_root is not None:
-            body_text = "".join(node.text or "" for node in document_root.findall(".//w:t", NS))
-        for change in required_changes:
-            parameters = change.get("parameters", {})
-            operation = parameters.get("operation")
-            if operation == "replace_text":
-                if parameters.get("replace", "") not in body_text or parameters.get("find", "") in body_text:
-                    changes_ok = False
-            elif operation in {"append_paragraph", "replace_table_cell"}:
-                if parameters.get("text", "") not in body_text:
-                    changes_ok = False
-            else:
+        if changes_ok:
+            try:
+                with zipfile.ZipFile(input_path, "r") as source_package:
+                    source_root = ET.fromstring(source_package.read("word/document.xml"))
+                expected_model = document_model(source_root)
+                actual_model = document_model(document_root)
+                for change in required_changes:
+                    parameters = change.get("parameters", {})
+                    operation = parameters.get("operation")
+                    if operation == "replace_text":
+                        occurrence = parameters.get("occurrence", 1)
+                        changes_ok = replace_nth_paragraph(
+                            expected_model,
+                            parameters.get("find"),
+                            parameters.get("replace", ""),
+                            occurrence,
+                        ) and changes_ok
+                    elif operation == "append_paragraph":
+                        changes_ok = append_expected_paragraph(
+                            expected_model,
+                            parameters.get("text"),
+                            parameters.get("style"),
+                        ) and changes_ok
+                    elif operation == "replace_table_cell":
+                        changes_ok = replace_expected_table_cell(expected_model, parameters) and changes_ok
+                    else:
+                        changes_ok = False
+                changes_ok = changes_ok and models_match(expected_model, actual_model)
+            except Exception:
                 changes_ok = False
         if changes_ok:
             passed.append("word.required_changes.applied")
@@ -842,8 +1109,11 @@ function stableScriptWriteCommand(contract) {
       sha256(VERIFIER_SCRIPT),
     ],
   ];
-  const python = `import base64, hashlib, os\nfrom pathlib import Path\nroot = Path(os.environ["FILE_AGENT_MNT_DATA"])\nfiles = ${JSON.stringify(files)}\nfor absolute, source, expected in files:\n    path = root / absolute.removeprefix("/mnt/data/")\n    path.parent.mkdir(parents=True, exist_ok=True)\n    data = base64.b64decode(source)\n    if path.exists():\n        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:\n            raise RuntimeError("stable Word script revision conflict")\n    else:\n        path.write_bytes(data)\n`;
-  return `${environment([['FILE_AGENT_MNT_DATA', '/mnt/data']])} ${pythonFromBase64(python)}`;
+  const python = `import base64, hashlib, os\nfrom pathlib import Path\ndata_root = Path(os.environ["FILE_AGENT_MNT_DATA"]).resolve()\ntask_root = Path(os.environ["FILE_AGENT_TASK_ROOT"])\nif task_root.is_symlink():\n    raise RuntimeError("Word task root cannot be a symbolic link")\ntask_root = task_root.resolve()\nif task_root != data_root and data_root not in task_root.parents:\n    raise RuntimeError("Word task root escaped the CodeAPI data root")\ndef checked_path(absolute):\n    virtual_path = Path(absolute)\n    try:\n        relative = virtual_path.relative_to(Path("/mnt/data"))\n    except ValueError:\n        raise RuntimeError("Word script path is outside the CodeAPI data root")\n    path = data_root / relative\n    resolved = path.resolve()\n    if resolved != task_root and task_root not in resolved.parents:\n        raise RuntimeError("Word script path escaped the task workspace")\n    current = path\n    while current != task_root:\n        if current.is_symlink():\n            raise RuntimeError("Word script path traverses a symbolic link")\n        current = current.parent\n    return path\nfiles = ${JSON.stringify(files)}\nfor absolute, source, expected in files:\n    path = checked_path(absolute)\n    path.parent.mkdir(parents=True, exist_ok=True)\n    data = base64.b64decode(source)\n    if path.exists():\n        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:\n            raise RuntimeError("stable Word script revision conflict")\n    else:\n        path.write_bytes(data)\n`;
+  return `${environment([
+    ['FILE_AGENT_MNT_DATA', '/mnt/data'],
+    ['FILE_AGENT_TASK_ROOT', contract.workspaceRoot],
+  ])} ${pythonFromBase64(python)}`;
 }
 
 function parseMarker(stdout, marker, label) {
@@ -887,6 +1157,7 @@ function actionCommand(contract, operation, action) {
   return [
     environment([
       ['FILE_AGENT_MNT_DATA', '/mnt/data'],
+      ['FILE_AGENT_TASK_ROOT', contract.workspaceRoot],
       ['FILE_AGENT_INPUT_NAME', contract.filename],
       ['FILE_AGENT_INPUT_SHA256', contract.inputSha256],
       ['FILE_AGENT_INPUT_PATH', contract.inputPath],
@@ -953,6 +1224,8 @@ export class CodeApiWordExecutor extends ExecutorAdapter {
     const command = [
       environment([
         ['FILE_AGENT_MNT_DATA', '/mnt/data'],
+        ['FILE_AGENT_TASK_ROOT', contract.workspaceRoot],
+        ['FILE_AGENT_INPUT_PATH', contract.inputPath],
         ['FILE_AGENT_OUTPUT_PATH', contract.outputPath],
         ['FILE_AGENT_VERIFICATION_PATH', contract.verificationPath],
         ['FILE_AGENT_RENDER_DIR', contract.renderDir],

@@ -62,7 +62,7 @@ export function validateTaskManifest(manifest) {
       throw new TypeError('Word task contract requires exactly one DOCX input');
     }
   }
-  if (capabilityProfile === WORD_CAPABILITY_PROFILE && manifest.taskContractVersion !== 'office-file-agent.v1.1') {
+  if (capabilityProfile === WORD_CAPABILITY_PROFILE && manifest.taskContractVersion !== TASK_CONTRACT_VERSION_V1_1) {
     throw new TypeError('The Word capability profile requires office-file-agent.v1.1');
   }
 }
@@ -88,6 +88,45 @@ function unwrapProviderValue(result) {
 
 function clone(value) {
   return structuredClone(value);
+}
+
+function isWordTask(task) {
+  return task?.manifest?.model?.capabilityProfile === WORD_CAPABILITY_PROFILE;
+}
+
+function wordLedgerEntry(action, planRevision, itemId) {
+  if (!['word.transform.v1', 'word.patch.v1'].includes(action?.worker)) {
+    return null;
+  }
+  return {
+    planRevision,
+    itemId,
+    worker: action.worker,
+    parameters: clone(action.parameters),
+    expectedChange: clone(action.expectedChange ?? []),
+  };
+}
+
+function wordLedgerKey(entry) {
+  const parameters = { ...(entry.parameters ?? {}) };
+  delete parameters.expectedBaseSha256;
+  return JSON.stringify({
+    itemId: entry.itemId ?? null,
+    worker: entry.worker,
+    parameters,
+    expectedChange: entry.expectedChange ?? [],
+  });
+}
+
+function appendWordLedger(current, entry) {
+  if (!entry) {
+    return;
+  }
+  current.acceptanceLedger ??= [];
+  const key = wordLedgerKey(entry);
+  if (!current.acceptanceLedger.some((existing) => wordLedgerKey(existing) === key)) {
+    current.acceptanceLedger.push(entry);
+  }
 }
 
 function normalizeInputRebind(task, inputRebind) {
@@ -458,6 +497,15 @@ export class FileAgentRuntime {
     });
     const plan = unwrapProviderValue(providerResult);
 
+    if (
+      isWordTask(task) &&
+      nextPlanRevision === 1 &&
+      plan?.needsInput !== true &&
+      !plan?.actions?.some((action) => action?.worker === 'word.inspect.v1')
+    ) {
+      throw new TypeError('The initial Word plan must inspect the document before modifying it');
+    }
+
     await this.store.mutateTask(task.taskId, (current, emit) => {
       if (current.status !== 'planning') {
         return false;
@@ -506,11 +554,16 @@ export class FileAgentRuntime {
 
     const cursor = task.executionCursor;
     const action = actions[cursor];
+    const actionKind = action.worker ?? action.kind ?? 'unknown';
+    const actionSummary = action.summary ?? action.objective ?? `Execute ${actionKind}`;
+    const shouldReplanAfterInspection = isWordTask(task)
+      && task.planRevision === 1
+      && action.worker === 'word.inspect.v1';
     await this.#runItem({
       task,
       itemId: `${task.taskId}:execute:${task.planRevision}:${cursor}`,
-      kind: action.kind,
-      summary: action.summary,
+      kind: actionKind,
+      summary: actionSummary,
       signal,
       operation: (itemId) => this.executor.execute({ itemId, action, task, signal }),
     });
@@ -523,9 +576,34 @@ export class FileAgentRuntime {
       ) {
         return false;
       }
+      appendWordLedger(
+        current,
+        wordLedgerEntry(action, task.planRevision, `${task.taskId}:execute:${task.planRevision}:${cursor}`),
+      );
+      if (shouldReplanAfterInspection) {
+        current.executionCursor = 0;
+        current.plan = null;
+        current.status = 'planning';
+        current.phase = 'planning';
+        return true;
+      }
       current.executionCursor += 1;
       return true;
     });
+
+    if (shouldReplanAfterInspection) {
+      await this.store.mutateTask(task.taskId, (current, emit) => {
+        if (current.status !== 'planning') {
+          return false;
+        }
+        emit({
+          type: 'task.phase_changed',
+          phase: 'planning',
+          data: { from: 'executing', to: 'planning', reason: 'word_inspection_ready' },
+        });
+        return true;
+      });
+    }
   }
 
   async #verify(task, signal) {

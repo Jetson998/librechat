@@ -66,13 +66,12 @@ test('Task manifest builder rejects contract/profile mismatches', () => {
     }),
     /incompatible/,
   );
-  assert.throws(
-    () => buildTaskSubmission({
-      ...request(),
-      capabilityProfile: WORD_CAPABILITY_PROFILE,
-    }),
-    /incompatible/,
-  );
+  const autoWord = buildTaskSubmission({
+    ...request(),
+    capabilityProfile: WORD_CAPABILITY_PROFILE,
+  });
+  assert.equal(autoWord.manifest.taskContractVersion, TASK_CONTRACT_VERSION_V1_1);
+  assert.equal(autoWord.manifest.model.capabilityProfile, WORD_CAPABILITY_PROFILE);
   assert.throws(
     () => buildTaskSubmission({
       ...request({ files: [{ ...request().files[0], name: 'source.xlsx' }] }),

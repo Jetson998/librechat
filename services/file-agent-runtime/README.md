@@ -50,6 +50,9 @@ import Python libraries.
   service scopes; `/healthz` remains outside service authentication.
 - explicit `maxInputFiles: 1` capability advertisement for the current XLSX
   worker;
+- the non-production `word-edit-v1` capability with the v1.1 DOCX contract,
+  deterministic inspect/transform/patch execution, cumulative verification, and
+  one verified DOCX artifact;
 - a Runtime-owned FIFO queue with a configurable `maxConcurrentTasks` limit,
   defaulting to two concurrent tasks.
 
@@ -59,7 +62,7 @@ import Python libraries.
 - production secret distribution, rotation, or public authentication;
 - production CodeAPI authentication or protocol mapping;
 - persistent external model credentials or a production model route;
-- Word, PPT, PDF, or general Office workers;
+- PPT, PDF, or general Office workers;
 - production usage ingestion or billing;
 - production artifact persistence through `processCodeOutput()`;
 - Redis, database, or multi-replica coordination;

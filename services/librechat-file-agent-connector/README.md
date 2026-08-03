@@ -44,6 +44,8 @@ production entry point.
   ownership, freezes the resolved provider pricing, and installs the bridge on
   `Express app.locals`;
 - Runtime capability enforcement for exactly one current-turn XLSX input;
+- Word `word-edit-v1` handoff using the v1.1 task contract and verified DOCX
+  content hashes;
 - a Runtime-owned FIFO capacity queue, independent of LibreChat's short-lived
   pending-request counter;
 - an immediate and periodic reconciler with per-delivery wake deduplication;
@@ -65,7 +67,7 @@ production entry point.
 - a production Runtime secret source, rotation policy, or network deployment;
 - an executed and recorded real non-production external CodeAPI/model-relay task;
 - production feature flags, customer files, or deployment;
-- Word, PPT, PDF, or additional Runtime workers.
+- PPT, PDF, or additional Runtime workers.
 
 ## Run
 

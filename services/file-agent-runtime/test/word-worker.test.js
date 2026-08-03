@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -15,7 +15,7 @@ import {
   normalizeWordAction,
   WORD_VERIFIER_PROFILE,
 } from '../src/deterministic-word.js';
-import { ExecutorRejectedError } from '../src/executor-adapter.js';
+import { ExecutorExecutionError, ExecutorRejectedError } from '../src/executor-adapter.js';
 import { FileAgentRuntime } from '../src/runtime.js';
 import { FileTaskStore } from '../src/task-store.js';
 import { IsolatedCodeApiServer } from './isolated-codeapi.js';
@@ -147,6 +147,11 @@ test('Word Worker transforms and publishes one deterministically verified DOCX',
   assert.equal(completed.verification.requiredAssertionCount, 8);
   assert.equal(completed.verification.passedAssertionCodes.length, 8);
   assert.equal(completed.result.artifacts.length, 1);
+  assert.ok(
+    completed.events.some(
+      (event) => event.type === 'item.started' && event.item?.kind === 'word.inspect.v1',
+    ),
+  );
   assert.equal(completed.result.artifacts[0].mimeType, DOCX_MIME);
   assert.equal(completed.result.artifacts[0].name, 'working.docx');
 
@@ -229,6 +234,10 @@ test('Word inspect covers rich parts and styled paragraph output', async (t) => 
     },
     { tableCount: 2, styleCount: 1, headerCount: 1, footerCount: 1, imageCount: 1 },
   );
+  assert.equal(inspection.paragraphs[0].text, 'Source paragraph');
+  assert.equal(inspection.tables[0].rows[0].cells[1], 'Cell A2');
+  assert.equal(inspection.headers[0].paragraphs[0], 'Header');
+  assert.equal(inspection.footers[0].paragraphs[0], 'Footer');
   const paths = getWordTaskPaths(completed);
   const documentXml = await readZipEntry(
     harness.codeApi.virtualPath(harness.sessionId, paths.outputPath),
@@ -266,6 +275,213 @@ test('Word text transform spans multiple runs without changing the source', asyn
   assert.match(documentXml, /Updated paragraph/);
   assert.doesNotMatch(documentXml, /Source paragraph/);
   assert.equal(sha256(await readFile(harness.fixturePath)), sha256(harness.source));
+});
+
+test('Word transforms compose against the current candidate and preserve the acceptance ledger', async (t) => {
+  const plan = [
+    wordAction('word.inspect.v1', { operation: 'inspect' }, ['document.structure'], 'Inspect source'),
+    wordAction(
+      'word.transform.v1',
+      { operation: 'replace_text', find: 'Source paragraph', replace: 'Updated paragraph' },
+      ['document.text'],
+      'Replace the source paragraph',
+    ),
+    wordAction(
+      'word.transform.v1',
+      { operation: 'append_paragraph', text: 'Appended output', style: 'Heading1' },
+      ['document.paragraph'],
+      'Append the output paragraph',
+    ),
+    wordAction(
+      'word.transform.v1',
+      { operation: 'replace_table_cell', tableIndex: 0, rowIndex: 0, columnIndex: 1, text: 'Updated cell' },
+      ['table.cell.text'],
+      'Update the requested table cell',
+    ),
+  ];
+  const harness = await createHarness(t, { fixtureKind: 'table', wordPlan: plan });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'word-composed-transforms',
+    manifest: harness.manifest,
+  });
+  const completed = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => task.status === 'completed',
+    { timeoutMs: 20_000 },
+  );
+
+  assert.equal(completed.verification.passed, true);
+  assert.equal(completed.acceptanceLedger.length, 3);
+  const paths = getWordTaskPaths(completed);
+  const outputPath = harness.codeApi.virtualPath(harness.sessionId, paths.outputPath);
+  const documentXml = await readZipEntry(outputPath, 'word/document.xml');
+  assert.match(documentXml, /Updated paragraph/);
+  assert.match(documentXml, /Updated cell/);
+  assert.match(documentXml, /w:val="Heading1"/);
+  assert.match(documentXml, /Appended output/);
+  const history = JSON.parse(
+    await readFile(harness.codeApi.virtualPath(harness.sessionId, paths.historyPath), 'utf8'),
+  );
+  assert.equal(history.length, 3);
+  assert.equal(new Set(history.map((entry) => entry.beforeSha256)).size, 3);
+});
+
+test('Word verifier enforces the requested text occurrence instead of accepting another occurrence', async (t) => {
+  const plan = [
+    wordAction('word.inspect.v1', { operation: 'inspect' }, ['document.structure'], 'Inspect repeated text'),
+    wordAction(
+      'word.transform.v1',
+      { operation: 'replace_text', find: 'Source paragraph', replace: 'Second occurrence updated', occurrence: 2 },
+      ['document.text'],
+      'Replace only the second occurrence',
+    ),
+  ];
+  const harness = await createHarness(t, { fixtureKind: 'repeated-text', wordPlan: plan });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'word-occurrence-verification',
+    manifest: harness.manifest,
+  });
+  const completed = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => task.status === 'completed',
+    { timeoutMs: 20_000 },
+  );
+  const paths = getWordTaskPaths(completed);
+  const outputPath = harness.codeApi.virtualPath(harness.sessionId, paths.outputPath);
+  const documentXml = await readZipEntry(outputPath, 'word/document.xml');
+  assert.equal((documentXml.match(/Second occurrence updated/g) ?? []).length, 1);
+  assert.equal((documentXml.match(/Source paragraph/g) ?? []).length, 1);
+
+  await harness.executor.execute({
+    itemId: `${completed.taskId}:wrong-occurrence`,
+    task: completed,
+    action: wordAction(
+      'word.transform.v1',
+      { operation: 'replace_text', find: 'Source paragraph', replace: 'First occurrence tampered', occurrence: 1 },
+      ['document.text'],
+      'Tamper with the wrong occurrence',
+    ),
+    signal: new AbortController().signal,
+  });
+  const verification = await harness.executor.verify({
+    itemId: `${completed.taskId}:wrong-occurrence-verification`,
+    task: completed,
+    signal: new AbortController().signal,
+  });
+  assert.equal(verification.passed, false);
+  assert.ok(
+    verification.failedAssertions.some((entry) => entry.code === 'word.required_changes.applied'),
+  );
+});
+
+test('Word verifier rejects a table edit applied to the wrong cell', async (t) => {
+  const plan = [
+    wordAction('word.inspect.v1', { operation: 'inspect' }, ['document.structure'], 'Inspect table source'),
+    wordAction(
+      'word.transform.v1',
+      { operation: 'replace_table_cell', tableIndex: 0, rowIndex: 0, columnIndex: 0, text: 'Expected cell' },
+      ['table.cell.text'],
+      'Replace the first table cell',
+    ),
+  ];
+  const harness = await createHarness(t, { fixtureKind: 'table', wordPlan: plan });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'word-cell-verification',
+    manifest: harness.manifest,
+  });
+  const completed = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => task.status === 'completed',
+    { timeoutMs: 20_000 },
+  );
+
+  await harness.executor.execute({
+    itemId: `${completed.taskId}:wrong-cell`,
+    task: completed,
+    action: wordAction(
+      'word.transform.v1',
+      { operation: 'replace_table_cell', tableIndex: 0, rowIndex: 0, columnIndex: 1, text: 'Wrong cell tampered' },
+      ['table.cell.text'],
+      'Tamper with another table cell',
+    ),
+    signal: new AbortController().signal,
+  });
+  const verification = await harness.executor.verify({
+    itemId: `${completed.taskId}:wrong-cell-verification`,
+    task: completed,
+    signal: new AbortController().signal,
+  });
+  assert.equal(verification.passed, false);
+  assert.ok(
+    verification.failedAssertions.some((entry) => entry.code === 'word.required_changes.applied'),
+  );
+});
+
+test('Word Worker rejects task-root, script, and output symbolic-link escapes', async (t) => {
+  const harness = await createHarness(t);
+  const task = { taskId: 'word-symlink-task', planRevision: 1, manifest: harness.manifest };
+  const paths = getWordTaskPaths(task);
+  const taskRoot = harness.codeApi.virtualPath(harness.sessionId, paths.workspaceRoot);
+  const outsideRoot = path.join(harness.rootDir, 'outside-root');
+  await mkdir(path.dirname(taskRoot), { recursive: true });
+  await mkdir(outsideRoot, { recursive: true });
+  await symlink(outsideRoot, taskRoot, 'dir');
+  await assert.rejects(
+    harness.executor.prepare({
+      itemId: `${task.taskId}:root`,
+      task,
+      signal: new AbortController().signal,
+    }),
+    (error) => error instanceof ExecutorExecutionError,
+  );
+
+  await rm(taskRoot, { force: true });
+  await harness.executor.prepare({
+    itemId: `${task.taskId}:prepare`,
+    task,
+    signal: new AbortController().signal,
+  });
+  const scriptsPath = path.dirname(harness.codeApi.virtualPath(harness.sessionId, paths.scriptPath));
+  const outsideScripts = path.join(harness.rootDir, 'outside-scripts');
+  await mkdir(outsideScripts, { recursive: true });
+  await rm(scriptsPath, { recursive: true, force: true });
+  await symlink(outsideScripts, scriptsPath, 'dir');
+  await assert.rejects(
+    harness.executor.prepare({
+      itemId: `${task.taskId}:scripts`,
+      task,
+      signal: new AbortController().signal,
+    }),
+    (error) => error instanceof ExecutorExecutionError,
+  );
+
+  await rm(scriptsPath, { force: true });
+  await mkdir(scriptsPath, { recursive: true });
+  await harness.executor.prepare({
+    itemId: `${task.taskId}:prepare-again`,
+    task,
+    signal: new AbortController().signal,
+  });
+  const outputPath = harness.codeApi.virtualPath(harness.sessionId, paths.outputPath);
+  const outsideOutput = path.join(harness.rootDir, 'outside.docx');
+  await writeFile(outsideOutput, 'must remain untouched');
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await symlink(outsideOutput, outputPath, 'file');
+  await assert.rejects(
+    harness.executor.execute({
+      itemId: `${task.taskId}:output`,
+      task,
+      action: wordAction(
+        'word.transform.v1',
+        { operation: 'append_paragraph', text: 'escape attempt' },
+        ['document.paragraph'],
+      ),
+      signal: new AbortController().signal,
+    }),
+    (error) => error instanceof ExecutorRejectedError
+      && ['WORD_PATH_SCOPE', 'WORD_PATH_SYMLINK'].includes(error.code),
+  );
+  assert.equal(await readFile(outsideOutput, 'utf8'), 'must remain untouched');
 });
 
 test('Word patch refuses a stale candidate base hash before CodeAPI mutation', async (t) => {
@@ -348,6 +564,10 @@ test('Word accident replay stops an equivalent repair before the next CodeAPI mu
   assert.ok(harness.codeApi.requests.some((request) => request.item_id.endsWith(':execute:2:0')));
   assert.equal(
     harness.codeApi.requests.some((request) => request.item_id.endsWith(':execute:3:0')),
+    true,
+  );
+  assert.equal(
+    harness.codeApi.requests.some((request) => request.item_id.endsWith(':execute:4:0')),
     false,
   );
   assert.ok(needsInput.verification.failedAssertions.some((entry) => entry.code === 'word.comments.no_orphans'));

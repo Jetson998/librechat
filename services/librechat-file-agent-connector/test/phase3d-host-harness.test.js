@@ -187,6 +187,7 @@ test('Phase 3D host harness completes one source-level Runtime handoff', async (
           filename: 'source.xlsx',
           bytes: 2048,
           type: XLSX_MIME,
+          content: Buffer.from('phase3d-workbook-fixture'),
           metadata: {
             codeEnvRef: {
               kind: 'user',

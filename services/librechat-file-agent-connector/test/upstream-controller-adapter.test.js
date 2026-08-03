@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  DOCX_MIME,
   XLSX_MIME,
   codeEnvObjectDigest,
+  contentSha256,
   createUpstreamBillingSnapshotCreator,
   createUpstreamMongoCollections,
   createUpstreamRuntimeRequestResolver,
@@ -19,6 +21,7 @@ function attachment(overrides = {}) {
     filename: 'source.xlsx',
     bytes: 2048,
     type: XLSX_MIME,
+    content: Buffer.from('xlsx-content-fixture'),
     metadata: {
       codeEnvRef: {
         kind: 'user',
@@ -75,7 +78,71 @@ test('upstream request resolver uses initialized current-request attachments', a
   });
   assert.equal(request.files[0].conversationId, 'conversation-1');
   assert.equal(request.files[0].ownershipVerified, true);
-  assert.equal(request.files[0].sha256, codeEnvObjectDigest(attachment()));
+  assert.equal(request.files[0].sha256, await contentSha256(attachment()));
+  assert.notEqual(request.files[0].sha256, codeEnvObjectDigest(attachment()));
+  assert.equal(request.taskContractVersion, 'office-file-agent.v1');
+});
+
+test('upstream Word resolver creates the v1.1 task contract from real attachment bytes', async () => {
+  const resolve = createUpstreamRuntimeRequestResolver({
+    modelRouteId: 'file-agent-word',
+  });
+  const base = context();
+  const word = attachment({
+    filename: 'source.docx',
+    type: DOCX_MIME,
+    content: Buffer.from('docx-content-fixture'),
+  });
+  const request = await resolve({
+    ...base,
+    text: '修改这个 Word 文档并交付修订版',
+    client: {
+      ...base.client,
+      options: {
+        ...base.client.options,
+        attachments: [word],
+      },
+    },
+  });
+
+  assert.equal(request.taskContractVersion, 'office-file-agent.v1.1');
+  assert.equal(request.capabilityProfile, 'word-edit-v1');
+  assert.equal(request.files[0].sha256, await contentSha256(word));
+  assert.deepEqual(request.acceptance, [
+    'Produce one verified DOCX artifact from the authorized current-turn Word document',
+  ]);
+});
+
+test('upstream resolver fails closed when an attachment has no verified content hash source', async () => {
+  const resolve = createUpstreamRuntimeRequestResolver({
+    modelRouteId: 'file-agent-word',
+  });
+  const base = context();
+  const attachmentWithoutContent = attachment({
+    filename: 'source.docx',
+    type: DOCX_MIME,
+    content: undefined,
+    buffer: undefined,
+    path: undefined,
+    filepath: undefined,
+    localPath: undefined,
+  });
+  const result = await resolve({
+    ...base,
+    text: '修改这个 Word 文档并交付修订版',
+    client: {
+      ...base.client,
+      options: {
+        ...base.client.options,
+        attachments: [attachmentWithoutContent],
+      },
+    },
+  });
+
+  assert.deepEqual(result, {
+    route: 'native',
+    reason: 'input_content_hash_unavailable',
+  });
 });
 
 test('upstream request resolver marks explicit continuation turns without current files', async () => {
