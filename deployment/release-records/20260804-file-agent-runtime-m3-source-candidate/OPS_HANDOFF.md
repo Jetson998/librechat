@@ -18,8 +18,14 @@ The release artifact is named:
 ```
 
 Read the sidecar `manifest.json` and `SHA256SUMS` before extracting the
-artifact. Their paths and final SHA-256 are recorded in `RELEASE.json` after
-candidate packaging completes.
+artifact. The final values are:
+
+```text
+artifact SHA-256: e3a17ed0b50588eb37b3406aa0266a52c7e0cceaae97d5ccaf6fd41dfaa3d235
+manifest SHA-256: e2289105aaa5f76a56acf0cc1ef67ae0691c045cefc3d1c85b855dc70a1da52a
+release-plan SHA-256: c8187cec043af365c2e456d27be66bfd545f157983a95f6ef22fdc69ba294b11
+artifact size: 195429 bytes
+```
 
 ## Scope
 

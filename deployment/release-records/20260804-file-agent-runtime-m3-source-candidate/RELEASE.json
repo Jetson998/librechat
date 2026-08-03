@@ -1,13 +1,17 @@
 {
   "acceptance_result": {
-    "details": {
-      "required_operator_gate": "Run the isolated non-production validation documented in OPS_HANDOFF.md before any production-integration work is proposed."
-    },
-    "status": "pending"
+    "details": {},
+    "reason": "No production target or user-facing runtime is in scope for this source-only candidate. Isolated Operations validation remains a required handoff gate before a separate production-integration batch is proposed.",
+    "status": "not_applicable"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/20260804-file-agent-runtime-m3-source-candidate-a2624f8b1859.tar.gz",
+      "manifest": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/manifest.json",
+      "value": "e3a17ed0b50588eb37b3406aa0266a52c7e0cceaae97d5ccaf6fd41dfaa3d235"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -22,8 +26,31 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "e3a17ed0b50588eb37b3406aa0266a52c7e0cceaae97d5ccaf6fd41dfaa3d235",
+    "build_environment": "independent-build",
+    "completed_requirements": [],
+    "details": {
+      "artifact_file_count": 136,
+      "artifact_size_bytes": 195429,
+      "artifact_source": "git archive from the frozen source revision",
+      "candidate_kind": "source-only non-production candidate",
+      "checks": [
+        "File Agent Runtime npm run check passed",
+        "File Agent Runtime Node test suite passed: 52 tests",
+        "LibreChat File Agent Connector npm run check passed",
+        "LibreChat File Agent Connector Node test suite passed: 79 tests",
+        "Repository release-governance validation passed: 34 tests",
+        "release-package manifest and SHA-256 inventory passed",
+        "repository gate passed against origin/main with matching service scope digest"
+      ],
+      "isolated_operations_validation": "pending; follow OPS_HANDOFF.md with an isolated MongoDB, Runtime, CodeAPI fixture, and recorded model relay",
+      "production_write_attempts": 0
+    },
+    "production_host": false,
+    "provider": "local source-candidate validation",
+    "release_plan_sha256": "c8187cec043af365c2e456d27be66bfd545f157983a95f6ef22fdc69ba294b11",
+    "source_revision": "a2624f8b18597e292fb83e8b2cfb71de1e1e7d9e",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "An immutable M3 File Agent source candidate is available for Operations to validate in an isolated non-production environment. It contains the reviewed DOCX Word worker and LibreChat connector source, manifests, tests, and release provenance; it does not claim a deployable production image or an active production integration.",
@@ -47,6 +74,15 @@
     ]
   },
   "created_at": "2026-08-03T17:08:39Z",
+  "deployment_handoff": {
+    "artifact": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/20260804-file-agent-runtime-m3-source-candidate-a2624f8b1859.tar.gz",
+    "artifact_sha256": "e3a17ed0b50588eb37b3406aa0266a52c7e0cceaae97d5ccaf6fd41dfaa3d235",
+    "manifest": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/manifest.json",
+    "operator_guide": "deployment/release-records/20260804-file-agent-runtime-m3-source-candidate/OPS_HANDOFF.md",
+    "sha256sums": ".release-state/20260804-file-agent-runtime-m3-source-candidate/artifacts/SHA256SUMS",
+    "status": "ready_for_isolated_validation",
+    "production_deployment_authorized": false
+  },
   "mode": "release",
   "project_adapter": {
     "billable_model_request_allowed": false,
@@ -78,13 +114,13 @@
   },
   "schema_version": 1,
   "source_revision": "a2624f8b18597e292fb83e8b2cfb71de1e1e7d9e",
-  "status": "planned",
+  "status": "ready",
   "unresolved_issues": [
     "operations_isolated_validation_pending",
     "production_wiring_feature_flags_secrets_and_deployment_runner_not_implemented",
     "no_oci_image_is_claimed_for_m3"
   ],
-  "updated_at": "2026-08-03T17:08:39Z",
+  "updated_at": "2026-08-03T17:17:46Z",
   "validation_plan": [
     {
       "command": "cd services/file-agent-runtime && npm run check && npm test",
