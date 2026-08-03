@@ -7,6 +7,7 @@ const EVENTS_PATH = /^\/v1\/tasks\/([0-9a-f-]{36})\/events$/i;
 const CANCEL_PATH = /^\/v1\/tasks\/([0-9a-f-]{36})\/cancel$/i;
 const STEER_PATH = /^\/v1\/tasks\/([0-9a-f-]{36})\/steer$/i;
 const BODY_LIMIT_BYTES = 1024 * 1024;
+const DEFAULT_HEALTH_RESPONSE = Object.freeze({ status: 'ok', mode: 'development' });
 
 export const DEFAULT_RUNTIME_CAPABILITIES = Object.freeze({
   schemaVersion: '1.0',
@@ -67,13 +68,17 @@ function parseAfter(url) {
 export async function handleRuntimeFetch(
   runtime,
   request,
-  { capabilities = DEFAULT_RUNTIME_CAPABILITIES, authorizeRequest = null } = {},
+  {
+    capabilities = DEFAULT_RUNTIME_CAPABILITIES,
+    authorizeRequest = null,
+    healthResponse = DEFAULT_HEALTH_RESPONSE,
+  } = {},
 ) {
   try {
     const url = new URL(request.url);
 
     if (request.method === 'GET' && url.pathname === '/healthz') {
-      return jsonResponse(200, { status: 'ok', mode: 'development' });
+      return jsonResponse(200, healthResponse);
     }
 
     if (url.pathname.startsWith('/v1/') && authorizeRequest) {

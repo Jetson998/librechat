@@ -116,6 +116,20 @@ function clone(value) {
   return structuredClone(value);
 }
 
+function normalizeEnabledValues(value, name) {
+  if (value == null) {
+    return null;
+  }
+  if (!Array.isArray(value) && !(value instanceof Set)) {
+    throw new TypeError(`${name} must be an array or Set when provided`);
+  }
+  const normalized = new Set(value);
+  if (normalized.size === 0 || [...normalized].some((entry) => typeof entry !== 'string' || entry === '')) {
+    throw new TypeError(`${name} must contain one or more non-empty strings`);
+  }
+  return normalized;
+}
+
 function isWordTask(task) {
   return task?.manifest?.model?.capabilityProfile === WORD_CAPABILITY_PROFILE;
 }
@@ -264,7 +278,15 @@ export class FileAgentRuntime {
   #queued = new Set();
   #stopping = false;
 
-  constructor({ store, provider, executor, testHooks, maxConcurrentTasks = 2 }) {
+  constructor({
+    store,
+    provider,
+    executor,
+    testHooks,
+    maxConcurrentTasks = 2,
+    enabledCapabilityProfiles = null,
+    enabledTaskContractVersions = null,
+  }) {
     if (!Number.isSafeInteger(maxConcurrentTasks) || maxConcurrentTasks < 1) {
       throw new TypeError('maxConcurrentTasks must be a positive safe integer');
     }
@@ -273,6 +295,14 @@ export class FileAgentRuntime {
     this.executor = assertExecutorAdapter(executor);
     this.testHooks = testHooks;
     this.maxConcurrentTasks = maxConcurrentTasks;
+    this.enabledCapabilityProfiles = normalizeEnabledValues(
+      enabledCapabilityProfiles,
+      'enabledCapabilityProfiles',
+    );
+    this.enabledTaskContractVersions = normalizeEnabledValues(
+      enabledTaskContractVersions,
+      'enabledTaskContractVersions',
+    );
   }
 
   async start() {
@@ -296,6 +326,18 @@ export class FileAgentRuntime {
 
   async submit({ idempotencyKey, manifest }) {
     const normalizedManifest = normalizeTaskManifest(manifest);
+    if (
+      this.enabledCapabilityProfiles &&
+      !this.enabledCapabilityProfiles.has(normalizedManifest.model?.capabilityProfile)
+    ) {
+      throw new TypeError('Capability profile is not enabled for this Runtime');
+    }
+    if (
+      this.enabledTaskContractVersions &&
+      !this.enabledTaskContractVersions.has(normalizedManifest.taskContractVersion)
+    ) {
+      throw new TypeError('Task contract version is not enabled for this Runtime');
+    }
     const result = await this.store.createTask({
       idempotencyKey,
       manifest: normalizedManifest,
