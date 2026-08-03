@@ -2,15 +2,15 @@
 
 Date: 2026-07-23
 
-Status: architecture approved. Phase 0, the isolated Phase 1 CodeAPI POC, and
-the recorded-relay Phase 2A single-model POC are implemented and locally
-verified; there is no production traffic, LibreChat integration, or deployment.
-The Phase 2B one-shot harness, invalid-response receipt recovery, and a new
-strict-schema real relay task are complete. The Phase 3A local LibreChat
-Connector contract POC is implemented and verified. Phase 3B repository-side
-Mongo, native-port, lease, and signed-service-scope adapters are also locally
-verified. The repository-side LibreChat host composition is implemented; real
-non-production process wiring and production routing have not started. Records:
+Updated: 2026-08-04
+
+Status: architecture approved. Runtime and Connector foundations, cross-turn
+recovery, and the deterministic Word M1-M3 vertical slice are implemented and
+locally verified. Runtime tests are 61/61 and Connector tests are 79/79 at the
+frozen M3 source revision. Controlled task-level scripting is the next core
+milestone; real external non-production joint acceptance and production wiring
+have not started. There is no production package, deployment, or customer
+traffic authorization. Historical records:
 `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`,
 `docs/FILE_AGENT_RUNTIME_PHASE1_IMPLEMENTATION.md`, and
 `docs/FILE_AGENT_RUNTIME_PHASE2A_IMPLEMENTATION.md`. Phase 2B harness record:
@@ -35,11 +35,21 @@ Repository development requirements and acceptance gates are defined in
 采用低耦合混合架构：LibreChat 继续负责聊天产品，复杂 Office 和文件任务交给
 独立部署的 File Agent Runtime。
 
+Runtime 内部采用两级执行：
+
+```text
+优先：确定性 Worker
+降级：任务级受控动态代码
+```
+
+Worker 是高频标准任务的稳定底座；Script 模式负责 Worker 无法覆盖、但已有独立
+Verifier 的复杂文件任务。Script 不是宿主 Shell，也不允许修改 LibreChat 项目源码。
+
 责任边界如下：
 
 - LibreChat 负责用户、登录、权限、会话、消息、附件、模型选择、价格、计费、
   下载卡和前端状态；
-- File Agent Runtime 负责任务状态、计划、上下文投影、模型循环、脚本增量修改、
+- File Agent Runtime 负责任务状态、计划、上下文投影、模型循环、Worker 选择、脚本增量修改、
   CodeAPI 执行、验证、恢复和进展判断；
 - CodeAPI 继续负责 `/mnt/data` 工作区、命令执行和文件读写；
 - Office Skill / Worker 负责版本化的 Excel、Word、PPT、PDF 处理和验证程序；
@@ -90,8 +100,13 @@ flowchart LR
     LC -->|"版本化任务清单"| FR["File Agent Runtime"]
     FR -->|"modelRouteId"| MP["Provider Adapter"]
     MP --> GW["现有模型中转"]
-    FR -->|"执行器端口"| CA["CodeAPI /mnt/data"]
-    FR -->|"稳定程序"| OW["Office Skills / Workers"]
+    FR --> EM{"Execution mode"}
+    EM -->|"Worker first"| OW["Office Skills / Workers"]
+    EM -->|"Worker unsupported"| SR["Controlled Script Runner"]
+    OW --> CA["CodeAPI /mnt/data"]
+    SR --> CA
+    CA --> VV["Independent Verifier"]
+    VV --> FR
     FR -->|"事件、用量、输出引用"| LC
     LC -->|"processCodeOutput"| CA
     LC --> DB["LibreChat Mongo / Transactions"]
@@ -126,6 +141,7 @@ Runtime -> LibreChat message persistence
 | Provider Adapter | 模型协议、流式输出、工具调用、原始 usage | LibreChat 价格和余额 |
 | Executor Adapter | CodeAPI session、命令、文件读写、进程终止 | 判断业务任务是否继续 |
 | Office Worker | 版本化转换、修改、生成、格式验证 | 聊天、用户身份、计费 |
+| Script Runner | 任务脚本 revision、受控 patch、执行策略和 receipt | 宿主 Shell、依赖安装、项目源码修改 |
 | LibreChat Connector | 任务提交、事件消费、usage 入账、artifact 持久化、最终消息 | Agent 内部规划 |
 
 ### 5.1 唯一事实源
@@ -360,6 +376,8 @@ submitted -> running -> delivering -> completed
   state.json
   inputs/
   scripts/
+    generated.py
+    revisions/
   outputs/
   items/
   logs/
@@ -380,30 +398,35 @@ submitted -> running -> delivering -> completed
 
 ## 十、Agent Core 执行模型
 
-Runtime 向模型暴露稳定、与 Provider 无关的工具契约：
+Runtime 向模型暴露稳定、与 Provider 无关的 Action，不暴露原始 CodeAPI 命令接口。
+执行分为两个 capability：
 
 ```text
-list_files
-read_file
-write_file
-patch_file
-run_command
-inspect_artifact
-validate_artifact
-publish_artifact
+Worker mode
+  <format>.inspect.v1
+  <format>.transform.v1
+  <format>.patch.v1
+  <format>.validate.v1
+
+Script mode
+  script.create.v1
+  script.patch.v1
+  script.execute.v1
 ```
 
-模型不能调用 LibreChat 的 `create_file`、`processCodeOutput` 或数据库接口。
+当前已实现 Worker mode；Script mode 属于下一里程碑，尚未实现。模型不能调用 LibreChat
+的 `create_file`、`processCodeOutput`、数据库接口或任意 `run_command`。
 
 执行规则：
 
 1. 预检只读取文件结构、关键元数据和有限样本；
-2. 创建一次稳定主脚本并保存到 `scripts/`；
-3. 执行失败后读取相关行和错误上下文；
-4. 使用 patch 修改已有脚本，不重新传输整份脚本；
-5. 生成候选文件后进入验证阶段；
-6. 验证通过后发布 CodeAPI artifact ref；
-7. 已有合格输出时不得继续无目的生成。
+2. capability 支持时优先选择版本化 Worker；
+3. Worker 无法覆盖且 Script capability 已授权时，创建一次稳定主脚本并保存到 `scripts/`；
+4. 执行失败后只投影相关代码片段、结构化错误和 Verification Result；
+5. 使用 patch 修改已有脚本，不重新传输整份脚本；
+6. 生成候选文件后进入独立验证阶段；
+7. 验证通过后发布 CodeAPI artifact ref；
+8. 已有合格输出时不得继续无目的生成。
 
 Office 通用机械逻辑逐步沉淀为版本化 Worker：
 
@@ -462,8 +485,9 @@ verificationHash
 normalizedErrorSignature
 ```
 
-有效进展包括 phase 前进、脚本有效变化、输出哈希改变、验证失败项减少、错误签名
-改变并接近验收标准，或用户补充必要要求。
+有效进展只包括必要验证失败项减少、必要通过项增加、计划节点被确定性关闭，或用户
+补充信息解除真实阻塞。phase、脚本 hash、输出 hash 和错误文字变化可以作为证据，
+但不能单独证明进展。
 
 无进展包括：
 
@@ -643,6 +667,8 @@ capabilities
 - Runtime 与 CodeAPI 使用服务身份和任务范围声明；
 - 每个 workspace 独立并阻止路径穿越；
 - 命令、网络、CPU、内存、磁盘和 wall time 均有限额；
+- Script 默认无网络、无环境变量枚举、无凭据、无宿主路径和无临时依赖安装能力；
+- Script 只能访问当前 task workspace，输入只读，跨 task 和符号链接逃逸失败关闭；
 - 日志中的 Key、Authorization、文件正文和 PII 必须脱敏；
 - artifact 只通过 LibreChat 权限校验后的下载接口交付；
 - 取消任务必须终止 Runtime 循环和对应 CodeAPI 进程。
@@ -712,42 +738,37 @@ capability discovery，不依赖 Runtime 内部类或目录结构。
 协议规则：新字段向后兼容；改变语义提升 major；提交前检查 capability；不支持的
 task contract 返回明确 4xx；双方保留 requestId、taskId 和 eventId。
 
-## 二十一、分阶段 POC
+## 二十一、项目规划与当前状态
 
-### Phase 0：协议和离线状态机
+### Phase 0-3 已完成：协议、执行与 Connector 基线
 
-- 实现 task store、状态机、事件游标和 fake provider/executor；
-- 验证幂等、重启恢复、取消、steer 和事件重放；
-- 不接 LibreChat，不调用模型，不访问生产。
+历史范围包括：
 
-通过条件：相同 Idempotency-Key 不重复创建；重启后可续跑；通知丢失可按 sequence
-补齐；`task.completed` 不依赖活跃 SSE。
+- task store、状态机、事件游标、幂等、恢复、取消和 steer；
+- CodeAPI Adapter、Provider Adapter、有界上下文和 Progress Vector；
+- LibreChat Connector、usage、artifact、message 和 finalization；
+- XLSX POC 与确定性 Word M1-M3 Worker/Verifier；
+- Word 真实 DOCX source-level handoff、独立 acceptance assertions 和事故回放。
 
-### Phase 1：CodeAPI 文件 POC
+这些结果是开发和隔离验收证据，不等于真实外部非生产或生产可用。
 
-- 只接非生产 CodeAPI session；
-- 只支持 XLSX 检查、修改、验证和单个输出；
-- 使用 fake model plan 或固定测试 plan；
-- 验证脚本持久化、patch 修复和 artifact ref。
+### Milestone 4 下一步：受控动态脚本核心
 
-### Phase 2：单模型 Agent POC
+- Worker 优先，只有 capability 不覆盖时才进入 Script；
+- 新版本 task contract 和 Script capability profile；
+- `script.create.v1`、`script.patch.v1`、`script.execute.v1`；
+- 稳定脚本、revision、hash、patch、执行 receipt 和幂等；
+- 默认无网络、无凭据、无临时安装的任务级执行策略；
+- 复用已有 Verifier、Progress Vector、恢复、计费和 artifact 交付。
 
-- 只启用一个 `modelRouteId`；
-- 使用独立测试 Key 和预算；
-- 运行记录化夹具，不影子执行真实客户任务；
-- 对比完整脚本重写次数、上下文 Token、耗时和成功率。
+### Milestone 5：真实非生产联合验收
 
-目标：主脚本创建一次；失败后只 patch；不重复执行相同错误和脚本；模型上下文不
-包含完整历史 stdout；任务可恢复；artifact 验证后才发布。
+- 使用真实非生产 relay、CodeAPI 和完整 LibreChat；
+- 至少完成一个 Worker 任务和一个 Script 任务；
+- 记录调用次数、Token、耗时、artifact hash、恢复和 secret 扫描；
+- 与原生 Agent 路线使用同一 fixture 和验收条件对比。
 
-### Phase 3：LibreChat 非生产集成
-
-- 增加 Connector、usage ingestion 和 artifact delivery；
-- 使用测试账号和测试 conversation；
-- 模拟 Runtime、LibreChat 和浏览器分别断线；
-- 证明文件生成后无需刷新即可结束，刷新也能恢复。
-
-### Phase 4：受控生产试用
+### Milestone 6：生产候选与受控试用
 
 - 仅对 `vip998` 和显式 feature flag 开放；
 - 每次验收至多执行一个计费文件任务；
@@ -792,7 +813,7 @@ Codex app-server 包装层。
 脚本与增量修复、进展感知与可恢复事件、LibreChat 权威的 artifact 交付和 usage
 计费。
 
-只有 Phase 0 至 Phase 3 在非生产环境通过后，才进入受控生产试用。
+只有 Milestone 1 至 5 全部通过后，才单独提交生产候选并进入 LibreChat 发布治理。
 
 ## 参考
 

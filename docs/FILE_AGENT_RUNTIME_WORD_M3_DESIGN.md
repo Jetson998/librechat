@@ -1,10 +1,16 @@
 # File Agent Runtime Word M3 设计记录
 
 Date: 2026-08-03
-Status: development-only implementation record
+
+Updated: 2026-08-04
+
+Status: development-only implementation complete and frozen
 
 本记录只授权仓库内 Word Worker/Verifier 的实现与非生产测试，不授权打包、预检、部署、
 生产流量或客户文件验收。
+
+M3 已完成并通过独立复审：Runtime 61/61、Connector 79/79、真实 DOCX source-level
+handoff、语法检查和 `git diff --check` 通过。该结论不包含真实外部非生产联合验收。
 
 ## 1. 能力边界
 
@@ -52,6 +58,10 @@ word.validate.v1
 有限的索引和文本字段；不接受 shell、脚本、路径、URL、凭据或任意 XML。Action 的
 `summary` 只用于展示，不能参与幂等签名或进展判断。
 
+`word.patch.v1` 修改的是候选 DOCX 的结构化内容，不是动态脚本源码 patch。任务级
+`script.create.v1` / `script.patch.v1` 必须使用新的版本化 task contract 和 capability
+profile，在后续 M4 独立设计、开发和评审，不回填到 M3。
+
 ## 4. Deterministic Verifier 契约
 
 `word-structure-v1@1.1.0` 固定执行以下断言：
@@ -89,5 +99,14 @@ LibreChat Host 在创建 Word task 前调用版本化的
 - 原始输入 hash 必须在执行前后保持不变。
 - 六类 fixture 覆盖普通段落表格、多表格页眉页脚图片、损坏 relationship、孤儿评论、
   渲染失败和事故回放。
-- M3 完成前只运行 Runtime/Connector 本地测试；真实 relay、真实 CodeAPI 和生产文件
-  属于 M4，不能用本地模拟结果替代联合验收。
+- M3 只运行 Runtime/Connector 本地与隔离测试；真实 relay、真实 CodeAPI 和生产文件
+  不属于 M3，不能用本地模拟结果替代联合验收。
+
+## 7. 后续边界
+
+- M4：受控动态脚本核心，复用 M3 状态机、Workspace、Verifier、Progress Vector 和交付；
+- M5：真实非生产 relay、CodeAPI 和完整 LibreChat 联合验收；
+- M6：生产组合、任务状态 UI、持久化拓扑与独立发布候选。
+
+后续阶段不得修改 M3 已冻结的 `office-file-agent.v1.1` / `word-edit-v1` 语义；需要新增
+能力时提升 contract/profile 版本，并保持 M3 全量回归通过。

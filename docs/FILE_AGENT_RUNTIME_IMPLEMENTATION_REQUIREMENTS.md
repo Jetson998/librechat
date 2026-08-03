@@ -2,9 +2,13 @@
 
 Date: 2026-08-03
 
+Updated: 2026-08-04
+
 Status: approved for repository development. This document authorizes scoped
 non-production implementation and testing only. It does not authorize a
 production package, deployment, customer traffic, or customer-file acceptance.
+Milestones 1-3 are implemented and frozen. Controlled task-level scripting is
+the next core milestone and requires its own reviewed design before code changes.
 
 ## 一、项目背景
 
@@ -37,8 +41,10 @@ production package, deployment, customer traffic, or customer-file acceptance.
 
 ### 2.2 首个试点目标
 
-首个生产候选只试点“上传一个 DOCX 后修改并交付一个 DOCX”。Excel、PPTX、PDF 和
-通用代码任务继续保留现有路径，待 Word 试点通过后按独立 capability 扩展。
+首个生产候选只试点“上传一个 DOCX 后修改并交付一个 DOCX”。执行采用 Worker 优先、
+受控 Script 降级：高频标准操作使用版本化 Word Worker；Worker 无法覆盖但已有独立
+Verifier 的任务，才允许在当前 task workspace 创建和增量修改任务脚本。Excel、PPTX、
+PDF 和通用工程代码任务继续保留现有路径，后续按独立 capability 扩展。
 
 ### 2.3 非目标
 
@@ -86,8 +92,11 @@ flowchart LR
     RT --> CP["Context Projector"]
     CP --> MP["Provider Adapter"]
     MP --> RT
-    RT --> WW["Versioned Office Worker"]
+    RT --> XM{"Execution Mode"}
+    XM -->|"Worker first"| WW["Versioned Office Worker"]
+    XM -->|"Worker unsupported"| SR["Controlled Script Runner"]
     WW --> CA["CodeAPI Workspace"]
+    SR --> CA
     CA --> VV["Deterministic Verifier"]
     VV --> RT
     RT --> EV["Durable Events"]
@@ -110,7 +119,7 @@ flowchart LR
 
 ## 五、实施范围与优先级
 
-### P0：契约和循环治理
+### P0 已完成：契约和循环治理
 
 - Action Envelope v1；
 - Word capability profile；
@@ -119,7 +128,7 @@ flowchart LR
 - 上下文投影扩展；
 - 相关单元测试和现有 XLSX 回归。
 
-### P0：跨轮次恢复
+### P0 已完成：跨轮次恢复
 
 - Conversation 与 active task 的持久绑定；
 - submit turn 与 steer turn 区分；
@@ -127,7 +136,7 @@ flowchart LR
 - 多活动任务歧义处理；
 - stale CodeAPI ref 的重新 prime/rebind 契约。
 
-### P0：Word Worker 和 Verifier
+### P0 已完成：Word Worker 和 Verifier
 
 - DOCX inspect、transform、patch、verify、publish；
 - 原始输入只读；
@@ -135,24 +144,31 @@ flowchart LR
 - 结构验证、任务断言和渲染验证；
 - 一个最终 DOCX artifact。
 
-### P1：任务状态 UI
+### P1 下一里程碑：受控脚本能力
+
+- Worker 优先、Script 降级的确定性路由；
+- 版本化 `script.create.v1` / `script.patch.v1`；
+- 稳定脚本路径、revision、hash、受控 patch 和执行去重；
+- 任务目录隔离、输入只读、默认无网络、无凭据和无临时安装；
+- 动态脚本输出接入已有独立 Verifier、Progress Vector 和 artifact 交付；
+- 相同输入与脚本不重复执行，等价 patch 在 CodeAPI 副作用前停止。
+
+该能力是完整 File Agent Runtime 产品目标的一部分，也是进入生产候选前的阻塞项，
+但不回填或扩大已冻结的 Word M3 范围。
+
+### P1 后续：任务状态 UI
 
 - 聊天内轻量任务状态；
 - 等待用户输入、取消、失败和完成状态；
 - 不展示完整脚本、stdout、Prompt 或内部路径。
 
-### P1：真实非生产联合验收
+### P1 后续：真实非生产联合验收
 
 - 真实非生产 model relay；
 - 真实非生产 CodeAPI；
 - 完整 LibreChat API/client；
 - 测试账号与仓库 fixture；
 - 不使用生产 Key、生产用户文件或生产 transaction。
-
-### P2：受控脚本能力
-
-Word 试点优先使用版本化 Worker。只有 Worker 无法覆盖的任务经独立评审后，才增加
-受控 `script.create.v1` / `script.patch.v1`；该能力不是 P0 上线阻塞项。
 
 ## 六、功能需求
 
@@ -423,7 +439,7 @@ word.validate.v1
 
 - 一个 `.docx` 输入；
 - 读取段落、表格、基础样式、页眉页脚和 OOXML part 清单；
-- 修改文字、段落、表格、基础样式和已有结构；
+- 支持文字替换、段落追加（可引用已有样式）和指定表格单元格替换；
 - 将候选文件写入稳定 output path；
 - patch 必须基于 expected base hash，冲突时拒绝，不宽松覆盖；
 - 每次修改记录 worker version、parameters digest、before/after hash；
@@ -572,6 +588,54 @@ LibreChat 使用 task 提交时冻结的 billing snapshot 计算费用。要求�
 允许命令：取消、继续、补充要求、查看简要验证结果。首版不提供工作流编辑器、完整
 trace 浏览器或原始终端输出。
 
+### FR-016 受控 Script 模式
+
+Script 模式不是任意 Shell，也不修改 LibreChat 或 Runtime 项目源码。M4 必须使用新的
+版本化 task contract 和 capability profile，不得把动态脚本字段塞入已冻结的
+`office-file-agent.v1.1` / `word-edit-v1`。
+
+路由顺序：
+
+```text
+inspect
+-> capability match
+-> deterministic Worker when supported
+-> controlled Script only when Worker cannot satisfy frozen acceptance assertions
+-> independent verify
+-> publish only after verifier passed
+```
+
+允许动作：
+
+```text
+script.create.v1
+script.patch.v1
+script.execute.v1
+```
+
+约束：
+
+- `script.create.v1` 每个 task 和语言只允许创建一个稳定主脚本；
+- Script 源码和 patch 不进入普通 Action `parameters`。Provider Adapter 必须先把首次完整
+  脚本或后续 patch 持久化为 journal-backed content receipt，并只向 Action 暴露不透明的
+  `scriptDraftRef` 或 `patchRef`；receipt 必须绑定 model callId、内容 hash 和大小；
+- 首次脚本 content receipt 默认不超过 64 KiB，单次 patch 默认不超过 16 KiB；超限时
+  任务进入 `needs_input` 或失败，不允许拆成多次完整脚本规避上限；
+- 首次创建后只允许 `script.patch.v1` 修改现有 revision，不重新提交完整脚本；
+- patch 必须携带 `expectedBaseSha256`，冲突时失败关闭；
+- Runtime 保存 script logical ID、language、revision、before/after hash、patch digest 和
+  生成该 revision 的 model callId；
+- `script.execute.v1` 只引用已持久化 script logical ID，不能在 Action 中携带源码或命令；
+- `(scriptSha256, normalizedInputHashes, executionPolicyVersion)` 形成执行幂等键；
+- 相同幂等键已有成功或明确失败 receipt 时不得再次产生 CodeAPI 副作用；
+- 模型只能看到与当前错误有关的有限代码片段和结构化错误，不能重复接收完整脚本、
+  完整 stdout 或完整聊天历史；
+- Script 只能生成候选 artifact，不能调用 publish、LibreChat API、数据库或文件交付接口；
+- Script 输出必须进入对应格式的独立 Verifier；没有可用 Verifier 时保持原生路线或
+  `needs_input`，不得以 Script 模式绕过能力边界；
+- Worker 和 Script 共享 Runtime task、Progress Vector、usage、artifact 和恢复契约，
+  不创建第二套 Agent Runtime。
+
 ## 七、非功能需求
 
 ### NFR-001 安全
@@ -583,6 +647,10 @@ trace 浏览器或原始终端输出。
   文件正文或价格；
 - stdout/stderr 进入持久 Trace 前必须限制大小并执行敏感信息过滤；
 - Runtime HTTP 不公开给浏览器和公网。
+- Script 进程只能访问当前 task workspace；`input/` 以只读方式暴露；
+- Script 默认禁止网络、环境变量枚举、凭据访问、宿主路径和跨 task 文件访问；
+- Script 只能使用批准镜像中的预装依赖，不允许 `pip`、`npm`、系统包或二进制临时安装；
+- 动态代码执行策略必须版本化并进入 item receipt，便于审计和事故回放。
 
 ### NFR-002 性能与资源
 
@@ -590,6 +658,7 @@ trace 浏览器或原始终端输出。
 - Runtime 自己维护并发队列，默认并发 2；
 - 单 task 默认 wall time 上限 900 秒；
 - Worker 命令必须配置 CPU、内存、执行时间和输出大小上限；
+- Script 命令还必须限制进程数、文件数、磁盘写入和单次 patch 大小；
 - 无进展停止优先于硬上限，硬上限不作为正常调度逻辑；
 - 所有模型调用和 CodeAPI 调用记录耗时与 usage，但不记录敏感正文。
 
@@ -653,6 +722,11 @@ services/file-agent-runtime/src/progress-evaluator.js
 services/file-agent-runtime/src/verification-result.js
 services/file-agent-runtime/src/workers/word/
 services/file-agent-runtime/src/verifiers/word/
+services/file-agent-runtime/src/script-action.js
+services/file-agent-runtime/src/script-store.js
+services/file-agent-runtime/src/script-patch.js
+services/file-agent-runtime/src/script-executor.js
+services/file-agent-runtime/src/execution-policy.js
 
 services/librechat-file-agent-connector/src/active-task-store.js
 services/librechat-file-agent-connector/src/turn-delivery.js
@@ -721,9 +795,24 @@ BaseClient 主循环。
 - 只交付通过验证的一个 DOCX；
 - 最终消息、下载卡和“生成的文件”一致。
 
+### 9.5 受控 Script 测试
+
+- Worker 可以满足任务时不创建脚本；
+- Worker 无法覆盖且 capability 允许时只创建一次稳定主脚本；
+- create 后的修复只提交 patch，拒绝第二份完整脚本；
+- stale `expectedBaseSha256` 在修改和执行前失败关闭；
+- 相同 script/input/policy receipt 不重复执行；
+- 网络、环境变量、凭据、绝对路径、符号链接、跨 task 和临时安装均被拒绝；
+- CPU、内存、进程、墙钟、输出、磁盘和文件数量限制可确定性终止任务；
+- 错误投影只包含有限相关代码片段，不包含完整脚本或完整 stdout；
+- Verifier 失败项不减少时，等价 patch 在下一次 CodeAPI 副作用前停止；
+- Script 输出未经独立 Verifier 不产生 artifact；
+- Runtime 重启后复用相同 script revision、execution receipt 和 candidate；
+- Word M3、XLSX POC、普通聊天和 Connector 全量回归保持通过。
+
 ## 十、开发阶段与交付物
 
-### Milestone 1：契约与进展判断
+### Milestone 1 已完成：契约与进展判断
 
 交付：
 
@@ -737,7 +826,7 @@ BaseClient 主循环。
 停止条件：无法在不修改 CodeAPI 存储结构的情况下形成稳定 Progress Vector，或现有
 XLSX 回归失败。
 
-### Milestone 2：跨轮次任务
+### Milestone 2 已完成：跨轮次任务
 
 交付：
 
@@ -749,7 +838,7 @@ XLSX 回归失败。
 
 停止条件：必须修改旧消息身份、会产生重复 usage/artifact 消费，或无法保持用户隔离。
 
-### Milestone 3：Word Worker/Verifier
+### Milestone 3 已完成并冻结：Word Worker/Verifier
 
 交付：
 
@@ -761,7 +850,25 @@ XLSX 回归失败。
 
 停止条件：Word 验证只能依赖模型主观判断，或原始输入无法保证只读。
 
-### Milestone 4：真实非生产联合验收
+M3 只包含确定性 Word Worker。`word.patch.v1` 是候选 DOCX 的结构化修改动作，不等于
+`script.patch.v1`，不得在 M3 发布批次中补入动态脚本实现。
+
+### Milestone 4：受控动态脚本核心
+
+交付：
+
+- 新版本 task contract 和 Script capability profile；
+- Worker 优先、Script 降级路由；
+- `script.create.v1`、`script.patch.v1`、`script.execute.v1`；
+- script revision store、执行 receipt、幂等键和上下文投影；
+- 版本化执行策略与 CodeAPI 沙箱约束；
+- 动态脚本接入独立 Verifier、Progress Vector、恢复和事故回放；
+- Runtime/Connector 全量回归和独立设计记录。
+
+停止条件：必须开放宿主任意 Shell/网络/凭据、无法保证输入只读、无法独立验证产物，
+或修复必须重复提交完整脚本。
+
+### Milestone 5：真实非生产联合验收
 
 交付：
 
@@ -771,11 +878,14 @@ XLSX 回归失败。
 - secret persistence 扫描；
 - 与原生 Agent 路线的同 fixture 对比。
 
+验收至少覆盖一个 Worker 任务和一个受控 Script 任务；已有 XLSX Phase 3D-C 工具只能
+作为 Worker 路径证据，不能替代 Script 路径或 Word 产品链路验收。
+
 停止条件：需要生产 Key、生产客户文件或生产写入才能完成验收。
 
-### Milestone 5：生产候选
+### Milestone 6：生产候选
 
-只有 Milestone 1 至 4 全部通过后，才可单独提交生产候选方案。生产候选必须重新执行
+只有 Milestone 1 至 5 全部通过后，才可单独提交生产候选方案。生产候选必须重新执行
 LibreChat release governance，不得把开发批准视为部署批准。
 
 ## 十一、验收标准
@@ -791,9 +901,10 @@ LibreChat release governance，不得把开发批准视为部署批准。
 7. Runtime/API/browser 重启不重复模型请求、transaction、file 或 message；
 8. 原始 DOCX hash 不变；
 9. 只有 Verifier passed 的一个 DOCX 进入下载卡；
-10. 真实非生产联合验收通过；
-11. 仓库中没有 Key、Authorization、客户正文或原始模型回复；
-12. 形成实现记录、测试报告、已知限制和回滚说明。
+10. Worker 优先、Script 降级及受控脚本安全测试通过；
+11. 真实非生产 Worker 与 Script 联合验收通过；
+12. 仓库中没有 Key、Authorization、客户正文或原始模型回复；
+13. 形成实现记录、测试报告、已知限制和回滚说明。
 
 ## 十二、开发提交要求
 

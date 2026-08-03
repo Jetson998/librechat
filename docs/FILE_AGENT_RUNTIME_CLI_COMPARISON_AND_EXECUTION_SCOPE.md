@@ -2,6 +2,8 @@
 
 Date: 2026-08-03
 
+Updated: 2026-08-04
+
 Status: architecture decision. This document defines product positioning,
 execution maturity, Office scope, and production gates. It does not approve a
 production deployment.
@@ -26,7 +28,17 @@ LibreChat File Agent Runtime
 ```
 
 File Agent Runtime 借鉴两类 CLI 的持久工作区、分阶段执行、增量修改、上下文压缩、
-恢复和工具安全边界，但必须补充它们不负责的产品能力：
+恢复和工具安全边界，但不复制通用 Engineering Agent。目标执行架构采用两级能力：
+
+```text
+优先：确定性 Worker
+降级：任务级受控动态代码
+```
+
+固定 Worker 是高频标准任务的稳定底座，不是 Runtime 的最终能力上限。只有 Worker
+无法覆盖、任务已通过授权且存在对应独立 Verifier 时，才允许进入 Script 模式。
+
+Runtime 还必须补充两类 CLI 不负责的产品能力：
 
 - LibreChat 用户、租户、会话和文件所有权；
 - 模型调用与 CodeAPI 动作幂等；
@@ -81,11 +93,11 @@ SDK、Claude Code CLI 或其私有会话协议。
 | --- | --- | --- | --- | --- |
 | 开放式代码理解 | 强 | 强 | 不支持 | 非首版重点 |
 | 自主探索工作区 | 强 | 强 | 仅固定任务目录 | 仅授权任务目录 |
-| 自主编写完整程序 | 强 | 强 | 模型被禁止输出代码 | 首次可生成受控脚本 |
-| 失败后增量修改 | 依赖 Agent 正确使用 Edit | 依赖 Agent 正确编辑文件 | 固定 marker patch 已验证 | 强制稳定脚本和受控 patch |
+| 自主编写完整程序 | 强 | 强 | 当前模型被禁止输出代码 | 任务级首次生成受控脚本 |
+| 失败后增量修改 | 依赖 Agent 正确使用 Edit | 依赖 Agent 正确编辑文件 | Worker 参数 patch 已验证 | Script 模式强制稳定脚本和受控 patch |
 | 上下文管理 | 会话恢复和工具上下文管理 | session、compact 架构和恢复 | 默认最多 12,000 字符投影 | 按任务阶段投影 |
 | 任务幂等 | 面向本地工程会话 | 面向本地工程会话 | item、model call、usage 已实现 | 扩展到生产 CodeAPI 和交付 |
-| 确定性 Office 验证 | 由 Agent 临时编写 | 由 Agent 临时编写 | 固定 XLSX verifier | 版本化 Office verifier |
+| 确定性 Office 验证 | 由 Agent 临时编写 | 由 Agent 临时编写 | XLSX 与 Word verifier 已实现 | 按 capability 扩展版本化 verifier |
 | 多用户文件隔离 | 非产品职责 | 非产品职责 | Connector 契约已验证 | 生产强制 |
 | LibreChat 计费 | 不负责 | 不负责 | 非生产链路已验证 | 原生 transaction 入账 |
 | 下载卡和最终消息 | 不负责 | 不负责 | 隔离浏览器验收通过 | 生产一致性保证 |
@@ -111,9 +123,9 @@ SDK、Claude Code CLI 或其私有会话协议。
 
 - Runtime 已有 `prepare -> plan -> execute -> verify -> repair -> publish` 状态机；
 - ExecutorAdapter 能驱动 CodeAPI 命令和文件读写；
-- Provider 当前只能选择 `xlsx_transform` 和 `xlsx_patch_and_transform`；
+- Provider 当前只能选择 XLSX 固定 Action 或 Word 版本化 Worker；
 - 模型返回 `command`、`script`、`path` 等字段会被拒绝；
-- 当前稳定 Python 脚本是测试 Worker，不是模型针对任意需求编写的程序；
+- 当前稳定 Python 脚本是 Runtime 内置 Worker，不是模型针对任意需求编写的程序；
 - 没有 Git diff、通用代码 patch、构建、lint 或仓库测试 Worker。
 
 这种限制是 POC 的安全边界，不应被描述成“已经具备 Codex 级代码执行”。
@@ -123,7 +135,7 @@ SDK、Claude Code CLI 或其私有会话协议。
 首个生产候选不开放任意 Shell Agent。模型与 Runtime 的职责应为：
 
 ```text
-模型：理解目标、拆分计划、选择 Worker、生成首次脚本或局部 patch、调整策略
+模型：理解目标、拆分计划、选择 Worker；必要时生成任务脚本或局部 patch
 Runtime：保存状态、执行 Action、控制路径和预算、分类错误、判断进展
 Worker：完成稳定的 Office 机械操作
 Verifier：确定性判断产物是否可交付
@@ -142,8 +154,12 @@ Verifier：确定性判断产物是否可交付
 }
 ```
 
-首次确实需要新代码时，代码写入稳定的 `scripts/` 路径。后续修复只允许受控 diff
-或结构化 patch，不重复传输和重写 10K 至 20K 字符的完整脚本。
+执行顺序必须是 Worker 优先。只有 capability 明确声明固定 Worker 无法覆盖当前验收要求
+时，Runtime 才能选择 `script.create.v1`。首次代码写入稳定的 `scripts/` 路径；后续修复
+只能使用 `script.patch.v1` 的受控 patch，不重复传输和重写 10K 至 20K 字符的完整脚本。
+脚本只能访问当前 task workspace，输入只读，默认无网络、无凭据和无临时安装权限，
+并受 CPU、内存、墙钟时间、输出大小和文件数量限制。Script 产物仍必须经过同一独立
+Verifier，模型不能自行宣布完成。
 
 ## 六、Office 文件执行程度
 
@@ -174,21 +190,22 @@ Node.js、LibreOffice 或其他已安装工具完成以下工作：
 | 文件类型 | 读取 | 修改 | 验证 | 交付 | 当前等级 |
 | --- | --- | --- | --- | --- | --- |
 | XLSX | 单个已授权输入 | 固定新增 Sheet 和 marker patch | openpyxl 打开、Sheet 和 marker | 单个 XLSX ref，隔离下载卡已验收 | L3 POC |
-| DOCX | 现有 LibreChat 原生链路可解析 | Runtime 无 Worker | Runtime 无 Verifier | Runtime 无产物 | L0 Runtime |
+| DOCX | 单个授权输入和结构检查 | 文字替换、段落追加、表格单元格替换 | OOXML、关系、批注、业务断言和渲染 | 单个已验证 DOCX，隔离 handoff 已验证 | L3 development |
 | PPTX | 现有 LibreChat/CodeAPI 路径可处理部分任务 | Runtime 无 Worker | Runtime 无 Verifier | Runtime 无产物 | L0 Runtime |
 | PDF | 现有上传/提取链路负责 | Runtime 无 Worker | Runtime 无 Verifier | Runtime 无产物 | L0 Runtime |
 
 当前 XLSX 的 L3 只表示 Runtime 机制已经证明，不表示支持任意 Excel 业务修改。当前
 能力仍限定为一个 `.xlsx` 输入、固定测试 transform、一次增量修复和一个输出。
 
-### 6.3 Word 受控试用目标
+### 6.3 Word M3 已实现基线
 
-Word 是下一类优先 Worker，因为已确认的循环事故发生在复杂 DOCX 修改和验证中。
+Word M3 已完成并冻结为首个确定性 Worker 基线，因为已确认的循环事故发生在复杂 DOCX
+修改和验证中。
 
-首版接纳：
+当前已接纳：
 
-- 读取 DOCX 段落、表格、样式、页眉页脚和基础 OOXML 结构；
-- 修改文字、段落、表格、基础样式和已有结构；
+- 检查 DOCX 段落、表格、样式、页眉页脚和基础 OOXML 结构；
+- 执行文字替换、段落追加（可指定已有样式）和表格单元格替换；
 - 原始输入只读，候选输出使用稳定路径和 revision；
 - 验证 ZIP/OOXML、XML、relationship、关键结构和可渲染性；
 - 验证通过后只交付一个最终 DOCX；
@@ -308,23 +325,26 @@ artifact count: 1
 
 ## 九、当前状态与上线门禁
 
-截至本文日期：
+截至 2026-08-04：
 
-- File Agent Runtime 测试 35/35 通过；
-- LibreChat Connector 测试 53/53 通过；
+- File Agent Runtime 测试 61/61 通过；
+- LibreChat Connector 测试 79/79 通过；
 - 真实模型加隔离 CodeAPI 的 XLSX 契约验收通过；
 - 完整 LibreChat 加隔离依赖的浏览器验收通过，覆盖重启恢复、计费、下载卡和无刷新
   结束；
+- Word M1-M3 已完成：`office-file-agent.v1.1`、`word-edit-v1`、确定性 Worker/Verifier、
+  独立 acceptance assertions、真实 DOCX source-level handoff 和事故回放均已通过本地门禁；
 - 真实外部非生产 CodeAPI、真实中转和完整 LibreChat 的联合 Phase 3D-C 尚未执行；
-- 没有 Word、PPT、PDF Worker；
+- 没有任务级 `script.create.v1` / `script.patch.v1`；
+- 没有 PPT 或 PDF Runtime Worker；
 - 没有生产启动入口、生产 Runtime secret 或生产 feature flag；
 - 当前状态不得描述为“已经具备 Claude Code/Codex 同等执行能力”或“Office 全格式
   已由 Runtime 支持”。
 
 进入受控试用前必须完成：
 
-1. 将 Action Envelope、规范化进展向量和跨轮次 `activeTaskRef` 固化为版本化契约；
-2. 建设 Word Worker、Verifier 和事故回放 fixture；
+1. 保持已完成的 Action Envelope、进展向量、跨轮次任务和 Word M3 契约冻结；
+2. 实现并独立评审 Worker 优先、Script 降级的受控动态代码里程碑；
 3. 完成真实非生产 model relay、CodeAPI 和完整 LibreChat 联合验收；
 4. 验证 Runtime、LibreChat、CodeAPI 和浏览器分别中断后的恢复；
 5. 验证普通聊天不创建 Runtime task；
@@ -338,6 +358,7 @@ artifact count: 1
 - LibreChat 复杂 Office 文件任务的持久状态、计划、执行、验证、恢复和交付；
 - 一个任务内的多步执行和有进展的修复；
 - 版本化 Worker 与确定性 Verifier；
+- Worker 无法覆盖时的任务级受控 Script 模式；
 - 原生 Token 计费、生成文件和下载卡。
 
 首版明确延后：
