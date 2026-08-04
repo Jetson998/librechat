@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260804-file-agent-runtime-m3r-api-bootstrap/artifacts/20260804-file-agent-runtime-m3r-api-bootstrap-83617c6e56d3.tar.gz",
+      "manifest": ".release-state/20260804-file-agent-runtime-m3r-api-bootstrap/artifacts/manifest.json",
+      "value": "65e58fe8789052be3d2a768176c10495f6e90fd6df48bcea81d66ccaa0db5ee8"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -24,8 +29,33 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "65e58fe8789052be3d2a768176c10495f6e90fd6df48bcea81d66ccaa0db5ee8",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "candidate_kind": "small API overlay source package; no OCI image is built or transferred",
+      "checks": [
+        "File Agent API bootstrap local handoff, Compose extra_hosts normalization, and rollback contract passed",
+        "Connector syntax check passed",
+        "Connector full Node test suite passed: 93 tests",
+        "Runtime syntax check passed",
+        "Runtime full Node test suite passed: 65 tests",
+        "release-governance validation passed: 34 tests",
+        "release package manifest and SHA-256 inventory passed"
+      ],
+      "deployment_handoff": "The versioned runner derives a verified four-file API tarball from this source artifact immediately before transfer.",
+      "production_write_attempts": 0
+    },
+    "production_host": false,
+    "provider": "local independent source-package build",
+    "release_plan_sha256": "324fccf94cdd319870e3b104e9fbdcafc7d8f5a2412e2af3f6502b32d36b6857",
+    "source_revision": "83617c6e56d3c9c224508e5646a79e79eca3ff62",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "Only LibreChat-API is recreated with four verified read-only API mounts. FILE_AGENT_RUNTIME_ENABLED is explicitly false, so no Runtime service, Connector import, user task, file delivery, MongoDB migration, or model request is started.",
@@ -92,7 +122,7 @@
   "unresolved_issues": [
     "file_agent_runtime_remains_disabled_until_a_separate_allowlisted_runtime_pilot"
   ],
-  "updated_at": "2026-08-04T04:20:00Z",
+  "updated_at": "2026-08-04T04:32:37Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3r-api-bootstrap/scripts/test-release.py",
