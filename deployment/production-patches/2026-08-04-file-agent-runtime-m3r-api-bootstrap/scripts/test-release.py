@@ -79,6 +79,7 @@ def main() -> None:
             "services": {
                 "api": {
                     "environment": ["EXISTING=value", "FILE_AGENT_RUNTIME_ENABLED=true"],
+                    "extra_hosts": ["gateway=host-gateway", "database:127.0.0.1"],
                     "volumes": [
                         "old-index:/app/api/server/index.js:ro",
                         "keep:/app/keep:ro",
@@ -91,6 +92,10 @@ def main() -> None:
         api = patched["services"]["api"]
         require(api["environment"]["FILE_AGENT_RUNTIME_ENABLED"] == "false", "disabled flag is not forced")
         require(api["environment"]["EXISTING"] == "value", "existing environment was lost")
+        require(
+            api["extra_hosts"] == {"gateway": "host-gateway", "database": "127.0.0.1"},
+            "resolved extra_hosts list was not normalized for Compose input",
+        )
         require("old-index:/app/api/server/index.js:ro" not in api["volumes"], "old API mount was retained")
         require("keep:/app/keep:ro" in api["volumes"], "unrelated API mount was lost")
         mounted = [entry for entry in api["volumes"] if str(release_dir) in entry]

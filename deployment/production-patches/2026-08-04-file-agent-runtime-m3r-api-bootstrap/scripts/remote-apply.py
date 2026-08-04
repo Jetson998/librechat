@@ -112,9 +112,27 @@ def normalized_environment(value: object) -> dict[str, str]:
     raise RuntimeError("unsupported Compose environment representation")
 
 
+def normalized_extra_hosts(value: object) -> object:
+    if value is None or isinstance(value, dict):
+        return value
+    require(isinstance(value, list), "unsupported Compose extra_hosts representation")
+    normalized: dict[str, str] = {}
+    for item in value:
+        require(isinstance(item, str), "unsupported Compose extra_hosts entry")
+        separator = "=" if "=" in item else ":"
+        require(separator in item, "invalid Compose extra_hosts entry")
+        hostname, address = item.split(separator, 1)
+        require(hostname != "" and address != "", "invalid Compose extra_hosts entry")
+        normalized[hostname] = address
+    return normalized
+
+
 def compose_with_overlay(payload: dict, release_dir: Path, targets: list[dict]) -> dict:
     services = payload.get("services")
     require(isinstance(services, dict) and isinstance(services.get(API_SERVICE), dict), "API Compose service is missing")
+    for service in services.values():
+        if isinstance(service, dict) and "extra_hosts" in service:
+            service["extra_hosts"] = normalized_extra_hosts(service["extra_hosts"])
     api = services[API_SERVICE]
     destinations = {target["destination"] for target in targets}
     volumes = api.get("volumes", [])
