@@ -3,9 +3,15 @@ import { XLSX_MIME } from './constants.js';
 export const XLSX_ACCEPTANCE_SCHEMA_VERSION = '1.0';
 export const XLSX_ACCEPTANCE_TYPES = Object.freeze({
   SHEET_PRESENT: 'xlsx.sheet_present.v1',
+  SHEET_ABSENT: 'xlsx.sheet_absent.v1',
+  SHEET_RENAME: 'xlsx.sheet_rename.v1',
+  SHEET_ORDER: 'xlsx.sheet_order.v1',
   CELL_VALUE: 'xlsx.cell_value.v1',
   FORMULA: 'xlsx.formula.v1',
   NUMBER_FORMAT: 'xlsx.number_format.v1',
+  STYLE: 'xlsx.style.v1',
+  TABLE_PRESENT: 'xlsx.table_present.v1',
+  CHART_PRESENT: 'xlsx.chart_present.v1',
   PROTECTED_CELL: 'xlsx.protected_cell.v1',
   ARTIFACT: 'xlsx.artifact.v1',
 });
@@ -17,9 +23,15 @@ const CELL_PATTERN = /^[A-Z]{1,3}[1-9][0-9]{0,6}$/;
 const SHEET_PATTERN = /^[^\\/*?:\[\]]{1,31}$/;
 const XLSX_BUSINESS_CHANGE_TYPES = new Set([
   XLSX_ACCEPTANCE_TYPES.SHEET_PRESENT,
+  XLSX_ACCEPTANCE_TYPES.SHEET_ABSENT,
+  XLSX_ACCEPTANCE_TYPES.SHEET_RENAME,
+  XLSX_ACCEPTANCE_TYPES.SHEET_ORDER,
   XLSX_ACCEPTANCE_TYPES.CELL_VALUE,
   XLSX_ACCEPTANCE_TYPES.FORMULA,
   XLSX_ACCEPTANCE_TYPES.NUMBER_FORMAT,
+  XLSX_ACCEPTANCE_TYPES.STYLE,
+  XLSX_ACCEPTANCE_TYPES.TABLE_PRESENT,
+  XLSX_ACCEPTANCE_TYPES.CHART_PRESENT,
 ]);
 
 function deepFreeze(value) {
@@ -100,10 +112,40 @@ function normalizeAssertion(assertion, index) {
     };
   }
 
+  if (type === XLSX_ACCEPTANCE_TYPES.SHEET_ABSENT) {
+    return {
+      schemaVersion: XLSX_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      sheet: sheetName(assertion.sheet, `acceptanceAssertions[${index}].sheet`),
+    };
+  }
+
+  if (type === XLSX_ACCEPTANCE_TYPES.SHEET_RENAME) {
+    const from = sheetName(assertion.from, `acceptanceAssertions[${index}].from`);
+    const to = sheetName(assertion.to, `acceptanceAssertions[${index}].to`);
+    if (from === to) {
+      throw new TypeError(`acceptanceAssertions[${index}].from and .to must differ`);
+    }
+    return { schemaVersion: XLSX_ACCEPTANCE_SCHEMA_VERSION, type, from, to };
+  }
+
+  if (type === XLSX_ACCEPTANCE_TYPES.SHEET_ORDER) {
+    if (!Array.isArray(assertion.order) || assertion.order.length < 1 || assertion.order.length > 64) {
+      throw new TypeError(`acceptanceAssertions[${index}].order must contain between 1 and 64 sheets`);
+    }
+    const order = assertion.order.map((value, orderIndex) =>
+      sheetName(value, `acceptanceAssertions[${index}].order[${orderIndex}]`));
+    if (new Set(order).size !== order.length) {
+      throw new TypeError(`acceptanceAssertions[${index}].order must not contain duplicate sheets`);
+    }
+    return { schemaVersion: XLSX_ACCEPTANCE_SCHEMA_VERSION, type, order };
+  }
+
   if (
     type === XLSX_ACCEPTANCE_TYPES.CELL_VALUE ||
     type === XLSX_ACCEPTANCE_TYPES.FORMULA ||
     type === XLSX_ACCEPTANCE_TYPES.NUMBER_FORMAT ||
+    type === XLSX_ACCEPTANCE_TYPES.STYLE ||
     type === XLSX_ACCEPTANCE_TYPES.PROTECTED_CELL
   ) {
     const normalized = {
@@ -123,10 +165,61 @@ function normalizeAssertion(assertion, index) {
         `acceptanceAssertions[${index}].numberFormat`,
         256,
       );
+    } else if (type === XLSX_ACCEPTANCE_TYPES.STYLE) {
+      const style = assertion.style;
+      if (!style || typeof style !== 'object' || Array.isArray(style)) {
+        throw new TypeError(`acceptanceAssertions[${index}].style must be an object`);
+      }
+      const normalizedStyle = {};
+      if (style.fontBold != null) {
+        if (typeof style.fontBold !== 'boolean') throw new TypeError(`acceptanceAssertions[${index}].style.fontBold must be boolean`);
+        normalizedStyle.fontBold = style.fontBold;
+      }
+      for (const field of ['fontColor', 'fillColor']) {
+        if (style[field] != null) {
+          if (typeof style[field] !== 'string' || !/^[0-9a-f]{6}$/iu.test(style[field])) {
+            throw new TypeError(`acceptanceAssertions[${index}].style.${field} must be a six-digit color`);
+          }
+          normalizedStyle[field] = style[field].toUpperCase();
+        }
+      }
+      if (style.horizontalAlignment != null) {
+        if (!['left', 'center', 'right', 'general'].includes(style.horizontalAlignment)) {
+          throw new TypeError(`acceptanceAssertions[${index}].style.horizontalAlignment is unsupported`);
+        }
+        normalizedStyle.horizontalAlignment = style.horizontalAlignment;
+      }
+      if (style.numberFormat != null) {
+        normalizedStyle.numberFormat = requiredText(style.numberFormat, `acceptanceAssertions[${index}].style.numberFormat`, 256);
+      }
+      if (Object.keys(normalizedStyle).length === 0) {
+        throw new TypeError(`acceptanceAssertions[${index}].style must change at least one property`);
+      }
+      normalized.style = normalizedStyle;
     } else {
       normalized.value = scalar(assertion.value, `acceptanceAssertions[${index}].value`);
     }
     return normalized;
+  }
+
+  if (type === XLSX_ACCEPTANCE_TYPES.TABLE_PRESENT) {
+    return {
+      schemaVersion: XLSX_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      sheet: sheetName(assertion.sheet, `acceptanceAssertions[${index}].sheet`),
+      tableName: requiredText(assertion.tableName, `acceptanceAssertions[${index}].tableName`, 255),
+      ref: requiredText(assertion.ref, `acceptanceAssertions[${index}].ref`, 64),
+    };
+  }
+
+  if (type === XLSX_ACCEPTANCE_TYPES.CHART_PRESENT) {
+    return {
+      schemaVersion: XLSX_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      sheet: sheetName(assertion.sheet, `acceptanceAssertions[${index}].sheet`),
+      chartType: requiredText(assertion.chartType, `acceptanceAssertions[${index}].chartType`, 32),
+      title: requiredText(assertion.title, `acceptanceAssertions[${index}].title`, 400),
+    };
   }
 
   const logicalId = assertion.logicalId ?? XLSX_ARTIFACT_LOGICAL_ID;

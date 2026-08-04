@@ -231,6 +231,7 @@ test('PPTX v1 creates, modifies, verifies, renders, and publishes one presentati
   assert.equal(completed.verification.metrics.slideCount, 3);
   assert.equal(completed.verification.metrics.mediaCount, 1);
   assert.equal(completed.verification.metrics.renderedPages, 3);
+  assert.ok(completed.verification.passedAssertionCodes.includes('pptx.images.preserved'));
   assert.equal(completed.result.artifacts.length, 1);
   assert.equal(completed.result.artifacts[0].name, 'working.pptx');
   assert.equal(completed.result.artifacts[0].mimeType, PPTX_MIME);
@@ -290,6 +291,99 @@ test('PPTX slide order is independently verified', async (t) => {
   );
   assert.equal(completed.verification.passed, true);
   assert.ok(completed.verification.passedAssertionCodes.includes('pptx.required_changes.applied'));
+});
+
+test('PPTX slide deletion and copy are independently verified', async (t) => {
+  const deleted = await createHarness(t, {
+    actions: [pptxAction('pptx.transform.v1', {
+      operation: 'delete_slide',
+      slide: 2,
+    }, ['slide2.absent'], 'Delete the second slide')],
+    acceptanceAssertions: [
+      { type: 'pptx.slide_absent.v1', slide: 2 },
+      { type: 'pptx.slide_count.v1', count: 1 },
+    ],
+  });
+  const deletedSubmission = await deleted.runtime.submit({
+    idempotencyKey: 'pptx-v1-delete-slide',
+    manifest: deleted.manifest,
+  });
+  const deletedTask = await deleted.runtime.waitFor(
+    deletedSubmission.task.taskId,
+    (task) => ['completed', 'needs_input', 'failed'].includes(task.status),
+    { timeoutMs: 45_000 },
+  );
+  assert.equal(deletedTask.status, 'completed', JSON.stringify(deletedTask.verification));
+  assert.equal(deletedTask.verification.passed, true);
+
+  const copied = await createHarness(t, {
+    actions: [pptxAction('pptx.transform.v1', {
+      operation: 'copy_slide',
+      slide: 1,
+      destination: 3,
+    }, ['slide3.copy'], 'Copy the first slide to the end')],
+    acceptanceAssertions: [
+      { type: 'pptx.slide_count.v1', count: 3 },
+      { type: 'pptx.text_value.v1', slide: 3, shape: 'TitleBox', value: 'Quarterly Report' },
+    ],
+  });
+  const copiedSubmission = await copied.runtime.submit({
+    idempotencyKey: 'pptx-v1-copy-slide',
+    manifest: copied.manifest,
+  });
+  const copiedTask = await copied.runtime.waitFor(
+    copiedSubmission.task.taskId,
+    (task) => ['completed', 'needs_input', 'failed'].includes(task.status),
+    { timeoutMs: 45_000 },
+  );
+  assert.equal(copiedTask.status, 'completed', JSON.stringify(copiedTask.verification));
+  assert.equal(copiedTask.verification.passed, true);
+
+  const added = await createHarness(t, {
+    actions: [pptxAction('pptx.transform.v1', {
+      operation: 'add_slide',
+      layoutIndex: 0,
+      title: 'Appendix',
+    }, ['slide.append'], 'Append a titled slide')],
+    acceptanceAssertions: [
+      { type: 'pptx.slide_add.v1', position: 'append', title: 'Appendix' },
+    ],
+  });
+  const addedSubmission = await added.runtime.submit({
+    idempotencyKey: 'pptx-v1-add-slide',
+    manifest: added.manifest,
+  });
+  const addedTask = await added.runtime.waitFor(
+    addedSubmission.task.taskId,
+    (task) => ['completed', 'needs_input', 'failed'].includes(task.status),
+    { timeoutMs: 45_000 },
+  );
+  assert.equal(addedTask.status, 'completed', JSON.stringify(addedTask.verification));
+  assert.equal(addedTask.verification.passed, true);
+});
+
+test('PPTX deletion verifier rejects a contradictory slide-presence assertion', async (t) => {
+  const harness = await createHarness(t, {
+    actions: [pptxAction('pptx.transform.v1', {
+      operation: 'delete_slide',
+      slide: 2,
+    }, ['slide2.absent'], 'Delete the second slide')],
+    acceptanceAssertions: [
+      { type: 'pptx.slide_present.v1', slide: 2 },
+      { type: 'pptx.slide_count.v1', count: 1 },
+    ],
+  });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'pptx-v1-delete-slide-contradiction',
+    manifest: harness.manifest,
+  });
+  const failed = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => task.status === 'needs_input',
+    { timeoutMs: 45_000 },
+  );
+  assert.equal(failed.verification.passed, false);
+  assert.ok(failed.verification.failedAssertions.some((entry) => entry.code === 'pptx.required_sections.present'));
 });
 
 test('PPTX verifier rejects an unauthorized text or table change', async (t) => {

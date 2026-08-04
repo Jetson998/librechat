@@ -3,6 +3,10 @@ import { PPTX_MIME } from './constants.js';
 export const PPTX_ACCEPTANCE_SCHEMA_VERSION = '1.0';
 export const PPTX_ACCEPTANCE_TYPES = Object.freeze({
   SLIDE_PRESENT: 'pptx.slide_present.v1',
+  SLIDE_ABSENT: 'pptx.slide_absent.v1',
+  SLIDE_ADD: 'pptx.slide_add.v1',
+  SLIDE_COPY: 'pptx.slide_copy.v1',
+  SLIDE_COUNT: 'pptx.slide_count.v1',
   TEXT_VALUE: 'pptx.text_value.v1',
   TABLE_CELL_VALUE: 'pptx.table_cell_value.v1',
   SLIDE_ORDER: 'pptx.slide_order.v1',
@@ -15,6 +19,10 @@ const MAX_TEXT_CHARS = 4_000;
 const MAX_SHAPE_NAME_CHARS = 128;
 const PPTX_BUSINESS_CHANGE_TYPES = new Set([
   PPTX_ACCEPTANCE_TYPES.SLIDE_PRESENT,
+  PPTX_ACCEPTANCE_TYPES.SLIDE_ABSENT,
+  PPTX_ACCEPTANCE_TYPES.SLIDE_ADD,
+  PPTX_ACCEPTANCE_TYPES.SLIDE_COPY,
+  PPTX_ACCEPTANCE_TYPES.SLIDE_COUNT,
   PPTX_ACCEPTANCE_TYPES.TEXT_VALUE,
   PPTX_ACCEPTANCE_TYPES.TABLE_CELL_VALUE,
   PPTX_ACCEPTANCE_TYPES.SLIDE_ORDER,
@@ -89,6 +97,39 @@ function normalizeAssertion(assertion, index) {
       schemaVersion: PPTX_ACCEPTANCE_SCHEMA_VERSION,
       type,
       slide: positiveInteger(assertion.slide, `acceptanceAssertions[${index}].slide`),
+    };
+  }
+  if (type === PPTX_ACCEPTANCE_TYPES.SLIDE_ABSENT) {
+    return {
+      schemaVersion: PPTX_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      slide: positiveInteger(assertion.slide, `acceptanceAssertions[${index}].slide`),
+    };
+  }
+  if (type === PPTX_ACCEPTANCE_TYPES.SLIDE_ADD) {
+    if ((assertion.position ?? 'append') !== 'append') {
+      throw new TypeError(`acceptanceAssertions[${index}].position must be append`);
+    }
+    return {
+      schemaVersion: PPTX_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      position: 'append',
+      title: assertion.title == null ? null : requiredText(assertion.title, `acceptanceAssertions[${index}].title`),
+    };
+  }
+  if (type === PPTX_ACCEPTANCE_TYPES.SLIDE_COPY) {
+    return {
+      schemaVersion: PPTX_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      sourceSlide: positiveInteger(assertion.sourceSlide, `acceptanceAssertions[${index}].sourceSlide`),
+      destination: positiveInteger(assertion.destination, `acceptanceAssertions[${index}].destination`),
+    };
+  }
+  if (type === PPTX_ACCEPTANCE_TYPES.SLIDE_COUNT) {
+    return {
+      schemaVersion: PPTX_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      count: positiveInteger(assertion.count, `acceptanceAssertions[${index}].count`, 200),
     };
   }
   if (

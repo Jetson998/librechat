@@ -86,7 +86,12 @@ function sourceMappingAssertion({ sourceLogicalId, sourceLocation, targetSlide }
   };
 }
 
-async function createHarness(t, { includeWorkbook, includeWord }) {
+async function createHarness(t, {
+  includeWorkbook,
+  includeWord,
+  actionSlides: suppliedActionSlides = null,
+  acceptanceOverride = null,
+}) {
   const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-compose-v1-'));
   const sourcePaths = [];
   if (includeWorkbook) {
@@ -124,7 +129,7 @@ async function createHarness(t, { includeWorkbook, includeWord }) {
     });
   }
   const sourceBuffers = await Promise.all(sourcePaths.map((source) => readFile(source.filePath)));
-  const slides = sourcePaths.map((source, index) => ({
+  const defaultSlides = sourcePaths.map((source, index) => ({
     title: index === 0 ? 'Source Facts' : `Source Facts ${index + 1}`,
     bullets: [{
       sourceLogicalId: source.logicalId,
@@ -132,7 +137,8 @@ async function createHarness(t, { includeWorkbook, includeWord }) {
       label: source.logicalId,
     }],
   }));
-  const acceptance = [
+  const slides = suppliedActionSlides ?? defaultSlides;
+  const acceptance = acceptanceOverride ?? [
     ...sourcePaths.flatMap((source, index) => [
       {
         type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_HASH,
@@ -241,6 +247,82 @@ for (const scenario of [
   });
 }
 
+test('Office Compose structured pages verify tables, charts, conclusions, and source mappings', async (t) => {
+  const reference = (sourceLocation) => ({
+    sourceLogicalId: 'source:finance',
+    sourceLocation,
+    label: sourceLocation,
+  });
+  const slides = [
+    {
+      kind: 'title',
+      title: 'API Model Sources',
+      bullets: [reference('Source!A1')],
+      conclusion: 'Use the approved source values for the API model review.',
+    },
+    {
+      kind: 'data',
+      title: 'Key Data',
+      bullets: [],
+      table: {
+        headers: ['Month', 'Amount'],
+        rows: [[
+          reference('Source!A1'),
+          reference('Source!B1'),
+        ]],
+      },
+      chart: {
+        type: 'bar',
+        categories: [reference('Source!A1')],
+        series: [{ name: 'Amount', values: [reference('Source!B1')] }],
+      },
+      conclusion: 'The source amount is the approved baseline.',
+    },
+  ];
+  const acceptance = [
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SECTION_PRESENT, slide: 1, title: 'API Model Sources' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SECTION_PRESENT, slide: 2, title: 'Key Data' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.CONCLUSION_PRESENT, slide: 1, text: 'Use the approved source values for the API model review.' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.CONCLUSION_PRESENT, slide: 2, text: 'The source amount is the approved baseline.' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.TABLE_PRESENT, slide: 2, headers: ['Month', 'Amount'], rowCount: 1 },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.CHART_PRESENT, slide: 2, chartType: 'bar', title: 'Key Data' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_MAPPING, sourceLogicalId: 'source:finance', sourceLocation: 'Source!A1', targetSlide: 1, targetShape: 'body' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_MAPPING, sourceLogicalId: 'source:finance', sourceLocation: 'Source!A1', targetSlide: 2, targetShape: 'data_table' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_MAPPING, sourceLogicalId: 'source:finance', sourceLocation: 'Source!B1', targetSlide: 2, targetShape: 'data_table' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_MAPPING, sourceLogicalId: 'source:finance', sourceLocation: 'Source!A1', targetSlide: 2, targetShape: 'chart' },
+    { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_MAPPING, sourceLogicalId: 'source:finance', sourceLocation: 'Source!B1', targetSlide: 2, targetShape: 'chart' },
+  ];
+  const harness = await createHarness(t, {
+    includeWorkbook: true,
+    includeWord: false,
+    actionSlides: slides,
+    acceptanceOverride: acceptance,
+  });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'compose-structured-pages',
+    manifest: harness.manifest,
+  });
+  const completed = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => ['completed', 'failed', 'needs_input'].includes(task.status),
+    { timeoutMs: 45_000 },
+  );
+  assert.equal(completed.status, 'completed', JSON.stringify({ error: completed.error, verification: completed.verification }));
+  assert.equal(completed.verification.passed, true);
+  const paths = getOfficeComposeTaskPaths(completed);
+  const outputPath = harness.codeApi.virtualPath('compose-v1-isolated-session', paths.outputPath);
+  const observed = JSON.parse(await runPython(
+    'import json,sys\nfrom pptx import Presentation\np=Presentation(sys.argv[1])\nprint(json.dumps({"slides":len(p.slides),"tables":sum(1 for slide in p.slides for shape in slide.shapes if getattr(shape,"has_table",False)),"charts":sum(1 for slide in p.slides for shape in slide.shapes if getattr(shape,"has_chart",False)),"body":next(shape.text for shape in p.slides[0].shapes if shape.name=="body")}))',
+    [outputPath],
+  ));
+  assert.deepEqual(observed, {
+    slides: 2,
+    tables: 1,
+    charts: 1,
+    body: 'Source!A1: January\nUse the approved source values for the API model review.',
+  });
+});
+
 test('Office Compose acceptance rejects unsafe target shapes and unauthorized sources before execution', () => {
   assert.throws(
     () => normalizeOfficeComposeAcceptanceAssertions([{
@@ -251,7 +333,7 @@ test('Office Compose acceptance rejects unsafe target shapes and unauthorized so
       targetShape: 'notes',
       value: 'not present',
     }]),
-    /title or body/,
+    /title, body/,
   );
   assert.throws(
     () => validateTaskManifest({
@@ -277,4 +359,26 @@ test('Office Compose acceptance rejects unsafe target shapes and unauthorized so
     }),
     /unauthorized source/,
   );
+});
+
+test('Office Compose verifier rejects a false chart assertion', async (t) => {
+  const harness = await createHarness(t, {
+    includeWorkbook: true,
+    includeWord: false,
+    acceptanceOverride: [
+      { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SECTION_PRESENT, slide: 1, title: 'Source Facts' },
+      { type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.CHART_PRESENT, slide: 1, chartType: 'bar', title: 'Source Facts' },
+    ],
+  });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'compose-false-chart-assertion',
+    manifest: harness.manifest,
+  });
+  const failed = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => task.status === 'needs_input',
+    { timeoutMs: 45_000 },
+  );
+  assert.equal(failed.verification.passed, false);
+  assert.ok(failed.verification.failedAssertions.some((entry) => entry.code === 'compose.chart_present'));
 });

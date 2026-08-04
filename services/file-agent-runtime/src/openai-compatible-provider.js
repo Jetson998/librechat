@@ -198,8 +198,8 @@ function responseFormatFor(route, operation) {
     const verifierProfile = isPptx ? PPTX_VERIFIER_PROFILE : XLSX_VERIFIER_PROFILE;
     const targetRef = isPptx ? 'candidate:working-pptx' : 'candidate:working-xlsx';
     const operations = isPptx
-      ? ['inspect', 'validate', 'replace_text', 'set_table_cell', 'add_slide', 'reorder_slides']
-      : ['inspect', 'validate', 'set_cell', 'set_formula', 'add_sheet', 'rename_sheet', 'set_number_format'];
+      ? ['inspect', 'validate', 'replace_text', 'set_table_cell', 'add_slide', 'delete_slide', 'copy_slide', 'reorder_slides']
+      : ['inspect', 'validate', 'set_cell', 'set_formula', 'add_sheet', 'delete_sheet', 'rename_sheet', 'reorder_sheets', 'set_number_format', 'set_style', 'add_table', 'add_chart'];
     return {
       type: 'json_schema',
       json_schema: {
@@ -246,6 +246,11 @@ function responseFormatFor(route, operation) {
                       },
                       sheet: { anyOf: [{ type: 'string', maxLength: 31 }, { type: 'null' }] },
                       cell: { anyOf: [{ type: 'string', pattern: '^[A-Za-z]{1,3}[1-9][0-9]{0,6}$' }, { type: 'null' }] },
+                      slide: { anyOf: [{ type: 'integer', minimum: 1, maximum: 200 }, { type: 'null' }] },
+                      shape: { anyOf: [{ type: 'string', minLength: 1, maxLength: 128 }, { type: 'null' }] },
+                      row: { anyOf: [{ type: 'integer', minimum: 1, maximum: 200 }, { type: 'null' }] },
+                      column: { anyOf: [{ type: 'integer', minimum: 1, maximum: 200 }, { type: 'null' }] },
+                      layoutIndex: { anyOf: [{ type: 'integer', minimum: 0, maximum: 30 }, { type: 'null' }] },
                       value: {
                         anyOf: [
                           { type: 'string', maxLength: 4_000 },
@@ -257,10 +262,41 @@ function responseFormatFor(route, operation) {
                       formula: { anyOf: [{ type: 'string', minLength: 1, maxLength: 4_000 }, { type: 'null' }] },
                       from: { anyOf: [{ type: 'string', maxLength: 31 }, { type: 'null' }] },
                       to: { anyOf: [{ type: 'string', maxLength: 31 }, { type: 'null' }] },
+                      order: {
+                        anyOf: [
+                          { type: 'array', minItems: 1, maxItems: 64, items: { type: 'string', maxLength: 31 } },
+                          { type: 'null' },
+                        ],
+                      },
                       numberFormat: { anyOf: [{ type: 'string', minLength: 1, maxLength: 256 }, { type: 'null' }] },
+                      style: {
+                        anyOf: [
+                          {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                              fontBold: { anyOf: [{ type: 'boolean' }, { type: 'null' }] },
+                              fontColor: { anyOf: [{ type: 'string', pattern: '^[a-fA-F0-9]{6}$' }, { type: 'null' }] },
+                              fillColor: { anyOf: [{ type: 'string', pattern: '^[a-fA-F0-9]{6}$' }, { type: 'null' }] },
+                              horizontalAlignment: { anyOf: [{ type: 'string', enum: ['left', 'center', 'right', 'general'] }, { type: 'null' }] },
+                              numberFormat: { anyOf: [{ type: 'string', maxLength: 256 }, { type: 'null' }] },
+                            },
+                            required: ['fontBold', 'fontColor', 'fillColor', 'horizontalAlignment', 'numberFormat'],
+                          },
+                          { type: 'null' },
+                        ],
+                      },
+                      tableName: { anyOf: [{ type: 'string', minLength: 1, maxLength: 255 }, { type: 'null' }] },
+                      ref: { anyOf: [{ type: 'string', minLength: 1, maxLength: 64 }, { type: 'null' }] },
+                      styleName: { anyOf: [{ type: 'string', minLength: 1, maxLength: 64 }, { type: 'null' }] },
+                      chartType: { anyOf: [{ type: 'string', enum: ['bar', 'line'] }, { type: 'null' }] },
+                      dataRange: { anyOf: [{ type: 'string', minLength: 1, maxLength: 64 }, { type: 'null' }] },
+                      title: { anyOf: [{ type: 'string', minLength: 1, maxLength: 400 }, { type: 'null' }] },
+                      anchor: { anyOf: [{ type: 'string', pattern: '^[A-Z]+[1-9][0-9]*$' }, { type: 'null' }] },
+                      destination: { anyOf: [{ type: 'integer', minimum: 1, maximum: 200 }, { type: 'null' }] },
                       expectedBaseSha256: { anyOf: [{ type: 'string', pattern: '^[a-fA-F0-9]{64}$' }, { type: 'null' }] },
                     },
-                    required: ['operation', 'sheet', 'cell', 'value', 'formula', 'from', 'to', 'numberFormat', 'expectedBaseSha256'],
+                    required: ['operation', 'sheet', 'cell', 'slide', 'shape', 'row', 'column', 'layoutIndex', 'value', 'formula', 'from', 'to', 'order', 'numberFormat', 'style', 'tableName', 'ref', 'styleName', 'chartType', 'dataRange', 'title', 'anchor', 'destination', 'expectedBaseSha256'],
                   },
                   expectedChange: {
                     type: 'array',
@@ -345,10 +381,11 @@ function responseFormatFor(route, operation) {
                               type: 'object',
                               additionalProperties: false,
                               properties: {
+                                kind: { type: 'string', enum: ['title', 'section', 'data', 'conclusion', 'source'] },
                                 title: { type: 'string', minLength: 1, maxLength: 400 },
                                 bullets: {
                                   type: 'array',
-                                  minItems: 1,
+                                  minItems: 0,
                                   maxItems: 8,
                                   items: {
                                     type: 'object',
@@ -361,8 +398,51 @@ function responseFormatFor(route, operation) {
                                     required: ['sourceLogicalId', 'sourceLocation', 'label'],
                                   },
                                 },
+                                table: {
+                                  anyOf: [
+                                    { type: 'null' },
+                                    {
+                                      type: 'object',
+                                      additionalProperties: false,
+                                      properties: {
+                                        headers: { type: 'array', minItems: 1, maxItems: 8, items: { type: 'string', minLength: 1, maxLength: 120 } },
+                                        rows: {
+                                          type: 'array', minItems: 1, maxItems: 12,
+                                          items: {
+                                            type: 'array', minItems: 1, maxItems: 8,
+                                            items: {
+                                              type: 'object', additionalProperties: false,
+                                              properties: {
+                                                sourceLogicalId: { type: 'string', pattern: '^source:[a-z][a-z0-9._-]{0,63}$' },
+                                                sourceLocation: { type: 'string', minLength: 1, maxLength: 160 },
+                                                label: { type: 'string', minLength: 1, maxLength: 240 },
+                                              },
+                                              required: ['sourceLogicalId', 'sourceLocation', 'label'],
+                                            },
+                                          },
+                                        },
+                                      },
+                                      required: ['headers', 'rows'],
+                                    },
+                                  ],
+                                },
+                                chart: {
+                                  anyOf: [
+                                    { type: 'null' },
+                                    {
+                                      type: 'object', additionalProperties: false,
+                                      properties: {
+                                        type: { type: 'string', enum: ['bar', 'line'] },
+                                        categories: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', additionalProperties: false, properties: { sourceLogicalId: { type: 'string', pattern: '^source:[a-z][a-z0-9._-]{0,63}$' }, sourceLocation: { type: 'string', minLength: 1, maxLength: 160 }, label: { type: 'string', minLength: 1, maxLength: 240 } }, required: ['sourceLogicalId', 'sourceLocation', 'label'] } },
+                                        series: { type: 'array', minItems: 1, maxItems: 6, items: { type: 'object', additionalProperties: false, properties: { name: { type: 'string', minLength: 1, maxLength: 120 }, values: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', additionalProperties: false, properties: { sourceLogicalId: { type: 'string', pattern: '^source:[a-z][a-z0-9._-]{0,63}$' }, sourceLocation: { type: 'string', minLength: 1, maxLength: 160 }, label: { type: 'string', minLength: 1, maxLength: 240 } }, required: ['sourceLogicalId', 'sourceLocation', 'label'] } } }, required: ['name', 'values'] } },
+                                      },
+                                      required: ['type', 'categories', 'series'],
+                                    },
+                                  ],
+                                },
+                                conclusion: { anyOf: [{ type: 'string', minLength: 1, maxLength: 2_000 }, { type: 'null' }] },
                               },
-                              required: ['title', 'bullets'],
+                              required: ['kind', 'title', 'bullets', 'table', 'chart', 'conclusion'],
                             },
                           },
                         ],

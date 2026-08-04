@@ -115,6 +115,21 @@ test('XLSX acceptance resolver supports composed supported actions and rejects p
   );
 });
 
+test('XLSX acceptance resolver maps real language for worksheet, style, table, and chart changes', () => {
+  const cases = [
+    ['删除工作表“Temporary”，并交付 XLSX', 'xlsx.sheet_absent.v1'],
+    ['将工作表“Config”重命名为“Settings”，并交付 XLSX', 'xlsx.sheet_rename.v1'],
+    ['将工作表顺序调整为“Config, Source”，并交付 XLSX', 'xlsx.sheet_order.v1'],
+    ['将 Source!B2 设置为加粗，并交付 XLSX', 'xlsx.style.v1'],
+    ['将 Source!A1:C3 设置为 Excel 表格“SourceTable”，并交付 XLSX', 'xlsx.table_present.v1'],
+    ['根据 Source!A1:B3 添加一个柱状图“Amount by Month”，并交付 XLSX', 'xlsx.chart_present.v1'],
+  ];
+  for (const [instruction, type] of cases) {
+    const result = resolveXlsxAcceptanceAssertions({ files: [file(XLSX_MIME)], instruction });
+    assert.equal(result?.[0].type, type, instruction);
+  }
+});
+
 test('PPTX acceptance resolver freezes text, table, and slide-order assertions', () => {
   const text = resolvePptxAcceptanceAssertions({
     files: [file(PPTX_MIME)],
@@ -184,6 +199,32 @@ test('PPTX acceptance resolver supports multiple mapped actions and fails closed
     resolvePptxAcceptanceAssertions({ files: [file(XLSX_MIME, 'source.xlsx')], instruction: '将第1页的“TitleBox”改为“Updated”，并交付 PPTX' }),
     null,
   );
+});
+
+test('PPTX acceptance resolver maps real language for slide deletion and copying', () => {
+  const deleted = resolvePptxAcceptanceAssertions({
+    files: [file(PPTX_MIME)],
+    instruction: '删除第2页，并交付 PPTX',
+  });
+  assert.equal(deleted?.[0].type, 'pptx.slide_absent.v1');
+  assert.equal(deleted?.[0].slide, 2);
+
+  const copied = resolvePptxAcceptanceAssertions({
+    files: [file(PPTX_MIME)],
+    instruction: '复制第1页到第3页，并交付 PPTX',
+  });
+  assert.equal(copied?.[0].type, 'pptx.slide_copy.v1');
+  assert.deepEqual(
+    { sourceSlide: copied?.[0].sourceSlide, destination: copied?.[0].destination },
+    { sourceSlide: 1, destination: 3 },
+  );
+  const added = resolvePptxAcceptanceAssertions({
+    files: [file(PPTX_MIME)],
+    instruction: '新增一页，标题为“Appendix”，并交付 PPTX',
+  });
+  assert.equal(added?.[0].type, 'pptx.slide_add.v1');
+  assert.equal(added?.[0].position, 'append');
+  assert.equal(added?.[0].title, 'Appendix');
 });
 
 test('upstream Runtime resolver selects the formal XLSX and PPTX acceptance contracts', async () => {

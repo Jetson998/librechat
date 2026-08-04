@@ -43,7 +43,13 @@ def minimal_runner_fixture(runner, workspace: Path):
         "source_revision": "a" * 40,
         "connector_archive": {"filename": "connector.tar.gz", "files": []},
     }
-    preflight = {"baseline": {"containers": {}, "runtime_container_id": None}}
+    preflight = {
+        "baseline": {
+            "containers": {},
+            "runtime_container_id": None,
+            "compose_override_sha256": "override",
+        },
+    }
     runner.load_stage = lambda _stage: (handoff, {}, preflight)
     runner.verify_baseline = lambda _root, _baseline: None
     runner.safe_extract_connector = lambda *_args: None
@@ -58,7 +64,14 @@ def test_runtime_created_then_api_create_fails_records_runtime_for_rollback() ->
     rollback_state: list[dict] = []
 
     def fake_run(command: list[str], check: bool = True):
-        if "up" in command:
+        if "config" in command and "--format" in command:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                json.dumps({"services": {"api": {}, "codeapi": {}}}),
+                "",
+            )
+        if "up" in command and runner.API_SERVICE in command:
             raise RuntimeError("API creation failed after Runtime container creation")
         return subprocess.CompletedProcess(command, 0, "", "")
 
@@ -76,6 +89,10 @@ def test_runtime_created_then_api_create_fails_records_runtime_for_rollback() ->
         stage, root = minimal_runner_fixture(runner, workspace)
         runner.load_rollback_module = fake_rollback_module
         runner.compose_container_id = lambda *_args, **_kwargs: "runtime-created"
+        runner.wait_healthy = lambda *_args, **_kwargs: {
+            "State": {"Running": True, "Health": {"Status": "healthy"}},
+            "HostConfig": {"PortBindings": None},
+        }
 
         try:
             runner.apply(stage, root=root, run_command=fake_run)
@@ -91,7 +108,7 @@ def test_native_fallback_probe_failure_rolls_back_without_success_record() -> No
     calls: list[str] = []
     rollback_state: list[dict] = []
 
-    def fake_native_fallback_probe(*, api_container: str) -> None:
+    def fake_native_fallback_probe(*, api_container: str, **_kwargs) -> None:
         calls.append(api_container)
         raise RuntimeError("native fallback probe failed")
 

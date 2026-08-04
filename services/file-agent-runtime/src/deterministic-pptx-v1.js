@@ -175,7 +175,7 @@ function normalizePptxParameters(parameters, worker) {
   }
   if (
     (worker === 'pptx.transform.v1' || worker === 'pptx.patch.v1') &&
-    !['replace_text', 'set_table_cell', 'add_slide', 'reorder_slides'].includes(operation)
+    !['replace_text', 'set_table_cell', 'add_slide', 'delete_slide', 'copy_slide', 'reorder_slides'].includes(operation)
   ) {
     throw new TypeError(`Unsupported PPTX transform operation: ${operation}`);
   }
@@ -199,6 +199,14 @@ function normalizePptxParameters(parameters, worker) {
     }
     if (parameters.title != null) {
       normalized.title = requiredString(parameters.title, 'parameters.title');
+    }
+  } else if (operation === 'delete_slide' || operation === 'copy_slide') {
+    normalized.slide = positiveInteger(parameters.slide, 'parameters.slide');
+    if (operation === 'copy_slide') {
+      normalized.destination = parameters.destination ?? null;
+      if (normalized.destination != null) {
+        normalized.destination = positiveInteger(normalized.destination, 'parameters.destination', 200);
+      }
     }
   } else if (operation === 'reorder_slides') {
     if (!Array.isArray(parameters.order) || parameters.order.length === 0 || parameters.order.length > 200) {
@@ -254,6 +262,8 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from copy import deepcopy
+from io import BytesIO
 from pathlib import Path
 
 from pptx import Presentation
@@ -418,6 +428,44 @@ def reorder_slides(presentation, order):
     for index in order:
         slide_id_list.append(slide_ids[index - 1])
 
+def delete_slide(presentation, slide_number):
+    if len(presentation.slides) <= 1:
+        raise ValueError("PPTX presentation must retain one slide")
+    if slide_number < 1 or slide_number > len(presentation.slides):
+        raise ValueError("PPTX slide was not found")
+    slide_id_list = presentation.slides._sldIdLst
+    slide_id_list.remove(slide_id_list[slide_number - 1])
+
+def copy_slide(presentation, slide_number, destination=None):
+    if slide_number < 1 or slide_number > len(presentation.slides):
+        raise ValueError("PPTX slide was not found")
+    source_slide = presentation.slides[slide_number - 1]
+    target_slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+    for shape in source_slide.shapes:
+        if str(shape.shape_type).endswith("PICTURE"):
+            copied = target_slide.shapes.add_picture(BytesIO(shape.image.blob), shape.left, shape.top, shape.width, shape.height)
+            copied.name = shape.name
+        elif getattr(shape, "has_table", False):
+            copied_frame = target_slide.shapes.add_table(len(shape.table.rows), len(shape.table.columns), shape.left, shape.top, shape.width, shape.height)
+            copied_frame.name = shape.name
+            copied = copied_frame.table
+            for row in range(len(shape.table.rows)):
+                for column in range(len(shape.table.columns)):
+                    copied.cell(row, column).text = shape.table.cell(row, column).text
+        elif getattr(shape, "has_text_frame", False):
+            copied = target_slide.shapes.add_textbox(shape.left, shape.top, shape.width, shape.height)
+            copied.name = shape.name
+            copied.text = shape.text
+        else:
+            target_slide.shapes._spTree.insert_element_before(deepcopy(shape.element), 'p:extLst')
+    if destination is not None:
+        if destination < 1 or destination > len(presentation.slides):
+            raise ValueError("PPTX destination slide was not found")
+        slide_id_list = presentation.slides._sldIdLst
+        copied_id = slide_id_list[-1]
+        slide_id_list.remove(copied_id)
+        slide_id_list.insert(destination - 1, copied_id)
+
 def main():
     root, task_root, source = source_path()
     output = safe_path(Path(os.environ["FILE_AGENT_OUTPUT_PATH"]), root, task_root)
@@ -483,6 +531,10 @@ def main():
                 if getattr(shape, "has_text_frame", False) and "Title" in shape.name:
                     replace_simple_text(shape, title)
                     break
+    elif operation == "delete_slide":
+        delete_slide(presentation, parameters["slide"])
+    elif operation == "copy_slide":
+        copy_slide(presentation, parameters["slide"], parameters.get("destination"))
     elif operation == "reorder_slides":
         reorder_slides(presentation, parameters["order"])
     else:
@@ -566,6 +618,34 @@ def shape_map(presentation, by_part=False):
                         tables[f"{key}!{row}!{column}"] = shape.table.cell(row, column).text
     return values, tables
 
+def copy_shape_map(slide):
+    values = {}
+    for shape in slide.shapes:
+        if getattr(shape, "has_text_frame", False):
+            values[shape.name] = ("text", shape.text)
+        elif getattr(shape, "has_table", False):
+            values[shape.name] = (
+                "table",
+                len(shape.table.rows),
+                len(shape.table.columns),
+                tuple(
+                    tuple(shape.table.cell(row, column).text for column in range(len(shape.table.columns)))
+                    for row in range(len(shape.table.rows))
+                ),
+            )
+        elif str(shape.shape_type).endswith("PICTURE"):
+            values[shape.name] = ("picture", hashlib.sha256(shape.image.blob).hexdigest())
+    return values
+
+def image_map(presentation, by_part=False):
+    values = {}
+    for slide_index, slide in enumerate(presentation.slides, start=1):
+        slide_key = str(slide.slide_id) if by_part else str(slide_index)
+        for shape in slide.shapes:
+            if str(shape.shape_type).endswith("PICTURE"):
+                values[f"{slide_key}!{shape.name}"] = hashlib.sha256(shape.image.blob).hexdigest()
+    return values
+
 def source_slide_order(presentation):
     return [slide.slide_id for slide in presentation.slides]
 
@@ -591,6 +671,8 @@ def main():
     source_tables = {}
     candidate_texts = {}
     candidate_tables = {}
+    source_identity_images = {}
+    candidate_identity_images = {}
     try:
         source_presentation = Presentation(str(input_path))
         candidate = Presentation(str(output))
@@ -598,6 +680,8 @@ def main():
         candidate_texts, candidate_tables = shape_map(candidate)
         source_identity_texts, source_identity_tables = shape_map(source_presentation, by_part=True)
         candidate_identity_texts, candidate_identity_tables = shape_map(candidate, by_part=True)
+        source_identity_images = image_map(source_presentation, by_part=True)
+        candidate_identity_images = image_map(candidate, by_part=True)
         metrics["slideCount"] = len(candidate.slides)
         with zipfile.ZipFile(output, "r") as package:
             metrics["mediaCount"] = sum(1 for name in package.namelist() if name.startswith("ppt/media/"))
@@ -609,12 +693,41 @@ def main():
             passed.append("pptx.slide_order.valid")
         else:
             fail("pptx.slide_order.valid", "The presentation has no slides", failed, "CONTENT")
+        source_parts = source_slide_order(source_presentation)
+        candidate_parts = source_slide_order(candidate)
         required_slides = [item for item in assertions if item.get("type") == "pptx.slide_present.v1"]
         required_slides_ok = all(1 <= item["slide"] <= len(candidate.slides) for item in required_slides)
+        absent_slides_ok = all(
+            1 <= item.get("slide", 0) <= len(source_parts)
+            and source_parts[item["slide"] - 1] not in candidate_parts
+            for item in assertions
+            if item.get("type") == "pptx.slide_absent.v1"
+        )
+        added_slides_ok = all(
+            len(candidate.slides) == len(source_parts) + 1
+            and (
+                item.get("title") is None
+                or any(
+                    getattr(shape, "has_text_frame", False) and shape.text == item["title"]
+                    for shape in candidate.slides[-1].shapes
+                )
+            )
+            for item in assertions
+            if item.get("type") == "pptx.slide_add.v1"
+        )
+        count_ok = all(item["count"] == len(candidate.slides) for item in assertions if item.get("type") == "pptx.slide_count.v1")
         if required_slides_ok:
             passed.append("pptx.required_sections.present")
         else:
             fail("pptx.required_sections.present", "A required slide is missing", failed, "CONTENT")
+        if absent_slides_ok:
+            passed.append("pptx.required_slides.absent")
+        else:
+            fail("pptx.required_slides.absent", "A forbidden slide is still present", failed, "CONTENT")
+        if count_ok:
+            passed.append("pptx.slide_count.matches")
+        else:
+            fail("pptx.slide_count.matches", "The presentation has an unexpected slide count", failed, "CONTENT")
         changes_ok = True
         change_failures = []
         for item in assertions:
@@ -630,17 +743,34 @@ def main():
                     changes_ok = False
                     change_failures.append("table")
             elif kind == "pptx.slide_order.v1":
-                source_parts = source_slide_order(source_presentation)
-                candidate_parts = source_slide_order(candidate)
                 source_index = {part: index for index, part in enumerate(source_parts, start=1)}
                 actual_order = [source_index.get(part) for part in candidate_parts]
                 if actual_order != item.get("order"):
                     changes_ok = False
                     change_failures.append("order:" + ",".join(str(value) for value in actual_order))
-        if changes_ok and required_slides_ok and any(item.get("type") in {"pptx.slide_present.v1", "pptx.text_value.v1", "pptx.table_cell_value.v1", "pptx.slide_order.v1"} for item in assertions):
+            elif kind == "pptx.slide_copy.v1":
+                source_index = item.get("sourceSlide", 0) - 1
+                destination_index = item.get("destination", 0) - 1
+                source_slide = source_presentation.slides[source_index] if 0 <= source_index < len(source_presentation.slides) else None
+                destination_slide = candidate.slides[destination_index] if 0 <= destination_index < len(candidate.slides) else None
+                source_shapes = copy_shape_map(source_slide) if source_slide is not None else None
+                destination_shapes = copy_shape_map(destination_slide) if destination_slide is not None else None
+                if source_shapes is None or destination_shapes is None or any(
+                    destination_shapes.get(name) != value for name, value in source_shapes.items()
+                ):
+                    changes_ok = False
+                    change_failures.append("copy")
+        if changes_ok and required_slides_ok and absent_slides_ok and added_slides_ok and count_ok and any(item.get("type") in {"pptx.slide_present.v1", "pptx.slide_absent.v1", "pptx.slide_add.v1", "pptx.slide_copy.v1", "pptx.slide_count.v1", "pptx.text_value.v1", "pptx.table_cell_value.v1", "pptx.slide_order.v1"} for item in assertions):
             passed.append("pptx.required_changes.applied")
         else:
             fail("pptx.required_changes.applied", "The declared presentation change is not present: " + ",".join(change_failures), failed, "CONTENT")
+        removed_source_parts = {
+            str(source_parts[item["slide"] - 1])
+            for item in assertions
+            if item.get("type") == "pptx.slide_absent.v1"
+            and 1 <= item.get("slide", 0) <= len(source_parts)
+            and source_parts[item["slide"] - 1] not in candidate_parts
+        }
         authorized_identity_texts = {
             f"{candidate.slides[item['slide'] - 1].slide_id}!{item['shape']}"
             for item in assertions
@@ -650,7 +780,7 @@ def main():
         texts_ok = all(
             candidate_identity_texts.get(key) == value
             for key, value in source_identity_texts.items()
-            if key not in authorized_identity_texts
+            if key not in authorized_identity_texts and key.split("!", 1)[0] not in removed_source_parts
         )
         if texts_ok:
             passed.append("pptx.source_values.traceable")
@@ -665,17 +795,28 @@ def main():
         tables_ok = all(
             candidate_identity_tables.get(key) == value
             for key, value in source_identity_tables.items()
-            if key not in authorized_identity_tables
+            if key not in authorized_identity_tables and key.split("!", 1)[0] not in removed_source_parts
         )
         unauthorized_table_count = sum(
             1
             for key, value in source_identity_tables.items()
-            if key not in authorized_identity_tables and candidate_identity_tables.get(key) != value
+            if key not in authorized_identity_tables
+            and key.split("!", 1)[0] not in removed_source_parts
+            and candidate_identity_tables.get(key) != value
         )
         if tables_ok:
             passed.append("pptx.tables.preserved")
         else:
             fail("pptx.tables.preserved", f"An unrequested table cell changed ({unauthorized_table_count})", failed, "SAFETY")
+        images_ok = all(
+            candidate_identity_images.get(key) == value
+            for key, value in source_identity_images.items()
+            if key.split("!", 1)[0] not in removed_source_parts
+        )
+        if images_ok:
+            passed.append("pptx.images.preserved")
+        else:
+            fail("pptx.images.preserved", "An existing presentation image changed", failed, "SAFETY")
         overflow_ok = all(
             len(value) <= 400
             for value in candidate_texts.values()
@@ -688,6 +829,8 @@ def main():
         for code in [
             "pptx.slide_order.valid",
             "pptx.required_sections.present",
+            "pptx.required_slides.absent",
+            "pptx.slide_count.matches",
             "pptx.required_changes.applied",
             "pptx.source_values.traceable",
             "pptx.tables.preserved",

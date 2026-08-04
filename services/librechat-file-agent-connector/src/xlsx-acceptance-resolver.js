@@ -11,6 +11,7 @@ const MAX_BUSINESS_ASSERTIONS = 6;
 const QUOTED_CAPTURE = String.raw`(?:"([^"\r\n]+)"|“([^”\r\n]+)”|「([^」\r\n]+)」|『([^』\r\n]+)』|\x60([^\x60\r\n]+)\x60)`;
 const VALUE_CAPTURE = String.raw`(?:${QUOTED_CAPTURE}|(-?(?:\d+(?:\.\d+)?|true|false|null)))`;
 const LOCATION_CAPTURE = String.raw`(?:(?:"([^"\r\n!]{1,31})"|“([^”\r\n!]{1,31})”|([A-Za-z0-9_][A-Za-z0-9 _.-]{0,30}))\s*!\s*([A-Z]{1,3}[1-9][0-9]{0,6})|(?:"([A-Za-z0-9_][A-Za-z0-9 _.-]{0,30})!([A-Z]{1,3}[1-9][0-9]{0,6})"))`;
+const RANGE_CAPTURE = String.raw`(?:"([A-Za-z0-9_][A-Za-z0-9 _.-]{0,30})!([A-Z]{1,3}[1-9][0-9]{0,6}:[A-Z]{1,3}[1-9][0-9]{0,6})"|([A-Za-z0-9_][A-Za-z0-9 _.-]{0,30})!([A-Z]{1,3}[1-9][0-9]{0,6}:[A-Z]{1,3}[1-9][0-9]{0,6}))`;
 const CLAUSE_SEPARATOR = /[，,；;。、]|并且|同时|然后|而且|以及|并|\band\b|\bthen\b|\balso\b/giu;
 const DELIVERY_PADDING = String.raw`[\s:：!！?？、。；;，,（）()【】\[\]{}]`;
 const NON_ACTION_PADDING = new RegExp(String.raw`^(?:${DELIVERY_PADDING})*$`, 'u');
@@ -63,6 +64,12 @@ function locationValue(match) {
     return null;
   }
   return { sheet: normalizedSheet, cell: normalizedCell };
+}
+
+function rangeValue(match, start = 1) {
+  const sheet = match[start] ?? match[start + 2];
+  const ref = match[start + 1] ?? match[start + 3];
+  return sheet && ref ? { sheet: sheet.trim(), ref: ref.toUpperCase() } : null;
 }
 
 function addAssertion(assertions, seen, assertion, start, end) {
@@ -244,6 +251,102 @@ function parseAddedSheets(instruction, assertions, seen) {
   }
 }
 
+function parseDeletedSheets(instruction, assertions, seen) {
+  const patterns = [
+    new RegExp(String.raw`(?:删除|移除)\s*(?:工作表|表|sheet)\s*(?:${QUOTED_CAPTURE})`, 'giu'),
+    new RegExp(String.raw`(?:delete|remove)\s+(?:the\s+)?sheet\s*(?:named\s+)?${QUOTED_CAPTURE}`, 'giu'),
+  ];
+  for (const pattern of patterns) {
+    for (const match of instruction.matchAll(pattern)) {
+      const sheet = quotedValue(match, 1)?.trim();
+      if (!sheet || !SHEET_NAME_PATTERN.test(sheet)) continue;
+      addAssertion(assertions, seen, { schemaVersion: '1.0', type: XLSX_ACCEPTANCE_TYPES.SHEET_ABSENT, sheet }, match.index ?? 0, (match.index ?? 0) + match[0].length);
+    }
+  }
+}
+
+function parseRenamedSheets(instruction, assertions, seen) {
+  const patterns = [
+    new RegExp(String.raw`(?:将|把)\s*(?:工作表|表|sheet)\s*${QUOTED_CAPTURE}\s*(?:重命名为|改名为|更名为)\s*${QUOTED_CAPTURE}`, 'giu'),
+    new RegExp(String.raw`(?:rename)\s+(?:the\s+)?sheet\s*${QUOTED_CAPTURE}\s+(?:to|as)\s*${QUOTED_CAPTURE}`, 'giu'),
+  ];
+  for (const pattern of patterns) {
+    for (const match of instruction.matchAll(pattern)) {
+      const from = quotedValue(match, 1)?.trim();
+      const to = quotedValue(match, 6)?.trim();
+      if (!from || !to || !SHEET_NAME_PATTERN.test(from) || !SHEET_NAME_PATTERN.test(to) || from === to) {
+        continue;
+      }
+      addAssertion(
+        assertions,
+        seen,
+        { schemaVersion: '1.0', type: XLSX_ACCEPTANCE_TYPES.SHEET_RENAME, from, to },
+        match.index ?? 0,
+        (match.index ?? 0) + match[0].length,
+      );
+    }
+  }
+}
+
+function parseSheetOrders(instruction, assertions, seen) {
+  const patterns = [
+    new RegExp(String.raw`(?:将|把)\s*(?:工作表|sheet)\s*(?:顺序)?\s*(?:调整为|设置为|改为)\s*${QUOTED_CAPTURE}`, 'giu'),
+    new RegExp(String.raw`(?:reorder\s+(?:the\s+)?sheets?|set\s+sheet\s+order)\s+(?:to\s+)?${QUOTED_CAPTURE}`, 'giu'),
+  ];
+  for (const pattern of patterns) {
+    for (const match of instruction.matchAll(pattern)) {
+      const order = quotedValue(match, 1)?.split(/\s*[,，、]\s*/u).map((value) => value.trim()).filter(Boolean);
+      if (!order?.length || order.some((sheet) => !SHEET_NAME_PATTERN.test(sheet))) continue;
+      addAssertion(assertions, seen, { schemaVersion: '1.0', type: XLSX_ACCEPTANCE_TYPES.SHEET_ORDER, order }, match.index ?? 0, (match.index ?? 0) + match[0].length);
+    }
+  }
+}
+
+function parseStyles(instruction, assertions, seen) {
+  const patterns = [
+    new RegExp(String.raw`(?:将|把)\s*(?:单元格\s*)?${LOCATION_CAPTURE}\s*(?:设置为\s*)?(?:加粗|粗体)`, 'giu'),
+    new RegExp(String.raw`(?:bold|make\s+bold)\s+(?:cell\s+)?${LOCATION_CAPTURE}`, 'giu'),
+  ];
+  for (const pattern of patterns) {
+    for (const match of instruction.matchAll(pattern)) {
+      const location = locationValue(match);
+      if (!location) continue;
+      addAssertion(assertions, seen, { schemaVersion: '1.0', type: XLSX_ACCEPTANCE_TYPES.STYLE, ...location, style: { fontBold: true } }, match.index ?? 0, (match.index ?? 0) + match[0].length);
+    }
+  }
+}
+
+function parseTables(instruction, assertions, seen) {
+  const patterns = [
+    new RegExp(String.raw`(?:将|把)\s*${RANGE_CAPTURE}\s*(?:设置为|转换为)\s*(?:Excel\s*)?(?:表格|table)\s*${QUOTED_CAPTURE}`, 'giu'),
+    new RegExp(String.raw`(?:create|add)\s+(?:an?\s+)?(?:Excel\s+)?table\s+${QUOTED_CAPTURE}\s+(?:from|over)\s+${RANGE_CAPTURE}`, 'giu'),
+  ];
+  for (const pattern of patterns) {
+    for (const match of instruction.matchAll(pattern)) {
+      const range = rangeValue(match, 1);
+      const tableName = quotedValue(match, 5) ?? quotedValue(match, 1);
+      if (!range || !tableName) continue;
+      addAssertion(assertions, seen, { schemaVersion: '1.0', type: XLSX_ACCEPTANCE_TYPES.TABLE_PRESENT, sheet: range.sheet, tableName: tableName.trim(), ref: range.ref }, match.index ?? 0, (match.index ?? 0) + match[0].length);
+    }
+  }
+}
+
+function parseCharts(instruction, assertions, seen) {
+  const patterns = [
+    new RegExp(String.raw`(?:根据|从)\s*${RANGE_CAPTURE}\s*(?:添加|生成|创建)\s*(?:一个)?\s*(柱状图|折线图|bar\s+chart|line\s+chart)\s*${QUOTED_CAPTURE}`, 'giu'),
+    new RegExp(String.raw`(?:add|create|generate)\s+(?:a\s+)?(bar|line)\s+chart\s+${QUOTED_CAPTURE}\s+(?:from|using)\s+${RANGE_CAPTURE}`, 'giu'),
+  ];
+  for (const pattern of patterns) {
+    for (const match of instruction.matchAll(pattern)) {
+      const range = rangeValue(match, 1);
+      const chartType = match[5]?.toLowerCase().includes('line') || match[5] === '折线图' ? 'line' : 'bar';
+      const title = quotedValue(match, 6) ?? quotedValue(match, 2);
+      if (!range || !title) continue;
+      addAssertion(assertions, seen, { schemaVersion: '1.0', type: XLSX_ACCEPTANCE_TYPES.CHART_PRESENT, sheet: range.sheet, chartType, title: title.trim() }, match.index ?? 0, (match.index ?? 0) + match[0].length);
+    }
+  }
+}
+
 export function resolveXlsxAcceptanceAssertions({ instruction, files } = {}) {
   if (
     !Array.isArray(files)
@@ -264,6 +367,12 @@ export function resolveXlsxAcceptanceAssertions({ instruction, files } = {}) {
   parseFormulas(parserInstruction, assertions, seen);
   parseNumberFormats(parserInstruction, assertions, seen);
   parseAddedSheets(parserInstruction, assertions, seen);
+  parseDeletedSheets(parserInstruction, assertions, seen);
+  parseRenamedSheets(parserInstruction, assertions, seen);
+  parseSheetOrders(parserInstruction, assertions, seen);
+  parseStyles(parserInstruction, assertions, seen);
+  parseTables(parserInstruction, assertions, seen);
+  parseCharts(parserInstruction, assertions, seen);
   assertions.sort((left, right) => left.start - right.start);
   if (
     assertions.length === 0

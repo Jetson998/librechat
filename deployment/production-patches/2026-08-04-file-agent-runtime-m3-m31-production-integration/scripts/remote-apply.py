@@ -137,8 +137,8 @@ def api_has_enabled_flag(payload: dict) -> bool:
     return "FILE_AGENT_RUNTIME_ENABLED=true" in values
 
 
-def verify_internal_health(api_id: str, runtime_id: str) -> None:
-    runtime_health = run(
+def verify_internal_health(api_id: str, runtime_id: str, *, run_command=run) -> None:
+    runtime_health = run_command(
         [
             "docker",
             "exec",
@@ -150,7 +150,7 @@ def verify_internal_health(api_id: str, runtime_id: str) -> None:
         check=False,
     )
     require(runtime_health.returncode == 0, "Runtime /healthz failed")
-    api_health = run(
+    api_health = run_command(
         [
             "docker",
             "exec",
@@ -164,7 +164,28 @@ def verify_internal_health(api_id: str, runtime_id: str) -> None:
     require(api_health.returncode == 0, "API internal health endpoint failed")
 
 
-def apply(stage: Path, root: Path = ROOT) -> dict:
+def native_fallback_probe(*, api_container: str, run_command=run) -> None:
+    result = run_command(
+        [
+            "docker",
+            "exec",
+            api_container,
+            "node",
+            "-e",
+            "Promise.all(['/','/api/config'].map((path)=>fetch('http://127.0.0.1:3080'+path).then((r)=>{if(!r.ok)throw new Error(path)}))).catch(()=>process.exit(1))",
+        ],
+        check=False,
+    )
+    require(result.returncode == 0, "native fallback probe failed")
+
+
+def apply(
+    stage: Path,
+    root: Path = ROOT,
+    *,
+    run_command=run,
+    native_fallback_probe=native_fallback_probe,
+) -> dict:
     handoff, deployment, preflight = load_stage(stage)
     baseline = preflight["baseline"]
     verify_baseline(root, baseline)
@@ -206,6 +227,10 @@ def apply(stage: Path, root: Path = ROOT) -> dict:
                     {
                         "runtime_service_present": bool(baseline.get("runtime_service_present")),
                         "candidate_runtime_container_id": None,
+                        "compose_override_sha256_before": baseline["compose_override_sha256"],
+                        "protected_container_ids": {
+                            name: expected["id"] for name, expected in baseline.get("containers", {}).items()
+                        },
                     },
                     indent=2,
                 ) + "\n",
@@ -213,7 +238,7 @@ def apply(stage: Path, root: Path = ROOT) -> dict:
             )
 
             resolved = json.loads(
-                run(
+                run_command(
                     [
                         "docker",
                         "compose",
@@ -236,7 +261,7 @@ def apply(stage: Path, root: Path = ROOT) -> dict:
             )
             candidate_payload = json.loads(candidate.read_text(encoding="utf-8"))
             validate_runtime_compose(candidate_payload, release_dir, deployment)
-            run(
+            run_command(
                 [
                     "docker",
                     "compose",
@@ -253,7 +278,7 @@ def apply(stage: Path, root: Path = ROOT) -> dict:
             os.replace(candidate, root / "compose.override.yaml")
             changed = True
 
-            run(
+            run_command(
                 [
                     "docker",
                     "compose",
@@ -268,7 +293,6 @@ def apply(stage: Path, root: Path = ROOT) -> dict:
                     "--no-deps",
                     "--force-recreate",
                     RUNTIME_SERVICE,
-                    API_SERVICE,
                 ]
             )
             candidate_runtime_id = compose_container_id(root, RUNTIME_SERVICE)
@@ -278,16 +302,39 @@ def apply(stage: Path, root: Path = ROOT) -> dict:
                     {
                         "runtime_service_present": bool(baseline.get("runtime_service_present")),
                         "candidate_runtime_container_id": candidate_runtime_id,
+                        "compose_override_sha256_before": baseline["compose_override_sha256"],
+                        "protected_container_ids": {
+                            name: expected["id"] for name, expected in baseline.get("containers", {}).items()
+                        },
                     },
                     indent=2,
                 ) + "\n",
                 encoding="utf-8",
             )
             runtime_payload = wait_healthy(candidate_runtime_id)
+
+            run_command(
+                [
+                    "docker",
+                    "compose",
+                    "--project-directory",
+                    str(root),
+                    "-f",
+                    str(root / "compose.yaml"),
+                    "-f",
+                    str(root / "compose.override.yaml"),
+                    "up",
+                    "-d",
+                    "--no-deps",
+                    "--force-recreate",
+                    API_SERVICE,
+                ]
+            )
             api_payload = wait_running(API_CONTAINER)
             require(api_has_enabled_flag(api_payload), "API Runtime flag is not true after apply")
             require(not runtime_payload.get("HostConfig", {}).get("PortBindings"), "Runtime published a host port")
-            verify_internal_health(API_CONTAINER, candidate_runtime_id)
+            verify_internal_health(API_CONTAINER, candidate_runtime_id, run_command=run_command)
+            native_fallback_probe(api_container=API_CONTAINER, run_command=run_command)
 
             for name, expected in baseline["containers"].items():
                 require(inspect(name)["Id"] == expected["id"], f"protected service changed: {name}")
@@ -318,7 +365,7 @@ def apply(stage: Path, root: Path = ROOT) -> dict:
             rollback_error = None
             if changed and backup_dir.exists():
                 try:
-                    load_rollback_module().restore_state(backup_dir, root=root)
+                    load_rollback_module().restore_state(backup_dir, root=root, run_command=run_command)
                 except Exception as candidate_error:
                     rollback_error = str(candidate_error)
             result = {

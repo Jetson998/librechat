@@ -189,6 +189,16 @@ function normalizeSourceReference(value, field) {
   return normalized;
 }
 
+function normalizeSourceReferenceObject(value, field) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError(`${field} must be a source reference object`);
+  }
+  return {
+    sourceLogicalId: normalizeSourceReference(value.sourceLogicalId, `${field}.sourceLogicalId`),
+    sourceLocation: normalizeSourceReference(value.sourceLocation, `${field}.sourceLocation`),
+  };
+}
+
 function normalizeComposeParameters(parameters, worker) {
   if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) {
     throw new TypeError('Office Compose Action parameters must be an object');
@@ -224,11 +234,15 @@ function normalizeComposeParameters(parameters, worker) {
       throw new TypeError(`parameters.slides[${slideIndex}].title is required`);
     }
     const normalizedSlide = {
+      kind: requiredString(slide.kind ?? 'source', `parameters.slides[${slideIndex}].kind`, 32),
       title: requiredString(slide.title ?? title, `parameters.slides[${slideIndex}].title`, 400),
       bullets: [],
     };
-    if (!Array.isArray(slide.bullets) || slide.bullets.length < 1 || slide.bullets.length > 8) {
-      throw new TypeError(`parameters.slides[${slideIndex}].bullets must contain between 1 and 8 entries`);
+    if (!['title', 'section', 'data', 'conclusion', 'source'].includes(normalizedSlide.kind)) {
+      throw new TypeError(`parameters.slides[${slideIndex}].kind is unsupported`);
+    }
+    if (!Array.isArray(slide.bullets) || slide.bullets.length > 8) {
+      throw new TypeError(`parameters.slides[${slideIndex}].bullets must contain between 0 and 8 entries`);
     }
     normalizedSlide.bullets = slide.bullets.map((bullet, bulletIndex) => {
       if (!bullet || typeof bullet !== 'object' || Array.isArray(bullet)) {
@@ -250,6 +264,52 @@ function normalizeComposeParameters(parameters, worker) {
         ),
       };
     });
+    if (slide.table != null) {
+      if (!slide.table || typeof slide.table !== 'object' || !Array.isArray(slide.table.headers) || !Array.isArray(slide.table.rows)) {
+        throw new TypeError(`parameters.slides[${slideIndex}].table is invalid`);
+      }
+      if (slide.table.headers.length < 1 || slide.table.headers.length > 8 || slide.table.rows.length < 1 || slide.table.rows.length > 12) {
+        throw new TypeError(`parameters.slides[${slideIndex}].table is outside its bounds`);
+      }
+      normalizedSlide.table = {
+        headers: slide.table.headers.map((value, index) => requiredString(value, `parameters.slides[${slideIndex}].table.headers[${index}]`, 120)),
+        rows: slide.table.rows.map((row, rowIndex) => {
+          if (!Array.isArray(row) || row.length !== slide.table.headers.length) {
+            throw new TypeError(`parameters.slides[${slideIndex}].table.rows[${rowIndex}] must match the header count`);
+          }
+          return row.map((cell, columnIndex) => normalizeSourceReferenceObject(cell, `parameters.slides[${slideIndex}].table.rows[${rowIndex}][${columnIndex}]`));
+        }),
+      };
+    } else {
+      normalizedSlide.table = null;
+    }
+    if (slide.chart != null) {
+      if (!slide.chart || typeof slide.chart !== 'object' || !['bar', 'line'].includes(slide.chart.type) || !Array.isArray(slide.chart.categories) || !Array.isArray(slide.chart.series)) {
+        throw new TypeError(`parameters.slides[${slideIndex}].chart is invalid`);
+      }
+      if (slide.chart.categories.length < 1 || slide.chart.categories.length > 12 || slide.chart.series.length < 1 || slide.chart.series.length > 6) {
+        throw new TypeError(`parameters.slides[${slideIndex}].chart is outside its bounds`);
+      }
+      normalizedSlide.chart = {
+        type: slide.chart.type,
+        categories: slide.chart.categories.map((value, index) => normalizeSourceReferenceObject(value, `parameters.slides[${slideIndex}].chart.categories[${index}]`)),
+        series: slide.chart.series.map((series, seriesIndex) => {
+          if (!series || typeof series !== 'object' || !Array.isArray(series.values) || series.values.length !== slide.chart.categories.length) {
+            throw new TypeError(`parameters.slides[${slideIndex}].chart.series[${seriesIndex}] is invalid`);
+          }
+          return {
+            name: requiredString(series.name, `parameters.slides[${slideIndex}].chart.series[${seriesIndex}].name`, 120),
+            values: series.values.map((value, valueIndex) => normalizeSourceReferenceObject(value, `parameters.slides[${slideIndex}].chart.series[${seriesIndex}].values[${valueIndex}]`)),
+          };
+        }),
+      };
+    } else {
+      normalizedSlide.chart = null;
+    }
+    normalizedSlide.conclusion = slide.conclusion == null ? null : requiredString(slide.conclusion, `parameters.slides[${slideIndex}].conclusion`, 2_000);
+    if (normalizedSlide.bullets.length === 0 && normalizedSlide.table == null && normalizedSlide.chart == null && normalizedSlide.conclusion == null) {
+      throw new TypeError(`parameters.slides[${slideIndex}] must contain source content, a table, a chart, or a conclusion`);
+    }
     return normalizedSlide;
   });
   return { operation, title, slides };
@@ -295,6 +355,8 @@ from pathlib import Path
 from docx import Document
 from openpyxl import load_workbook
 from pptx import Presentation
+from pptx.chart.data import CategoryChartData
+from pptx.enum.chart import XL_CHART_TYPE
 from pptx.util import Inches, Pt
 
 MARKER = "${WORKER_MARKER}"
@@ -428,6 +490,12 @@ def value_text(value):
         return "TRUE" if value else "FALSE"
     return str(value)
 
+def resolve_ref(reference, source_map):
+    key = (reference["sourceLogicalId"], reference["sourceLocation"])
+    if key not in source_map:
+        fail("COMPOSE_SOURCE_MAPPING_MISSING", "The Compose plan references a source fact that was not inspected")
+    return source_map[key]
+
 def generate(definitions, facts, action, output, mapping_path):
     source_map = {}
     for source in facts["sources"]:
@@ -446,19 +514,53 @@ def generate(definitions, facts, action, output, mapping_path):
         title_frame.text = slide_spec["title"]
         title_frame.paragraphs[0].font.size = Pt(28)
         title_frame.paragraphs[0].font.bold = True
-        body_box = slide.shapes.add_textbox(Inches(0.9), Inches(1.5), Inches(11.7), Inches(5.2))
-        body_box.name = "body"
-        body_frame = body_box.text_frame
-        body_frame.word_wrap = True
-        for bullet_index, bullet in enumerate(slide_spec["bullets"]):
-            key = (bullet["sourceLogicalId"], bullet["sourceLocation"])
-            if key not in source_map:
-                fail("COMPOSE_SOURCE_MAPPING_MISSING", "The Compose plan references a source fact that was not inspected")
-            paragraph = body_frame.paragraphs[0] if bullet_index == 0 else body_frame.add_paragraph()
-            paragraph.text = f"{bullet['label']}: {value_text(source_map[key])}"
-            paragraph.level = 0
-            paragraph.font.size = Pt(20)
-            mappings.append({"targetSlide": slide_index, "targetShape": "body", "sourceLogicalId": bullet["sourceLogicalId"], "sourceLocation": bullet["sourceLocation"], "value": source_map[key]})
+        if slide_spec["bullets"] or slide_spec.get("conclusion"):
+            body_box = slide.shapes.add_textbox(Inches(0.9), Inches(1.5), Inches(11.7), Inches(5.2))
+            body_box.name = "body"
+            body_frame = body_box.text_frame
+            body_frame.word_wrap = True
+            body_index = 0
+            for bullet in slide_spec["bullets"]:
+                value = resolve_ref(bullet, source_map)
+                paragraph = body_frame.paragraphs[0] if body_index == 0 else body_frame.add_paragraph()
+                paragraph.text = f"{bullet['label']}: {value_text(value)}"
+                paragraph.level = 0
+                paragraph.font.size = Pt(20)
+                mappings.append({"targetSlide": slide_index, "targetShape": "body", "sourceLogicalId": bullet["sourceLogicalId"], "sourceLocation": bullet["sourceLocation"], "value": value})
+                body_index += 1
+            if slide_spec.get("conclusion"):
+                paragraph = body_frame.paragraphs[0] if body_index == 0 else body_frame.add_paragraph()
+                paragraph.text = slide_spec["conclusion"]
+                paragraph.level = 0
+                paragraph.font.size = Pt(20)
+        if slide_spec.get("table"):
+            table_spec = slide_spec["table"]
+            table_shape = slide.shapes.add_table(len(table_spec["rows"]) + 1, len(table_spec["headers"]), Inches(0.8), Inches(1.5), Inches(11.7), Inches(4.8))
+            table_shape.name = "data_table"
+            table = table_shape.table
+            for column, header in enumerate(table_spec["headers"]):
+                table.cell(0, column).text = header
+            for row_index, row in enumerate(table_spec["rows"], start=1):
+                for column, reference in enumerate(row):
+                    value = resolve_ref(reference, source_map)
+                    table.cell(row_index, column).text = value_text(value)
+                    mappings.append({"targetSlide": slide_index, "targetShape": "data_table", "sourceLogicalId": reference["sourceLogicalId"], "sourceLocation": reference["sourceLocation"], "value": value})
+        if slide_spec.get("chart"):
+            chart_spec = slide_spec["chart"]
+            chart_data = CategoryChartData()
+            categories = [value_text(resolve_ref(reference, source_map)) for reference in chart_spec["categories"]]
+            chart_data.categories = categories
+            for series in chart_spec["series"]:
+                chart_data.add_series(series["name"], [resolve_ref(reference, source_map) for reference in series["values"]])
+                for reference in series["values"]:
+                    mappings.append({"targetSlide": slide_index, "targetShape": "chart", "sourceLogicalId": reference["sourceLogicalId"], "sourceLocation": reference["sourceLocation"], "value": resolve_ref(reference, source_map)})
+            for reference in chart_spec["categories"]:
+                mappings.append({"targetSlide": slide_index, "targetShape": "chart", "sourceLogicalId": reference["sourceLogicalId"], "sourceLocation": reference["sourceLocation"], "value": resolve_ref(reference, source_map)})
+            chart_type = XL_CHART_TYPE.BAR_CLUSTERED if chart_spec["type"] == "bar" else XL_CHART_TYPE.LINE
+            chart = slide.shapes.add_chart(chart_type, Inches(0.8), Inches(1.5), Inches(11.7), Inches(4.8), chart_data).chart
+            chart.name = "source_chart"
+            chart.has_title = True
+            chart.chart_title.text_frame.text = slide_spec["title"]
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkstemp(prefix="compose-candidate-", suffix=".pptx", dir=str(output.parent))[1])
     metadata = {"schemaVersion": "1.0", "sourceFactsHash": facts["sourceFactsHash"], "mappings": mappings}
@@ -610,10 +712,21 @@ def main():
         for assertion in assertions:
             if assertion.get("type") in {"compose.source_value.v1", "compose.source_mapping.v1"}:
                 expected_mapping_keys.add((assertion.get("targetSlide"), assertion.get("targetShape"), assertion.get("sourceLogicalId"), assertion.get("sourceLocation")))
-        if mapping_keys == expected_mapping_keys:
+        if expected_mapping_keys:
+            mapping_complete = mapping_keys == expected_mapping_keys
+        else:
+            authorized_sources = {source["logicalId"] for source in facts.get("sources", [])}
+            mapped_sources = {item.get("sourceLogicalId") for item in actual_mappings}
+            mapping_complete = bool(actual_mappings) and mapped_sources == authorized_sources and all(
+                item.get("sourceLogicalId") in authorized_sources
+                and (item.get("sourceLogicalId"), item.get("sourceLocation")) in actual_values
+                and actual_values[(item.get("sourceLogicalId"), item.get("sourceLocation"))] == item.get("value")
+                for item in actual_mappings
+            )
+        if mapping_complete:
             passed.append("compose.source_mapping.complete")
         else:
-            fail("compose.source_mapping.complete", "Generated source mappings do not exactly match independent acceptance", failed, "SAFETY")
+            fail("compose.source_mapping.complete", "Generated source mappings do not satisfy independent acceptance", failed, "SAFETY")
         actual_by_key = {(item.get("targetSlide"), item.get("targetShape"), item.get("sourceLogicalId"), item.get("sourceLocation")): item for item in actual_mappings}
         for assertion in assertions:
             kind = assertion.get("type")
@@ -629,6 +742,41 @@ def main():
                     passed.append("compose.section_present." + str(slide_number))
                 else:
                     fail("compose.section_present", "A required Compose section is missing", failed, "CONTENT")
+            elif kind == "compose.table_present.v1":
+                slide_number = assertion.get("slide", 0)
+                table = None
+                if 1 <= slide_number <= len(presentation.slides):
+                    table = next((shape.table for shape in presentation.slides[slide_number - 1].shapes if getattr(shape, "has_table", False) and shape.name == "data_table"), None)
+                actual_headers = [table.cell(0, column).text for column in range(len(table.columns))] if table is not None else None
+                actual_rows = len(table.rows) - 1 if table is not None else None
+                if actual_headers == assertion.get("headers") and actual_rows == assertion.get("rowCount"):
+                    passed.append("compose.table_present." + str(slide_number))
+                else:
+                    fail("compose.table_present", "A required Compose table is missing or has the wrong shape", failed, "CONTENT")
+            elif kind == "compose.chart_present.v1":
+                slide_number = assertion.get("slide", 0)
+                chart = None
+                if 1 <= slide_number <= len(presentation.slides):
+                    chart = next((shape.chart for shape in presentation.slides[slide_number - 1].shapes if getattr(shape, "has_chart", False)), None)
+                chart_kind = None
+                chart_title = None
+                if chart is not None:
+                    chart_type = str(chart.chart_type).lower()
+                    chart_kind = "line" if "line" in chart_type else "bar" if "bar" in chart_type else None
+                    chart_title = chart.chart_title.text_frame.text if chart.has_title else None
+                if chart_kind == assertion.get("chartType") and chart_title == assertion.get("title"):
+                    passed.append("compose.chart_present." + str(slide_number))
+                else:
+                    fail("compose.chart_present", "A required Compose chart is missing or has the wrong type", failed, "CONTENT")
+            elif kind == "compose.conclusion_present.v1":
+                slide_number = assertion.get("slide", 0)
+                body_text = None
+                if 1 <= slide_number <= len(presentation.slides):
+                    body_text = next((shape.text for shape in presentation.slides[slide_number - 1].shapes if shape.name == "body"), None)
+                if assertion.get("text") in (body_text or ""):
+                    passed.append("compose.conclusion_present." + str(slide_number))
+                else:
+                    fail("compose.conclusion_present", "A required Compose conclusion is missing", failed, "CONTENT")
             elif kind == "compose.source_mapping.v1":
                 key = (assertion.get("targetSlide"), assertion.get("targetShape"), assertion.get("sourceLogicalId"), assertion.get("sourceLocation"))
                 if key in actual_by_key and actual_values.get((assertion.get("sourceLogicalId"), assertion.get("sourceLocation"))) == actual_by_key[key].get("value"):

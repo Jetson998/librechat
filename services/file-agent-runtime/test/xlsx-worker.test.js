@@ -439,3 +439,103 @@ test('XLSX actions reject unsafe references and patch hash mismatches', () => {
     /requires expectedBaseSha256/,
   );
 });
+
+test('XLSX M3.1 supports worksheet deletion and ordering, basic styles, Excel tables, and charts', async (t) => {
+  const harness = await createHarness(t, {
+    actions: [
+      xlsxAction('xlsx.transform.v1', {
+        operation: 'set_style',
+        sheet: 'Source',
+        cell: 'B2',
+        style: { fontBold: true, fillColor: 'FFF2CC' },
+      }, ['Source.B2.style'], 'Apply a bounded cell style'),
+      xlsxAction('xlsx.transform.v1', {
+        operation: 'add_table',
+        sheet: 'Source',
+        tableName: 'SourceTable',
+        ref: 'A1:C3',
+        styleName: 'TableStyleMedium2',
+      }, ['SourceTable'], 'Create an Excel table'),
+      xlsxAction('xlsx.transform.v1', {
+        operation: 'add_chart',
+        sheet: 'Source',
+        chartType: 'bar',
+        dataRange: 'A1:B3',
+        title: 'Amount by Month',
+        anchor: 'E2',
+      }, ['Source.chart'], 'Create a basic chart'),
+      xlsxAction('xlsx.transform.v1', {
+        operation: 'add_sheet',
+        sheet: 'Temporary',
+      }, ['Temporary'], 'Create a temporary worksheet'),
+      xlsxAction('xlsx.transform.v1', {
+        operation: 'delete_sheet',
+        sheet: 'Temporary',
+      }, ['Temporary.absent'], 'Delete the temporary worksheet'),
+      xlsxAction('xlsx.transform.v1', {
+        operation: 'reorder_sheets',
+        order: ['Config', 'Source'],
+      }, ['sheet.order'], 'Reorder worksheets'),
+    ],
+    acceptanceAssertions: [
+      { type: 'xlsx.style.v1', sheet: 'Source', cell: 'B2', style: { fontBold: true, fillColor: 'FFF2CC' } },
+      { type: 'xlsx.table_present.v1', sheet: 'Source', tableName: 'SourceTable', ref: 'A1:C3' },
+      { type: 'xlsx.chart_present.v1', sheet: 'Source', chartType: 'bar', title: 'Amount by Month' },
+      { type: 'xlsx.sheet_absent.v1', sheet: 'Temporary' },
+      { type: 'xlsx.sheet_order.v1', order: ['Config', 'Source'] },
+      { type: 'xlsx.protected_cell.v1', sheet: 'Config', cell: 'A1', value: 'DO NOT CHANGE' },
+    ],
+  });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'xlsx-m31-capabilities',
+    manifest: harness.manifest,
+  });
+  const completed = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => ['completed', 'needs_input', 'failed'].includes(task.status),
+    { timeoutMs: 45_000 },
+  );
+  assert.equal(completed.verification.passed, true, JSON.stringify({ verification: completed.verification, itemResults: completed.itemResults }));
+  const outputPath = harness.codeApi.virtualPath(harness.sessionId, getXlsxTaskPaths(completed).outputPath);
+  const observed = JSON.parse(await runPython(
+    'import json,sys\nfrom openpyxl import load_workbook\nwb=load_workbook(sys.argv[1],data_only=False)\nws=wb["Source"]\nprint(json.dumps({"sheets":wb.sheetnames,"bold":ws["B2"].font.bold,"fill":ws["B2"].fill.fgColor.rgb[-6:],"tables":list(ws.tables),"charts":len(ws._charts)}))',
+    [outputPath],
+  ));
+  assert.deepEqual(observed.sheets, ['Config', 'Source']);
+  assert.equal(observed.bold, true);
+  assert.equal(observed.fill, 'FFF2CC');
+  assert.deepEqual(observed.tables, ['SourceTable']);
+  assert.equal(observed.charts, 1);
+});
+
+test('XLSX worksheet rename is independently accepted and preserves workbook formulas', async (t) => {
+  const harness = await createHarness(t, {
+    actions: [xlsxAction('xlsx.transform.v1', {
+      operation: 'rename_sheet',
+      from: 'Config',
+      to: 'Settings',
+    }, ['Config.renamed'], 'Rename the configuration worksheet')],
+    acceptanceAssertions: [
+      { type: 'xlsx.sheet_rename.v1', from: 'Config', to: 'Settings' },
+      { type: 'xlsx.protected_cell.v1', sheet: 'Config', cell: 'A1', value: 'DO NOT CHANGE' },
+    ],
+  });
+  const submitted = await harness.runtime.submit({
+    idempotencyKey: 'xlsx-rename-sheet',
+    manifest: harness.manifest,
+  });
+  const completed = await harness.runtime.waitFor(
+    submitted.task.taskId,
+    (task) => ['completed', 'needs_input', 'failed'].includes(task.status),
+    { timeoutMs: 45_000 },
+  );
+  assert.equal(completed.status, 'completed', JSON.stringify(completed.verification));
+  assert.equal(completed.verification.passed, true);
+  const outputPath = harness.codeApi.virtualPath(harness.sessionId, getXlsxTaskPaths(completed).outputPath);
+  const observed = JSON.parse(await runPython(
+    'import json,sys\nfrom openpyxl import load_workbook\nwb=load_workbook(sys.argv[1],data_only=False)\nprint(json.dumps({"sheets":wb.sheetnames,"value":wb["Settings"]["A1"].value}))',
+    [outputPath],
+  ));
+  assert.deepEqual(observed.sheets, ['Source', 'Settings']);
+  assert.equal(observed.value, 'DO NOT CHANGE');
+});

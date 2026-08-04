@@ -32,6 +32,26 @@ assertions, derives the v1.1/v1.2 task contract, and preserves native fallback
 when the request is unsupported, ambiguous, unallowlisted, or lacks frozen
 acceptance criteria.
 
+## Capability closure matrix
+
+Each frozen M3/M3.1 capability has a route, independent acceptance contract,
+deterministic Worker operation, Verifier assertion, and positive/negative
+fixture. The acceptance resolver runs only after the profile has been selected
+by `resolveOfficeTaskIntent`; a resolver cannot select a profile by succeeding
+accidentally.
+
+| Capability | Connector/profile | Worker and Verifier contract | Evidence |
+| --- | --- | --- | --- |
+| Word edit | DOCX -> `word-edit-v1` | text replacement, paragraph/table edits, cumulative ledger, independent Word assertions | Word positive, wrong-occurrence, ignored-requirement, and unsafe-workspace fixtures |
+| Workbook edit | XLSX -> `xlsx-edit-v1` | cell value/formula, sheet add/delete/rename/order, number format/style, Excel Table, bar/line chart | XLSX positive and unauthorized formula/protected-cell/unsupported-OOXML fixtures |
+| Presentation edit | PPTX -> `pptx-edit-v1` | text/table edits, append/delete/copy/reorder slides, existing-image preservation, render and source-shape checks | PPTX positive, contradictory-delete, unauthorized-change, stale-hash, and unsupported-OOXML fixtures |
+| Office Compose | DOCX/XLSX (one or two sources) -> `office-compose-v1` | bounded source facts, structured title/section/data/conclusion/source pages, tables/charts, complete source mappings, one PPTX | XLSX->PPTX, DOCX->PPTX, XLSX+DOCX, false-chart, source-integrity, and render fixtures |
+
+The negative fixtures fail closed when the instruction contains an unsupported
+action, an unconsumed quoted requirement, multiple output intents, an
+unauthorized source/location, a contradictory assertion, or a stale artifact
+hash.
+
 ## Production service contract
 
 The source contract is in:
@@ -91,9 +111,14 @@ handoff.
 
 The current source-level results are:
 
-- Connector full suite: `104/104` passed;
-- Runtime full suite after production multi-capability changes: `85/85`
-  passed;
+- Connector full suite: `111/111` passed serially;
+- Runtime full suite after production multi-capability changes: `95/95`
+  passed serially;
+- strict Provider schema includes every XLSX and PPTX Action parameter;
+- PPTX resolver covers append/delete/copy/reorder and the Verifier checks
+  existing image hashes as well as text/table preservation;
+- XLSX rename is independently asserted and formula/protected-cell checks
+  follow the frozen sheet identity across the rename;
 - Connector and Runtime `npm run check`: passed;
 - production host profile/route focused suite: `4/4` passed;
 - production Runtime capability/manifest focused suite: `2/2` passed;

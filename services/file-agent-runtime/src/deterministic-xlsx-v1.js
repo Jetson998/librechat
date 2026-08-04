@@ -178,7 +178,7 @@ function normalizeXlsxParameters(parameters, worker) {
   }
   if (
     (worker === 'xlsx.transform.v1' || worker === 'xlsx.patch.v1') &&
-    !['set_cell', 'set_formula', 'add_sheet', 'rename_sheet', 'set_number_format'].includes(operation)
+    !['set_cell', 'set_formula', 'add_sheet', 'delete_sheet', 'rename_sheet', 'reorder_sheets', 'set_number_format', 'set_style', 'add_table', 'add_chart'].includes(operation)
   ) {
     throw new TypeError(`Unsupported XLSX transform operation: ${operation}`);
   }
@@ -209,6 +209,51 @@ function normalizeXlsxParameters(parameters, worker) {
     if (normalized.from === normalized.to) {
       throw new TypeError('parameters.from and parameters.to must differ');
     }
+  } else if (operation === 'delete_sheet') {
+    normalized.sheet = normalizeSheet(parameters.sheet, 'parameters.sheet');
+  } else if (operation === 'reorder_sheets') {
+    if (!Array.isArray(parameters.order) || parameters.order.length < 1 || parameters.order.length > 64) {
+      throw new TypeError('parameters.order must contain between 1 and 64 sheets');
+    }
+    normalized.order = parameters.order.map((sheet, index) => normalizeSheet(sheet, `parameters.order[${index}]`));
+    if (new Set(normalized.order).size !== normalized.order.length) {
+      throw new TypeError('parameters.order must not contain duplicate sheets');
+    }
+  } else if (operation === 'set_style') {
+    normalized.sheet = normalizeSheet(parameters.sheet, 'parameters.sheet');
+    normalized.cell = normalizeCell(parameters.cell, 'parameters.cell');
+    if (!parameters.style || typeof parameters.style !== 'object' || Array.isArray(parameters.style)) {
+      throw new TypeError('parameters.style must be an object');
+    }
+    normalized.style = { ...parameters.style };
+    if (normalized.style.fontBold != null && typeof normalized.style.fontBold !== 'boolean') {
+      throw new TypeError('parameters.style.fontBold must be boolean');
+    }
+    for (const field of ['fontColor', 'fillColor']) {
+      if (normalized.style[field] != null && !/^[0-9a-f]{6}$/iu.test(normalized.style[field])) {
+        throw new TypeError(`parameters.style.${field} must be a six-digit color`);
+      }
+    }
+    if (normalized.style.horizontalAlignment != null && !['left', 'center', 'right', 'general'].includes(normalized.style.horizontalAlignment)) {
+      throw new TypeError('parameters.style.horizontalAlignment is unsupported');
+    }
+    if (Object.keys(normalized.style).length === 0) {
+      throw new TypeError('parameters.style must change at least one property');
+    }
+  } else if (operation === 'add_table') {
+    normalized.sheet = normalizeSheet(parameters.sheet, 'parameters.sheet');
+    normalized.tableName = requiredString(parameters.tableName, 'parameters.tableName');
+    normalized.ref = requiredString(parameters.ref, 'parameters.ref');
+    normalized.styleName = requiredString(parameters.styleName ?? 'TableStyleMedium2', 'parameters.styleName');
+  } else if (operation === 'add_chart') {
+    normalized.sheet = normalizeSheet(parameters.sheet, 'parameters.sheet');
+    normalized.chartType = requiredString(parameters.chartType, 'parameters.chartType').toLowerCase();
+    if (!['bar', 'line'].includes(normalized.chartType)) {
+      throw new TypeError('parameters.chartType must be bar or line');
+    }
+    normalized.dataRange = requiredString(parameters.dataRange, 'parameters.dataRange');
+    normalized.title = requiredString(parameters.title, 'parameters.title', 400);
+    normalized.anchor = requiredString(parameters.anchor ?? 'E2', 'parameters.anchor');
   }
   if (worker === 'xlsx.patch.v1') {
     if (!SHA256_PATTERN.test(parameters.expectedBaseSha256 ?? '')) {
@@ -254,9 +299,14 @@ import os
 import shutil
 import tempfile
 import zipfile
+from copy import copy
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.chart import BarChart, LineChart, Reference
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils.cell import range_boundaries
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
 MARKER = "__FILE_AGENT_XLSX_WORKER__"
 UNSUPPORTED_PARTS = (
@@ -434,6 +484,59 @@ def main():
         if parameters["to"] in workbook.sheetnames:
             fail("XLSX_SHEET_ALREADY_EXISTS", "The requested destination sheet already exists")
         workbook[parameters["from"]].title = parameters["to"]
+    elif operation == "delete_sheet":
+        if parameters["sheet"] not in workbook.sheetnames:
+            fail("XLSX_SHEET_NOT_FOUND", "The requested sheet does not exist")
+        if len(workbook.worksheets) == 1:
+            fail("XLSX_LAST_SHEET_DELETE", "The workbook must retain one worksheet")
+        del workbook[parameters["sheet"]]
+    elif operation == "reorder_sheets":
+        order = parameters["order"]
+        if set(order) != set(workbook.sheetnames) or len(order) != len(workbook.sheetnames):
+            fail("XLSX_SHEET_ORDER_MISMATCH", "The requested sheet order must contain every worksheet exactly once")
+        workbook._sheets = [workbook[name] for name in order]
+    elif operation == "set_style":
+        cell = workbook[parameters["sheet"]][parameters["cell"]]
+        style = parameters["style"]
+        if "fontBold" in style or "fontColor" in style:
+            cell.font = copy(cell.font)
+            if "fontBold" in style:
+                cell.font = copy(cell.font)
+                cell.font = Font(
+                    name=cell.font.name,
+                    sz=cell.font.sz,
+                    b=style["fontBold"],
+                    i=cell.font.i,
+                    color=style.get("fontColor", cell.font.color.rgb if cell.font.color and cell.font.color.type == "rgb" else None),
+                )
+        if "fillColor" in style:
+            cell.fill = PatternFill(fill_type="solid", fgColor=style["fillColor"])
+        if "horizontalAlignment" in style:
+            cell.alignment = copy(cell.alignment)
+            cell.alignment = Alignment(
+                horizontal=style["horizontalAlignment"],
+                vertical=cell.alignment.vertical,
+                wrap_text=cell.alignment.wrap_text,
+            )
+        if "numberFormat" in style:
+            cell.number_format = style["numberFormat"]
+    elif operation == "add_table":
+        worksheet = workbook[parameters["sheet"]]
+        if parameters["tableName"] in worksheet.tables:
+            fail("XLSX_TABLE_ALREADY_EXISTS", "The requested table already exists")
+        table = Table(displayName=parameters["tableName"], ref=parameters["ref"])
+        table.tableStyleInfo = TableStyleInfo(name=parameters["styleName"], showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=False)
+        worksheet.add_table(table)
+    elif operation == "add_chart":
+        worksheet = workbook[parameters["sheet"]]
+        min_col, min_row, max_col, max_row = range_boundaries(parameters["dataRange"])
+        if max_col <= min_col or max_row <= min_row:
+            fail("XLSX_CHART_RANGE_INVALID", "A chart requires a header row and at least one data row")
+        chart = BarChart() if parameters["chartType"] == "bar" else LineChart()
+        chart.title = parameters["title"]
+        chart.add_data(Reference(worksheet, min_col=min_col, min_row=min_row, max_col=max_col, max_row=max_row), titles_from_data=True)
+        chart.set_categories(Reference(worksheet, min_col=min_col, min_row=min_row + 1, max_row=max_row))
+        worksheet.add_chart(chart, parameters["anchor"])
     else:
         fail("XLSX_OPERATION_UNSUPPORTED", "The requested XLSX operation is unsupported")
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -549,6 +652,11 @@ def main():
     except Exception:
         fail("xlsx.workbook.openable", "The candidate workbook could not be opened", failed)
     if candidate is not None:
+        renamed_sheets = {
+            item["from"]: item["to"]
+            for item in assertions
+            if item.get("type") == "xlsx.sheet_rename.v1"
+        }
         try:
             names = set(candidate.sheetnames)
             if not names:
@@ -564,6 +672,15 @@ def main():
             fail("xlsx.required_sheets.present", "A required worksheet is missing", failed, "CONTENT")
         changes_ok = True
         for item in assertions:
+            if item.get("type") == "xlsx.sheet_absent.v1" and item["sheet"] in candidate.sheetnames:
+                changes_ok = False
+            elif item.get("type") == "xlsx.sheet_rename.v1" and (
+                item["from"] in candidate.sheetnames or item["to"] not in candidate.sheetnames
+            ):
+                changes_ok = False
+            elif item.get("type") == "xlsx.sheet_order.v1" and candidate.sheetnames != item.get("order"):
+                changes_ok = False
+        for item in assertions:
             kind = item.get("type")
             if kind == "xlsx.cell_value.v1":
                 if item["sheet"] not in candidate.sheetnames or not same_value(item.get("value"), candidate[item["sheet"]][item["cell"]].value):
@@ -574,11 +691,40 @@ def main():
             elif kind == "xlsx.number_format.v1":
                 if item["sheet"] not in candidate.sheetnames or candidate[item["sheet"]][item["cell"]].number_format != item["numberFormat"]:
                     changes_ok = False
+            elif kind == "xlsx.style.v1":
+                if item["sheet"] not in candidate.sheetnames:
+                    changes_ok = False
+                    continue
+                cell = candidate[item["sheet"]][item["cell"]]
+                style = item["style"]
+                if "fontBold" in style and cell.font.bold != style["fontBold"]:
+                    changes_ok = False
+                if "fontColor" in style and (not cell.font.color or cell.font.color.type != "rgb" or cell.font.color.rgb[-6:].upper() != style["fontColor"]):
+                    changes_ok = False
+                if "fillColor" in style and (not cell.fill.fgColor.rgb or cell.fill.fgColor.rgb[-6:].upper() != style["fillColor"]):
+                    changes_ok = False
+                if "horizontalAlignment" in style and cell.alignment.horizontal != style["horizontalAlignment"]:
+                    changes_ok = False
+                if "numberFormat" in style and cell.number_format != style["numberFormat"]:
+                    changes_ok = False
+            elif kind == "xlsx.table_present.v1":
+                table = candidate[item["sheet"]].tables.get(item["tableName"]) if item["sheet"] in candidate.sheetnames else None
+                if table is None or table.ref != item["ref"]:
+                    changes_ok = False
+            elif kind == "xlsx.chart_present.v1":
+                if item["sheet"] not in candidate.sheetnames or not any(getattr(chart, "title", None) and item["title"] in str(chart.title) for chart in candidate[item["sheet"]]._charts):
+                    changes_ok = False
         business_change_types = {
             "xlsx.sheet_present.v1",
+            "xlsx.sheet_absent.v1",
+            "xlsx.sheet_rename.v1",
+            "xlsx.sheet_order.v1",
             "xlsx.cell_value.v1",
             "xlsx.formula.v1",
             "xlsx.number_format.v1",
+            "xlsx.style.v1",
+            "xlsx.table_present.v1",
+            "xlsx.chart_present.v1",
         }
         if changes_ok and required_sheets_ok and any(item.get("type") in business_change_types for item in assertions):
             passed.append("xlsx.required_changes.applied")
@@ -589,11 +735,15 @@ def main():
             if item.get("type") != "xlsx.protected_cell.v1":
                 continue
             if item["sheet"] not in source_workbook.sheetnames or item["sheet"] not in candidate.sheetnames:
-                protected_ok = False
-                continue
+                candidate_sheet = renamed_sheets.get(item["sheet"], item["sheet"])
+                if item["sheet"] not in source_workbook.sheetnames or candidate_sheet not in candidate.sheetnames:
+                    protected_ok = False
+                    continue
+            else:
+                candidate_sheet = item["sheet"]
             if (
                 not same_value(item.get("value"), source_workbook[item["sheet"]][item["cell"]].value)
-                or not same_value(item.get("value"), candidate[item["sheet"]][item["cell"]].value)
+                or not same_value(item.get("value"), candidate[candidate_sheet][item["cell"]].value)
             ):
                 protected_ok = False
         if protected_ok:
@@ -608,7 +758,9 @@ def main():
             if item.get("type") == "xlsx.formula.v1"
         }
         formulas_ok = all(
-            candidate_formulas.get(key) == value
+            candidate_formulas.get(
+                f"{renamed_sheets.get(key.split('!', 1)[0], key.split('!', 1)[0])}!{key.split('!', 1)[1]}"
+            ) == value
             for key, value in source_formulas.items()
             if key not in authorized_formula_cells
         )
@@ -663,8 +815,8 @@ def main():
 
 try:
     main()
-except Exception:
-    print(MARKER + json.dumps({"schemaVersion": "1.0", "profile": "xlsx-structure-v1", "profileVersion": "1.0.0", "passed": False, "requiredAssertionCount": 1, "passedAssertionCodes": [], "failedAssertions": [{"code": "xlsx.verifier.failed", "class": "VERIFIER", "summary": "The deterministic XLSX verifier failed", "evidenceRef": "workspace://verification/current.json"}], "artifact": {"logicalId": "candidate:working-xlsx", "revision": 0}, "metrics": {}, "errorClass": "XLSX_VERIFIER_FAILED", "summary": "XLSX verification failed"}, ensure_ascii=False))
+except Exception as error:
+    print(MARKER + json.dumps({"schemaVersion": "1.0", "profile": "xlsx-structure-v1", "profileVersion": "1.0.0", "passed": False, "requiredAssertionCount": 1, "passedAssertionCodes": [], "failedAssertions": [{"code": "xlsx.verifier.failed", "class": "VERIFIER", "summary": "The deterministic XLSX verifier failed", "evidenceRef": "workspace://verification/current.json"}], "artifact": {"logicalId": "candidate:working-xlsx", "revision": 0}, "metrics": {}, "errorClass": "XLSX_VERIFIER_FAILED", "summary": "XLSX verification failed: " + type(error).__name__}, ensure_ascii=False))
 `;
 
 function environment(entries) {

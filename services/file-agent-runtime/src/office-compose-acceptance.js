@@ -3,6 +3,9 @@ import { PPTX_MIME } from './constants.js';
 export const OFFICE_COMPOSE_ACCEPTANCE_SCHEMA_VERSION = '1.0';
 export const OFFICE_COMPOSE_ACCEPTANCE_TYPES = Object.freeze({
   SECTION_PRESENT: 'compose.section_present.v1',
+  TABLE_PRESENT: 'compose.table_present.v1',
+  CHART_PRESENT: 'compose.chart_present.v1',
+  CONCLUSION_PRESENT: 'compose.conclusion_present.v1',
   SOURCE_VALUE: 'compose.source_value.v1',
   SOURCE_MAPPING: 'compose.source_mapping.v1',
   SOURCE_HASH: 'compose.source_hash.v1',
@@ -64,8 +67,8 @@ function positiveInteger(value, field, max = OFFICE_COMPOSE_MAX_SLIDES) {
 
 function targetShape(value, field) {
   const normalized = requiredText(value, field, 16);
-  if (!['title', 'body'].includes(normalized)) {
-    throw new TypeError(`${field} must be title or body`);
+  if (!['title', 'body', 'data_table', 'chart'].includes(normalized)) {
+    throw new TypeError(`${field} must be title, body, data_table, or chart`);
   }
   return normalized;
 }
@@ -91,6 +94,43 @@ function normalizeAssertion(assertion, index) {
       type,
       slide: positiveInteger(assertion.slide, `acceptanceAssertions[${index}].slide`),
       title: requiredText(assertion.title, `acceptanceAssertions[${index}].title`, 400),
+    };
+  }
+
+  if (type === OFFICE_COMPOSE_ACCEPTANCE_TYPES.TABLE_PRESENT) {
+    if (!Array.isArray(assertion.headers) || assertion.headers.length < 1 || assertion.headers.length > 8) {
+      throw new TypeError(`acceptanceAssertions[${index}].headers must contain between 1 and 8 columns`);
+    }
+    const headers = assertion.headers.map((value, headerIndex) =>
+      requiredText(value, `acceptanceAssertions[${index}].headers[${headerIndex}]`, 120));
+    return {
+      schemaVersion: OFFICE_COMPOSE_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      slide: positiveInteger(assertion.slide, `acceptanceAssertions[${index}].slide`),
+      headers,
+      rowCount: positiveInteger(assertion.rowCount, `acceptanceAssertions[${index}].rowCount`, 12),
+    };
+  }
+
+  if (type === OFFICE_COMPOSE_ACCEPTANCE_TYPES.CHART_PRESENT) {
+    if (!['bar', 'line'].includes(assertion.chartType)) {
+      throw new TypeError(`acceptanceAssertions[${index}].chartType must be bar or line`);
+    }
+    return {
+      schemaVersion: OFFICE_COMPOSE_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      slide: positiveInteger(assertion.slide, `acceptanceAssertions[${index}].slide`),
+      chartType: assertion.chartType,
+      title: requiredText(assertion.title, `acceptanceAssertions[${index}].title`, 400),
+    };
+  }
+
+  if (type === OFFICE_COMPOSE_ACCEPTANCE_TYPES.CONCLUSION_PRESENT) {
+    return {
+      schemaVersion: OFFICE_COMPOSE_ACCEPTANCE_SCHEMA_VERSION,
+      type,
+      slide: positiveInteger(assertion.slide, `acceptanceAssertions[${index}].slide`),
+      text: requiredText(assertion.text, `acceptanceAssertions[${index}].text`, 2_000),
     };
   }
 
@@ -196,6 +236,9 @@ export function normalizeOfficeComposeAcceptanceAssertions(value, { requireBusin
   }
   const businessTypes = new Set([
     OFFICE_COMPOSE_ACCEPTANCE_TYPES.SECTION_PRESENT,
+    OFFICE_COMPOSE_ACCEPTANCE_TYPES.TABLE_PRESENT,
+    OFFICE_COMPOSE_ACCEPTANCE_TYPES.CHART_PRESENT,
+    OFFICE_COMPOSE_ACCEPTANCE_TYPES.CONCLUSION_PRESENT,
     OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_VALUE,
     OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_MAPPING,
     OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_HASH,
@@ -223,6 +266,9 @@ export function normalizeOfficeComposeAcceptanceAssertions(value, { requireBusin
 export function isOfficeComposeBusinessAssertion(assertion) {
   return [
     OFFICE_COMPOSE_ACCEPTANCE_TYPES.SECTION_PRESENT,
+    OFFICE_COMPOSE_ACCEPTANCE_TYPES.TABLE_PRESENT,
+    OFFICE_COMPOSE_ACCEPTANCE_TYPES.CHART_PRESENT,
+    OFFICE_COMPOSE_ACCEPTANCE_TYPES.CONCLUSION_PRESENT,
     OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_VALUE,
     OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_MAPPING,
     OFFICE_COMPOSE_ACCEPTANCE_TYPES.SOURCE_HASH,

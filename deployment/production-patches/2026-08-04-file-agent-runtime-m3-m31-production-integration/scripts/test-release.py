@@ -87,6 +87,102 @@ def make_handoff(root: Path, archive: dict) -> dict:
     }
 
 
+def exercise_apply_failure(
+    runner,
+    workspace: Path,
+    failure: str,
+    *,
+    runtime_present: bool = False,
+    rollback_fails: bool = False,
+) -> dict:
+    workspace.mkdir(parents=True, exist_ok=True)
+    stage = workspace / "stage"
+    stage.mkdir()
+    root = workspace / "librechat"
+    root.mkdir()
+    (root / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (root / "compose.override.yaml").write_text("services: {}\n", encoding="utf-8")
+    archive = stage / "connector.tar.gz"
+    archive.write_bytes(b"fixture")
+    handoff = {
+        "source_revision": "a" * 40,
+        "connector_archive": {"filename": archive.name, "files": []},
+    }
+    protected = {"protected": {"id": "protected-before"}} if failure == "protected-identity" else {}
+    preflight = {
+        "baseline": {
+            "containers": protected,
+            "runtime_container_id": "runtime-before" if runtime_present else None,
+            "runtime_service_present": runtime_present,
+            "compose_base_sha256": "base",
+            "compose_override_sha256": "override",
+        },
+    }
+    runner.load_stage = lambda _stage: (handoff, {}, preflight)
+    runner.verify_baseline = lambda _root, _baseline: None
+    runner.safe_extract_connector = lambda *_args: None
+    runner.compose_with_runtime = lambda *_args: {"services": {"api": {}, "codeapi": {}}}
+    runner.validate_runtime_compose = lambda *_args: None
+    runner.compose_container_id = lambda *_args, **_kwargs: "runtime-created"
+    runner.wait_healthy = lambda *_args, **_kwargs: (
+        (_ for _ in ()).throw(RuntimeError("Runtime health failed"))
+        if failure == "runtime-health"
+        else {"State": {"Running": True, "Health": {"Status": "healthy"}}, "HostConfig": {"PortBindings": None}}
+    )
+    runner.wait_running = lambda *_args, **_kwargs: {"State": {"Running": True}, "Config": {"Env": ["FILE_AGENT_RUNTIME_ENABLED=true"]}}
+    runner.verify_internal_health = lambda *_args, **_kwargs: (
+        (_ for _ in ()).throw(RuntimeError("API health failed"))
+        if failure == "api-health"
+        else None
+    )
+    runner.inspect = lambda name: {
+        "Id": "protected-changed" if failure == "protected-identity" and name == "protected" else name,
+    }
+    rollback_states: list[dict] = []
+
+    def fake_rollback_module():
+        class Rollback:
+            @staticmethod
+            def restore_state(backup_dir: Path, *, root: Path, run_command):
+                rollback_states.append(json.loads((backup_dir / "state.json").read_text(encoding="utf-8")))
+                if rollback_fails:
+                    raise RuntimeError("rollback API restart failed")
+
+        return Rollback
+
+    runner.load_rollback_module = fake_rollback_module
+
+    def fake_native_fallback_probe(*, api_container: str, **_kwargs):
+        if failure in {"native-fallback", "first-enable-rollback", "existing-runtime-rollback"}:
+            raise RuntimeError("native fallback failed")
+
+    def fake_run(command: list[str], check: bool = True):
+        if "config" in command and "--format" in command:
+            return subprocess.CompletedProcess(command, 0, json.dumps({"services": {"api": {}, "codeapi": {}}}), "")
+        if "up" in command and runner.RUNTIME_SERVICE in command:
+            if failure == "runtime-create":
+                raise RuntimeError("Runtime creation failed")
+        if "up" in command and runner.API_SERVICE in command:
+            if failure == "api-create":
+                raise RuntimeError("API creation failed")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    try:
+        runner.apply(
+            stage,
+            root=root,
+            run_command=fake_run,
+            native_fallback_probe=fake_native_fallback_probe,
+        )
+    except Exception:
+        pass
+    result_path = stage / "DEPLOY_RESULT.json"
+    require(result_path.is_file(), f"failure case did not write a result: {failure}")
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    require(rollback_states, f"failure case did not invoke rollback: {failure}")
+    return {"result": result, "rollback": rollback_states[0]}
+
+
 def main() -> None:
     common = load_module("file_agent_runner_common", SCRIPTS / "runner_common.py")
     rollback = load_module("file_agent_runner_rollback", SCRIPTS / "remote-rollback.py")
@@ -151,15 +247,29 @@ def main() -> None:
         backup.mkdir()
         (backup / "compose.override.yaml.before").write_text("before: true\n", encoding="utf-8")
         (backup / "state.json").write_text(
-            json.dumps({"runtime_service_present": False, "candidate_runtime_container_id": "runtime-candidate"}),
+            json.dumps({
+                "runtime_service_present": False,
+                "candidate_runtime_container_id": "runtime-candidate",
+                "compose_override_sha256_before": digest_bytes(b"before: true\n"),
+                "protected_container_ids": {},
+            }),
             encoding="utf-8",
         )
         calls: list[list[str]] = []
+        candidate_removed = False
 
         def fake_run(command: list[str], check: bool = True):
+            nonlocal candidate_removed
             calls.append(command)
             if command[:3] == ["docker", "inspect", "--format"]:
                 return subprocess.CompletedProcess(command, 0, "true\n", "")
+            if command[:3] == ["docker", "rm", "-f"]:
+                candidate_removed = True
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:2] == ["docker", "inspect"] and candidate_removed and command[-1] == "runtime-candidate":
+                return subprocess.CompletedProcess(command, 1, "", "not found")
+            if command[:2] == ["docker", "exec"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
             return subprocess.CompletedProcess(command, 0, "", "")
 
         rollback.restore_state(backup, root=fake_root, run_command=fake_run)
@@ -167,6 +277,36 @@ def main() -> None:
         require(any(command[:3] == ["docker", "rm", "-f"] for command in calls), "rollback did not remove the candidate Runtime")
         require(any(command[-1] == "api" for command in calls), "rollback did not recreate API")
         require(not any("LibreChat-CodeAPI" in command for command in calls), "rollback touched CodeAPI")
+
+        runner_path = SCRIPTS / "remote-apply.py"
+        failure_cases = [
+            ("runtime-create", False, False),
+            ("api-create", False, False),
+            ("runtime-health", False, False),
+            ("api-health", False, False),
+            ("native-fallback", False, False),
+            ("protected-identity", False, False),
+            ("first-enable-rollback", False, False),
+            ("existing-runtime-rollback", True, False),
+            ("native-fallback", False, True),
+        ]
+        for index, (failure, runtime_present, rollback_fails) in enumerate(failure_cases):
+            runner = load_module(f"file_agent_runner_failure_{index}", runner_path)
+            case = exercise_apply_failure(
+                runner,
+                workspace / f"apply-failure-{index}",
+                failure,
+                runtime_present=runtime_present,
+                rollback_fails=rollback_fails,
+            )
+            require(case["rollback"]["runtime_service_present"] is runtime_present, f"rollback state lost Runtime presence: {failure}")
+            if failure == "api-create":
+                require(case["rollback"]["candidate_runtime_container_id"] == "runtime-created", "API failure did not record Runtime ID")
+            if rollback_fails:
+                require(case["result"]["status"] == "failed", "rollback failure was reported as a successful rollback")
+                require(case["result"]["rollback_error"] == "rollback API restart failed", "rollback failure evidence is missing")
+            else:
+                require(case["result"]["status"] == "rolled_back", f"failure case was not rolled back: {failure}")
 
     for index, source in enumerate(sorted(SCRIPTS.glob("*.py"))):
         with tempfile.TemporaryDirectory(prefix="file-agent-dual-service-pyc-") as temporary:

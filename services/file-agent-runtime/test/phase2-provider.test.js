@@ -9,6 +9,7 @@ import { ContextProjector } from '../src/context-projector.js';
 import { CodeApiHttpTransport } from '../src/codeapi-transport.js';
 import { CodeApiXlsxExecutor, XLSX_MIME } from '../src/deterministic-xlsx.js';
 import { DOCX_MIME, WORD_VERIFIER_PROFILE } from '../src/deterministic-word.js';
+import { PPTX_VERIFIER_PROFILE } from '../src/deterministic-pptx-v1.js';
 import { ExecutorAdapter } from '../src/executor-adapter.js';
 import { FakeExecutor } from '../src/fake-adapters.js';
 import { FileModelCallJournal } from '../src/model-call-journal.js';
@@ -712,6 +713,87 @@ test('Word provider emits the bounded worker schema and validates a v1.1 plan', 
     requestBody.response_format.json_schema.schema.properties.actions.items.properties.targetRef.const,
     'candidate:working-docx',
   );
+});
+
+test('PPTX strict schema exposes every PPTX action parameter and validates a title edit', async () => {
+  let requestBody;
+  const transport = new OpenAiChatTransport({
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return new Response(JSON.stringify({
+        model: 'pptx-provider-model',
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              schemaVersion: '1.0',
+              summary: 'Update the presentation title',
+              needsInput: false,
+              question: null,
+              actions: [{
+                schemaVersion: '1.0',
+                objective: 'Update the title on the first slide',
+                worker: 'pptx.transform.v1',
+                inputRefs: ['input:source-pptx'],
+                targetRef: 'candidate:working-pptx',
+                parameters: {
+                  operation: 'replace_text',
+                  sheet: null,
+                  cell: null,
+                  slide: 1,
+                  shape: 'TitleBox',
+                  row: null,
+                  column: null,
+                  layoutIndex: null,
+                  value: 'Updated Report',
+                  formula: null,
+                  from: null,
+                  to: null,
+                  order: null,
+                  numberFormat: null,
+                  style: null,
+                  tableName: null,
+                  ref: null,
+                  styleName: null,
+                  chartType: null,
+                  dataRange: null,
+                  title: null,
+                  anchor: null,
+                  destination: null,
+                  expectedBaseSha256: null,
+                },
+                expectedChange: ['slide1.TitleBox'],
+                verificationProfile: PPTX_VERIFIER_PROFILE,
+                onFailure: 'replan',
+                summary: 'Update the title',
+              }],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 200, completion_tokens: 40 },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    },
+  });
+
+  const result = await transport.invoke({
+    callId: 'pptx-provider-schema-call',
+    route: {
+      baseUrl: 'https://pptx-provider.example.invalid',
+      model: 'pptx-provider-model',
+      outputBudgetTokens: 256,
+      capabilityProfile: 'pptx-edit-v1',
+      structuredOutputMode: 'json_schema',
+    },
+    operation: 'plan',
+    context: { schemaVersion: '1.0', objective: 'Update a PPTX title' },
+  });
+
+  const parameters = requestBody.response_format.json_schema.schema.properties.actions.items.properties.parameters;
+  for (const field of ['slide', 'shape', 'row', 'column', 'layoutIndex']) {
+    assert.ok(parameters.properties[field], `PPTX schema must expose ${field}`);
+    assert.ok(parameters.required.includes(field), `PPTX schema must require ${field}`);
+  }
+  assert.equal(result.plan.actions[0].parameters.slide, 1);
+  assert.equal(result.plan.actions[0].parameters.shape, 'TitleBox');
 });
 
 test('Word context projection includes bounded inspected document content for replanning', () => {
