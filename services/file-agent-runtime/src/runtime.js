@@ -7,6 +7,9 @@ import {
   isTerminal,
   SUPPORTED_TASK_CONTRACT_VERSIONS,
   TASK_CONTRACT_VERSION_V1_1,
+  TASK_CONTRACT_VERSION_V1_2,
+  XLSX_CAPABILITY_PROFILE,
+  XLSX_MIME,
   WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 import { assertExecutorAdapter, isAbortError } from './executor-adapter.js';
@@ -14,6 +17,7 @@ import { buildProgressVector, evaluateProgress, repairActionSignature } from './
 import { assertProviderAdapter } from './provider-adapter.js';
 import { normalizeVerificationResult, verificationFingerprint } from './verification-result.js';
 import { normalizeWordAcceptanceAssertions } from './word-acceptance.js';
+import { normalizeXlsxAcceptanceAssertions } from './xlsx-acceptance.js';
 
 export class RuntimeShutdownError extends Error {
   constructor() {
@@ -63,11 +67,31 @@ export function validateTaskManifest(manifest) {
       throw new TypeError('Word task contract requires exactly one DOCX input');
     }
   }
+  if (manifest.taskContractVersion === TASK_CONTRACT_VERSION_V1_2) {
+    if (capabilityProfile !== XLSX_CAPABILITY_PROFILE) {
+      throw new TypeError('office-file-agent.v1.2 currently requires the XLSX capability profile');
+    }
+    if (
+      !Array.isArray(manifest.inputs) ||
+      manifest.inputs.length !== 1 ||
+      manifest.inputs[0]?.mimeType !== XLSX_MIME ||
+      typeof manifest.inputs[0]?.logicalName !== 'string' ||
+      !manifest.inputs[0].logicalName.toLowerCase().endsWith('.xlsx')
+    ) {
+      throw new TypeError('XLSX task contract requires exactly one XLSX input');
+    }
+  }
   if (capabilityProfile === WORD_CAPABILITY_PROFILE && manifest.taskContractVersion !== TASK_CONTRACT_VERSION_V1_1) {
     throw new TypeError('The Word capability profile requires office-file-agent.v1.1');
   }
   if (capabilityProfile === WORD_CAPABILITY_PROFILE) {
     normalizeWordAcceptanceAssertions(manifest.acceptanceAssertions);
+  }
+  if (capabilityProfile === XLSX_CAPABILITY_PROFILE) {
+    if (manifest.taskContractVersion !== TASK_CONTRACT_VERSION_V1_2) {
+      throw new TypeError('The XLSX capability profile requires office-file-agent.v1.2');
+    }
+    normalizeXlsxAcceptanceAssertions(manifest.acceptanceAssertions);
   }
 }
 
@@ -87,6 +111,11 @@ export function normalizeTaskManifest(manifest) {
   const normalized = clone(manifest);
   if (normalized.model?.capabilityProfile === WORD_CAPABILITY_PROFILE) {
     normalized.acceptanceAssertions = normalizeWordAcceptanceAssertions(
+      normalized.acceptanceAssertions,
+    );
+  }
+  if (normalized.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE) {
+    normalized.acceptanceAssertions = normalizeXlsxAcceptanceAssertions(
       normalized.acceptanceAssertions,
     );
   }
@@ -134,7 +163,17 @@ function isWordTask(task) {
   return task?.manifest?.model?.capabilityProfile === WORD_CAPABILITY_PROFILE;
 }
 
+function isXlsxTask(task) {
+  return task?.manifest?.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE;
+}
+
 function hasCompletedWordInspection(task) {
+  return Object.values(task?.itemResults ?? {}).some(
+    (result) => result?.operation === 'inspect',
+  );
+}
+
+function hasCompletedXlsxInspection(task) {
   return Object.values(task?.itemResults ?? {}).some(
     (result) => result?.operation === 'inspect',
   );
@@ -588,6 +627,20 @@ export class FileAgentRuntime {
         'The initial Word plan must contain exactly one first action: word.inspect.v1',
       );
     }
+    if (
+      isXlsxTask(task) &&
+      !hasCompletedXlsxInspection(task) &&
+      plan?.needsInput !== true &&
+      (
+        !Array.isArray(plan?.actions) ||
+        plan.actions.length !== 1 ||
+        plan.actions[0]?.worker !== 'xlsx.inspect.v1'
+      )
+    ) {
+      throw new TypeError(
+        'The initial XLSX plan must contain exactly one first action: xlsx.inspect.v1',
+      );
+    }
 
     await this.store.mutateTask(task.taskId, (current, emit) => {
       if (current.status !== 'planning') {
@@ -639,9 +692,10 @@ export class FileAgentRuntime {
     const action = actions[cursor];
     const actionKind = action.worker ?? action.kind ?? 'unknown';
     const actionSummary = action.summary ?? action.objective ?? `Execute ${actionKind}`;
-    const shouldReplanAfterInspection = isWordTask(task)
-      && !hasCompletedWordInspection(task)
-      && action.worker === 'word.inspect.v1';
+    const shouldReplanAfterInspection = (
+      (isWordTask(task) && !hasCompletedWordInspection(task) && action.worker === 'word.inspect.v1') ||
+      (isXlsxTask(task) && !hasCompletedXlsxInspection(task) && action.worker === 'xlsx.inspect.v1')
+    );
     await this.#runItem({
       task,
       itemId: `${task.taskId}:execute:${task.planRevision}:${cursor}`,

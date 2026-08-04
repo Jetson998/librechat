@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 
+import { XLSX_CAPABILITY_PROFILE } from './constants.js';
 import { normalizeWordAcceptanceAssertions } from './word-acceptance.js';
+import { normalizeXlsxAcceptanceAssertions } from './xlsx-acceptance.js';
 
 const DEFAULT_TOTAL_CHARS = 12_000;
 const OBJECTIVE_CHARS = 2_000;
@@ -171,6 +173,43 @@ function projectWordAcceptanceAssertions(task) {
   return structuredClone(normalizeWordAcceptanceAssertions(assertions));
 }
 
+function projectXlsxAcceptanceAssertions(task) {
+  const assertions = task.manifest.acceptanceAssertions;
+  if (!Array.isArray(assertions)) {
+    return [];
+  }
+  return structuredClone(normalizeXlsxAcceptanceAssertions(assertions));
+}
+
+function projectXlsxDocument(task) {
+  const inspection = Object.values(task.itemResults ?? {})
+    .reverse()
+    .find((result) => result?.operation === 'inspect' && result?.sheets);
+  if (!inspection) {
+    return null;
+  }
+  const document = {
+    sha256: inspection.sha256 ?? null,
+    sheetCount: inspection.sheetCount ?? 0,
+    sheets: (inspection.sheets ?? []).slice(0, 20).map((sheet) => ({
+      title: truncate(sheet.title ?? '', 31),
+      maxRow: sheet.maxRow ?? 0,
+      maxColumn: sheet.maxColumn ?? 0,
+      mergedRanges: (sheet.mergedRanges ?? []).slice(0, 40),
+      tableNames: (sheet.tableNames ?? []).slice(0, 40),
+      chartCount: sheet.chartCount ?? 0,
+      cells: (sheet.cells ?? []).slice(0, 200).map((cell) => ({
+        cell: cell.cell,
+        value: typeof cell.value === 'string' ? truncate(cell.value, 400) : cell.value,
+        dataType: cell.dataType ?? null,
+        numberFormat: truncate(cell.numberFormat ?? '', 256),
+      })),
+    })),
+    definedNames: (inspection.definedNames ?? []).slice(0, 80),
+  };
+  return document;
+}
+
 export class ContextProjector {
   constructor({ maxChars = DEFAULT_TOTAL_CHARS } = {}) {
     if (!Number.isInteger(maxChars) || maxChars < 2_000) {
@@ -186,13 +225,18 @@ export class ContextProjector {
       objective: truncate(task.manifest.intent, OBJECTIVE_CHARS),
       acceptance: projectAcceptance(task.manifest.acceptance),
       wordAcceptanceAssertions: projectWordAcceptanceAssertions(task),
+      xlsxAcceptanceAssertions: task.manifest.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE
+        ? projectXlsxAcceptanceAssertions(task)
+        : [],
       state: {
         phase: task.phase,
         planRevision: task.planRevision,
         instructionRevision: task.instructionRevision,
       },
       resources: projectResources(task),
-      document: projectWordDocument(task),
+      document: task.manifest.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE
+        ? projectXlsxDocument(task)
+        : projectWordDocument(task),
       recentItems: recent.items,
       verification: task.verification
         ? {
@@ -230,16 +274,17 @@ export class ContextProjector {
       serialized = JSON.stringify(context);
     }
     while (serialized.length > this.maxChars && context.document) {
-      if (context.document.paragraphs.length > 0) {
-        context.document.paragraphs.pop();
-      } else if (context.document.tables.length > 0) {
-        context.document.tables.pop();
-      } else if (context.document.headers.length > 0) {
-        context.document.headers.pop();
-      } else if (context.document.footers.length > 0) {
-        context.document.footers.pop();
-      } else if (context.document.styles.length > 0) {
-        context.document.styles.pop();
+      const removable = [
+        'paragraphs',
+        'tables',
+        'headers',
+        'footers',
+        'styles',
+        'sheets',
+        'definedNames',
+      ].find((key) => Array.isArray(context.document[key]) && context.document[key].length > 0);
+      if (removable) {
+        context.document[removable].pop();
       } else {
         context.document = null;
       }

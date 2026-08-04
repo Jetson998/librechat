@@ -4,11 +4,15 @@ import {
   MAX_VISIBLE_ARTIFACTS,
   TASK_CONTRACT_VERSION,
   TASK_CONTRACT_VERSION_V1_1,
+  TASK_CONTRACT_VERSION_V1_2,
   TASK_TYPE,
+  XLSX_CAPABILITY_PROFILE,
+  XLSX_MIME,
   WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 import { digestJson, opaqueRef, requiredString, sha256 } from './stable.js';
 import { normalizeWordAcceptanceAssertions } from '../../file-agent-runtime/src/word-acceptance.js';
+import { normalizeXlsxAcceptanceAssertions } from '../../file-agent-runtime/src/xlsx-acceptance.js';
 
 function normalizeFile(file, { conversationId, sessionId, userId }) {
   if (!file || typeof file !== 'object' || Array.isArray(file)) {
@@ -53,6 +57,8 @@ export function buildTaskSubmission({
   capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
   taskContractVersion = capabilityProfile === WORD_CAPABILITY_PROFILE
     ? TASK_CONTRACT_VERSION_V1_1
+    : capabilityProfile === XLSX_CAPABILITY_PROFILE
+      ? TASK_CONTRACT_VERSION_V1_2
     : TASK_CONTRACT_VERSION,
   acceptance = [],
   acceptanceAssertions = null,
@@ -65,12 +71,14 @@ export function buildTaskSubmission({
   sessionId = requiredString(sessionId, 'sessionId');
   modelRouteId = requiredString(modelRouteId, 'modelRouteId');
   billingSnapshotRef = requiredString(billingSnapshotRef, 'billingSnapshotRef');
-  if (![TASK_CONTRACT_VERSION, TASK_CONTRACT_VERSION_V1_1].includes(taskContractVersion)) {
+  if (![TASK_CONTRACT_VERSION, TASK_CONTRACT_VERSION_V1_1, TASK_CONTRACT_VERSION_V1_2].includes(taskContractVersion)) {
     throw new TypeError(`Unsupported task contract version: ${taskContractVersion}`);
   }
   if (
     (taskContractVersion === TASK_CONTRACT_VERSION_V1_1 && capabilityProfile !== WORD_CAPABILITY_PROFILE) ||
-    (taskContractVersion === TASK_CONTRACT_VERSION && capabilityProfile === WORD_CAPABILITY_PROFILE)
+    (taskContractVersion === TASK_CONTRACT_VERSION && capabilityProfile === WORD_CAPABILITY_PROFILE) ||
+    (taskContractVersion === TASK_CONTRACT_VERSION_V1_2 && capabilityProfile !== XLSX_CAPABILITY_PROFILE) ||
+    (taskContractVersion !== TASK_CONTRACT_VERSION_V1_2 && capabilityProfile === XLSX_CAPABILITY_PROFILE)
   ) {
     throw new TypeError('Task contract version and capability profile are incompatible');
   }
@@ -93,16 +101,28 @@ export function buildTaskSubmission({
       throw new TypeError('Word task contract requires exactly one DOCX file');
     }
   }
+  if (taskContractVersion === TASK_CONTRACT_VERSION_V1_2) {
+    if (
+      files.length !== 1 ||
+      files[0]?.mimeType !== XLSX_MIME ||
+      typeof files[0]?.name !== 'string' ||
+      !files[0].name.toLowerCase().endsWith('.xlsx')
+    ) {
+      throw new TypeError('XLSX task contract requires exactly one XLSX file');
+    }
+  }
 
   const normalizedAcceptanceAssertions = capabilityProfile === WORD_CAPABILITY_PROFILE
     ? normalizeWordAcceptanceAssertions(acceptanceAssertions)
-    : null;
+    : capabilityProfile === XLSX_CAPABILITY_PROFILE
+      ? normalizeXlsxAcceptanceAssertions(acceptanceAssertions)
+      : null;
 
   const inputs = files
     .map((file) => normalizeFile(file, { conversationId, sessionId, userId }))
     .sort((left, right) => left.librechatFileRef.localeCompare(right.librechatFileRef));
   const requestedVisibleArtifacts = limits.maxVisibleArtifacts;
-  const maxVisibleArtifacts = capabilityProfile === WORD_CAPABILITY_PROFILE
+  const maxVisibleArtifacts = [WORD_CAPABILITY_PROFILE, XLSX_CAPABILITY_PROFILE].includes(capabilityProfile)
     ? requestedVisibleArtifacts ?? 1
     : requestedVisibleArtifacts ?? MAX_VISIBLE_ARTIFACTS;
   if (
@@ -114,6 +134,9 @@ export function buildTaskSubmission({
   }
   if (capabilityProfile === WORD_CAPABILITY_PROFILE && maxVisibleArtifacts !== 1) {
     throw new TypeError('Word tasks allow exactly one visible artifact');
+  }
+  if (capabilityProfile === XLSX_CAPABILITY_PROFILE && maxVisibleArtifacts !== 1) {
+    throw new TypeError('XLSX tasks allow exactly one visible artifact');
   }
   const idempotencyKey = sha256([
     conversationId,

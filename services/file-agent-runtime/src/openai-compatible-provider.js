@@ -2,6 +2,11 @@ import { createHash } from 'node:crypto';
 
 import { normalizeWordAction, WORD_WORKER_IDS, WORD_VERIFIER_PROFILE } from './deterministic-word.js';
 import {
+  normalizeXlsxAction,
+  XLSX_VERIFIER_PROFILE,
+  XLSX_WORKER_IDS,
+} from './deterministic-xlsx-v1.js';
+import {
   ProviderAmbiguousCommitError,
   ProviderCanceledError,
   ProviderProtocolError,
@@ -17,6 +22,10 @@ const PROFILE_CONFIG = Object.freeze({
   }),
   'word-edit-v1': Object.freeze({
     workers: new Set(WORD_WORKER_IDS),
+    maxActions: 4,
+  }),
+  'xlsx-edit-v1': Object.freeze({
+    workers: new Set(XLSX_WORKER_IDS),
     maxActions: 4,
   }),
 });
@@ -165,6 +174,98 @@ function responseFormatFor(route, operation) {
       },
     };
   }
+  if (route.capabilityProfile === 'xlsx-edit-v1') {
+    return {
+      type: 'json_schema',
+      json_schema: {
+        name: `xlsx_${operation}_plan`,
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            schemaVersion: { type: 'string', const: '1.0' },
+            summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+            needsInput: { type: 'boolean' },
+            question: {
+              anyOf: [
+                { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+                { type: 'null' },
+              ],
+            },
+            actions: {
+              type: 'array',
+              minItems: 0,
+              maxItems: 4,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  schemaVersion: { type: 'string', const: '1.0' },
+                  objective: { type: 'string', minLength: 1, maxLength: 1_000 },
+                  worker: { type: 'string', enum: XLSX_WORKER_IDS },
+                  inputRefs: {
+                    type: 'array',
+                    minItems: 1,
+                    maxItems: 20,
+                    items: { type: 'string' },
+                  },
+                  targetRef: { type: 'string', const: 'candidate:working-xlsx' },
+                  parameters: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      operation: {
+                        type: 'string',
+                        enum: ['inspect', 'validate', 'set_cell', 'set_formula', 'add_sheet', 'rename_sheet', 'set_number_format'],
+                      },
+                      sheet: { anyOf: [{ type: 'string', maxLength: 31 }, { type: 'null' }] },
+                      cell: { anyOf: [{ type: 'string', pattern: '^[A-Za-z]{1,3}[1-9][0-9]{0,6}$' }, { type: 'null' }] },
+                      value: {
+                        anyOf: [
+                          { type: 'string', maxLength: 4_000 },
+                          { type: 'number' },
+                          { type: 'boolean' },
+                          { type: 'null' },
+                        ],
+                      },
+                      formula: { anyOf: [{ type: 'string', minLength: 1, maxLength: 4_000 }, { type: 'null' }] },
+                      from: { anyOf: [{ type: 'string', maxLength: 31 }, { type: 'null' }] },
+                      to: { anyOf: [{ type: 'string', maxLength: 31 }, { type: 'null' }] },
+                      numberFormat: { anyOf: [{ type: 'string', minLength: 1, maxLength: 256 }, { type: 'null' }] },
+                      expectedBaseSha256: { anyOf: [{ type: 'string', pattern: '^[a-fA-F0-9]{64}$' }, { type: 'null' }] },
+                    },
+                    required: ['operation', 'sheet', 'cell', 'value', 'formula', 'from', 'to', 'numberFormat', 'expectedBaseSha256'],
+                  },
+                  expectedChange: {
+                    type: 'array',
+                    maxItems: 20,
+                    items: { type: 'string', minLength: 1, maxLength: 240 },
+                  },
+                  verificationProfile: { type: 'string', const: XLSX_VERIFIER_PROFILE },
+                  onFailure: { type: 'string', enum: ['replan', 'needs_input', 'fail'] },
+                  summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+                },
+                required: [
+                  'schemaVersion',
+                  'objective',
+                  'worker',
+                  'inputRefs',
+                  'targetRef',
+                  'parameters',
+                  'expectedChange',
+                  'verificationProfile',
+                  'onFailure',
+                  'summary',
+                ],
+              },
+            },
+          },
+          required: ['schemaVersion', 'summary', 'needsInput', 'question', 'actions'],
+        },
+      },
+    };
+  }
   const actionKind = operation === 'repair' ? 'xlsx_patch_and_transform' : 'xlsx_transform';
   return {
     type: 'json_schema',
@@ -256,6 +357,14 @@ function validateWordPlanAction(action, operation) {
   return normalized;
 }
 
+function validateXlsxPlanAction(action) {
+  try {
+    return normalizeXlsxAction(action);
+  } catch (error) {
+    throw new ProviderProtocolError(error.message, { cause: error });
+  }
+}
+
 function validatePlan(value, { capabilityProfile, operation }) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new ProviderProtocolError('Provider plan must be a JSON object');
@@ -301,10 +410,12 @@ function validatePlan(value, { capabilityProfile, operation }) {
   }
   const actions = capabilityProfile === 'word-edit-v1'
     ? value.actions.map((action) => validateWordPlanAction(action, operation))
-    : value.actions.map((action) => validateAction(action, profile.legacyActions, operation));
-  const signatures = actions.map((entry) => capabilityProfile === 'word-edit-v1'
-    ? JSON.stringify({ worker: entry.worker, parameters: entry.parameters, targetRef: entry.targetRef })
-    : entry.kind);
+    : capabilityProfile === 'xlsx-edit-v1'
+      ? value.actions.map(validateXlsxPlanAction)
+      : value.actions.map((action) => validateAction(action, profile.legacyActions, operation));
+  const signatures = actions.map((entry) => capabilityProfile === 'office-planner-v1'
+    ? entry.kind
+    : JSON.stringify({ worker: entry.worker, parameters: entry.parameters, targetRef: entry.targetRef }));
   if (new Set(signatures).size !== actions.length) {
     throw new ProviderProtocolError('Provider plan contains duplicate actions');
   }

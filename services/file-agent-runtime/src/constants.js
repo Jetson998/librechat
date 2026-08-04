@@ -2,12 +2,16 @@ export const TERMINAL_STATUSES = new Set(['completed', 'failed', 'canceled']);
 
 export const TASK_CONTRACT_VERSION_V1 = 'office-file-agent.v1';
 export const TASK_CONTRACT_VERSION_V1_1 = 'office-file-agent.v1.1';
+export const TASK_CONTRACT_VERSION_V1_2 = 'office-file-agent.v1.2';
 export const SUPPORTED_TASK_CONTRACT_VERSIONS = new Set([
   TASK_CONTRACT_VERSION_V1,
   TASK_CONTRACT_VERSION_V1_1,
+  TASK_CONTRACT_VERSION_V1_2,
 ]);
 export const WORD_CAPABILITY_PROFILE = 'word-edit-v1';
+export const XLSX_CAPABILITY_PROFILE = 'xlsx-edit-v1';
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export const STATUS_TRANSITIONS = Object.freeze({
   accepted: new Set(['preparing', 'canceled', 'failed']),
