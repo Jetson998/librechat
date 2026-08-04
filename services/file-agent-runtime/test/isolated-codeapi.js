@@ -5,6 +5,7 @@ import { copyFile, mkdir, readFile, rename, stat, writeFile } from 'node:fs/prom
 import path from 'node:path';
 
 import { DOCX_MIME } from '../src/deterministic-word.js';
+import { PPTX_MIME } from '../src/deterministic-pptx-v1.js';
 import { XLSX_MIME } from '../src/deterministic-xlsx.js';
 
 const BODY_LIMIT = 1024 * 1024;
@@ -334,6 +335,8 @@ export class IsolatedCodeApiServer {
         ? XLSX_MIME
         : virtualPath.toLowerCase().endsWith('.docx')
           ? DOCX_MIME
+          : virtualPath.toLowerCase().endsWith('.pptx')
+            ? PPTX_MIME
           : 'application/octet-stream',
         size: info.size,
         codeEnvRef: {

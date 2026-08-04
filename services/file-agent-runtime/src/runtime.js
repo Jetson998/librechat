@@ -8,6 +8,8 @@ import {
   SUPPORTED_TASK_CONTRACT_VERSIONS,
   TASK_CONTRACT_VERSION_V1_1,
   TASK_CONTRACT_VERSION_V1_2,
+  PPTX_CAPABILITY_PROFILE,
+  PPTX_MIME,
   XLSX_CAPABILITY_PROFILE,
   XLSX_MIME,
   WORD_CAPABILITY_PROFILE,
@@ -18,6 +20,7 @@ import { assertProviderAdapter } from './provider-adapter.js';
 import { normalizeVerificationResult, verificationFingerprint } from './verification-result.js';
 import { normalizeWordAcceptanceAssertions } from './word-acceptance.js';
 import { normalizeXlsxAcceptanceAssertions } from './xlsx-acceptance.js';
+import { normalizePptxAcceptanceAssertions } from './pptx-acceptance.js';
 
 export class RuntimeShutdownError extends Error {
   constructor() {
@@ -68,17 +71,21 @@ export function validateTaskManifest(manifest) {
     }
   }
   if (manifest.taskContractVersion === TASK_CONTRACT_VERSION_V1_2) {
-    if (capabilityProfile !== XLSX_CAPABILITY_PROFILE) {
-      throw new TypeError('office-file-agent.v1.2 currently requires the XLSX capability profile');
+    if (![XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE].includes(capabilityProfile)) {
+      throw new TypeError('office-file-agent.v1.2 requires an M3.1 Office capability profile');
     }
     if (
       !Array.isArray(manifest.inputs) ||
       manifest.inputs.length !== 1 ||
-      manifest.inputs[0]?.mimeType !== XLSX_MIME ||
+      ![XLSX_MIME, PPTX_MIME].includes(manifest.inputs[0]?.mimeType) ||
       typeof manifest.inputs[0]?.logicalName !== 'string' ||
-      !manifest.inputs[0].logicalName.toLowerCase().endsWith('.xlsx')
+      !manifest.inputs[0].logicalName.toLowerCase().endsWith(
+        manifest.inputs[0]?.mimeType === PPTX_MIME ? '.pptx' : '.xlsx',
+      ) ||
+      (capabilityProfile === XLSX_CAPABILITY_PROFILE && manifest.inputs[0]?.mimeType !== XLSX_MIME) ||
+      (capabilityProfile === PPTX_CAPABILITY_PROFILE && manifest.inputs[0]?.mimeType !== PPTX_MIME)
     ) {
-      throw new TypeError('XLSX task contract requires exactly one XLSX input');
+      throw new TypeError('M3.1 Office task contract requires one matching Office input');
     }
   }
   if (capabilityProfile === WORD_CAPABILITY_PROFILE && manifest.taskContractVersion !== TASK_CONTRACT_VERSION_V1_1) {
@@ -92,6 +99,12 @@ export function validateTaskManifest(manifest) {
       throw new TypeError('The XLSX capability profile requires office-file-agent.v1.2');
     }
     normalizeXlsxAcceptanceAssertions(manifest.acceptanceAssertions);
+  }
+  if (capabilityProfile === PPTX_CAPABILITY_PROFILE) {
+    if (manifest.taskContractVersion !== TASK_CONTRACT_VERSION_V1_2) {
+      throw new TypeError('The PPTX capability profile requires office-file-agent.v1.2');
+    }
+    normalizePptxAcceptanceAssertions(manifest.acceptanceAssertions);
   }
 }
 
@@ -116,6 +129,11 @@ export function normalizeTaskManifest(manifest) {
   }
   if (normalized.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE) {
     normalized.acceptanceAssertions = normalizeXlsxAcceptanceAssertions(
+      normalized.acceptanceAssertions,
+    );
+  }
+  if (normalized.model?.capabilityProfile === PPTX_CAPABILITY_PROFILE) {
+    normalized.acceptanceAssertions = normalizePptxAcceptanceAssertions(
       normalized.acceptanceAssertions,
     );
   }
@@ -167,6 +185,10 @@ function isXlsxTask(task) {
   return task?.manifest?.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE;
 }
 
+function isPptxTask(task) {
+  return task?.manifest?.model?.capabilityProfile === PPTX_CAPABILITY_PROFILE;
+}
+
 function hasCompletedWordInspection(task) {
   return Object.values(task?.itemResults ?? {}).some(
     (result) => result?.operation === 'inspect',
@@ -174,6 +196,12 @@ function hasCompletedWordInspection(task) {
 }
 
 function hasCompletedXlsxInspection(task) {
+  return Object.values(task?.itemResults ?? {}).some(
+    (result) => result?.operation === 'inspect',
+  );
+}
+
+function hasCompletedPptxInspection(task) {
   return Object.values(task?.itemResults ?? {}).some(
     (result) => result?.operation === 'inspect',
   );
@@ -641,6 +669,20 @@ export class FileAgentRuntime {
         'The initial XLSX plan must contain exactly one first action: xlsx.inspect.v1',
       );
     }
+    if (
+      isPptxTask(task) &&
+      !hasCompletedPptxInspection(task) &&
+      plan?.needsInput !== true &&
+      (
+        !Array.isArray(plan?.actions) ||
+        plan.actions.length !== 1 ||
+        plan.actions[0]?.worker !== 'pptx.inspect.v1'
+      )
+    ) {
+      throw new TypeError(
+        'The initial PPTX plan must contain exactly one first action: pptx.inspect.v1',
+      );
+    }
 
     await this.store.mutateTask(task.taskId, (current, emit) => {
       if (current.status !== 'planning') {
@@ -695,6 +737,7 @@ export class FileAgentRuntime {
     const shouldReplanAfterInspection = (
       (isWordTask(task) && !hasCompletedWordInspection(task) && action.worker === 'word.inspect.v1') ||
       (isXlsxTask(task) && !hasCompletedXlsxInspection(task) && action.worker === 'xlsx.inspect.v1')
+      || (isPptxTask(task) && !hasCompletedPptxInspection(task) && action.worker === 'pptx.inspect.v1')
     );
     await this.#runItem({
       task,

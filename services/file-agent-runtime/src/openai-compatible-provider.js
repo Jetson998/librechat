@@ -7,6 +7,11 @@ import {
   XLSX_WORKER_IDS,
 } from './deterministic-xlsx-v1.js';
 import {
+  normalizePptxAction,
+  PPTX_VERIFIER_PROFILE,
+  PPTX_WORKER_IDS,
+} from './deterministic-pptx-v1.js';
+import {
   ProviderAmbiguousCommitError,
   ProviderCanceledError,
   ProviderProtocolError,
@@ -26,6 +31,10 @@ const PROFILE_CONFIG = Object.freeze({
   }),
   'xlsx-edit-v1': Object.freeze({
     workers: new Set(XLSX_WORKER_IDS),
+    maxActions: 4,
+  }),
+  'pptx-edit-v1': Object.freeze({
+    workers: new Set(PPTX_WORKER_IDS),
     maxActions: 4,
   }),
 });
@@ -174,11 +183,18 @@ function responseFormatFor(route, operation) {
       },
     };
   }
-  if (route.capabilityProfile === 'xlsx-edit-v1') {
+  if (['xlsx-edit-v1', 'pptx-edit-v1'].includes(route.capabilityProfile)) {
+    const isPptx = route.capabilityProfile === 'pptx-edit-v1';
+    const workerIds = isPptx ? PPTX_WORKER_IDS : XLSX_WORKER_IDS;
+    const verifierProfile = isPptx ? PPTX_VERIFIER_PROFILE : XLSX_VERIFIER_PROFILE;
+    const targetRef = isPptx ? 'candidate:working-pptx' : 'candidate:working-xlsx';
+    const operations = isPptx
+      ? ['inspect', 'validate', 'replace_text', 'set_table_cell', 'add_slide', 'reorder_slides']
+      : ['inspect', 'validate', 'set_cell', 'set_formula', 'add_sheet', 'rename_sheet', 'set_number_format'];
     return {
       type: 'json_schema',
       json_schema: {
-        name: `xlsx_${operation}_plan`,
+        name: `${isPptx ? 'pptx' : 'xlsx'}_${operation}_plan`,
         strict: true,
         schema: {
           type: 'object',
@@ -203,21 +219,21 @@ function responseFormatFor(route, operation) {
                 properties: {
                   schemaVersion: { type: 'string', const: '1.0' },
                   objective: { type: 'string', minLength: 1, maxLength: 1_000 },
-                  worker: { type: 'string', enum: XLSX_WORKER_IDS },
+                  worker: { type: 'string', enum: workerIds },
                   inputRefs: {
                     type: 'array',
                     minItems: 1,
                     maxItems: 20,
                     items: { type: 'string' },
                   },
-                  targetRef: { type: 'string', const: 'candidate:working-xlsx' },
+                  targetRef: { type: 'string', const: targetRef },
                   parameters: {
                     type: 'object',
                     additionalProperties: false,
                     properties: {
                       operation: {
                         type: 'string',
-                        enum: ['inspect', 'validate', 'set_cell', 'set_formula', 'add_sheet', 'rename_sheet', 'set_number_format'],
+                        enum: operations,
                       },
                       sheet: { anyOf: [{ type: 'string', maxLength: 31 }, { type: 'null' }] },
                       cell: { anyOf: [{ type: 'string', pattern: '^[A-Za-z]{1,3}[1-9][0-9]{0,6}$' }, { type: 'null' }] },
@@ -242,7 +258,7 @@ function responseFormatFor(route, operation) {
                     maxItems: 20,
                     items: { type: 'string', minLength: 1, maxLength: 240 },
                   },
-                  verificationProfile: { type: 'string', const: XLSX_VERIFIER_PROFILE },
+                  verificationProfile: { type: 'string', const: verifierProfile },
                   onFailure: { type: 'string', enum: ['replan', 'needs_input', 'fail'] },
                   summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
                 },
@@ -365,6 +381,14 @@ function validateXlsxPlanAction(action) {
   }
 }
 
+function validatePptxPlanAction(action) {
+  try {
+    return normalizePptxAction(action);
+  } catch (error) {
+    throw new ProviderProtocolError(error.message, { cause: error });
+  }
+}
+
 function validatePlan(value, { capabilityProfile, operation }) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new ProviderProtocolError('Provider plan must be a JSON object');
@@ -412,6 +436,8 @@ function validatePlan(value, { capabilityProfile, operation }) {
     ? value.actions.map((action) => validateWordPlanAction(action, operation))
     : capabilityProfile === 'xlsx-edit-v1'
       ? value.actions.map(validateXlsxPlanAction)
+      : capabilityProfile === 'pptx-edit-v1'
+        ? value.actions.map(validatePptxPlanAction)
       : value.actions.map((action) => validateAction(action, profile.legacyActions, operation));
   const signatures = actions.map((entry) => capabilityProfile === 'office-planner-v1'
     ? entry.kind

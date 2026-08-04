@@ -4,8 +4,11 @@ import test from 'node:test';
 import { DEFAULT_RUNTIME_CAPABILITIES } from '../../file-agent-runtime/src/http-server.js';
 import {
   DOCX_MIME,
+  PPTX_CAPABILITY_PROFILE,
+  PPTX_MIME,
   TASK_CONTRACT_VERSION,
   TASK_CONTRACT_VERSION_V1_1,
+  TASK_CONTRACT_VERSION_V1_2,
   WORD_CAPABILITY_PROFILE,
 } from '../src/constants.js';
 import { buildTaskSubmission } from '../src/task-manifest-builder.js';
@@ -61,6 +64,23 @@ test('Word task manifest uses v1.1 only with the Word capability profile', () =>
       taskContractVersion: TASK_CONTRACT_VERSION,
     }).idempotencyKey,
   );
+});
+
+test('PPTX task manifest uses v1.2 and the PPTX capability profile', () => {
+  const built = buildTaskSubmission({
+    ...request({
+      instruction: '更新这个 PowerPoint 并交付修订版',
+      files: [{ ...request().files[0], name: 'source.pptx', mimeType: PPTX_MIME }],
+      acceptanceAssertions: [
+        { type: 'pptx.text_value.v1', slide: 1, shape: 'TitleBox', value: 'Updated' },
+      ],
+    }),
+    capabilityProfile: PPTX_CAPABILITY_PROFILE,
+  });
+  assert.equal(built.manifest.taskContractVersion, TASK_CONTRACT_VERSION_V1_2);
+  assert.equal(built.manifest.model.capabilityProfile, PPTX_CAPABILITY_PROFILE);
+  assert.equal(built.manifest.inputs[0].mimeType, PPTX_MIME);
+  assert.equal(built.manifest.acceptanceAssertions[0].type, 'pptx.text_value.v1');
 });
 
 test('Task manifest builder rejects contract/profile mismatches', () => {

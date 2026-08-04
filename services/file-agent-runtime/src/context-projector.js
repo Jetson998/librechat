@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
-import { XLSX_CAPABILITY_PROFILE } from './constants.js';
+import { PPTX_CAPABILITY_PROFILE, XLSX_CAPABILITY_PROFILE } from './constants.js';
+import { normalizePptxAcceptanceAssertions } from './pptx-acceptance.js';
 import { normalizeWordAcceptanceAssertions } from './word-acceptance.js';
 import { normalizeXlsxAcceptanceAssertions } from './xlsx-acceptance.js';
 
@@ -210,6 +211,46 @@ function projectXlsxDocument(task) {
   return document;
 }
 
+function projectPptxAcceptanceAssertions(task) {
+  const assertions = task.manifest.acceptanceAssertions;
+  if (!Array.isArray(assertions)) {
+    return [];
+  }
+  return structuredClone(normalizePptxAcceptanceAssertions(assertions));
+}
+
+function projectPptxDocument(task) {
+  const inspection = Object.values(task.itemResults ?? {})
+    .reverse()
+    .find((result) => result?.operation === 'inspect' && result?.slides);
+  if (!inspection) {
+    return null;
+  }
+  return {
+    sha256: inspection.sha256 ?? null,
+    slideCount: inspection.slideCount ?? 0,
+    slideWidth: inspection.slideWidth ?? 0,
+    slideHeight: inspection.slideHeight ?? 0,
+    mediaCount: inspection.mediaCount ?? 0,
+    slides: (inspection.slides ?? []).slice(0, 20).map((slide) => ({
+      index: slide.index,
+      shapeCount: slide.shapeCount ?? 0,
+      shapes: (slide.shapes ?? []).slice(0, 100).map((shape) => ({
+        name: truncate(shape.name ?? '', 128),
+        shapeType: shape.shapeType ?? null,
+        text: typeof shape.text === 'string' ? truncate(shape.text, 400) : null,
+        table: shape.table
+          ? {
+              rows: shape.table.rows ?? 0,
+              columns: shape.table.columns ?? 0,
+              cells: (shape.table.cells ?? []).slice(0, 20),
+            }
+          : null,
+      })),
+    })),
+  };
+}
+
 export class ContextProjector {
   constructor({ maxChars = DEFAULT_TOTAL_CHARS } = {}) {
     if (!Number.isInteger(maxChars) || maxChars < 2_000) {
@@ -228,6 +269,9 @@ export class ContextProjector {
       xlsxAcceptanceAssertions: task.manifest.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE
         ? projectXlsxAcceptanceAssertions(task)
         : [],
+      pptxAcceptanceAssertions: task.manifest.model?.capabilityProfile === PPTX_CAPABILITY_PROFILE
+        ? projectPptxAcceptanceAssertions(task)
+        : [],
       state: {
         phase: task.phase,
         planRevision: task.planRevision,
@@ -236,7 +280,9 @@ export class ContextProjector {
       resources: projectResources(task),
       document: task.manifest.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE
         ? projectXlsxDocument(task)
-        : projectWordDocument(task),
+        : task.manifest.model?.capabilityProfile === PPTX_CAPABILITY_PROFILE
+          ? projectPptxDocument(task)
+          : projectWordDocument(task),
       recentItems: recent.items,
       verification: task.verification
         ? {
