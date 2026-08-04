@@ -1,0 +1,114 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "The target must retain the captured post-Office/diagnostic API mount baselines before this four-file overlay can be applied.",
+      "files": {
+        "/app/api/server/controllers/agents/request.js": "eb0ba1cb054951dcd653014753884fed9f1f1cd1d9ffcf444a749ece34df6c9f",
+        "/app/api/server/index.js": "6c24bc39d97a78caaa47dfe4b8ab510dcd385254b615c7e92ac9e8e4c3381cf1",
+        "/app/api/server/routes/agents/chat.js": "f77d6ff5279e7b172d53bca04f85978b30ce2f4f5d2dcbceb036b46e0c4e42a3"
+      },
+      "source_baseline_revision": "b5039f3a9651cbd0fba2c5244dcce83f8f4ce5f0"
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Only LibreChat-API is recreated with four verified read-only API mounts. FILE_AGENT_RUNTIME_ENABLED is explicitly false, so no Runtime service, Connector import, user task, file delivery, MongoDB migration, or model request is started.",
+    "functions": [
+      "Mount the reviewed FileAgentRuntime installer before Agent routing while preserving the current Office pre-parse and initialization-failure recovery paths.",
+      "Keep the existing native Agent flow authoritative whenever the feature is disabled, which is the only production state in this batch.",
+      "Provide a hash-verified, API-only deploy runner with automatic Compose rollback on a failed post-restart check."
+    ],
+    "limitations": [
+      "This batch deliberately does not start file-agent-runtime, configure an allowlist or HMAC secret, or enable Word traffic.",
+      "No user conversation, upload, file task, generated file, or billable model request is used for acceptance.",
+      "An enabled Word pilot requires a separate reviewed Compose/service integration and one allowlisted DOCX acceptance."
+    ],
+    "reason": "Install the reviewed M3-R API integration in a reversible disabled state without rebuilding the full LibreChat source tree or OCI image.",
+    "risk": "Protected API runtime change: a bounded API restart is required, but baseline drift stops the write and automatic rollback restores the prior Compose override. No data schema or non-API service is changed.",
+    "scope": [
+      "services/librechat-file-agent-connector",
+      "deployment/production-patches/2026-08-04-file-agent-runtime-m3r-api-bootstrap"
+    ]
+  },
+  "created_at": "2026-08-04T03:52:23Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-patches/2026-08-04-file-agent-runtime-m3r-api-bootstrap/scripts/deploy.sh",
+    "package_required_paths": [
+      "services/librechat-file-agent-connector/production-overlay/SOURCE_MANIFEST.json"
+    ],
+    "protected_services": [
+      "LibreChat-API"
+    ],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260804-file-agent-runtime-m3r-api-bootstrap",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "method": "Restore the pre-apply compose.override.yaml from the bounded backup and recreate only LibreChat-API. The runner performs this automatically after a failed post-write check; no MongoDB data is modified or removed.",
+      "scope": "LibreChat-API only"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "eaa07d9142783a33931d3f3d131449120a8b7590",
+  "status": "planned",
+  "unresolved_issues": [
+    "file_agent_runtime_remains_disabled_until_a_separate_allowlisted_runtime_pilot"
+  ],
+  "updated_at": "2026-08-04T03:52:23Z",
+  "validation_plan": [
+    {
+      "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3r-api-bootstrap/scripts/test-release.py",
+      "expected": "The four-file handoff, Compose injection, API-only rollback, runner markers, and Python syntax pass without production access.",
+      "type": "local"
+    },
+    {
+      "command": "cd services/librechat-file-agent-connector && npm run check && npm test",
+      "expected": "Connector host, API overlay lifecycle, tenant scope, disabled mode, and full Connector regression pass.",
+      "type": "local"
+    },
+    {
+      "command": "cd services/file-agent-runtime && npm run check && npm test",
+      "expected": "The frozen File Agent Runtime contract and DOCX worker regressions pass without a production request.",
+      "type": "local"
+    },
+    {
+      "command": "scripts/release-preflight.sh 20260804-file-agent-runtime-m3r-api-bootstrap --evidence .release-state/20260804-file-agent-runtime-m3r-api-bootstrap/runtime-preflight.json",
+      "expected": "The live API files match the captured baseline, only planned service and dependency state are checked, resources and rollback location are available, and no production write occurs.",
+      "type": "target"
+    },
+    {
+      "command": "scripts/release-deploy.sh 20260804-file-agent-runtime-m3r-api-bootstrap --confirm 20260804-file-agent-runtime-m3r-api-bootstrap",
+      "expected": "Only LibreChat-API is recreated; all four mounted hashes match; Runtime is explicitly disabled; protected service IDs and root/API/Office checks remain healthy.",
+      "type": "target"
+    }
+  ]
+}
