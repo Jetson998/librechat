@@ -2,9 +2,12 @@
 
 Date: 2026-08-04
 
-Status: approved for development planning. This is a separate M3-R production
-integration batch, not an authorization to package, deploy, enable customer
-traffic, or send a model request.
+Status: superseded for batch and release planning.
+
+The authoritative scope and release policy is now
+`docs/FILE_AGENT_RUNTIME_M3_M31_UNIFIED_BATCH_PLAN.md`. This document remains
+technical reference for the former disabled API bootstrap and its observed
+production baseline. Do not use its separate M3-R batch or release wording.
 
 ## 1. Goal and fixed boundary
 
@@ -115,7 +118,11 @@ their values. The primary rollback is disable the feature, recreate only the
 Runtime and API services, and restore the prior Compose override and three API
 overlay files from the bounded deployment backup.
 
-## 4. Development milestones
+## 4. Historical M3-R milestones
+
+The table below is retained as historical evidence for the disabled API
+bootstrap. It is not an active schedule and must not be used to split the
+unified M3 + M3.1 batch or create a separate release.
 
 | Milestone | Deliverable | Required completion evidence | Status |
 | --- | --- | --- | --- |
@@ -168,9 +175,9 @@ Stop the batch and return to design review if any of the following is true:
 - the first production validation would require more than the one approved,
   allowlisted DOCX task.
 
-## 7. Explicitly deferred work
+## 7. Scope correction
 
-M3.1 Excel, PowerPoint, Office Compose, multiple outputs, task-status UI and
-M4 controlled scripting remain separate product-development tracks. They do
-not delay R1-R4 and must not be added to the M3-R production integration
-candidate.
+M3.1 Excel, PowerPoint, and Office Compose are included in the unified batch
+defined by `docs/FILE_AGENT_RUNTIME_M3_M31_UNIFIED_BATCH_PLAN.md`. They are not
+separate releases and must not be omitted from the final candidate. M4
+controlled scripting, dynamic execution, and unrelated UI remain deferred.

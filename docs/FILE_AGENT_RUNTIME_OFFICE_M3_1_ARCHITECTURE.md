@@ -2,9 +2,12 @@
 
 Date: 2026-08-04
 
-Status: proposed product architecture, ready for review. This document does not
-authorize implementation, packaging, deployment, production traffic, or
-customer-file acceptance.
+Status: technical reference; batch and release planning superseded.
+
+The authoritative unified scope is
+`docs/FILE_AGENT_RUNTIME_M3_M31_UNIFIED_BATCH_PLAN.md`. This document retains
+the M3.1 capability and safety design, but its separate release-batch wording
+must not be used for planning, packaging, or deployment.
 
 ## 一、版本定位
 
@@ -311,15 +314,17 @@ M3.1 不支持任意格式转换图，也不自动把 PDF 或图片 OCR 结果�
 - 只有 Verifier passed 的一个主要 artifact 进入 `processCodeOutput()`；
 - 文件、assistant message、final event 和 generation job 完成后才结束“生成中”。
 
-## 十三、发布边界
+## 十三、统一批次边界
 
-M3-R 和 M3.1 是两个独立发布批次：
+M3 Word 与 M3.1 Excel、PPTX、Compose 属于同一个开发批次和一个客户可见候选。
+它们共享 Runtime、Connector、计费、交付、恢复和双服务回滚实现，不创建
+独立的 M3-R 发布记录或 M3.1 发布记录。
 
-- M3-R 只发布已冻结的 Word capability，可先对 `vip998` 受控试用；
-- M3.1 只有在 Excel、PPTX 和 Compose 各自完成非生产验收后才形成候选；
-- M3.1 不得借用旧 PPT/CodeAPI 历史成功记录替代 Runtime 验收；
-- M3.1 不包含 M4 Script 模式；
-- 任一候选都必须单独执行 LibreChat release governance、回滚和业务验收。
+- M3 Word 必须保持 `word-edit-v1` 语义并通过全量回归；
+- Excel、PPTX 和 Compose 必须分别完成自己的非生产验收；
+- 旧 PPT/CodeAPI 成功记录不能替代 M3.1 Runtime 验收；
+- M4 Script 模式仍不属于当前批次；
+- 最终候选统一执行一次 LibreChat release governance、回滚和业务验收。
 
 ## 十四、完成标准
 

@@ -2,9 +2,12 @@
 
 Date: 2026-08-04
 
-Status: implementation task plan. Development may begin only after architecture
-review approval. This document does not authorize packaging, deployment,
-production traffic, or customer-file acceptance.
+Status: technical task reference; batch and release planning superseded.
+
+The authoritative unified scope, commit policy, and release boundary is
+`docs/FILE_AGENT_RUNTIME_M3_M31_UNIFIED_BATCH_PLAN.md`. The task inventory may
+be used to implement M3.1, but its separate M3-R/M3.1 release-batch wording is
+obsolete.
 
 Architecture source:
 `docs/FILE_AGENT_RUNTIME_OFFICE_M3_1_ARCHITECTURE.md`.
@@ -12,7 +15,8 @@ Architecture source:
 ## 一、执行原则
 
 - 先契约和 fixture，后 Worker，再 Connector，最后联合验收；
-- M3-R 发布工作与 M3.1 开发使用独立 release batch，不相互夹带；
+- M3 Word 与 M3.1 开发使用同一个 unified release batch；技术提交可以多个，
+  但不产生多个公开发布批次；
 - 不修改 `office-file-agent.v1.1` / `word-edit-v1` 既有语义；
 - 不删除 XLSX POC，将其保留为回归并新增正式 Excel capability；
 - 不复用旧 PPT fallback 作为 Runtime 实现证据；
@@ -222,13 +226,13 @@ Compose：
 - billing snapshot 冻结当前模型价格；
 - 继续使用 task/turn delivery、usage、artifact 和 message receipts；
 - 继续通过 `processCodeOutput()` 持久化一个主要输出；
-- 增加独立 feature flags：Word M3-R、Excel M3.1、PPT M3.1、Compose M3.1；
+- 增加按 capability 控制的 feature flags：Word、Excel、PPT、Compose；
 - task 接受后失败关闭，不回退旧 Agent 双执行。
 
 ### 验收
 
 - 普通聊天、图片理解和不支持格式不创建 Runtime task；
-- Word M3-R 开关不受 M3.1 开关影响；
+- Word capability 开关不受其他 M3.1 capability 开关影响；
 - 不同用户、conversation 和 storage session 无法混用文件；
 - usage、file、message、final 重放不重复；
 - 生成文件出现在下载卡和“生成的文件”。
@@ -296,7 +300,7 @@ repair count and progress decisions
 ```
 
 每次提交推送 `origin/main` 后报告测试和剩余门禁。不得将全部实现压成一个提交，也不得
-把 M3-R 发布文件、M4 Script 实现或无关生产补丁混入 M3.1 开发提交。
+把旧的独立 M3-R 发布文件、M4 Script 实现或无关生产补丁混入统一批次提交。
 
 ## 十三、开发完成门
 
