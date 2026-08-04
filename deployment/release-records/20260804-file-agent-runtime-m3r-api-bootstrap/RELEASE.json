@@ -1,7 +1,18 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "acceptance_level": "light",
+      "billable_model_requests": 0,
+      "captured_at": "2026-08-04T04:39:06Z",
+      "changed_path": "Default-disabled File Agent API bootstrap",
+      "checks": [
+        "changed-path-smoke",
+        "main-root"
+      ],
+      "conversation_created": false,
+      "evidence": ".release-state/20260804-file-agent-runtime-m3r-api-bootstrap/acceptance-result.json"
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +24,12 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "method": "Pre-apply compose.override.yaml was copied before the API-only replacement; the runner can restore it and recreate only LibreChat-API.",
+      "path": "/opt/librechat/backups/file-agent-runtime-m3r-api-bootstrap-83617c6e56d3-20260804043712",
+      "scope": "LibreChat-API only"
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -84,6 +99,18 @@
       "source_revision": "eaa07d9142783a33931d3f3d131449120a8b7590",
       "status": "failed_before_apply_no_api_restart",
       "timestamp": "2026-08-04T04:18:19Z"
+    },
+    {
+      "api_container_after": "90766189d86863cdc48474d0ee76a76d925178b9019d4a0e46a5b8807186cbca",
+      "api_container_before": "cc3e8494a9cc5d2b939fc2d9a1edf035dba99ae9027438bb0b8ec5eb9580a2c2",
+      "artifact_sha256": "65e58fe8789052be3d2a768176c10495f6e90fd6df48bcea81d66ccaa0db5ee8",
+      "evidence": ".release-state/20260804-file-agent-runtime-m3r-api-bootstrap/deployment/file-agent-runtime-m3r-api-bootstrap-apply-result.json",
+      "recreated_services": [
+        "LibreChat-API"
+      ],
+      "source_revision": "83617c6e56d3c9c224508e5646a79e79eca3ff62",
+      "status": "passed",
+      "timestamp": "2026-08-04T04:37:31Z"
     }
   ],
   "mode": "protected",
@@ -102,8 +129,22 @@
   "project_id": "librechat-self-host",
   "release_id": "20260804-file-agent-runtime-m3r-api-bootstrap",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "light",
+      "build_requirements": [
+        "deployable-artifact",
+        "versioned-patch-artifact"
+      ],
+      "deployment_targets": [
+        "LibreChat-API"
+      ],
+      "evidence": ".release-state/20260804-file-agent-runtime-m3r-api-bootstrap/release-plan.json",
+      "test_requirements": [
+        "patch-contract-tests",
+        "release-scope-tests"
+      ]
+    },
+    "sha256": "324fccf94cdd319870e3b104e9fbdcafc7d8f5a2412e2af3f6502b32d36b6857"
   },
   "rollback_reference": {
     "details": {
@@ -113,16 +154,37 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "api_container_after": "90766189d86863cdc48474d0ee76a76d925178b9019d4a0e46a5b8807186cbca",
+      "api_container_before": "cc3e8494a9cc5d2b939fc2d9a1edf035dba99ae9027438bb0b8ec5eb9580a2c2",
+      "apply_evidence": ".release-state/20260804-file-agent-runtime-m3r-api-bootstrap/deployment/file-agent-runtime-m3r-api-bootstrap-apply-result.json",
+      "file_agent_runtime_enabled": false,
+      "mounted_target_hashes": {
+        "/app/api/server/controllers/agents/request.js": "7e0f1915530b90addd4424ff0dce128af98ad86037bef8fa1aeb4db03f1dc3e9",
+        "/app/api/server/index.js": "d8e160aff8b5719120f65119f8ad5338e8563190374cb607fed2f3b848f04ec3",
+        "/app/api/server/routes/agents/chat.js": "03ee373d681c012ac1a0efbfa18043a128567d6512f2f52358f8ba0318c71ee1",
+        "/app/api/server/services/FileAgentRuntime.js": "692962021cbf1e1c9b946a9f42e8ac26f4a46513a2e043d5714dc3fe92704d20"
+      },
+      "preflight_evidence": ".release-state/20260804-file-agent-runtime-m3r-api-bootstrap/target-preflight.json",
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "api_config": 200,
+        "main_root": 200,
+        "office_auth_boundary": 401
+      },
+      "recreated_services": [
+        "LibreChat-API"
+      ]
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "83617c6e56d3c9c224508e5646a79e79eca3ff62",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [
     "file_agent_runtime_remains_disabled_until_a_separate_allowlisted_runtime_pilot"
   ],
-  "updated_at": "2026-08-04T04:32:37Z",
+  "updated_at": "2026-08-04T04:39:06Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3r-api-bootstrap/scripts/test-release.py",
