@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "batch": "file-agent-runtime-m3-m31-production-integration",
+  "status": "development_only",
+  "scope": [
+    "word-edit-v1",
+    "xlsx-edit-v1",
+    "pptx-edit-v1",
+    "office-compose-v1",
+    "LibreChat-API",
+    "file-agent-runtime"
+  ],
+  "runtime": {
+    "service": "file-agent-runtime",
+    "internal_port": 8790,
+    "health_path": "/healthz",
+    "host_ports": [],
+    "data_volume": "file-agent-runtime-data",
+    "image_policy": "immutable digest reference required",
+    "codeapi_host": "codeapi",
+    "codeapi_port": 8000,
+    "max_concurrent_tasks": 1
+  },
+  "api": {
+    "service": "api",
+    "connector_root": "/opt/librechat/file-agent-runtime/connector",
+    "runtime_base_url": "http://file-agent-runtime:8790",
+    "feature_flag": "FILE_AGENT_RUNTIME_ENABLED",
+    "default_feature_flag": "false"
+  },
+  "secrets": {
+    "file-agent-service-scope": "API and Runtime HMAC scope secret file",
+    "file-agent-allowlist": "API user allowlist file",
+    "file-agent-model-api-key": "Runtime model relay API key file"
+  },
+  "rollback_scope": [
+    "api",
+    "file-agent-runtime",
+    "compose.override.yaml",
+    "new release-scoped Connector directory"
+  ],
+  "protected_services": [
+    "LibreChat-NGINX",
+    "LibreChat-CodeAPI",
+    "LibreChat-RAG-API",
+    "LibreChat-Admin-Panel",
+    "chat-mongodb"
+  ],
+  "stop_conditions": [
+    "missing explicit enable_runtime=true handoff",
+    "runtime image is not pinned by sha256 digest",
+    "secret or allowlist host file is missing or unreadable",
+    "Compose baseline or container identity drifted after preflight",
+    "Runtime has a host port, public route, or CodeAPI data mount",
+    "API or Runtime health check fails",
+    "native API health/fallback check fails"
+  ]
+}

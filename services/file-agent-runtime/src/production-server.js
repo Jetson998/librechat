@@ -3,9 +3,13 @@ import { pathToFileURL } from 'node:url';
 
 import { CodeApiHttpTransport } from './codeapi-transport.js';
 import { ContextProjector } from './context-projector.js';
+import { CodeApiOfficeComposeV1Executor } from './deterministic-office-compose-v1.js';
+import { CodeApiPptxV1Executor, PPTX_MIME } from './deterministic-pptx-v1.js';
+import { CodeApiXlsxV1Executor, XLSX_MIME } from './deterministic-xlsx-v1.js';
 import { CodeApiWordExecutor, DOCX_MIME } from './deterministic-word.js';
 import { createRuntimeHttpServer } from './http-server.js';
 import { FileModelCallJournal } from './model-call-journal.js';
+import { CodeApiOfficeExecutor } from './office-executor.js';
 import { OpenAiChatTransport, SingleModelAgentProvider } from './openai-compatible-provider.js';
 import { loadProductionRuntimeConfig } from './production-config.js';
 import { FileAgentRuntime } from './runtime.js';
@@ -17,13 +21,20 @@ import {
 
 export const PRODUCTION_RUNTIME_CAPABILITIES = Object.freeze({
   schemaVersion: '1.0',
-  taskContractVersions: ['office-file-agent.v1.1'],
+  taskContractVersions: ['office-file-agent.v1.1', 'office-file-agent.v1.2'],
   taskTypes: ['office_transform'],
-  capabilityProfiles: ['word-edit-v1'],
-  inputMimeTypes: [DOCX_MIME],
-  outputMimeTypes: [DOCX_MIME],
-  maxInputFiles: 1,
+  capabilityProfiles: ['word-edit-v1', 'xlsx-edit-v1', 'pptx-edit-v1', 'office-compose-v1'],
+  inputMimeTypes: [DOCX_MIME, XLSX_MIME, PPTX_MIME],
+  outputMimeTypes: [DOCX_MIME, XLSX_MIME, PPTX_MIME],
+  maxInputFiles: 2,
   maxVisibleArtifacts: 1,
+});
+
+const PROFILE_ROUTE_SUFFIXES = Object.freeze({
+  'word-edit-v1': '',
+  'xlsx-edit-v1': '-xlsx',
+  'pptx-edit-v1': '-pptx',
+  'office-compose-v1': '-compose',
 });
 
 function requiredConfig(config, key) {
@@ -53,7 +64,7 @@ function closeServer(server) {
   });
 }
 
-/** Creates the Word-only production Runtime without starting a network listener. */
+/** Creates the multi-capability production Runtime without starting a network listener. */
 export function createProductionRuntime(config, { store = null, journal = null } = {}) {
   requiredConfig(config, 'dataDir');
   const modelRoute = requiredConfig(config, 'modelRoute');
@@ -61,27 +72,50 @@ export function createProductionRuntime(config, { store = null, journal = null }
   const providerJournal = journal ?? new FileModelCallJournal(
     path.join(config.dataDir, 'provider-journal'),
   );
+  const routes = Object.fromEntries(
+    Object.entries(PROFILE_ROUTE_SUFFIXES).map(([capabilityProfile, suffix]) => [
+      `${modelRoute.routeId}${suffix}`,
+      { ...modelRoute, routeId: `${modelRoute.routeId}${suffix}`, capabilityProfile },
+    ]),
+  );
   const provider = new SingleModelAgentProvider({
-    routes: { [modelRoute.routeId]: modelRoute },
+    routes,
     transport: new OpenAiChatTransport(),
     journal: providerJournal,
     projector: new ContextProjector({ maxChars: config.maxContextChars }),
   });
-  const executor = new CodeApiWordExecutor({
-    transport: new CodeApiHttpTransport({
-      baseUrl: codeApi.baseUrl,
+  const transport = new CodeApiHttpTransport({
+    baseUrl: codeApi.baseUrl,
+    timeoutMs: codeApi.timeoutMs,
+  });
+  const executor = new CodeApiOfficeExecutor({
+    wordExecutor: new CodeApiWordExecutor({ transport, timeoutMs: codeApi.timeoutMs }),
+    xlsxExecutor: new CodeApiXlsxV1Executor({ transport, timeoutMs: codeApi.timeoutMs }),
+    pptxExecutor: new CodeApiPptxV1Executor({ transport, timeoutMs: codeApi.timeoutMs }),
+    composeExecutor: new CodeApiOfficeComposeV1Executor({
+      transport,
       timeoutMs: codeApi.timeoutMs,
     }),
-    timeoutMs: codeApi.timeoutMs,
   });
   return new FileAgentRuntime({
     store: store ?? new FileTaskStore(path.join(config.dataDir, 'tasks')),
     provider,
     executor,
     maxConcurrentTasks: config.maxConcurrentTasks,
-    enabledCapabilityProfiles: new Set(['word-edit-v1']),
-    enabledTaskContractVersions: new Set(['office-file-agent.v1.1']),
+    enabledCapabilityProfiles: new Set(PRODUCTION_RUNTIME_CAPABILITIES.capabilityProfiles),
+    enabledTaskContractVersions: new Set(PRODUCTION_RUNTIME_CAPABILITIES.taskContractVersions),
   });
+}
+
+export function productionModelRouteId(baseRouteId, capabilityProfile) {
+  if (typeof baseRouteId !== 'string' || baseRouteId.trim() === '') {
+    throw new TypeError('baseRouteId is required');
+  }
+  const suffix = PROFILE_ROUTE_SUFFIXES[capabilityProfile];
+  if (suffix == null) {
+    throw new TypeError(`Unsupported production capability profile: ${capabilityProfile}`);
+  }
+  return `${baseRouteId.trim()}${suffix}`;
 }
 
 export function createProductionRuntimeServer(runtime, config) {

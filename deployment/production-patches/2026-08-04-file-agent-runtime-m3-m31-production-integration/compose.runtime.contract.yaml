@@ -1,0 +1,70 @@
+# Template only. The deployment runner resolves these values from an explicit
+# handoff and operator-provided host-file paths. No secret value belongs here.
+services:
+  api:
+    environment:
+      FILE_AGENT_RUNTIME_ENABLED: "${FILE_AGENT_RUNTIME_ENABLED:-false}"
+      FILE_AGENT_CONNECTOR_ROOT: /opt/librechat/file-agent-runtime/connector
+      FILE_AGENT_RUNTIME_BASE_URL: http://file-agent-runtime:8790
+      FILE_AGENT_SERVICE_SCOPE_SECRET_FILE: /run/secrets/file-agent-service-scope
+      FILE_AGENT_RUNTIME_ALLOWLIST_FILE: /run/secrets/file-agent-allowlist
+      FILE_AGENT_RUNTIME_MODEL_ROUTE_ID: file-agent-primary
+    volumes:
+      - ${FILE_AGENT_CONNECTOR_SOURCE_DIR:?FILE_AGENT_CONNECTOR_SOURCE_DIR is required}:/opt/librechat/file-agent-runtime/connector:ro
+    secrets:
+      - file-agent-service-scope
+      - file-agent-allowlist
+
+  file-agent-runtime:
+    image: ${FILE_AGENT_RUNTIME_IMAGE:?FILE_AGENT_RUNTIME_IMAGE is required}
+    restart: unless-stopped
+    expose:
+      - "8790"
+    environment:
+      FILE_AGENT_HOST: 0.0.0.0
+      FILE_AGENT_PORT: "8790"
+      FILE_AGENT_CODEAPI_BASE_URL: http://codeapi:8000
+      FILE_AGENT_SERVICE_SCOPE_SECRET_FILE: /run/secrets/file-agent-service-scope
+      FILE_AGENT_MODEL_API_KEY_FILE: /run/secrets/file-agent-model-api-key
+      FILE_AGENT_MODEL_BASE_URL: ${FILE_AGENT_MODEL_BASE_URL:?FILE_AGENT_MODEL_BASE_URL is required}
+      FILE_AGENT_MODEL: ${FILE_AGENT_MODEL:?FILE_AGENT_MODEL is required}
+      FILE_AGENT_DATA_DIR: /var/lib/file-agent-runtime
+      FILE_AGENT_MAX_CONCURRENT_TASKS: "1"
+      FILE_AGENT_MAX_CONTEXT_CHARS: "12000"
+    secrets:
+      - file-agent-service-scope
+      - file-agent-model-api-key
+    volumes:
+      - file-agent-runtime-data:/var/lib/file-agent-runtime
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cpus: "1.0"
+    mem_limit: 1g
+    depends_on:
+      codeapi:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:8790/healthz').then((r) =>
+          process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  file-agent-runtime-data:
+
+secrets:
+  file-agent-service-scope:
+    file: ${FILE_AGENT_SERVICE_SCOPE_SECRET_HOST_FILE:?FILE_AGENT_SERVICE_SCOPE_SECRET_HOST_FILE is required}
+  file-agent-allowlist:
+    file: ${FILE_AGENT_ALLOWLIST_HOST_FILE:?FILE_AGENT_ALLOWLIST_HOST_FILE is required}
+  file-agent-model-api-key:
+    file: ${FILE_AGENT_MODEL_API_KEY_HOST_FILE:?FILE_AGENT_MODEL_API_KEY_HOST_FILE is required}

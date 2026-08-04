@@ -9,6 +9,7 @@ import {
   createProductionRuntime,
   createProductionRuntimeServer,
 } from '../src/production-server.js';
+import { validateTaskManifest } from '../src/runtime.js';
 import {
   ServiceScopeSigner,
 } from '../../librechat-file-agent-connector/src/service-scope.js';
@@ -61,7 +62,7 @@ function signedRequest(signer, {
   return new Request(`${baseUrl}${pathname}`, { method, headers, body: serializedBody });
 }
 
-test('production Runtime publishes Word-only capabilities and rejects unsigned or legacy tasks', async () => {
+test('production Runtime publishes the four Office capabilities and rejects unsigned or legacy tasks', async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'file-agent-production-runtime-'));
   const resolvedConfig = config(dataDir);
   const runtime = createProductionRuntime(resolvedConfig);
@@ -88,7 +89,18 @@ test('production Runtime publishes Word-only capabilities and rejects unsigned o
       pathname: '/v1/capabilities',
     }));
     assert.equal(capabilities.status, 200);
-    assert.deepEqual((await capabilities.json()).capabilityProfiles, ['word-edit-v1']);
+    const advertised = await capabilities.json();
+    assert.deepEqual(advertised.capabilityProfiles, [
+      'word-edit-v1',
+      'xlsx-edit-v1',
+      'pptx-edit-v1',
+      'office-compose-v1',
+    ]);
+    assert.deepEqual(advertised.taskContractVersions, [
+      'office-file-agent.v1.1',
+      'office-file-agent.v1.2',
+    ]);
+    assert.equal(advertised.maxInputFiles, 2);
 
     const legacyManifest = {
       schemaVersion: '1.0',
@@ -112,4 +124,73 @@ test('production Runtime publishes Word-only capabilities and rejects unsigned o
     await new Promise((resolve) => server.close(() => resolve()));
     await rm(dataDir, { recursive: true, force: true });
   }
+});
+
+test('production Runtime contract accepts one manifest for every enabled Office profile', () => {
+  const common = {
+    schemaVersion: '1.0',
+    taskType: 'office_transform',
+    intent: 'Apply the independently frozen Office change',
+    identity: {},
+    billingRef: 'billing:snapshot-1',
+    execution: { executor: 'codeapi', sessionId: 'session-1' },
+    limits: { maxVisibleArtifacts: 1 },
+  };
+  const input = (logicalName, mimeType, logicalId = null) => [{
+    logicalName,
+    mimeType,
+    ...(logicalId ? { logicalId } : {}),
+    librechatFileRef: `file:${logicalName}`,
+    sha256: 'a'.repeat(64),
+    codeEnvRef: { kind: 'user', id: 'user:user-1', storage_session_id: 'session-1', file_id: logicalName },
+  }];
+  const manifests = [
+    {
+      ...common,
+      taskContractVersion: 'office-file-agent.v1.1',
+      model: { capabilityProfile: 'word-edit-v1' },
+      inputs: input('source.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+      acceptanceAssertions: [{ type: 'word.text_replace.v1', find: 'before', replace: 'after', occurrence: 1 }],
+    },
+    {
+      ...common,
+      taskContractVersion: 'office-file-agent.v1.2',
+      model: { capabilityProfile: 'xlsx-edit-v1' },
+      inputs: input('source.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+      acceptanceAssertions: [{ type: 'xlsx.cell_value.v1', sheet: 'Sheet1', cell: 'A1', value: 42 }],
+    },
+    {
+      ...common,
+      taskContractVersion: 'office-file-agent.v1.2',
+      model: { capabilityProfile: 'pptx-edit-v1' },
+      inputs: input('source.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'),
+      acceptanceAssertions: [{ type: 'pptx.text_value.v1', slide: 1, shape: 'TitleBox', value: 'Updated' }],
+    },
+    {
+      ...common,
+      taskContractVersion: 'office-file-agent.v1.2',
+      model: { capabilityProfile: 'office-compose-v1' },
+      inputs: [
+        ...input('source.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'source:source-xlsx-12345678'),
+        ...input('brief.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'source:brief-docx-12345678'),
+      ],
+      acceptanceAssertions: [
+        { type: 'compose.section_present.v1', slide: 1, title: 'Source Facts' },
+        {
+          type: 'compose.source_mapping.v1',
+          sourceLogicalId: 'source:source-xlsx-12345678',
+          sourceLocation: 'Sheet1!A1',
+          targetSlide: 1,
+          targetShape: 'body',
+        },
+      ],
+    },
+  ];
+  for (const manifest of manifests) {
+    assert.doesNotThrow(() => validateTaskManifest(manifest), manifest.model.capabilityProfile);
+  }
+  assert.deepEqual(
+    PRODUCTION_RUNTIME_CAPABILITIES.capabilityProfiles,
+    manifests.map((manifest) => manifest.model.capabilityProfile),
+  );
 });

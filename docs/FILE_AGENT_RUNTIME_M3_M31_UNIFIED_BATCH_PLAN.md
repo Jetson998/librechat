@@ -197,18 +197,23 @@ the prior two-service state after a failed check.
 
 ## 9. Current gate
 
-Current state is `开发进行中：T6 XLSX/PPTX 独立验收与 Connector 路由已完成，生产统一接入待开发`.
+Current state is `开发进行中：Office 四能力与生产双服务接入已实现，待最终回归与 Sol 终审`.
 
 The current local evidence covers the deterministic Compose contract, bounded
 source facts, source hash and mapping verification, one PPTX artifact, full
 slide rendering, the XLSX -> PPTX, DOCX -> PPTX, and XLSX + DOCX -> PPTX
 isolated CodeAPI scenarios, and fail-closed XLSX/PPTX instruction resolvers.
 The Connector now selects v1.2 and independent assertions for the formal XLSX
-and PPTX profiles, while preserving the M3 Word v1.1 contract. It does not
-claim production capability, Connector production traffic, Compose deployment,
-or customer acceptance.
+and PPTX profiles, while preserving the M3 Word v1.1 contract. The current
+development tree also contains the four-capability production Runtime
+configuration, dynamic API profile routing, read-only Connector source
+mounting, file-backed HMAC/model secrets, user allowlist loading, private
+Runtime health checks, and a bounded API + Runtime apply/rollback runner with
+isolated replay. These are source and test facts only; they do not claim
+production traffic, a built image, Compose deployment, or customer acceptance.
 
 No feature package, image, production preflight, or deployment is authorized
-merely by this document. The next implementation action is to complete the
-unified Runtime/Connector capability routing and then the production Compose,
-secret, health, deployment, and rollback integration under the same batch.
+merely by this document. The next development action is one final complete
+regression and evidence freeze, followed by Sol review. Only after that review
+may the source candidate, OCI image, Compose/runner package, manifest, and
+SHA-256 evidence be generated.

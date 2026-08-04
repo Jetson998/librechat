@@ -60,6 +60,11 @@ function resolveModelRouteId(value, context) {
   return requiredString(resolved, 'modelRouteId');
 }
 
+function resolveTaskContractVersion(value, context) {
+  const resolved = typeof value === 'function' ? value(context) : value;
+  return resolved == null ? null : requiredString(resolved, 'taskContractVersion');
+}
+
 function resolveCapabilityProfile(value, context, files) {
   const resolved = typeof value === 'function' ? value(context) : value;
   if (resolved == null) {
@@ -358,7 +363,7 @@ export function createUpstreamRuntimeRequestResolver({
       context,
       authorized,
     );
-    const resolvedTaskContractVersion = taskContractVersion ?? (
+    const resolvedTaskContractVersion = resolveTaskContractVersion(taskContractVersion, context) ?? (
       resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE
         ? TASK_CONTRACT_VERSION_V1_1
         : [

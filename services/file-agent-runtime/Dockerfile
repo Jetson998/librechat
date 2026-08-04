@@ -5,12 +5,32 @@ FROM ${NODE_IMAGE}
 
 WORKDIR /opt/file-agent
 
-# Both source packages use only Node.js built-ins. The Connector supplies the
-# shared HMAC scope implementation used by the Runtime's internal API.
+# The Runtime uses Node.js for orchestration and registered Python Workers for
+# deterministic Office transformations. LibreOffice is used for full-slide
+# and full-page rendering during verification.
 COPY --chown=node:node services/file-agent-runtime /opt/file-agent/services/file-agent-runtime
 COPY --chown=node:node services/librechat-file-agent-connector /opt/file-agent/services/librechat-file-agent-connector
 
-RUN mkdir -p /var/lib/file-agent-runtime && chown node:node /var/lib/file-agent-runtime
+USER root
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libreoffice-calc \
+    libreoffice-impress \
+    libreoffice-writer \
+    python3 \
+    python3-venv \
+  && python3 -m venv /opt/file-agent/venv \
+  && /opt/file-agent/venv/bin/pip install --no-cache-dir \
+    openpyxl \
+    python-docx \
+    python-pptx \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* \
+  && mkdir -p /var/lib/file-agent-runtime \
+  && chown -R node:node /opt/file-agent /var/lib/file-agent-runtime
+
+ENV PATH="/opt/file-agent/venv/bin:${PATH}"
 
 USER node
 WORKDIR /opt/file-agent/services/file-agent-runtime
