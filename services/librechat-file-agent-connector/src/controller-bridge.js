@@ -16,10 +16,13 @@ function snapshotRef(snapshot) {
 }
 
 export class FileAgentHandoffError extends Error {
-  constructor(message, { cause, userTurnPersisted = false } = {}) {
+  constructor(message, { cause, userTurnPersisted = false, persisted = null } = {}) {
     super(message, cause ? { cause } : undefined);
     this.name = 'FileAgentHandoffError';
     this.userTurnPersisted = userTurnPersisted;
+    if (persisted != null) {
+      this.persisted = persisted;
+    }
   }
 }
 
@@ -30,6 +33,7 @@ export class FileAgentControllerBridge {
     persistUserTurn,
     createBillingSnapshot,
     scheduleReconcile,
+    preflightRequest = null,
   }) {
     if (!connector || typeof connector.prepareRoute !== 'function') {
       throw new TypeError('connector.prepareRoute is required');
@@ -45,9 +49,25 @@ export class FileAgentControllerBridge {
       'createBillingSnapshot',
     );
     this.scheduleReconcile = requiredFunction(scheduleReconcile, 'scheduleReconcile');
+    this.preflightRequest = preflightRequest == null
+      ? null
+      : requiredFunction(preflightRequest, 'preflightRequest');
   }
 
   async tryRoute(context) {
+    if (this.preflightRequest) {
+      const decision = await this.preflightRequest(context);
+      if (decision != null) {
+        if (decision.route !== 'native') {
+          throw new TypeError('preflightRequest may only return a native route decision');
+        }
+        return {
+          routed: false,
+          suppressNativeAgent: false,
+          decision,
+        };
+      }
+    }
     const request = await this.prepareRequest(context);
     if (request?.route === 'native') {
       return {
@@ -111,6 +131,7 @@ export class FileAgentControllerBridge {
       throw new FileAgentHandoffError('Runtime handoff failed after user turn persistence', {
         cause: error,
         userTurnPersisted: true,
+        persisted,
       });
     }
   }
@@ -214,7 +235,7 @@ export class FileAgentControllerBridge {
     } catch (error) {
       throw new FileAgentHandoffError(
         'Runtime continuation handoff failed after user turn persistence',
-        { cause: error, userTurnPersisted: true },
+        { cause: error, userTurnPersisted: true, persisted },
       );
     }
   }

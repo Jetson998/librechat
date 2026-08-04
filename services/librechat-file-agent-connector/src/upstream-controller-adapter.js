@@ -525,6 +525,7 @@ export function createUpstreamControllerBridge({
   limits,
   computeFileDigest,
   resolveAcceptanceAssertions,
+  preflightRequest,
 }) {
   return new FileAgentControllerBridge({
     connector,
@@ -537,6 +538,7 @@ export function createUpstreamControllerBridge({
       limits,
       computeFileDigest,
     }),
+    preflightRequest,
     persistUserTurn: ({ persistUserTurn }) => persistUserTurn(),
     createBillingSnapshot: createUpstreamBillingSnapshotCreator({
       billingSnapshotStore,

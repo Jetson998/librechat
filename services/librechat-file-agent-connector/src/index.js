@@ -55,3 +55,14 @@ export {
   WORD_ACCEPTANCE_RESOLVER_VERSION,
   resolveWordAcceptanceAssertions,
 } from './word-acceptance-resolver.js';
+export {
+  ProductionHostConfigError,
+  loadProductionHostConfig,
+} from './production-host-config.js';
+export {
+  FILE_AGENT_ACTIVE_TASK_COLLECTION,
+  FILE_AGENT_BILLING_SNAPSHOT_COLLECTION,
+  FILE_AGENT_DELIVERY_COLLECTION,
+  createProductionWordPreflight,
+  startProductionLibreChatHostIntegration,
+} from './production-host-integration.js';

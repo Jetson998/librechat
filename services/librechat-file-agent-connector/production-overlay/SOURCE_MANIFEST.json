@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "batch": "file-agent-runtime-m3r-r2",
+  "status": "development",
+  "captured_production_api": {
+    "description": "Exact read-only API mount baseline captured for the M3-R R0 manifest. Any changed baseline invalidates an overlay apply.",
+    "files": [
+      {
+        "path": "api/server/index.js",
+        "baseline": "api/baseline/api/server/index.js",
+        "baseline_sha256": "6c24bc39d97a78caaa47dfe4b8ab510dcd385254b615c7e92ac9e8e4c3381cf1",
+        "baseline_bytes": 17410,
+        "overlay": "api/overlay/api/server/index.js",
+        "overlay_sha256": "d8e160aff8b5719120f65119f8ad5338e8563190374cb607fed2f3b848f04ec3",
+        "overlay_bytes": 17719
+      },
+      {
+        "path": "api/server/controllers/agents/request.js",
+        "baseline": "api/baseline/api/server/controllers/agents/request.js",
+        "baseline_sha256": "eb0ba1cb054951dcd653014753884fed9f1f1cd1d9ffcf444a749ece34df6c9f",
+        "baseline_bytes": 53647,
+        "overlay": "api/overlay/api/server/controllers/agents/request.js",
+        "overlay_sha256": "7e0f1915530b90addd4424ff0dce128af98ad86037bef8fa1aeb4db03f1dc3e9",
+        "overlay_bytes": 62147
+      },
+      {
+        "path": "api/server/routes/agents/chat.js",
+        "baseline": "api/baseline/api/server/routes/agents/chat.js",
+        "baseline_sha256": "f77d6ff5279e7b172d53bca04f85978b30ce2f4f5d2dcbceb036b46e0c4e42a3",
+        "baseline_bytes": 4772,
+        "overlay": "api/overlay/api/server/routes/agents/chat.js",
+        "overlay_sha256": "03ee373d681c012ac1a0efbfa18043a128567d6512f2f52358f8ba0318c71ee1",
+        "overlay_bytes": 4842
+      }
+    ]
+  },
+  "new_api_file": {
+    "path": "api/server/services/FileAgentRuntime.js",
+    "source": "api/server/services/FileAgentRuntime.js",
+    "sha256": "692962021cbf1e1c9b946a9f42e8ac26f4a46513a2e043d5714dc3fe92704d20",
+    "bytes": 10260
+  },
+  "invariants": [
+    "Disabled mode imports no Connector, reads no Runtime secret or allowlist, creates no Mongo index, and sends no Runtime request.",
+    "The existing officePreparseSignal and initialization-failure persistence paths remain present in the Agent controller overlay.",
+    "An accepted Runtime handoff persists one user turn, emits one created event, and suppresses the native Agent.",
+    "A post-persistence handoff error creates one terminal assistant error and releases the request exactly once.",
+    "Delayed Runtime delivery operations restore user and tenant scope before native LibreChat data access."
+  ]
+}

@@ -99,6 +99,38 @@ test('host turn constraints can return native before Runtime capability discover
   });
 });
 
+test('a production preflight keeps the request native before request preparation', async () => {
+  const calls = [];
+  const bridge = new FileAgentControllerBridge({
+    connector: {
+      prepareRoute: async () => {
+        calls.push('prepare-route');
+        throw new Error('must not prepare a native fallback');
+      },
+      submit: async () => {},
+    },
+    preflightRequest: async () => ({ route: 'native', reason: 'user_not_allowlisted' }),
+    prepareRequest: async () => {
+      calls.push('prepare-request');
+      throw new Error('must not hash or resolve a native fallback');
+    },
+    persistUserTurn: async () => {
+      calls.push('persist');
+    },
+    createBillingSnapshot: async () => {
+      calls.push('snapshot');
+    },
+    scheduleReconcile: async () => {
+      calls.push('schedule');
+    },
+  });
+
+  const result = await bridge.tryRoute({ req: {} });
+
+  assert.deepEqual(result.decision, { route: 'native', reason: 'user_not_allowlisted' });
+  assert.deepEqual(calls, []);
+});
+
 test('an explicit continuation steers the only active task without creating a new billing snapshot', async () => {
   const calls = [];
   const bridge = new FileAgentControllerBridge({
@@ -234,6 +266,7 @@ test('a post-persistence handoff failure never falls back to the native Agent', 
     (error) => {
       assert.ok(error instanceof FileAgentHandoffError);
       assert.equal(error.userTurnPersisted, true);
+      assert.deepEqual(error.persisted, persisted());
       assert.match(error.message, /after user turn persistence/);
       return true;
     },

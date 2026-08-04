@@ -169,7 +169,11 @@ export class NativeLibreChatPorts {
     const missing = prepared.filter((entry) => !existingIds.has(String(entry.doc._id)));
     if (missing.length > 0) {
       await this.bulkWriteTransactions(
-        { user: delivery.user, docs: missing },
+        {
+          user: delivery.user,
+          tenantId: delivery.tenantId ?? undefined,
+          docs: missing,
+        },
         this.transactionDbOps,
       );
     }
