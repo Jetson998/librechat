@@ -17,6 +17,8 @@ const XLSX_LOCATION_ASCII = /\b([A-Za-z0-9_][A-Za-z0-9 _.-]{0,30})!([A-Z]{1,3}[1
 const DOCX_LOCATION = /(?:body\.paragraph\[([0-9]{1,2})\]|(?:第\s*)?([1-9][0-9]?)\s*(?:段|paragraph))/giu;
 const COMPOSE_INTENT = /(?:生成|制作|汇总|整理|导出|转换|演示文稿|汇报|PowerPoint|PPTX|compose|presentation|slide|deck)/iu;
 const MULTIPLE_OUTPUT_INTENT = /(?:两个|多份|多个|two|multiple|several)\s*(?:个|份)?\s*(?:文件|文档|PPTX|演示文稿|files?|documents?|decks?)/iu;
+const NATURAL_COMPOSE_TITLE = /(?:生成|制作|汇总|整理|导出|create|generate|summari[sz]e|export)\s*(?:一页|一張|一张|one[-\s]?page)?\s*(?:一个|一份|a|an|one)?\s*(.{3,120}?)(?=\s*(?:PPTX?|PowerPoint|演示文稿|幻灯片|presentation|slides?|deck)\b)/iu;
+const GENERIC_COMPOSE_TITLE = /^(?:汇报|报告|演示|presentation|slides?|deck|pptx?)$/iu;
 
 function filenameStem(value) {
   return String(value ?? '')
@@ -31,11 +33,12 @@ export function sourceLogicalIdForFile(file) {
   if (fileId === '') {
     throw new TypeError('Compose source file ID is required');
   }
-  const stem = filenameStem(file?.filename ?? file?.name)
+  const rawStem = filenameStem(file?.filename ?? file?.name)
     .toLowerCase()
     .replace(/[^a-z0-9]+/gu, '-')
     .replace(/^-+|-+$/gu, '')
     .slice(0, 40) || 'source';
+  const stem = /^[a-z]/u.test(rawStem) ? rawStem : `source-${rawStem}`;
   return `source:${stem}-${sha256(fileId).slice(0, 8)}`;
 }
 
@@ -76,6 +79,20 @@ function docxLocations(instruction) {
     });
 }
 
+function naturalComposeTitle(instruction) {
+  const match = instruction.match(NATURAL_COMPOSE_TITLE);
+  if (!match) {
+    return null;
+  }
+  const title = match[1]
+    .replace(/^[\s:：，,、和与及]+|[\s:：，,、和与及]+$/gu, '')
+    .trim();
+  if (title.length < 3 || GENERIC_COMPOSE_TITLE.test(title)) {
+    return null;
+  }
+  return title.slice(0, 400);
+}
+
 /**
  * Resolves only explicit source locations. Values are intentionally absent:
  * the Runtime Inspector reads the authorized bytes and the Verifier checks
@@ -103,7 +120,15 @@ export function resolveOfficeComposeAcceptanceAssertions({ files, instruction })
   for (const source of sources) {
     const sourceLocations = source.kind === 'xlsx' ? xlsxLocations(instruction) : docxLocations(instruction);
     if (sourceLocations.length === 0) {
-      return null;
+      const title = naturalComposeTitle(instruction);
+      if (!title) {
+        return null;
+      }
+      return normalizeOfficeComposeAcceptanceAssertions([{
+        type: OFFICE_COMPOSE_ACCEPTANCE_TYPES.SECTION_PRESENT,
+        slide: 1,
+        title,
+      }]);
     }
     for (const sourceLocation of sourceLocations) {
       locations.push({

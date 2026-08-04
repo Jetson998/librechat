@@ -17,6 +17,7 @@ import {
   startUpstreamLibreChatHostIntegration,
 } from './upstream-controller-adapter.js';
 import { resolveOfficeComposeAcceptanceAssertions } from './office-compose-acceptance-resolver.js';
+import { resolveOfficeTaskIntent } from './office-task-intent.js';
 import { resolvePptxAcceptanceAssertions } from './pptx-acceptance-resolver.js';
 import { resolveWordAcceptanceAssertions } from './word-acceptance-resolver.js';
 import { resolveXlsxAcceptanceAssertions } from './xlsx-acceptance-resolver.js';
@@ -105,34 +106,10 @@ function acceptanceResolverForProfile(profile) {
 }
 
 function productionCapabilityProfile({ files, instruction }) {
-  if (!Array.isArray(files) || files.length < 1 || files.length > 2) {
-    return null;
-  }
   if (files.some((file) => !attachmentFormatSupported(file))) {
     return null;
   }
-  if (files.some((file) => file.type === PPTX_MIME) && files.length !== 1) {
-    return null;
-  }
-  if (
-    files.length <= 2
-    && files.every((file) => [DOCX_MIME, XLSX_MIME].includes(file.type))
-  ) {
-    const composeAssertions = resolveOfficeComposeAcceptanceAssertions({ files, instruction });
-    if (Array.isArray(composeAssertions)) {
-      return OFFICE_COMPOSE_CAPABILITY_PROFILE;
-    }
-  }
-  if (files.length === 1 && files[0].type === DOCX_MIME) {
-    return WORD_CAPABILITY_PROFILE;
-  }
-  if (files.length === 1 && files[0].type === XLSX_MIME) {
-    return XLSX_CAPABILITY_PROFILE;
-  }
-  if (files.length === 1 && files[0].type === PPTX_MIME) {
-    return PPTX_CAPABILITY_PROFILE;
-  }
-  return null;
+  return resolveOfficeTaskIntent({ files, instruction })?.profile ?? null;
 }
 
 function productionModelRouteId(baseRouteId, profile) {
@@ -366,6 +343,7 @@ export async function startProductionLibreChatHostIntegration({
 
 export {
   loadProductionHostConfig,
+  resolveOfficeTaskIntent,
   productionCapabilityProfile,
   productionModelRouteId,
 };
