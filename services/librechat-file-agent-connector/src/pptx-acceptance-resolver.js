@@ -202,29 +202,6 @@ function parseSlideOrder(instruction, assertions, seen) {
   }
 }
 
-function parseSlideCopy(instruction, assertions, seen) {
-  const patterns = [
-    /(?:复制|拷贝|复制出)\s*第\s*([1-9][0-9]*)\s*(?:页|张)\s*(?:到|至)\s*第\s*([1-9][0-9]*)\s*(?:页|张)/giu,
-    /(?:copy|duplicate)\s+slide\s+([1-9][0-9]*)\s+(?:to|into)\s+slide\s+([1-9][0-9]*)/giu,
-  ];
-  for (const pattern of patterns) {
-    for (const match of instruction.matchAll(pattern)) {
-      const sourceSlide = Number(match[1]);
-      const destination = Number(match[2]);
-      if (![sourceSlide, destination].every((value) => Number.isSafeInteger(value) && value >= 1 && value <= 200)) {
-        continue;
-      }
-      addAssertion(
-        assertions,
-        seen,
-        { schemaVersion: '1.0', type: PPTX_ACCEPTANCE_TYPES.SLIDE_COPY, sourceSlide, destination },
-        match.index ?? 0,
-        (match.index ?? 0) + match[0].length,
-      );
-    }
-  }
-}
-
 function parseSlideAddition(instruction, assertions, seen) {
   const patterns = [
     new RegExp(String.raw`(?:新增|添加|增加|插入)\s*(?:一页|一張|一张|一个页面|一张幻灯片|一页幻灯片)(?:[\s，,：:]*(?:标题|题目)\s*(?:为|是|叫做|名为)\s*${VALUE_CAPTURE})?`, 'giu'),
@@ -284,7 +261,6 @@ export function resolvePptxAcceptanceAssertions({ instruction, files } = {}) {
   parseTextValues(parserInstruction, assertions, seen);
   parseTableValues(parserInstruction, assertions, seen);
   parseSlideOrder(parserInstruction, assertions, seen);
-  parseSlideCopy(parserInstruction, assertions, seen);
   parseSlideAddition(parserInstruction, assertions, seen);
   parseSlideDeletion(parserInstruction, assertions, seen);
   assertions.sort((left, right) => left.start - right.start);

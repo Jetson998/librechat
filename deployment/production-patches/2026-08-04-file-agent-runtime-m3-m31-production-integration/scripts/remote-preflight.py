@@ -15,7 +15,6 @@ from runner_common import RUNTIME_SERVICE, require, sha256, validate_handoff
 ROOT = Path("/opt/librechat")
 API_CONTAINER = "LibreChat-API"
 PROTECTED_CONTAINERS = (
-    "LibreChat-API",
     "chat-mongodb",
     "LibreChat-CodeAPI",
     "LibreChat-NGINX",
@@ -127,6 +126,7 @@ def main() -> None:
         require(not runtime_payload.get("HostConfig", {}).get("PortBindings"), "existing Runtime publishes a host port")
 
     containers = {name: inspect(name) for name in PROTECTED_CONTAINERS}
+    api_payload = inspect(API_CONTAINER)
     codeapi_health = run(
         [
             "docker",
@@ -165,6 +165,10 @@ def main() -> None:
             "compose_override_sha256": sha256(compose_override),
             "runtime_service_present": runtime_present,
             "runtime_container_id": runtime_id,
+            "api": {
+                "image_id": api_payload["Image"],
+                "image_ref": api_payload.get("Config", {}).get("Image"),
+            },
             "containers": {
                 name: {
                     "id": payload["Id"],

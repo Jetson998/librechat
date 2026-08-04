@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   DOCX_MIME,
+  OFFICE_COMPOSE_CAPABILITY_PROFILE,
   PPTX_CAPABILITY_PROFILE,
   PPTX_MIME,
   XLSX_CAPABILITY_PROFILE,
@@ -10,6 +11,7 @@ import {
 } from '../src/constants.js';
 import { resolvePptxAcceptanceAssertions } from '../src/pptx-acceptance-resolver.js';
 import { resolveXlsxAcceptanceAssertions } from '../src/xlsx-acceptance-resolver.js';
+import { resolveOfficeTaskIntent } from '../src/office-task-intent.js';
 import { createUpstreamRuntimeRequestResolver } from '../src/upstream-controller-adapter.js';
 import { decideFileAgentCapabilityRoute } from '../src/task-router.js';
 
@@ -201,7 +203,7 @@ test('PPTX acceptance resolver supports multiple mapped actions and fails closed
   );
 });
 
-test('PPTX acceptance resolver maps real language for slide deletion and copying', () => {
+test('PPTX acceptance resolver maps real language for supported slide deletion and rejects copying', () => {
   const deleted = resolvePptxAcceptanceAssertions({
     files: [file(PPTX_MIME)],
     instruction: '删除第2页，并交付 PPTX',
@@ -213,11 +215,7 @@ test('PPTX acceptance resolver maps real language for slide deletion and copying
     files: [file(PPTX_MIME)],
     instruction: '复制第1页到第3页，并交付 PPTX',
   });
-  assert.equal(copied?.[0].type, 'pptx.slide_copy.v1');
-  assert.deepEqual(
-    { sourceSlide: copied?.[0].sourceSlide, destination: copied?.[0].destination },
-    { sourceSlide: 1, destination: 3 },
-  );
+  assert.equal(copied, null);
   const added = resolvePptxAcceptanceAssertions({
     files: [file(PPTX_MIME)],
     instruction: '新增一页，标题为“Appendix”，并交付 PPTX',
@@ -225,6 +223,18 @@ test('PPTX acceptance resolver maps real language for slide deletion and copying
   assert.equal(added?.[0].type, 'pptx.slide_add.v1');
   assert.equal(added?.[0].position, 'append');
   assert.equal(added?.[0].title, 'Appendix');
+});
+
+test('Office Compose with DOCX and XLSX defaults to one PPTX output', () => {
+  const intent = resolveOfficeTaskIntent({
+    files: [
+      file(DOCX_MIME, 'source.docx'),
+      file(XLSX_MIME, 'source.xlsx'),
+    ],
+    instruction: '汇总这两个文件并生成 PPTX',
+  });
+  assert.equal(intent?.profile, OFFICE_COMPOSE_CAPABILITY_PROFILE);
+  assert.equal(intent?.outputMimeType, PPTX_MIME);
 });
 
 test('upstream Runtime resolver selects the formal XLSX and PPTX acceptance contracts', async () => {

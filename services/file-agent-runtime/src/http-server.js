@@ -74,13 +74,17 @@ export async function handleRuntimeFetch(
     capabilities = DEFAULT_RUNTIME_CAPABILITIES,
     authorizeRequest = null,
     healthResponse = DEFAULT_HEALTH_RESPONSE,
+    taskRequestCounter = null,
   } = {},
 ) {
   try {
     const url = new URL(request.url);
 
     if (request.method === 'GET' && url.pathname === '/healthz') {
-      return jsonResponse(200, healthResponse);
+      return jsonResponse(200, {
+        ...healthResponse,
+        runtime_request_count: taskRequestCounter?.accepted ?? 0,
+      });
     }
 
     if (url.pathname.startsWith('/v1/') && authorizeRequest) {
@@ -95,6 +99,9 @@ export async function handleRuntimeFetch(
       const idempotencyKey = request.headers.get('idempotency-key');
       const manifest = await readRequestJson(request);
       const result = await runtime.submit({ idempotencyKey, manifest });
+      if (result.created && taskRequestCounter) {
+        taskRequestCounter.accepted += 1;
+      }
       return jsonResponse(result.created ? 202 : 200, result);
     }
 
@@ -172,6 +179,7 @@ function toWebHeaders(incomingHeaders) {
 }
 
 export function createRuntimeHttpServer(runtime, options = {}) {
+  const taskRequestCounter = { accepted: 0 };
   return createServer(async (incoming, outgoing) => {
     try {
       const body = ['GET', 'HEAD'].includes(incoming.method) ? undefined : await readIncomingBody(incoming);
@@ -180,7 +188,10 @@ export function createRuntimeHttpServer(runtime, options = {}) {
         headers: toWebHeaders(incoming.headers),
         body,
       });
-      const response = await handleRuntimeFetch(runtime, request, options);
+      const response = await handleRuntimeFetch(runtime, request, {
+        ...options,
+        taskRequestCounter,
+      });
       const responseBody = Buffer.from(await response.arrayBuffer());
       outgoing.writeHead(response.status, Object.fromEntries(response.headers));
       outgoing.end(responseBody);

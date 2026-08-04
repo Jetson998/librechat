@@ -293,7 +293,7 @@ test('PPTX slide order is independently verified', async (t) => {
   assert.ok(completed.verification.passedAssertionCodes.includes('pptx.required_changes.applied'));
 });
 
-test('PPTX slide deletion and copy are independently verified', async (t) => {
+test('PPTX slide deletion is independently verified and slide copying is out of scope', async (t) => {
   const deleted = await createHarness(t, {
     actions: [pptxAction('pptx.transform.v1', {
       operation: 'delete_slide',
@@ -316,28 +316,21 @@ test('PPTX slide deletion and copy are independently verified', async (t) => {
   assert.equal(deletedTask.status, 'completed', JSON.stringify(deletedTask.verification));
   assert.equal(deletedTask.verification.passed, true);
 
-  const copied = await createHarness(t, {
-    actions: [pptxAction('pptx.transform.v1', {
-      operation: 'copy_slide',
-      slide: 1,
-      destination: 3,
-    }, ['slide3.copy'], 'Copy the first slide to the end')],
-    acceptanceAssertions: [
-      { type: 'pptx.slide_count.v1', count: 3 },
-      { type: 'pptx.text_value.v1', slide: 3, shape: 'TitleBox', value: 'Quarterly Report' },
-    ],
-  });
-  const copiedSubmission = await copied.runtime.submit({
-    idempotencyKey: 'pptx-v1-copy-slide',
-    manifest: copied.manifest,
-  });
-  const copiedTask = await copied.runtime.waitFor(
-    copiedSubmission.task.taskId,
-    (task) => ['completed', 'needs_input', 'failed'].includes(task.status),
-    { timeoutMs: 45_000 },
+  assert.throws(
+    () => normalizePptxAction({
+      schemaVersion: '1.0',
+      objective: 'Copy one presentation slide',
+      worker: 'pptx.transform.v1',
+      inputRefs: ['input:source-pptx'],
+      targetRef: 'candidate:working-pptx',
+      parameters: { operation: 'copy_slide', slide: 1, destination: 3 },
+      expectedChange: ['slide.copy'],
+      verificationProfile: PPTX_VERIFIER_PROFILE,
+      onFailure: 'replan',
+      summary: 'Copy the first slide to the end',
+    }),
+    /copy_slide|unsupported/i,
   );
-  assert.equal(copiedTask.status, 'completed', JSON.stringify(copiedTask.verification));
-  assert.equal(copiedTask.verification.passed, true);
 
   const added = await createHarness(t, {
     actions: [pptxAction('pptx.transform.v1', {

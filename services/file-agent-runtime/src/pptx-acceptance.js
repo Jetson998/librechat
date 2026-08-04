@@ -5,7 +5,6 @@ export const PPTX_ACCEPTANCE_TYPES = Object.freeze({
   SLIDE_PRESENT: 'pptx.slide_present.v1',
   SLIDE_ABSENT: 'pptx.slide_absent.v1',
   SLIDE_ADD: 'pptx.slide_add.v1',
-  SLIDE_COPY: 'pptx.slide_copy.v1',
   SLIDE_COUNT: 'pptx.slide_count.v1',
   TEXT_VALUE: 'pptx.text_value.v1',
   TABLE_CELL_VALUE: 'pptx.table_cell_value.v1',
@@ -21,7 +20,6 @@ const PPTX_BUSINESS_CHANGE_TYPES = new Set([
   PPTX_ACCEPTANCE_TYPES.SLIDE_PRESENT,
   PPTX_ACCEPTANCE_TYPES.SLIDE_ABSENT,
   PPTX_ACCEPTANCE_TYPES.SLIDE_ADD,
-  PPTX_ACCEPTANCE_TYPES.SLIDE_COPY,
   PPTX_ACCEPTANCE_TYPES.SLIDE_COUNT,
   PPTX_ACCEPTANCE_TYPES.TEXT_VALUE,
   PPTX_ACCEPTANCE_TYPES.TABLE_CELL_VALUE,
@@ -115,14 +113,6 @@ function normalizeAssertion(assertion, index) {
       type,
       position: 'append',
       title: assertion.title == null ? null : requiredText(assertion.title, `acceptanceAssertions[${index}].title`),
-    };
-  }
-  if (type === PPTX_ACCEPTANCE_TYPES.SLIDE_COPY) {
-    return {
-      schemaVersion: PPTX_ACCEPTANCE_SCHEMA_VERSION,
-      type,
-      sourceSlide: positiveInteger(assertion.sourceSlide, `acceptanceAssertions[${index}].sourceSlide`),
-      destination: positiveInteger(assertion.destination, `acceptanceAssertions[${index}].destination`),
     };
   }
   if (type === PPTX_ACCEPTANCE_TYPES.SLIDE_COUNT) {

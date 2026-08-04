@@ -175,7 +175,7 @@ function normalizePptxParameters(parameters, worker) {
   }
   if (
     (worker === 'pptx.transform.v1' || worker === 'pptx.patch.v1') &&
-    !['replace_text', 'set_table_cell', 'add_slide', 'delete_slide', 'copy_slide', 'reorder_slides'].includes(operation)
+    !['replace_text', 'set_table_cell', 'add_slide', 'delete_slide', 'reorder_slides'].includes(operation)
   ) {
     throw new TypeError(`Unsupported PPTX transform operation: ${operation}`);
   }
@@ -200,14 +200,8 @@ function normalizePptxParameters(parameters, worker) {
     if (parameters.title != null) {
       normalized.title = requiredString(parameters.title, 'parameters.title');
     }
-  } else if (operation === 'delete_slide' || operation === 'copy_slide') {
+  } else if (operation === 'delete_slide') {
     normalized.slide = positiveInteger(parameters.slide, 'parameters.slide');
-    if (operation === 'copy_slide') {
-      normalized.destination = parameters.destination ?? null;
-      if (normalized.destination != null) {
-        normalized.destination = positiveInteger(normalized.destination, 'parameters.destination', 200);
-      }
-    }
   } else if (operation === 'reorder_slides') {
     if (!Array.isArray(parameters.order) || parameters.order.length === 0 || parameters.order.length > 200) {
       throw new TypeError('parameters.order must contain between 1 and 200 slide numbers');
@@ -262,8 +256,6 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
-from copy import deepcopy
-from io import BytesIO
 from pathlib import Path
 
 from pptx import Presentation
@@ -436,36 +428,6 @@ def delete_slide(presentation, slide_number):
     slide_id_list = presentation.slides._sldIdLst
     slide_id_list.remove(slide_id_list[slide_number - 1])
 
-def copy_slide(presentation, slide_number, destination=None):
-    if slide_number < 1 or slide_number > len(presentation.slides):
-        raise ValueError("PPTX slide was not found")
-    source_slide = presentation.slides[slide_number - 1]
-    target_slide = presentation.slides.add_slide(presentation.slide_layouts[6])
-    for shape in source_slide.shapes:
-        if str(shape.shape_type).endswith("PICTURE"):
-            copied = target_slide.shapes.add_picture(BytesIO(shape.image.blob), shape.left, shape.top, shape.width, shape.height)
-            copied.name = shape.name
-        elif getattr(shape, "has_table", False):
-            copied_frame = target_slide.shapes.add_table(len(shape.table.rows), len(shape.table.columns), shape.left, shape.top, shape.width, shape.height)
-            copied_frame.name = shape.name
-            copied = copied_frame.table
-            for row in range(len(shape.table.rows)):
-                for column in range(len(shape.table.columns)):
-                    copied.cell(row, column).text = shape.table.cell(row, column).text
-        elif getattr(shape, "has_text_frame", False):
-            copied = target_slide.shapes.add_textbox(shape.left, shape.top, shape.width, shape.height)
-            copied.name = shape.name
-            copied.text = shape.text
-        else:
-            target_slide.shapes._spTree.insert_element_before(deepcopy(shape.element), 'p:extLst')
-    if destination is not None:
-        if destination < 1 or destination > len(presentation.slides):
-            raise ValueError("PPTX destination slide was not found")
-        slide_id_list = presentation.slides._sldIdLst
-        copied_id = slide_id_list[-1]
-        slide_id_list.remove(copied_id)
-        slide_id_list.insert(destination - 1, copied_id)
-
 def main():
     root, task_root, source = source_path()
     output = safe_path(Path(os.environ["FILE_AGENT_OUTPUT_PATH"]), root, task_root)
@@ -533,8 +495,6 @@ def main():
                     break
     elif operation == "delete_slide":
         delete_slide(presentation, parameters["slide"])
-    elif operation == "copy_slide":
-        copy_slide(presentation, parameters["slide"], parameters.get("destination"))
     elif operation == "reorder_slides":
         reorder_slides(presentation, parameters["order"])
     else:
@@ -617,25 +577,6 @@ def shape_map(presentation, by_part=False):
                     for column in range(len(shape.table.columns)):
                         tables[f"{key}!{row}!{column}"] = shape.table.cell(row, column).text
     return values, tables
-
-def copy_shape_map(slide):
-    values = {}
-    for shape in slide.shapes:
-        if getattr(shape, "has_text_frame", False):
-            values[shape.name] = ("text", shape.text)
-        elif getattr(shape, "has_table", False):
-            values[shape.name] = (
-                "table",
-                len(shape.table.rows),
-                len(shape.table.columns),
-                tuple(
-                    tuple(shape.table.cell(row, column).text for column in range(len(shape.table.columns)))
-                    for row in range(len(shape.table.rows))
-                ),
-            )
-        elif str(shape.shape_type).endswith("PICTURE"):
-            values[shape.name] = ("picture", hashlib.sha256(shape.image.blob).hexdigest())
-    return values
 
 def image_map(presentation, by_part=False):
     values = {}
@@ -748,19 +689,7 @@ def main():
                 if actual_order != item.get("order"):
                     changes_ok = False
                     change_failures.append("order:" + ",".join(str(value) for value in actual_order))
-            elif kind == "pptx.slide_copy.v1":
-                source_index = item.get("sourceSlide", 0) - 1
-                destination_index = item.get("destination", 0) - 1
-                source_slide = source_presentation.slides[source_index] if 0 <= source_index < len(source_presentation.slides) else None
-                destination_slide = candidate.slides[destination_index] if 0 <= destination_index < len(candidate.slides) else None
-                source_shapes = copy_shape_map(source_slide) if source_slide is not None else None
-                destination_shapes = copy_shape_map(destination_slide) if destination_slide is not None else None
-                if source_shapes is None or destination_shapes is None or any(
-                    destination_shapes.get(name) != value for name, value in source_shapes.items()
-                ):
-                    changes_ok = False
-                    change_failures.append("copy")
-        if changes_ok and required_slides_ok and absent_slides_ok and added_slides_ok and count_ok and any(item.get("type") in {"pptx.slide_present.v1", "pptx.slide_absent.v1", "pptx.slide_add.v1", "pptx.slide_copy.v1", "pptx.slide_count.v1", "pptx.text_value.v1", "pptx.table_cell_value.v1", "pptx.slide_order.v1"} for item in assertions):
+        if changes_ok and required_slides_ok and absent_slides_ok and added_slides_ok and count_ok and any(item.get("type") in {"pptx.slide_present.v1", "pptx.slide_absent.v1", "pptx.slide_add.v1", "pptx.slide_count.v1", "pptx.text_value.v1", "pptx.table_cell_value.v1", "pptx.slide_order.v1"} for item in assertions):
             passed.append("pptx.required_changes.applied")
         else:
             fail("pptx.required_changes.applied", "The declared presentation change is not present: " + ",".join(change_failures), failed, "CONTENT")

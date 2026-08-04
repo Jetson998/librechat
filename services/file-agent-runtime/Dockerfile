@@ -1,6 +1,6 @@
 # Build with the repository root as context:
 # docker build -f services/file-agent-runtime/Dockerfile -t file-agent-runtime:<revision> .
-ARG NODE_IMAGE=node:20-bookworm-slim
+ARG NODE_IMAGE=public.ecr.aws/docker/library/node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
 FROM ${NODE_IMAGE}
 
 WORKDIR /opt/file-agent
@@ -10,23 +10,16 @@ WORKDIR /opt/file-agent
 # and full-page rendering during verification.
 COPY --chown=node:node services/file-agent-runtime /opt/file-agent/services/file-agent-runtime
 COPY --chown=node:node services/librechat-file-agent-connector /opt/file-agent/services/librechat-file-agent-connector
+COPY services/file-agent-runtime/apt-packages.lock /tmp/apt-packages.lock
 
 USER root
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    libreoffice-calc \
-    libreoffice-impress \
-    libreoffice-writer \
-    python3 \
-    python3-venv \
+  && xargs -r apt-get install -y --no-install-recommends < /tmp/apt-packages.lock \
   && python3 -m venv /opt/file-agent/venv \
-  && /opt/file-agent/venv/bin/pip install --no-cache-dir \
-    openpyxl \
-    python-docx \
-    python-pptx \
+  && /opt/file-agent/venv/bin/pip install --no-cache-dir --require-hashes \
+    -r /opt/file-agent/services/file-agent-runtime/requirements.lock \
   && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /var/lib/apt/lists/* /tmp/apt-packages.lock \
   && mkdir -p /var/lib/file-agent-runtime \
   && chown -R node:node /opt/file-agent /var/lib/file-agent-runtime
 

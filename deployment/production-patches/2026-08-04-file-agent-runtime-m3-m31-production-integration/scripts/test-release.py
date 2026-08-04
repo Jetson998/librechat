@@ -139,12 +139,18 @@ def exercise_apply_failure(
         "Id": "protected-changed" if failure == "protected-identity" and name == "protected" else name,
     }
     rollback_states: list[dict] = []
+    rollback_commands: list[list[str]] = []
 
     def fake_rollback_module():
         class Rollback:
             @staticmethod
             def restore_state(backup_dir: Path, *, root: Path, run_command):
-                rollback_states.append(json.loads((backup_dir / "state.json").read_text(encoding="utf-8")))
+                state = json.loads((backup_dir / "state.json").read_text(encoding="utf-8"))
+                rollback_states.append(state)
+                candidate_id = state.get("candidate_runtime_container_id")
+                if candidate_id:
+                    run_command(["docker", "rm", "-f", candidate_id], check=False)
+                    rollback_commands.append(["docker", "rm", "-f", candidate_id])
                 if rollback_fails:
                     raise RuntimeError("rollback API restart failed")
 
@@ -156,11 +162,17 @@ def exercise_apply_failure(
         if failure in {"native-fallback", "first-enable-rollback", "existing-runtime-rollback"}:
             raise RuntimeError("native fallback failed")
 
+    runtime_side_effect = False
+
     def fake_run(command: list[str], check: bool = True):
+        nonlocal runtime_side_effect
         if "config" in command and "--format" in command:
             return subprocess.CompletedProcess(command, 0, json.dumps({"services": {"api": {}, "codeapi": {}}}), "")
+        if "ps" in command and runner.RUNTIME_SERVICE in command and runtime_side_effect:
+            return subprocess.CompletedProcess(command, 0, "runtime-created\n", "")
         if "up" in command and runner.RUNTIME_SERVICE in command:
             if failure == "runtime-create":
+                runtime_side_effect = True
                 raise RuntimeError("Runtime creation failed")
         if "up" in command and runner.API_SERVICE in command:
             if failure == "api-create":
@@ -180,12 +192,14 @@ def exercise_apply_failure(
     require(result_path.is_file(), f"failure case did not write a result: {failure}")
     result = json.loads(result_path.read_text(encoding="utf-8"))
     require(rollback_states, f"failure case did not invoke rollback: {failure}")
-    return {"result": result, "rollback": rollback_states[0]}
+    return {"result": result, "rollback": rollback_states[0], "rollback_commands": rollback_commands}
 
 
 def main() -> None:
     common = load_module("file_agent_runner_common", SCRIPTS / "runner_common.py")
+    preflight = load_module("file_agent_runner_preflight", SCRIPTS / "remote-preflight.py")
     rollback = load_module("file_agent_runner_rollback", SCRIPTS / "remote-rollback.py")
+    require("LibreChat-API" not in preflight.PROTECTED_CONTAINERS, "API must be rebuildable, not identity-protected")
 
     with tempfile.TemporaryDirectory(prefix="file-agent-dual-service-test-") as temporary:
         workspace = Path(temporary)
@@ -302,6 +316,16 @@ def main() -> None:
             require(case["rollback"]["runtime_service_present"] is runtime_present, f"rollback state lost Runtime presence: {failure}")
             if failure == "api-create":
                 require(case["rollback"]["candidate_runtime_container_id"] == "runtime-created", "API failure did not record Runtime ID")
+            if failure == "runtime-create":
+                require(
+                    case["rollback"]["candidate_runtime_container_id"] == "runtime-created",
+                    "partial Runtime creation was not recorded for rollback",
+                )
+                require(
+                    case["rollback"]["candidate_runtime_container_id"]
+                    and any(command[-1] == "runtime-created" for command in case.get("rollback_commands", [])),
+                    "partial Runtime container was not scheduled for removal",
+                )
             if rollback_fails:
                 require(case["result"]["status"] == "failed", "rollback failure was reported as a successful rollback")
                 require(case["result"]["rollback_error"] == "rollback API restart failed", "rollback failure evidence is missing")
@@ -318,6 +342,27 @@ def main() -> None:
     apply_text = (SCRIPTS / "remote-apply.py").read_text(encoding="utf-8")
     require("restore_state" in apply_text, "automatic dual-service rollback is missing")
     require('"--no-deps"' in apply_text and '"--force-recreate"' in apply_text, "bounded Compose apply is missing")
+    require(
+        "resolveOfficeTaskIntent" in apply_text
+        and "createProductionOfficePreflight" in apply_text
+        and "/opt/librechat/file-agent-runtime/connector" in apply_text,
+        "native fallback probe does not load the production Connector classifier and preflight",
+    )
+    require("user_not_allowlisted" in apply_text and "not_complex_file_intent" in apply_text, "native fallback cases are incomplete")
+    runtime_dir = ROOT / "services/file-agent-runtime"
+    dockerfile_text = (runtime_dir / "Dockerfile").read_text(encoding="utf-8")
+    require("node:20-bookworm-slim@sha256:" in dockerfile_text, "Node base image is not digest-pinned")
+    requirements_lock = runtime_dir / "requirements.lock"
+    require(requirements_lock.is_file(), "Python requirements lock is missing")
+    requirements_text = requirements_lock.read_text(encoding="utf-8")
+    for package in ("openpyxl==", "python-docx==", "python-pptx=="):
+        require(package in requirements_text, f"Python dependency is not exactly pinned: {package}")
+    require("--hash=sha256:" in requirements_text, "Python dependency hashes are missing")
+    apt_lock = runtime_dir / "apt-packages.lock"
+    require(apt_lock.is_file(), "APT package lock is missing")
+    apt_text = apt_lock.read_text(encoding="utf-8")
+    for package in ("libreoffice-calc=", "libreoffice-impress=", "libreoffice-writer="):
+        require(package in apt_text, f"APT dependency is not exactly pinned: {package}")
     deploy_text = (SCRIPTS / "deploy.sh").read_text(encoding="utf-8")
     require("release-governance:targets=LibreChat-API,file-agent-runtime" in deploy_text, "dual-service release scope marker is missing")
     require("--remove-orphans" not in deploy_text, "runner may not remove unrelated services")

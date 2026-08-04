@@ -9,7 +9,7 @@ import { ContextProjector } from '../src/context-projector.js';
 import { CodeApiHttpTransport } from '../src/codeapi-transport.js';
 import { CodeApiXlsxExecutor, XLSX_MIME } from '../src/deterministic-xlsx.js';
 import { DOCX_MIME, WORD_VERIFIER_PROFILE } from '../src/deterministic-word.js';
-import { PPTX_VERIFIER_PROFILE } from '../src/deterministic-pptx-v1.js';
+import { PPTX_MIME, PPTX_VERIFIER_PROFILE } from '../src/deterministic-pptx-v1.js';
 import { ExecutorAdapter } from '../src/executor-adapter.js';
 import { FakeExecutor } from '../src/fake-adapters.js';
 import { FileModelCallJournal } from '../src/model-call-journal.js';
@@ -89,6 +89,75 @@ function wordModelManifest(overrides = {}) {
     limits: { maxVisibleArtifacts: 1 },
     ...overrides,
   };
+}
+
+function officeProfileManifest({ capabilityProfile, mimeType, logicalName, inputRef }) {
+  const isPptx = capabilityProfile === 'pptx-edit-v1';
+  return {
+    schemaVersion: '1.0',
+    taskContractVersion: 'office-file-agent.v1.2',
+    taskType: 'office_transform',
+    intent: `Modify one authorized ${logicalName}`,
+    acceptance: [`Return one verified ${isPptx ? 'PPTX' : 'XLSX'} artifact`],
+    model: {
+      modelRouteId: `file-agent-${isPptx ? 'pptx' : 'xlsx'}-repair`,
+      capabilityProfile,
+    },
+    execution: {
+      executor: 'codeapi',
+      sessionId: 'phase2-office-repair-session',
+    },
+    inputs: [{
+      logicalName,
+      mimeType,
+      sha256: 'a'.repeat(64),
+      codeEnvRef: {
+        storage_session_id: 'phase2-office-repair-session',
+        file_id: inputRef,
+      },
+    }],
+    limits: { maxVisibleArtifacts: 1 },
+  };
+}
+
+function officeAction({ worker, targetRef, inputRef, operation, parameters, verificationProfile }) {
+  return {
+    schemaVersion: '1.0',
+    objective: 'Apply one bounded Office change',
+    worker,
+    inputRefs: [inputRef],
+    targetRef,
+    parameters: { operation, ...parameters },
+    expectedChange: ['bounded Office mutation'],
+    verificationProfile,
+    onFailure: 'replan',
+    summary: 'Apply the bounded change',
+  };
+}
+
+async function createOfficeProfileProvider({ rootDir, capabilityProfile, plan }) {
+  return new SingleModelAgentProvider({
+    routes: {
+      [`file-agent-${capabilityProfile === 'pptx-edit-v1' ? 'pptx' : 'xlsx'}-repair`]: {
+        baseUrl: 'https://office-repair.example.invalid',
+        model: 'office-repair-model',
+        capabilityProfile,
+        supportsIdempotency: true,
+        outputBudgetTokens: 256,
+      },
+    },
+    transport: {
+      async invoke() {
+        return {
+          plan,
+          providerModel: 'office-repair-model',
+          usage: { inputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 30 },
+        };
+      },
+    },
+    journal: new FileModelCallJournal(path.join(rootDir, 'provider-journal')),
+    projector: new ContextProjector(),
+  });
 }
 
 function createProvider({
@@ -794,6 +863,224 @@ test('PPTX strict schema exposes every PPTX action parameter and validates a tit
   }
   assert.equal(result.plan.actions[0].parameters.slide, 1);
   assert.equal(result.plan.actions[0].parameters.shape, 'TitleBox');
+});
+
+test('XLSX and PPTX strict schemas use the worker-specific order types', async () => {
+  for (const [capabilityProfile, expectedType] of [
+    ['xlsx-edit-v1', 'string'],
+    ['pptx-edit-v1', 'integer'],
+  ]) {
+    let requestBody;
+    const transport = new OpenAiChatTransport({
+      fetchImpl: async (_url, init) => {
+        requestBody = JSON.parse(init.body);
+        return new Response(JSON.stringify({
+          model: 'order-schema-model',
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                schemaVersion: '1.0',
+                summary: 'Inspect the Office file',
+                needsInput: true,
+                question: 'Need more context',
+                actions: [],
+              }),
+            },
+          }],
+          usage: { prompt_tokens: 100, completion_tokens: 10 },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      },
+    });
+    await transport.invoke({
+      callId: `order-schema-${capabilityProfile}`,
+      route: {
+        baseUrl: 'https://order-schema.example.invalid',
+        model: 'order-schema-model',
+        outputBudgetTokens: 128,
+        capabilityProfile,
+        structuredOutputMode: 'json_schema',
+      },
+      operation: 'plan',
+      context: { schemaVersion: '1.0', objective: 'Inspect the Office file' },
+    });
+    const orderSchema = requestBody.response_format.json_schema.schema
+      .properties.actions.items.properties.parameters.properties.order;
+    assert.equal(orderSchema.anyOf[0].items.type, expectedType, capabilityProfile);
+  }
+});
+
+test('Provider accepts a strict PPTX reorder plan with integer slide numbers', async (t) => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-pptx-order-provider-'));
+  t.after(() => rm(rootDir, { recursive: true, force: true }));
+  const provider = await createOfficeProfileProvider({
+    rootDir,
+    capabilityProfile: 'pptx-edit-v1',
+    plan: {
+      schemaVersion: '1.0',
+      summary: 'Reorder the presentation slides',
+      needsInput: false,
+      question: null,
+      actions: [officeAction({
+        worker: 'pptx.transform.v1',
+        targetRef: 'candidate:working-pptx',
+        inputRef: 'input:source-pptx',
+        operation: 'reorder_slides',
+        parameters: { order: [2, 1] },
+        verificationProfile: PPTX_VERIFIER_PROFILE,
+      })],
+    },
+  });
+  const result = await provider.plan({
+    callId: 'pptx-order-provider-plan',
+    task: {
+      taskId: 'pptx-order-provider-task',
+      manifest: officeProfileManifest({
+        capabilityProfile: 'pptx-edit-v1',
+        mimeType: PPTX_MIME,
+        logicalName: 'source.pptx',
+        inputRef: 'pptx-provider-file',
+      }),
+      phase: 'planning',
+      planRevision: 0,
+      instructionRevision: 0,
+      events: [],
+      itemResults: {},
+      progress: {},
+    },
+  });
+  assert.deepEqual(result.value.actions[0].parameters.order, [2, 1]);
+});
+
+test('XLSX repair rejects a transform worker and requires a patch worker', async (t) => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-xlsx-repair-provider-'));
+  t.after(() => rm(rootDir, { recursive: true, force: true }));
+  const provider = await createOfficeProfileProvider({
+    rootDir,
+    capabilityProfile: 'xlsx-edit-v1',
+    plan: {
+      schemaVersion: '1.0',
+      summary: 'Repair the workbook',
+      needsInput: false,
+      question: null,
+      actions: [officeAction({
+        worker: 'xlsx.transform.v1',
+        targetRef: 'candidate:working-xlsx',
+        inputRef: 'input:source-xlsx',
+        operation: 'set_cell',
+        parameters: { sheet: 'Source', cell: 'A1', value: 42 },
+        verificationProfile: 'xlsx-structure-v1',
+      })],
+    },
+  });
+  await assert.rejects(
+    provider.repair({
+      callId: 'xlsx-repair-transform',
+      task: {
+        taskId: 'xlsx-repair-transform-task',
+        manifest: officeProfileManifest({
+          capabilityProfile: 'xlsx-edit-v1',
+          mimeType: XLSX_MIME,
+          logicalName: 'source.xlsx',
+          inputRef: 'xlsx-provider-file',
+        }),
+        phase: 'verifying',
+        planRevision: 1,
+        instructionRevision: 0,
+        events: [],
+        itemResults: {},
+        progress: {},
+      },
+    }),
+    ProviderProtocolError,
+  );
+});
+
+test('PPTX repair rejects a transform worker and requires a patch worker', async (t) => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'file-agent-pptx-repair-provider-'));
+  t.after(() => rm(rootDir, { recursive: true, force: true }));
+  const provider = await createOfficeProfileProvider({
+    rootDir,
+    capabilityProfile: 'pptx-edit-v1',
+    plan: {
+      schemaVersion: '1.0',
+      summary: 'Repair the presentation',
+      needsInput: false,
+      question: null,
+      actions: [officeAction({
+        worker: 'pptx.transform.v1',
+        targetRef: 'candidate:working-pptx',
+        inputRef: 'input:source-pptx',
+        operation: 'replace_text',
+        parameters: { slide: 1, shape: 'TitleBox', value: 'Repaired' },
+        verificationProfile: PPTX_VERIFIER_PROFILE,
+      })],
+    },
+  });
+  await assert.rejects(
+    provider.repair({
+      callId: 'pptx-repair-transform',
+      task: {
+        taskId: 'pptx-repair-transform-task',
+        manifest: officeProfileManifest({
+          capabilityProfile: 'pptx-edit-v1',
+          mimeType: PPTX_MIME,
+          logicalName: 'source.pptx',
+          inputRef: 'pptx-provider-file',
+        }),
+        phase: 'verifying',
+        planRevision: 1,
+        instructionRevision: 0,
+        events: [],
+        itemResults: {},
+        progress: {},
+      },
+    }),
+    ProviderProtocolError,
+  );
+});
+
+test('XLSX and PPTX patch repair actions require expectedBaseSha256', async (t) => {
+  for (const [capabilityProfile, mimeType, logicalName, inputRef, targetRef, worker, verificationProfile, parameters] of [
+    ['xlsx-edit-v1', XLSX_MIME, 'source.xlsx', 'xlsx-patch-file', 'candidate:working-xlsx', 'xlsx.patch.v1', 'xlsx-structure-v1', { sheet: 'Source', cell: 'A1', value: 42 }],
+    ['pptx-edit-v1', PPTX_MIME, 'source.pptx', 'pptx-patch-file', 'candidate:working-pptx', 'pptx.patch.v1', PPTX_VERIFIER_PROFILE, { slide: 1, shape: 'TitleBox', value: 'Patched' }],
+  ]) {
+    const rootDir = await mkdtemp(path.join(tmpdir(), `file-agent-${capabilityProfile}-patch-provider-`));
+    t.after(() => rm(rootDir, { recursive: true, force: true }));
+    const provider = await createOfficeProfileProvider({
+      rootDir,
+      capabilityProfile,
+      plan: {
+        schemaVersion: '1.0',
+        summary: 'Repair the Office file with a patch',
+        needsInput: false,
+        question: null,
+        actions: [officeAction({
+          worker,
+          targetRef,
+          inputRef: capabilityProfile === 'xlsx-edit-v1' ? 'input:source-xlsx' : 'input:source-pptx',
+          operation: capabilityProfile === 'xlsx-edit-v1' ? 'set_cell' : 'replace_text',
+          parameters,
+          verificationProfile,
+        })],
+      },
+    });
+    await assert.rejects(
+      provider.repair({
+        callId: `${capabilityProfile}-missing-patch-hash`,
+        task: {
+          taskId: `${capabilityProfile}-missing-patch-hash-task`,
+          manifest: officeProfileManifest({ capabilityProfile, mimeType, logicalName, inputRef }),
+          phase: 'verifying',
+          planRevision: 1,
+          instructionRevision: 0,
+          events: [],
+          itemResults: {},
+          progress: {},
+        },
+      }),
+      ProviderProtocolError,
+    );
+  }
 });
 
 test('Word context projection includes bounded inspected document content for replanning', () => {

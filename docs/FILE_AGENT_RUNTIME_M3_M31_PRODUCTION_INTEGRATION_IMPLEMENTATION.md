@@ -2,8 +2,9 @@
 
 Date: 2026-08-04
 
-Status: development implementation complete for this integration slice; not
-packaged, not preflighted, not deployed, and not customer-accepted.
+Status: development remediation complete for this integration slice; awaiting
+Sol re-review. It is not packaged, not preflighted, not deployed, and not
+customer-accepted.
 
 This record belongs to the unified M3 + M3.1 batch. It does not create a new
 release or split Word, Excel, PowerPoint, and Compose into separate production
@@ -44,7 +45,7 @@ accidentally.
 | --- | --- | --- | --- |
 | Word edit | DOCX -> `word-edit-v1` | text replacement, paragraph/table edits, cumulative ledger, independent Word assertions | Word positive, wrong-occurrence, ignored-requirement, and unsafe-workspace fixtures |
 | Workbook edit | XLSX -> `xlsx-edit-v1` | cell value/formula, sheet add/delete/rename/order, number format/style, Excel Table, bar/line chart | XLSX positive and unauthorized formula/protected-cell/unsupported-OOXML fixtures |
-| Presentation edit | PPTX -> `pptx-edit-v1` | text/table edits, append/delete/copy/reorder slides, existing-image preservation, render and source-shape checks | PPTX positive, contradictory-delete, unauthorized-change, stale-hash, and unsupported-OOXML fixtures |
+| Presentation edit | PPTX -> `pptx-edit-v1` | text/table edits, append/delete/reorder slides, existing-image preservation, render and source-shape checks | PPTX positive, contradictory-delete, unauthorized-change, stale-hash, and unsupported-OOXML fixtures |
 | Office Compose | DOCX/XLSX (one or two sources) -> `office-compose-v1` | bounded source facts, structured title/section/data/conclusion/source pages, tables/charts, complete source mappings, one PPTX | XLSX->PPTX, DOCX->PPTX, XLSX+DOCX, false-chart, source-integrity, and render fixtures |
 
 The negative fixtures fail closed when the instruction contains an unsupported
@@ -94,7 +95,10 @@ allowlist availability, and host resources.
 5. waits for Runtime health, API running state, and both internal health
    checks;
 6. verifies the Runtime has no published host port and protected services keep
-   their container identities.
+   their container identities. LibreChat-API is intentionally excluded from
+   the protected identity set because this deployment unit is allowed to
+   recreate it; its image, feature flag, health, and native fallback are
+   checked instead.
 
 On any post-write failure, `remote-rollback.py` restores the previous
 `compose.override.yaml`, removes a newly created Runtime container when there
@@ -111,12 +115,19 @@ handoff.
 
 The current source-level results are:
 
-- Connector full suite: `111/111` passed serially;
-- Runtime full suite after production multi-capability changes: `95/95`
+- Connector full suite: `112/112` passed serially;
+- Runtime full suite after production multi-capability changes: `97/97`
   passed serially;
-- strict Provider schema includes every XLSX and PPTX Action parameter;
-- PPTX resolver covers append/delete/copy/reorder and the Verifier checks
-  existing image hashes as well as text/table preservation;
+- strict Provider schema includes every XLSX and PPTX Action parameter and
+  uses profile-specific reorder types;
+- PPTX resolver covers append/delete/reorder and the Verifier checks existing
+  image hashes as well as text/table preservation. Slide copy is explicitly
+  outside the M3.1 contract because the prior implementation could lose Office
+  relationships and formatting;
+- Python Office dependencies and APT packages are recorded in
+  `services/file-agent-runtime/requirements.lock` and
+  `services/file-agent-runtime/apt-packages.lock`; the Dockerfile uses
+  `--require-hashes` and a digest-pinned Node base image;
 - XLSX rename is independently asserted and formula/protected-cell checks
   follow the frozen sheet identity across the rename;
 - Connector and Runtime `npm run check`: passed;

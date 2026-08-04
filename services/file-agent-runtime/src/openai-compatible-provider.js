@@ -195,10 +195,13 @@ function responseFormatFor(route, operation) {
   if (['xlsx-edit-v1', 'pptx-edit-v1'].includes(route.capabilityProfile)) {
     const isPptx = route.capabilityProfile === 'pptx-edit-v1';
     const workerIds = isPptx ? PPTX_WORKER_IDS : XLSX_WORKER_IDS;
+    const planWorkerIds = operation === 'repair'
+      ? workerIds.filter((worker) => worker.endsWith('.patch.v1') || worker.endsWith('.validate.v1'))
+      : workerIds.filter((worker) => !worker.endsWith('.patch.v1'));
     const verifierProfile = isPptx ? PPTX_VERIFIER_PROFILE : XLSX_VERIFIER_PROFILE;
     const targetRef = isPptx ? 'candidate:working-pptx' : 'candidate:working-xlsx';
     const operations = isPptx
-      ? ['inspect', 'validate', 'replace_text', 'set_table_cell', 'add_slide', 'delete_slide', 'copy_slide', 'reorder_slides']
+      ? ['inspect', 'validate', 'replace_text', 'set_table_cell', 'add_slide', 'delete_slide', 'reorder_slides']
       : ['inspect', 'validate', 'set_cell', 'set_formula', 'add_sheet', 'delete_sheet', 'rename_sheet', 'reorder_sheets', 'set_number_format', 'set_style', 'add_table', 'add_chart'];
     return {
       type: 'json_schema',
@@ -228,7 +231,7 @@ function responseFormatFor(route, operation) {
                 properties: {
                   schemaVersion: { type: 'string', const: '1.0' },
                   objective: { type: 'string', minLength: 1, maxLength: 1_000 },
-                  worker: { type: 'string', enum: workerIds },
+                  worker: { type: 'string', enum: planWorkerIds },
                   inputRefs: {
                     type: 'array',
                     minItems: 1,
@@ -264,7 +267,14 @@ function responseFormatFor(route, operation) {
                       to: { anyOf: [{ type: 'string', maxLength: 31 }, { type: 'null' }] },
                       order: {
                         anyOf: [
-                          { type: 'array', minItems: 1, maxItems: 64, items: { type: 'string', maxLength: 31 } },
+                          {
+                            type: 'array',
+                            minItems: 1,
+                            maxItems: isPptx ? 200 : 64,
+                            items: isPptx
+                              ? { type: 'integer', minimum: 1, maximum: 200 }
+                              : { type: 'string', maxLength: 31 },
+                          },
                           { type: 'null' },
                         ],
                       },
@@ -570,17 +580,31 @@ function validateWordPlanAction(action, operation) {
   return normalized;
 }
 
-function validateXlsxPlanAction(action) {
+function validateXlsxPlanAction(action, operation) {
   try {
-    return normalizeXlsxAction(action);
+    const normalized = normalizeXlsxAction(action);
+    if (operation === 'plan' && !['xlsx.inspect.v1', 'xlsx.transform.v1', 'xlsx.validate.v1'].includes(normalized.worker)) {
+      throw new TypeError('Initial XLSX plan cannot use xlsx.patch.v1');
+    }
+    if (operation === 'repair' && !['xlsx.patch.v1', 'xlsx.validate.v1'].includes(normalized.worker)) {
+      throw new TypeError('XLSX repair plan must use xlsx.patch.v1 or xlsx.validate.v1');
+    }
+    return normalized;
   } catch (error) {
     throw new ProviderProtocolError(error.message, { cause: error });
   }
 }
 
-function validatePptxPlanAction(action) {
+function validatePptxPlanAction(action, operation) {
   try {
-    return normalizePptxAction(action);
+    const normalized = normalizePptxAction(action);
+    if (operation === 'plan' && !['pptx.inspect.v1', 'pptx.transform.v1', 'pptx.validate.v1'].includes(normalized.worker)) {
+      throw new TypeError('Initial PPTX plan cannot use pptx.patch.v1');
+    }
+    if (operation === 'repair' && !['pptx.patch.v1', 'pptx.validate.v1'].includes(normalized.worker)) {
+      throw new TypeError('PPTX repair plan must use pptx.patch.v1 or pptx.validate.v1');
+    }
+    return normalized;
   } catch (error) {
     throw new ProviderProtocolError(error.message, { cause: error });
   }
@@ -639,10 +663,10 @@ function validatePlan(value, { capabilityProfile, operation }) {
   }
   const actions = capabilityProfile === 'word-edit-v1'
     ? value.actions.map((action) => validateWordPlanAction(action, operation))
-    : capabilityProfile === 'xlsx-edit-v1'
-      ? value.actions.map(validateXlsxPlanAction)
+      : capabilityProfile === 'xlsx-edit-v1'
+      ? value.actions.map((action) => validateXlsxPlanAction(action, operation))
       : capabilityProfile === 'pptx-edit-v1'
-        ? value.actions.map(validatePptxPlanAction)
+        ? value.actions.map((action) => validatePptxPlanAction(action, operation))
         : capabilityProfile === 'office-compose-v1'
           ? value.actions.map(validateOfficeComposePlanAction)
       : value.actions.map((action) => validateAction(action, profile.legacyActions, operation));

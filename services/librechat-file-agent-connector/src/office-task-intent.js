@@ -90,7 +90,8 @@ export function resolveOfficeTaskIntent({ files, instruction } = {}) {
   return Object.freeze({
     profile,
     inputMimeTypes: Object.freeze([...new Set(inputMimeTypes)]),
-    outputMimeType: outputMimeType ?? inputMimeTypes[0],
+    outputMimeType: outputMimeType
+      ?? (profile === OFFICE_COMPOSE_CAPABILITY_PROFILE ? PPTX_MIME : inputMimeTypes[0]),
     operationFamilies: Object.freeze(operationFamilies),
     confidence: explicitOutput ? 'high' : 'medium',
     reason: explicitOutput ? 'explicit_output_format_and_input_contract' : 'input_format_and_edit_intent',
