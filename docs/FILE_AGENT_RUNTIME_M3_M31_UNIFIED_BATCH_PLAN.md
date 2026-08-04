@@ -33,12 +33,12 @@ The following are facts, not new implementation claims:
 | Item | Value |
 | --- | --- |
 | Reviewed M3 Word functional baseline | `a2624f8b18597e292fb83e8b2cfb71de1e1e7d9e` |
-| Current repository HEAD | `31a1a1a38b088125f67cf5b6838dd6cc4753fa75` |
+| Current repository HEAD | See the Git revision and release record; this plan is not a release record |
 | Current remote state | `HEAD == origin/main` at the recorded revision |
 | Existing production state | API bootstrap deployed with Runtime disabled |
 | Existing production flag | `FILE_AGENT_RUNTIME_ENABLED=false` |
 | Runtime production traffic | none |
-| M3.1 formal profiles | XLSX/PPTX Workers and the first isolated `office-compose-v1` vertical slice implemented locally; production capability remains Word-only |
+| M3.1 formal profiles | XLSX/PPTX Workers, independent acceptance resolvers, and the first isolated `office-compose-v1` vertical slice implemented locally; production capability remains Word-only |
 | Existing XLSX implementation | legacy POC retained for regression; not the M3.1 capability |
 
 The existing production bootstrap and its rollback record are retained as
@@ -197,13 +197,16 @@ the prior two-service state after a failed check.
 
 ## 9. Current gate
 
-Current state is `开发进行中：T4 office-compose-v1 隔离纵向切片已完成，待统一接入回归`.
+Current state is `开发进行中：T6 XLSX/PPTX 独立验收与 Connector 路由已完成，生产统一接入待开发`.
 
 The current local evidence covers the deterministic Compose contract, bounded
 source facts, source hash and mapping verification, one PPTX artifact, full
-slide rendering, and the XLSX -> PPTX, DOCX -> PPTX, and XLSX + DOCX -> PPTX
-isolated CodeAPI scenarios. It does not claim production capability, Connector
-traffic, Compose deployment, or customer acceptance.
+slide rendering, the XLSX -> PPTX, DOCX -> PPTX, and XLSX + DOCX -> PPTX
+isolated CodeAPI scenarios, and fail-closed XLSX/PPTX instruction resolvers.
+The Connector now selects v1.2 and independent assertions for the formal XLSX
+and PPTX profiles, while preserving the M3 Word v1.1 contract. It does not
+claim production capability, Connector production traffic, Compose deployment,
+or customer acceptance.
 
 No feature package, image, production preflight, or deployment is authorized
 merely by this document. The next implementation action is to complete the

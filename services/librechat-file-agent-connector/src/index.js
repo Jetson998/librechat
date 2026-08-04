@@ -56,6 +56,18 @@ export {
   resolveWordAcceptanceAssertions,
 } from './word-acceptance-resolver.js';
 export {
+  XLSX_ACCEPTANCE_RESOLVER_VERSION,
+  resolveXlsxAcceptanceAssertions,
+} from './xlsx-acceptance-resolver.js';
+export {
+  PPTX_ACCEPTANCE_RESOLVER_VERSION,
+  resolvePptxAcceptanceAssertions,
+} from './pptx-acceptance-resolver.js';
+export {
+  OFFICE_COMPOSE_ACCEPTANCE_RESOLVER_VERSION,
+  resolveOfficeComposeAcceptanceAssertions,
+} from './office-compose-acceptance-resolver.js';
+export {
   ProductionHostConfigError,
   loadProductionHostConfig,
 } from './production-host-config.js';

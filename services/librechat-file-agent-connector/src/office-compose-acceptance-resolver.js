@@ -10,6 +10,8 @@ import {
 } from '../../file-agent-runtime/src/office-compose-acceptance.js';
 import { sha256 } from './stable.js';
 
+export const OFFICE_COMPOSE_ACCEPTANCE_RESOLVER_VERSION = '1.0.0';
+
 const XLSX_LOCATION = /(?:^|[\s"“‘])([A-Za-z0-9_][A-Za-z0-9 _.-]{0,30})!([A-Z]{1,3}[1-9][0-9]{0,6})(?=$|[\s"”’。，,])/gu;
 const XLSX_LOCATION_ASCII = /\b([A-Za-z0-9_][A-Za-z0-9 _.-]{0,30})!([A-Z]{1,3}[1-9][0-9]{0,6})\b/gu;
 const DOCX_LOCATION = /(?:body\.paragraph\[([0-9]{1,2})\]|(?:第\s*)?([1-9][0-9]?)\s*(?:段|paragraph))/giu;

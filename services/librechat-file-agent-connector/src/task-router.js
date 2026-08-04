@@ -7,7 +7,9 @@ import {
   TASK_TYPE,
   OFFICE_COMPOSE_CAPABILITY_PROFILE,
   PPTX_MIME,
+  PPTX_CAPABILITY_PROFILE,
   XLSX_MIME,
+  XLSX_CAPABILITY_PROFILE,
   WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 
@@ -115,9 +117,25 @@ export function decideFileAgentCapabilityRoute({
   ) {
     return native('office_compose_input_contract_unsupported');
   }
+  if (
+    capabilityProfile === XLSX_CAPABILITY_PROFILE &&
+    (files.length !== 1 || files[0]?.mimeType !== XLSX_MIME)
+  ) {
+    return native('xlsx_input_contract_unsupported');
+  }
+  if (
+    capabilityProfile === PPTX_CAPABILITY_PROFILE &&
+    (files.length !== 1 || files[0]?.mimeType !== PPTX_MIME)
+  ) {
+    return native('pptx_input_contract_unsupported');
+  }
   const requiredContractVersion = capabilityProfile === WORD_CAPABILITY_PROFILE
     ? TASK_CONTRACT_VERSION_V1_1
-    : capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+    : [
+      XLSX_CAPABILITY_PROFILE,
+      PPTX_CAPABILITY_PROFILE,
+      OFFICE_COMPOSE_CAPABILITY_PROFILE,
+    ].includes(capabilityProfile)
       ? TASK_CONTRACT_VERSION_V1_2
       : TASK_CONTRACT_VERSION;
   if (

@@ -6,15 +6,20 @@ import { FileAgentControllerBridge } from './controller-bridge.js';
 import {
   DEFAULT_CAPABILITY_PROFILE,
   DOCX_MIME,
+  PPTX_CAPABILITY_PROFILE,
   TASK_CONTRACT_VERSION,
   TASK_CONTRACT_VERSION_V1_1,
   TASK_CONTRACT_VERSION_V1_2,
   OFFICE_COMPOSE_CAPABILITY_PROFILE,
   XLSX_MIME,
+  XLSX_CAPABILITY_PROFILE,
   WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 import { clone, sha256 } from './stable.js';
 import { sourceLogicalIdForFile } from './office-compose-acceptance-resolver.js';
+import { resolveOfficeComposeAcceptanceAssertions } from './office-compose-acceptance-resolver.js';
+import { resolvePptxAcceptanceAssertions } from './pptx-acceptance-resolver.js';
+import { resolveXlsxAcceptanceAssertions } from './xlsx-acceptance-resolver.js';
 
 const CONTINUATION_INTENT = /(?:继续|接着|刚才|上一轮|上一个任务|按刚才|按之前|resume|continue|same task)/i;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
@@ -77,6 +82,22 @@ function resolveTurnConstraint(req) {
   }
   if (req?.body?.editedContent != null) {
     return native('edited_response_unsupported');
+  }
+  return null;
+}
+
+function acceptanceResolverForProfile(profile, explicitResolver) {
+  if (explicitResolver) {
+    return explicitResolver;
+  }
+  if (profile === XLSX_CAPABILITY_PROFILE) {
+    return resolveXlsxAcceptanceAssertions;
+  }
+  if (profile === PPTX_CAPABILITY_PROFILE) {
+    return resolvePptxAcceptanceAssertions;
+  }
+  if (profile === OFFICE_COMPOSE_CAPABILITY_PROFILE) {
+    return resolveOfficeComposeAcceptanceAssertions;
   }
   return null;
 }
@@ -340,18 +361,26 @@ export function createUpstreamRuntimeRequestResolver({
     const resolvedTaskContractVersion = taskContractVersion ?? (
       resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE
         ? TASK_CONTRACT_VERSION_V1_1
-        : resolvedCapabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+        : [
+          XLSX_CAPABILITY_PROFILE,
+          PPTX_CAPABILITY_PROFILE,
+          OFFICE_COMPOSE_CAPABILITY_PROFILE,
+        ].includes(resolvedCapabilityProfile)
           ? TASK_CONTRACT_VERSION_V1_2
-        : TASK_CONTRACT_VERSION
+          : TASK_CONTRACT_VERSION
     );
     const defaultAcceptance = resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE
       ? ['Produce one verified DOCX artifact from the authorized current-turn Word document']
-      : resolvedCapabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+      : [PPTX_CAPABILITY_PROFILE, OFFICE_COMPOSE_CAPABILITY_PROFILE].includes(resolvedCapabilityProfile)
         ? ['Produce one verified PPTX artifact with frozen source mappings from the authorized Office inputs']
         : ['Produce one verified XLSX artifact from the authorized current-turn workbook'];
     const resolvedAcceptance = acceptance ?? defaultAcceptance;
-    const resolvedAcceptanceAssertions = resolveAcceptanceAssertions
-      ? await resolveAcceptanceAssertions({
+    const acceptanceResolver = acceptanceResolverForProfile(
+      resolvedCapabilityProfile,
+      resolveAcceptanceAssertions,
+    );
+    const resolvedAcceptanceAssertions = acceptanceResolver
+      ? await acceptanceResolver({
           context,
           files: authorized,
           instruction: context.text,
@@ -368,6 +397,18 @@ export function createUpstreamRuntimeRequestResolver({
       !Array.isArray(resolvedAcceptanceAssertions)
     ) {
       return native('office_compose_acceptance_assertions_unavailable');
+    }
+    if (
+      resolvedCapabilityProfile === XLSX_CAPABILITY_PROFILE &&
+      !Array.isArray(resolvedAcceptanceAssertions)
+    ) {
+      return native('xlsx_acceptance_assertions_unavailable');
+    }
+    if (
+      resolvedCapabilityProfile === PPTX_CAPABILITY_PROFILE &&
+      !Array.isArray(resolvedAcceptanceAssertions)
+    ) {
+      return native('pptx_acceptance_assertions_unavailable');
     }
 
     let files;
