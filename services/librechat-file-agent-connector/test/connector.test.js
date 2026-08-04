@@ -20,7 +20,7 @@ import {
   SequenceGapError,
   buildTaskSubmission,
 } from '../src/index.js';
-import { DOCX_MIME } from '../src/constants.js';
+import { DOCX_MIME, PPTX_MIME } from '../src/constants.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -222,7 +222,7 @@ test('Phase 3A routes only eligible allowlisted file work and ordinary chat neve
   const harness = await createHarness(t);
   const capabilities = await harness.runtimeClient.discoverCapabilities();
   assert.ok(capabilities.taskContractVersions.includes('office-file-agent.v1'));
-  assert.deepEqual(capabilities.inputMimeTypes, [XLSX_MIME, DOCX_MIME]);
+  assert.deepEqual(capabilities.inputMimeTypes, [XLSX_MIME, DOCX_MIME, PPTX_MIME]);
 
   let runtimeCalls = 0;
   const offlineConnector = new LibreChatFileAgentConnector({
@@ -315,6 +315,18 @@ test('Runtime capability rejects extra input files before user-turn persistence'
         codeEnvRef: {
           storage_session_id: 'phase3a-session',
           file_id: 'codeapi-source-2',
+        },
+      },
+      {
+        fileId: 'librechat-file-3',
+        name: 'source-3.xlsx',
+        mimeType: XLSX_MIME,
+        sha256: 'c'.repeat(64),
+        conversationId: 'conversation-1',
+        ownershipVerified: true,
+        codeEnvRef: {
+          storage_session_id: 'phase3a-session',
+          file_id: 'codeapi-source-3',
         },
       },
     ],

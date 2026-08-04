@@ -8,11 +8,14 @@ import {
   DOCX_MIME,
   TASK_CONTRACT_VERSION,
   TASK_CONTRACT_VERSION_V1_1,
+  TASK_CONTRACT_VERSION_V1_2,
+  OFFICE_COMPOSE_CAPABILITY_PROFILE,
+  XLSX_MIME,
   WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 import { clone, sha256 } from './stable.js';
+import { sourceLogicalIdForFile } from './office-compose-acceptance-resolver.js';
 
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const CONTINUATION_INTENT = /(?:继续|接着|刚才|上一轮|上一个任务|按刚才|按之前|resume|continue|same task)/i;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 const REMOTE_FILE_REFERENCE = /^[A-Za-z][A-Za-z0-9+.-]*:/;
@@ -337,11 +340,15 @@ export function createUpstreamRuntimeRequestResolver({
     const resolvedTaskContractVersion = taskContractVersion ?? (
       resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE
         ? TASK_CONTRACT_VERSION_V1_1
+        : resolvedCapabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+          ? TASK_CONTRACT_VERSION_V1_2
         : TASK_CONTRACT_VERSION
     );
     const defaultAcceptance = resolvedCapabilityProfile === WORD_CAPABILITY_PROFILE
       ? ['Produce one verified DOCX artifact from the authorized current-turn Word document']
-      : ['Produce one verified XLSX artifact from the authorized current-turn workbook'];
+      : resolvedCapabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+        ? ['Produce one verified PPTX artifact with frozen source mappings from the authorized Office inputs']
+        : ['Produce one verified XLSX artifact from the authorized current-turn workbook'];
     const resolvedAcceptance = acceptance ?? defaultAcceptance;
     const resolvedAcceptanceAssertions = resolveAcceptanceAssertions
       ? await resolveAcceptanceAssertions({
@@ -356,6 +363,12 @@ export function createUpstreamRuntimeRequestResolver({
     ) {
       return native('word_acceptance_assertions_unavailable');
     }
+    if (
+      resolvedCapabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE &&
+      !Array.isArray(resolvedAcceptanceAssertions)
+    ) {
+      return native('office_compose_acceptance_assertions_unavailable');
+    }
 
     let files;
     try {
@@ -368,6 +381,7 @@ export function createUpstreamRuntimeRequestResolver({
           throw new TypeError('file.sha256 must be a SHA-256 digest of the file contents');
         }
         return {
+          logicalId: sourceLogicalIdForFile(file),
           fileId: requiredString(valueString(file.file_id), 'file.fileId'),
           name: requiredString(file.filename, 'file.filename'),
           mimeType: requiredString(file.type, 'file.type'),

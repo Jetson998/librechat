@@ -8,6 +8,7 @@ import {
   TASK_TYPE,
   PPTX_CAPABILITY_PROFILE,
   PPTX_MIME,
+  OFFICE_COMPOSE_CAPABILITY_PROFILE,
   XLSX_CAPABILITY_PROFILE,
   XLSX_MIME,
   WORD_CAPABILITY_PROFILE,
@@ -16,6 +17,8 @@ import { digestJson, opaqueRef, requiredString, sha256 } from './stable.js';
 import { normalizeWordAcceptanceAssertions } from '../../file-agent-runtime/src/word-acceptance.js';
 import { normalizeXlsxAcceptanceAssertions } from '../../file-agent-runtime/src/xlsx-acceptance.js';
 import { normalizePptxAcceptanceAssertions } from '../../file-agent-runtime/src/pptx-acceptance.js';
+import { normalizeOfficeComposeAcceptanceAssertions } from '../../file-agent-runtime/src/office-compose-acceptance.js';
+import { sourceLogicalIdForFile } from './office-compose-acceptance-resolver.js';
 
 function normalizeFile(file, { conversationId, sessionId, userId }) {
   if (!file || typeof file !== 'object' || Array.isArray(file)) {
@@ -34,6 +37,7 @@ function normalizeFile(file, { conversationId, sessionId, userId }) {
     throw new TypeError('Task file requires a primed CodeAPI reference in the task session');
   }
   return {
+    logicalId: sourceLogicalIdForFile(file),
     logicalName: requiredString(file.name, 'file.name'),
     librechatFileRef: opaqueRef('file', requiredString(file.fileId, 'file.fileId')),
     codeEnvRef: {
@@ -64,6 +68,8 @@ export function buildTaskSubmission({
       ? TASK_CONTRACT_VERSION_V1_2
       : capabilityProfile === PPTX_CAPABILITY_PROFILE
         ? TASK_CONTRACT_VERSION_V1_2
+        : capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+          ? TASK_CONTRACT_VERSION_V1_2
     : TASK_CONTRACT_VERSION,
   acceptance = [],
   acceptanceAssertions = null,
@@ -82,8 +88,8 @@ export function buildTaskSubmission({
   if (
     (taskContractVersion === TASK_CONTRACT_VERSION_V1_1 && capabilityProfile !== WORD_CAPABILITY_PROFILE) ||
     (taskContractVersion === TASK_CONTRACT_VERSION && capabilityProfile === WORD_CAPABILITY_PROFILE) ||
-    (taskContractVersion === TASK_CONTRACT_VERSION_V1_2 && ![XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE].includes(capabilityProfile)) ||
-    (taskContractVersion !== TASK_CONTRACT_VERSION_V1_2 && [XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE].includes(capabilityProfile))
+    (taskContractVersion === TASK_CONTRACT_VERSION_V1_2 && ![XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE, OFFICE_COMPOSE_CAPABILITY_PROFILE].includes(capabilityProfile)) ||
+    (taskContractVersion !== TASK_CONTRACT_VERSION_V1_2 && [XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE, OFFICE_COMPOSE_CAPABILITY_PROFILE].includes(capabilityProfile))
   ) {
     throw new TypeError('Task contract version and capability profile are incompatible');
   }
@@ -92,7 +98,8 @@ export function buildTaskSubmission({
   }
   if (
     files.some((file) => file?.mimeType === DOCX_MIME) &&
-    (taskContractVersion !== TASK_CONTRACT_VERSION_V1_1 || capabilityProfile !== WORD_CAPABILITY_PROFILE)
+    (taskContractVersion !== TASK_CONTRACT_VERSION_V1_1 || capabilityProfile !== WORD_CAPABILITY_PROFILE) &&
+    (taskContractVersion !== TASK_CONTRACT_VERSION_V1_2 || capabilityProfile !== OFFICE_COMPOSE_CAPABILITY_PROFILE)
   ) {
     throw new TypeError('DOCX inputs require office-file-agent.v1.1 and the Word capability profile');
   }
@@ -107,7 +114,16 @@ export function buildTaskSubmission({
     }
   }
   if (taskContractVersion === TASK_CONTRACT_VERSION_V1_2) {
-    if (
+    if (capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE) {
+      if (
+        files.length < 1 ||
+        files.length > 2 ||
+        files.some((file) => ![DOCX_MIME, XLSX_MIME].includes(file?.mimeType)) ||
+        files.some((file) => typeof file?.name !== 'string' || !file.name.toLowerCase().endsWith(file.mimeType === DOCX_MIME ? '.docx' : '.xlsx'))
+      ) {
+        throw new TypeError('Office Compose task contract requires one or two DOCX/XLSX files');
+      }
+    } else if (
       files.length !== 1 ||
       ![XLSX_MIME, PPTX_MIME].includes(files[0]?.mimeType) ||
       typeof files[0]?.name !== 'string' ||
@@ -125,13 +141,15 @@ export function buildTaskSubmission({
       ? normalizeXlsxAcceptanceAssertions(acceptanceAssertions)
       : capabilityProfile === PPTX_CAPABILITY_PROFILE
         ? normalizePptxAcceptanceAssertions(acceptanceAssertions)
+        : capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+          ? normalizeOfficeComposeAcceptanceAssertions(acceptanceAssertions)
       : null;
 
   const inputs = files
     .map((file) => normalizeFile(file, { conversationId, sessionId, userId }))
     .sort((left, right) => left.librechatFileRef.localeCompare(right.librechatFileRef));
   const requestedVisibleArtifacts = limits.maxVisibleArtifacts;
-  const maxVisibleArtifacts = [WORD_CAPABILITY_PROFILE, XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE].includes(capabilityProfile)
+  const maxVisibleArtifacts = [WORD_CAPABILITY_PROFILE, XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE, OFFICE_COMPOSE_CAPABILITY_PROFILE].includes(capabilityProfile)
     ? requestedVisibleArtifacts ?? 1
     : requestedVisibleArtifacts ?? MAX_VISIBLE_ARTIFACTS;
   if (
@@ -144,7 +162,7 @@ export function buildTaskSubmission({
   if (capabilityProfile === WORD_CAPABILITY_PROFILE && maxVisibleArtifacts !== 1) {
     throw new TypeError('Word tasks allow exactly one visible artifact');
   }
-  if ([XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE].includes(capabilityProfile) && maxVisibleArtifacts !== 1) {
+  if ([XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE, OFFICE_COMPOSE_CAPABILITY_PROFILE].includes(capabilityProfile) && maxVisibleArtifacts !== 1) {
     throw new TypeError('M3.1 Office tasks allow exactly one visible artifact');
   }
   const idempotencyKey = sha256([

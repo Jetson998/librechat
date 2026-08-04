@@ -445,8 +445,10 @@ test('HTTP API exposes submit, task lookup, and durable event cursor', async (t)
   assert.equal(capabilitiesResponse.status, 200);
   const capabilities = await capabilitiesResponse.json();
   assert.ok(capabilities.taskContractVersions.includes('office-file-agent.v1'));
-  assert.equal(capabilities.maxInputFiles, 1);
-  assert.equal(capabilities.maxVisibleArtifacts, 3);
+  assert.ok(capabilities.taskContractVersions.includes('office-file-agent.v1.2'));
+  assert.ok(capabilities.capabilityProfiles.includes('office-compose-v1'));
+  assert.equal(capabilities.maxInputFiles, 2);
+  assert.equal(capabilities.maxVisibleArtifacts, 1);
 
   const submit = await handleRuntimeFetch(runtime, new Request(`${baseUrl}/v1/tasks`, {
     method: 'POST',

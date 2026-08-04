@@ -3,7 +3,11 @@ import {
   DOCX_MIME,
   TASK_CONTRACT_VERSION,
   TASK_CONTRACT_VERSION_V1_1,
+  TASK_CONTRACT_VERSION_V1_2,
   TASK_TYPE,
+  OFFICE_COMPOSE_CAPABILITY_PROFILE,
+  PPTX_MIME,
+  XLSX_MIME,
   WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 
@@ -88,7 +92,11 @@ export function decideFileAgentCapabilityRoute({
   capabilities,
 }) {
   const hasDocxInput = files.some((file) => file?.mimeType === DOCX_MIME);
-  if (hasDocxInput && capabilityProfile !== WORD_CAPABILITY_PROFILE) {
+  if (
+    hasDocxInput &&
+    capabilityProfile !== WORD_CAPABILITY_PROFILE &&
+    capabilityProfile !== OFFICE_COMPOSE_CAPABILITY_PROFILE
+  ) {
     return native('word_capability_profile_required');
   }
   if (
@@ -97,9 +105,21 @@ export function decideFileAgentCapabilityRoute({
   ) {
     return native('word_input_contract_unsupported');
   }
+  if (
+    capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE &&
+    (
+      files.length < 1 ||
+      files.length > 2 ||
+      files.some((file) => ![DOCX_MIME, XLSX_MIME].includes(file?.mimeType))
+    )
+  ) {
+    return native('office_compose_input_contract_unsupported');
+  }
   const requiredContractVersion = capabilityProfile === WORD_CAPABILITY_PROFILE
     ? TASK_CONTRACT_VERSION_V1_1
-    : TASK_CONTRACT_VERSION;
+    : capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+      ? TASK_CONTRACT_VERSION_V1_2
+      : TASK_CONTRACT_VERSION;
   if (
     !capabilities ||
     !capabilities.taskContractVersions?.includes(requiredContractVersion) ||
@@ -113,7 +133,10 @@ export function decideFileAgentCapabilityRoute({
   if (files.some((file) => !capabilities.inputMimeTypes?.includes(file.mimeType))) {
     return native('runtime_file_type_unsupported');
   }
-  if (files.some((file) => !capabilities.outputMimeTypes?.includes(file.mimeType))) {
+  const requiredOutputMime = capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+    ? PPTX_MIME
+    : files[0]?.mimeType;
+  if (!capabilities.outputMimeTypes?.includes(requiredOutputMime)) {
     return native('runtime_output_type_unsupported');
   }
   if (

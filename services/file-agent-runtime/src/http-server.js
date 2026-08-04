@@ -11,19 +11,21 @@ const DEFAULT_HEALTH_RESPONSE = Object.freeze({ status: 'ok', mode: 'development
 
 export const DEFAULT_RUNTIME_CAPABILITIES = Object.freeze({
   schemaVersion: '1.0',
-  taskContractVersions: ['office-file-agent.v1', 'office-file-agent.v1.1'],
+  taskContractVersions: ['office-file-agent.v1', 'office-file-agent.v1.1', 'office-file-agent.v1.2'],
   taskTypes: ['office_transform'],
-  capabilityProfiles: ['office-planner-v1', 'word-edit-v1'],
+  capabilityProfiles: ['office-planner-v1', 'word-edit-v1', 'xlsx-edit-v1', 'pptx-edit-v1', 'office-compose-v1'],
   inputMimeTypes: [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ],
   outputMimeTypes: [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ],
-  maxInputFiles: 1,
-  maxVisibleArtifacts: 3,
+  maxInputFiles: 2,
+  maxVisibleArtifacts: 1,
 });
 
 function jsonResponse(status, body) {
