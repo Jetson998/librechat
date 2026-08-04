@@ -38,7 +38,7 @@ The following are facts, not new implementation claims:
 | Existing production state | API bootstrap deployed with Runtime disabled |
 | Existing production flag | `FILE_AGENT_RUNTIME_ENABLED=false` |
 | Runtime production traffic | none |
-| M3.1 formal profiles | not implemented: `xlsx-edit-v1`, `pptx-edit-v1`, `office-compose-v1` |
+| M3.1 formal profiles | XLSX/PPTX Workers and the first isolated `office-compose-v1` vertical slice implemented locally; production capability remains Word-only |
 | Existing XLSX implementation | legacy POC retained for regression; not the M3.1 capability |
 
 The existing production bootstrap and its rollback record are retained as
@@ -197,10 +197,15 @@ the prior two-service state after a failed check.
 
 ## 9. Current gate
 
-Current state is `开发暂停，统一范围已冻结，待恢复开发`.
+Current state is `开发进行中：T4 office-compose-v1 隔离纵向切片已完成，待统一接入回归`.
 
-No feature code, package, image, production preflight, or deployment is
-authorized merely by this document. The next implementation action, after the
-document is accepted as the source of truth, is the first unified-batch code
-commit covering the shared Office contract/safety foundation and the formal
-Excel capability boundary.
+The current local evidence covers the deterministic Compose contract, bounded
+source facts, source hash and mapping verification, one PPTX artifact, full
+slide rendering, and the XLSX -> PPTX, DOCX -> PPTX, and XLSX + DOCX -> PPTX
+isolated CodeAPI scenarios. It does not claim production capability, Connector
+traffic, Compose deployment, or customer acceptance.
+
+No feature package, image, production preflight, or deployment is authorized
+merely by this document. The next implementation action is to complete the
+unified Runtime/Connector capability routing and then the production Compose,
+secret, health, deployment, and rollback integration under the same batch.

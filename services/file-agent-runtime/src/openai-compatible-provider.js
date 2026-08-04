@@ -12,6 +12,11 @@ import {
   PPTX_WORKER_IDS,
 } from './deterministic-pptx-v1.js';
 import {
+  normalizeOfficeComposeAction,
+  OFFICE_COMPOSE_VERIFIER_PROFILE,
+  OFFICE_COMPOSE_WORKER_IDS,
+} from './deterministic-office-compose-v1.js';
+import {
   ProviderAmbiguousCommitError,
   ProviderCanceledError,
   ProviderProtocolError,
@@ -35,6 +40,10 @@ const PROFILE_CONFIG = Object.freeze({
   }),
   'pptx-edit-v1': Object.freeze({
     workers: new Set(PPTX_WORKER_IDS),
+    maxActions: 4,
+  }),
+  'office-compose-v1': Object.freeze({
+    workers: new Set(OFFICE_COMPOSE_WORKER_IDS),
     maxActions: 4,
   }),
 });
@@ -282,6 +291,114 @@ function responseFormatFor(route, operation) {
       },
     };
   }
+  if (route.capabilityProfile === 'office-compose-v1') {
+    return {
+      type: 'json_schema',
+      json_schema: {
+        name: `office_compose_${operation}_plan`,
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            schemaVersion: { type: 'string', const: '1.0' },
+            summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+            needsInput: { type: 'boolean' },
+            question: {
+              anyOf: [
+                { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+                { type: 'null' },
+              ],
+            },
+            actions: {
+              type: 'array',
+              minItems: 0,
+              maxItems: 4,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  schemaVersion: { type: 'string', const: '1.0' },
+                  objective: { type: 'string', minLength: 1, maxLength: 1_000 },
+                  worker: { type: 'string', enum: OFFICE_COMPOSE_WORKER_IDS },
+                  inputRefs: {
+                    type: 'array',
+                    minItems: 1,
+                    maxItems: 20,
+                    items: { type: 'string' },
+                  },
+                  targetRef: { type: 'string', const: 'candidate:working-pptx' },
+                  parameters: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      operation: { type: 'string', enum: ['inspect', 'generate', 'validate'] },
+                      title: { anyOf: [{ type: 'string', minLength: 1, maxLength: 400 }, { type: 'null' }] },
+                      slides: {
+                        anyOf: [
+                          { type: 'null' },
+                          {
+                            type: 'array',
+                            minItems: 1,
+                            maxItems: 12,
+                            items: {
+                              type: 'object',
+                              additionalProperties: false,
+                              properties: {
+                                title: { type: 'string', minLength: 1, maxLength: 400 },
+                                bullets: {
+                                  type: 'array',
+                                  minItems: 1,
+                                  maxItems: 8,
+                                  items: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                      sourceLogicalId: { type: 'string', pattern: '^source:[a-z][a-z0-9._-]{0,63}$' },
+                                      sourceLocation: { type: 'string', minLength: 1, maxLength: 160 },
+                                      label: { type: 'string', minLength: 1, maxLength: 240 },
+                                    },
+                                    required: ['sourceLogicalId', 'sourceLocation', 'label'],
+                                  },
+                                },
+                              },
+                              required: ['title', 'bullets'],
+                            },
+                          },
+                        ],
+                      },
+                    },
+                    required: ['operation', 'title', 'slides'],
+                  },
+                  expectedChange: {
+                    type: 'array',
+                    maxItems: 20,
+                    items: { type: 'string', minLength: 1, maxLength: 240 },
+                  },
+                  verificationProfile: { type: 'string', const: OFFICE_COMPOSE_VERIFIER_PROFILE },
+                  onFailure: { type: 'string', enum: ['replan', 'needs_input', 'fail'] },
+                  summary: { type: 'string', minLength: 1, maxLength: MAX_SUMMARY_CHARS },
+                },
+                required: [
+                  'schemaVersion',
+                  'objective',
+                  'worker',
+                  'inputRefs',
+                  'targetRef',
+                  'parameters',
+                  'expectedChange',
+                  'verificationProfile',
+                  'onFailure',
+                  'summary',
+                ],
+              },
+            },
+          },
+          required: ['schemaVersion', 'summary', 'needsInput', 'question', 'actions'],
+        },
+      },
+    };
+  }
   const actionKind = operation === 'repair' ? 'xlsx_patch_and_transform' : 'xlsx_transform';
   return {
     type: 'json_schema',
@@ -389,6 +506,14 @@ function validatePptxPlanAction(action) {
   }
 }
 
+function validateOfficeComposePlanAction(action) {
+  try {
+    return normalizeOfficeComposeAction(action);
+  } catch (error) {
+    throw new ProviderProtocolError(error.message, { cause: error });
+  }
+}
+
 function validatePlan(value, { capabilityProfile, operation }) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new ProviderProtocolError('Provider plan must be a JSON object');
@@ -438,6 +563,8 @@ function validatePlan(value, { capabilityProfile, operation }) {
       ? value.actions.map(validateXlsxPlanAction)
       : capabilityProfile === 'pptx-edit-v1'
         ? value.actions.map(validatePptxPlanAction)
+        : capabilityProfile === 'office-compose-v1'
+          ? value.actions.map(validateOfficeComposePlanAction)
       : value.actions.map((action) => validateAction(action, profile.legacyActions, operation));
   const signatures = actions.map((entry) => capabilityProfile === 'office-planner-v1'
     ? entry.kind

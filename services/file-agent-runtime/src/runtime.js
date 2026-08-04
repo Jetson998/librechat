@@ -21,6 +21,10 @@ import { normalizeVerificationResult, verificationFingerprint } from './verifica
 import { normalizeWordAcceptanceAssertions } from './word-acceptance.js';
 import { normalizeXlsxAcceptanceAssertions } from './xlsx-acceptance.js';
 import { normalizePptxAcceptanceAssertions } from './pptx-acceptance.js';
+import {
+  OFFICE_COMPOSE_CAPABILITY_PROFILE,
+} from './deterministic-office-compose-v1.js';
+import { normalizeOfficeComposeAcceptanceAssertions } from './office-compose-acceptance.js';
 
 export class RuntimeShutdownError extends Error {
   constructor() {
@@ -55,8 +59,14 @@ export function validateTaskManifest(manifest) {
   const capabilityProfile = manifest.model?.capabilityProfile;
   const hasDocxInput = Array.isArray(manifest.inputs)
     && manifest.inputs.some((input) => input?.mimeType === DOCX_MIME);
-  if (hasDocxInput && manifest.taskContractVersion !== TASK_CONTRACT_VERSION_V1_1) {
-    throw new TypeError('DOCX inputs require office-file-agent.v1.1 and the Word capability profile');
+  if (
+    hasDocxInput &&
+    !(manifest.taskContractVersion === TASK_CONTRACT_VERSION_V1_1 || (
+      manifest.taskContractVersion === TASK_CONTRACT_VERSION_V1_2 &&
+      capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+    ))
+  ) {
+    throw new TypeError('DOCX inputs require office-file-agent.v1.1 or the office-compose-v1 capability profile');
   }
   if (manifest.taskContractVersion === TASK_CONTRACT_VERSION_V1_1) {
     if (capabilityProfile !== WORD_CAPABILITY_PROFILE) {
@@ -71,10 +81,19 @@ export function validateTaskManifest(manifest) {
     }
   }
   if (manifest.taskContractVersion === TASK_CONTRACT_VERSION_V1_2) {
-    if (![XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE].includes(capabilityProfile)) {
+    if (![XLSX_CAPABILITY_PROFILE, PPTX_CAPABILITY_PROFILE, OFFICE_COMPOSE_CAPABILITY_PROFILE].includes(capabilityProfile)) {
       throw new TypeError('office-file-agent.v1.2 requires an M3.1 Office capability profile');
     }
-    if (
+    if (capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE) {
+      if (
+        !Array.isArray(manifest.inputs) ||
+        manifest.inputs.length < 1 ||
+        manifest.inputs.length > 2 ||
+        manifest.inputs.some((input) => ![DOCX_MIME, XLSX_MIME].includes(input?.mimeType))
+      ) {
+        throw new TypeError('office-compose-v1 requires one or two DOCX/XLSX inputs');
+      }
+    } else if (
       !Array.isArray(manifest.inputs) ||
       manifest.inputs.length !== 1 ||
       ![XLSX_MIME, PPTX_MIME].includes(manifest.inputs[0]?.mimeType) ||
@@ -105,6 +124,9 @@ export function validateTaskManifest(manifest) {
       throw new TypeError('The PPTX capability profile requires office-file-agent.v1.2');
     }
     normalizePptxAcceptanceAssertions(manifest.acceptanceAssertions);
+  }
+  if (capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE) {
+    validateOfficeComposeManifest(manifest);
   }
 }
 
@@ -137,6 +159,11 @@ export function normalizeTaskManifest(manifest) {
       normalized.acceptanceAssertions,
     );
   }
+  if (normalized.model?.capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE) {
+    normalized.acceptanceAssertions = normalizeOfficeComposeAcceptanceAssertions(
+      normalized.acceptanceAssertions,
+    );
+  }
   return deepFreeze(normalized);
 }
 
@@ -161,6 +188,41 @@ function unwrapProviderValue(result) {
 
 function clone(value) {
   return structuredClone(value);
+}
+
+function validateOfficeComposeManifest(manifest) {
+  const inputs = manifest.inputs ?? [];
+  const inputByLogicalId = new Map();
+  for (const [index, input] of inputs.entries()) {
+    if (
+      typeof input?.logicalId !== 'string' ||
+      !/^source:[a-z][a-z0-9._-]{0,63}$/.test(input.logicalId) ||
+      inputByLogicalId.has(input.logicalId)
+    ) {
+      throw new TypeError(`Office Compose input[${index}].logicalId must be unique and use source:<id>`);
+    }
+    inputByLogicalId.set(input.logicalId, input);
+  }
+  const assertions = normalizeOfficeComposeAcceptanceAssertions(manifest.acceptanceAssertions);
+  for (const assertion of assertions) {
+    if (!assertion.sourceLogicalId) {
+      continue;
+    }
+    const input = inputByLogicalId.get(assertion.sourceLogicalId);
+    if (!input) {
+      throw new TypeError(
+        `Office Compose assertion references an unauthorized source: ${assertion.sourceLogicalId}`,
+      );
+    }
+    if (
+      assertion.type === 'compose.source_hash.v1' &&
+      assertion.sha256 !== input.sha256?.toLowerCase()
+    ) {
+      throw new TypeError(
+        `Office Compose source hash assertion does not match ${assertion.sourceLogicalId}`,
+      );
+    }
+  }
 }
 
 function normalizeEnabledValues(value, name) {
@@ -189,6 +251,10 @@ function isPptxTask(task) {
   return task?.manifest?.model?.capabilityProfile === PPTX_CAPABILITY_PROFILE;
 }
 
+function isOfficeComposeTask(task) {
+  return task?.manifest?.model?.capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE;
+}
+
 function hasCompletedWordInspection(task) {
   return Object.values(task?.itemResults ?? {}).some(
     (result) => result?.operation === 'inspect',
@@ -204,6 +270,12 @@ function hasCompletedXlsxInspection(task) {
 function hasCompletedPptxInspection(task) {
   return Object.values(task?.itemResults ?? {}).some(
     (result) => result?.operation === 'inspect',
+  );
+}
+
+function hasCompletedOfficeComposeInspection(task) {
+  return Object.values(task?.itemResults ?? {}).some(
+    (result) => result?.operation === 'inspect' && result?.sourceFactsHash,
   );
 }
 
@@ -683,6 +755,20 @@ export class FileAgentRuntime {
         'The initial PPTX plan must contain exactly one first action: pptx.inspect.v1',
       );
     }
+    if (
+      isOfficeComposeTask(task) &&
+      !hasCompletedOfficeComposeInspection(task) &&
+      plan?.needsInput !== true &&
+      (
+        !Array.isArray(plan?.actions) ||
+        plan.actions.length !== 1 ||
+        plan.actions[0]?.worker !== 'office-compose.inspect.v1'
+      )
+    ) {
+      throw new TypeError(
+        'The initial Office Compose plan must contain exactly one first action: office-compose.inspect.v1',
+      );
+    }
 
     await this.store.mutateTask(task.taskId, (current, emit) => {
       if (current.status !== 'planning') {
@@ -738,6 +824,7 @@ export class FileAgentRuntime {
       (isWordTask(task) && !hasCompletedWordInspection(task) && action.worker === 'word.inspect.v1') ||
       (isXlsxTask(task) && !hasCompletedXlsxInspection(task) && action.worker === 'xlsx.inspect.v1')
       || (isPptxTask(task) && !hasCompletedPptxInspection(task) && action.worker === 'pptx.inspect.v1')
+      || (isOfficeComposeTask(task) && !hasCompletedOfficeComposeInspection(task) && action.worker === 'office-compose.inspect.v1')
     );
     await this.#runItem({
       task,

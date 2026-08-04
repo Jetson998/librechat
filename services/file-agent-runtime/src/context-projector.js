@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto';
 
-import { PPTX_CAPABILITY_PROFILE, XLSX_CAPABILITY_PROFILE } from './constants.js';
+import {
+  PPTX_CAPABILITY_PROFILE,
+  WORD_CAPABILITY_PROFILE,
+  XLSX_CAPABILITY_PROFILE,
+} from './constants.js';
+import { OFFICE_COMPOSE_CAPABILITY_PROFILE } from './deterministic-office-compose-v1.js';
+import { normalizeOfficeComposeAcceptanceAssertions } from './office-compose-acceptance.js';
 import { normalizePptxAcceptanceAssertions } from './pptx-acceptance.js';
 import { normalizeWordAcceptanceAssertions } from './word-acceptance.js';
 import { normalizeXlsxAcceptanceAssertions } from './xlsx-acceptance.js';
@@ -251,6 +257,35 @@ function projectPptxDocument(task) {
   };
 }
 
+function projectOfficeComposeAcceptanceAssertions(task) {
+  const assertions = task.manifest.acceptanceAssertions;
+  if (!Array.isArray(assertions)) {
+    return [];
+  }
+  return structuredClone(normalizeOfficeComposeAcceptanceAssertions(assertions));
+}
+
+function projectOfficeComposeDocument(task) {
+  const inspection = Object.values(task.itemResults ?? {})
+    .reverse()
+    .find((result) => result?.operation === 'inspect' && result?.sources);
+  if (!inspection) {
+    return null;
+  }
+  return {
+    sourceFactsHash: inspection.sourceFactsHash ?? null,
+    sources: (inspection.sources ?? []).slice(0, 3).map((source) => ({
+      logicalId: source.logicalId ?? null,
+      kind: source.kind ?? null,
+      sha256: source.sha256 ?? null,
+      locations: (source.locations ?? []).slice(0, 80).map((entry) => ({
+        location: entry.location ?? null,
+        value: typeof entry.value === 'string' ? truncate(entry.value, 400) : entry.value,
+      })),
+    })),
+  };
+}
+
 export class ContextProjector {
   constructor({ maxChars = DEFAULT_TOTAL_CHARS } = {}) {
     if (!Number.isInteger(maxChars) || maxChars < 2_000) {
@@ -265,12 +300,17 @@ export class ContextProjector {
       schemaVersion: '1.0',
       objective: truncate(task.manifest.intent, OBJECTIVE_CHARS),
       acceptance: projectAcceptance(task.manifest.acceptance),
-      wordAcceptanceAssertions: projectWordAcceptanceAssertions(task),
+      wordAcceptanceAssertions: (!task.manifest.model?.capabilityProfile || task.manifest.model?.capabilityProfile === WORD_CAPABILITY_PROFILE)
+        ? projectWordAcceptanceAssertions(task)
+        : [],
       xlsxAcceptanceAssertions: task.manifest.model?.capabilityProfile === XLSX_CAPABILITY_PROFILE
         ? projectXlsxAcceptanceAssertions(task)
         : [],
       pptxAcceptanceAssertions: task.manifest.model?.capabilityProfile === PPTX_CAPABILITY_PROFILE
         ? projectPptxAcceptanceAssertions(task)
+        : [],
+      officeComposeAcceptanceAssertions: task.manifest.model?.capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+        ? projectOfficeComposeAcceptanceAssertions(task)
         : [],
       state: {
         phase: task.phase,
@@ -282,7 +322,9 @@ export class ContextProjector {
         ? projectXlsxDocument(task)
         : task.manifest.model?.capabilityProfile === PPTX_CAPABILITY_PROFILE
           ? projectPptxDocument(task)
-          : projectWordDocument(task),
+          : task.manifest.model?.capabilityProfile === OFFICE_COMPOSE_CAPABILITY_PROFILE
+            ? projectOfficeComposeDocument(task)
+            : projectWordDocument(task),
       recentItems: recent.items,
       verification: task.verification
         ? {
@@ -328,6 +370,7 @@ export class ContextProjector {
         'styles',
         'sheets',
         'definedNames',
+        'sources',
       ].find((key) => Array.isArray(context.document[key]) && context.document[key].length > 0);
       if (removable) {
         context.document[removable].pop();
