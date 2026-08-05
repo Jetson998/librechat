@@ -8,29 +8,44 @@
     "status": "not_applicable"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260805-file-agent-runtime-m3-m31-candidate/artifacts/20260805-file-agent-runtime-m3-m31-candidate-fa47c81107f0.tar.gz",
+      "manifest": ".release-state/20260805-file-agent-runtime-m3-m31-candidate/artifacts/manifest.json",
+      "value": "cf88683f4f985136090da17bc354dbcc0b786f76c443cc7b8365680772bacc59"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {
-      "production_backup": "not_applicable; candidate build does not modify a target host",
-      "candidate_recovery": "retain the previous source revision and discard the candidate artifact/image if validation fails"
+      "candidate_recovery": "retain the previous source revision and discard the candidate artifact/image if validation fails",
+      "production_backup": "not_applicable; candidate build does not modify a target host"
     },
     "reason": "No production service or data is changed while producing this candidate.",
     "status": "not_applicable"
   },
   "baseline_reference": {
     "details": {
-      "previous_source_revision": "f28b63b31f2df0fca1c2ad63cf8c286248becd70",
+      "description": "The candidate is built from the exact reviewed source revision fa47c811; the immediately previous source revision is retained as the source recovery reference.",
       "previous_production_release": "20260804-file-agent-runtime-m3r-api-bootstrap",
-      "production_runtime_state": "Runtime integration is not authorized or customer-enabled by this candidate task",
-      "description": "The candidate is built from the exact reviewed source revision fa47c811; the immediately previous source revision is retained as the source recovery reference."
+      "previous_source_revision": "f28b63b31f2df0fca1c2ad63cf8c286248becd70",
+      "production_runtime_state": "Runtime integration is not authorized or customer-enabled by this candidate task"
     },
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "docker_build": "failed_before_image_creation",
+      "failure_log": "deployment/release-records/20260805-file-agent-runtime-m3-m31-candidate/DOCKER_BUILD_FAILURE.md",
+      "failure_reason": "HTTPS snapshot cannot be verified before the CA bundle is installed in the digest-pinned Node bookworm-slim base image.",
+      "failure_stage": "apt-get update",
+      "image_created": false,
+      "production_write": false,
+      "source_artifact_sha256": "cf88683f4f985136090da17bc354dbcc0b786f76c443cc7b8365680772bacc59",
+      "source_package": "passed",
+      "source_revision": "fa47c81107f00c189f82d0021714acf391546387"
+    },
+    "status": "failed"
   },
   "change_summary": {
     "expected_result": "Produce a reproducible Linux/amd64 Runtime OCI image and a manifest-backed Connector/source handoff from fa47c811, then stop at candidate-ready without production writes.",
@@ -73,8 +88,10 @@
   "project_id": "librechat-self-host",
   "release_id": "20260805-file-agent-runtime-m3-m31-candidate",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "path": ".release-state/20260805-file-agent-runtime-m3-m31-candidate/release-plan.json"
+    },
+    "sha256": "3fcad7763eb7ab929a704449734ae2af1e67814e6b133248baa4d1109dd75f36"
   },
   "rollback_reference": {
     "details": {
@@ -86,20 +103,27 @@
   },
   "runtime_snapshot": {
     "details": {
-      "target": "local candidate build host",
-      "production_target": false
+      "production_target": false,
+      "target": "local candidate build host"
     },
     "reason": "Candidate validation uses a local Docker container only and does not inspect or change production.",
     "status": "not_applicable"
   },
   "schema_version": 1,
   "source_revision": "fa47c81107f00c189f82d0021714acf391546387",
-  "status": "planned",
+  "status": "failed",
   "unresolved_issues": [
-    "production_deployment_not_authorized",
-    "candidate_artifact_and_image_digest_pending_build"
+    {
+      "issue": "The first real linux/amd64 Runtime candidate build failed before image creation at apt-get update.",
+      "next_step": "Record the failed candidate separately, then make only the Dockerfile CA bootstrap fix and submit the new revision for narrow Sol review.",
+      "status": "open"
+    },
+    {
+      "issue": "Production deployment remains unauthorized.",
+      "status": "open"
+    }
   ],
-  "updated_at": "2026-08-05T07:03:20Z",
+  "updated_at": "2026-08-05T07:32:17Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts/test-sol-rejections.py",
