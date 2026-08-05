@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { loadProviderRoutes } from './provider-route-registry.js';
+
 const DEFAULTS = Object.freeze({
   codeApiBaseUrl: 'http://codeapi:8000',
   codeApiTimeoutMs: 120_000,
@@ -8,7 +10,6 @@ const DEFAULTS = Object.freeze({
   host: '0.0.0.0',
   maxConcurrentTasks: 1,
   maxContextChars: 12_000,
-  modelOutputBudgetTokens: 500,
   port: 8790,
   serviceScopeTtlSeconds: 60,
 });
@@ -51,17 +52,6 @@ function integer(environment, name, fallback, { min, max }) {
     throw new ProductionRuntimeConfigError(name);
   }
   return parsed;
-}
-
-function boolean(environment, name, fallback = false) {
-  const value = optionalString(environment, name, fallback ? 'true' : 'false').toLowerCase();
-  if (value === 'true') {
-    return true;
-  }
-  if (value === 'false') {
-    return false;
-  }
-  throw new ProductionRuntimeConfigError(name);
 }
 
 function absoluteDirectory(environment, name, fallback) {
@@ -144,11 +134,11 @@ export async function loadProductionRuntimeConfig({
   if (serviceScopeSecret.length < 32) {
     throw new ProductionRuntimeConfigError('FILE_AGENT_SERVICE_SCOPE_SECRET_FILE');
   }
-  const modelApiKey = await requiredSecret(
-    environment,
-    'FILE_AGENT_MODEL_API_KEY_FILE',
+  const providerRoutes = await loadProviderRoutes({
+    filePath: environment.FILE_AGENT_PROVIDER_ROUTES_FILE,
+    readTextFile: readSecretFile,
     readSecretFile,
-  );
+  });
 
   const host = optionalString(environment, 'FILE_AGENT_HOST', DEFAULTS.host);
   if (!['0.0.0.0', '::'].includes(host)) {
@@ -190,27 +180,7 @@ export async function loadProductionRuntimeConfig({
         { min: 1_000, max: 900_000 },
       ),
     },
-    modelRoute: {
-      routeId: 'file-agent-primary',
-      baseUrl: normalizedHttpUrl(environment, 'FILE_AGENT_MODEL_BASE_URL', {
-        protocols: ['http:', 'https:'],
-      }),
-      model: requiredString(environment, 'FILE_AGENT_MODEL'),
-      apiKey: modelApiKey,
-      capabilityProfile: 'word-edit-v1',
-      supportsIdempotency: boolean(
-        environment,
-        'FILE_AGENT_MODEL_SUPPORTS_IDEMPOTENCY',
-        false,
-      ),
-      outputBudgetTokens: integer(
-        environment,
-        'FILE_AGENT_MODEL_OUTPUT_BUDGET_TOKENS',
-        DEFAULTS.modelOutputBudgetTokens,
-        { min: 1, max: 4_096 },
-      ),
-      structuredOutputMode: 'json_schema',
-    },
+    providerRoutes,
     serviceScope: {
       secret: serviceScopeSecret,
       ttlSeconds: integer(

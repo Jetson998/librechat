@@ -1,8 +1,10 @@
 # File Agent Runtime
 
-This directory contains the non-production File Agent Runtime foundation,
-the Phase 1 isolated CodeAPI executor POC, and the Phase 2A recorded single-model
-POC described in:
+This directory contains the File Agent Runtime foundation, the non-production
+Phase 1 isolated CodeAPI executor POC, and the Phase 2A recorded single-model
+POC described in the documents below. The production multi-route configuration
+is loaded only by the explicit production server entry point and is not enabled
+by the default development command.
 
 - `docs/INDEPENDENT_FILE_AGENT_RUNTIME_ARCHITECTURE.md`
 - `docs/FILE_AGENT_RUNTIME_PHASE0_IMPLEMENTATION.md`
@@ -35,7 +37,9 @@ import Python libraries.
 - workbook verification and one CodeAPI artifact reference;
 - item-level external idempotency proven across Runtime restart;
 - formal `ProviderAdapter` contract and typed provider errors;
-- one allowlisted OpenAI-compatible model route;
+- explicit provider route identity with allowlisted models and protocol adapters;
+- production route loading for multiple OpenAI-compatible and Anthropic Messages
+  routes, with server-side provider keys kept inside the Runtime process;
 - persistent model call journal with completed replay, digest conflict, and
   ambiguous-commit handling;
 - structured model plans restricted to versioned worker actions;
@@ -61,7 +65,8 @@ import Python libraries.
 - production LibreChat Connector integration;
 - production secret distribution, rotation, or public authentication;
 - production CodeAPI authentication or protocol mapping;
-- persistent external model credentials or a production model route;
+- provider-key distribution, rotation, public authentication, and production
+  release coordination;
 - PPT, PDF, or general Office workers;
 - production usage ingestion or billing;
 - production artifact persistence through `processCodeOutput()`;
@@ -172,11 +177,13 @@ path. It does not regenerate a large program.
 The final Runtime result contains one opaque CodeAPI artifact reference only.
 It is not a LibreChat file record and is not a download card.
 
-## Phase 2A Provider Contract
+## Phase 2A Provider Contract (non-production)
 
-The task contains only an allowlisted `modelRouteId` and capability profile.
-Route URLs, credentials, models, budgets, and idempotency support are injected
-into `SingleModelAgentProvider` and are not persisted in the task.
+The recorded Phase 2A task contains only an allowlisted `modelRouteId` and
+capability profile. Route URLs, credentials, models, budgets, and idempotency
+support are injected into `SingleModelAgentProvider` and are not persisted in
+the task. Its fixed route is a harness constraint, not the production routing
+contract.
 
 Each provider item uses the Runtime item ID as its `callId`. Before an upstream
 request, `FileModelCallJournal` writes a pending record under:
@@ -209,6 +216,27 @@ outputTokens
 
 The Runtime does not calculate cost or create LibreChat transactions.
 
+## Production provider route contract
+
+The production entry point consumes `FILE_AGENT_PROVIDER_ROUTES_FILE`, a
+server-owned registry with one explicit route per `providerRouteRef`. Each
+route declares its provider endpoint, base URL, protocol, model allowlist,
+idempotency policy, and a file-backed API key. The API Connector supplies only
+the selected route identity in the task manifest:
+
+```text
+providerRouteRef
+providerEndpoint
+providerModel
+providerProtocol
+```
+
+The Runtime resolves that identity against its registry, selects the explicit
+OpenAI-compatible or Anthropic Messages transport, and records the same
+identity in usage evidence. Raw URLs and API keys are never accepted from the
+user request and never written to task manifests, journals, delivery records,
+or usage evidence.
+
 ## Progress Contract
 
 Failed verification results receive a stable fingerprint. The first failure
@@ -228,8 +256,9 @@ local sessions and contain no customer data.
 
 `scripts/phase2b-once.js` is a disabled-by-default non-production acceptance
 harness. It always uses the tracked `test/fixtures/phase2b-source.xlsx`, an
-isolated local CodeAPI fixture, one allowlisted model route, at most two model
-calls, an 8,000-character context projection, and fixed input/output budgets.
+isolated local CodeAPI fixture, one fixed allowlisted model route, at most two
+model calls, an 8,000-character context projection, and fixed input/output
+budgets.
 
 The harness refuses a real relay unless all of these variables are present:
 

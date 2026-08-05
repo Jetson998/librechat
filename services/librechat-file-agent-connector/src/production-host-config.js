@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { loadProviderRouteMap } from './provider-route-registry.js';
+
 const DEFAULTS = Object.freeze({
   connectorRoot: '/opt/librechat/file-agent-runtime/connector',
   modelRouteId: 'file-agent-primary',
@@ -178,6 +180,12 @@ export async function loadProductionHostConfig({
     ),
     runtimeBaseUrl: runtimeBaseUrl(environment),
     modelRouteId: routeId(environment),
+    providerRouteRegistry: await loadProviderRouteMap({
+      filePath: absolutePath(environment, 'FILE_AGENT_PROVIDER_ROUTE_MAP_FILE', null),
+      readTextFile,
+    }).catch(() => {
+      throw new ProductionHostConfigError('FILE_AGENT_PROVIDER_ROUTE_MAP_FILE');
+    }),
     serviceScopeSecret: await requiredSecret(
       environment,
       'FILE_AGENT_SERVICE_SCOPE_SECRET_FILE',

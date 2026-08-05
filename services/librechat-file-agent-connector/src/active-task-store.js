@@ -114,6 +114,10 @@ function createRecord({
   capabilityProfile,
   billingSnapshotRef,
   modelRouteId,
+  providerRouteRef = null,
+  providerEndpoint = null,
+  providerModel = null,
+  providerProtocol = null,
   workspaceRef = null,
   inputRefs = [],
   allowedOutputMimeTypes = [],
@@ -132,6 +136,14 @@ function createRecord({
     capabilityProfile: requiredString(capabilityProfile, 'capabilityProfile'),
     billingSnapshotRef: requiredString(billingSnapshotRef, 'billingSnapshotRef'),
     modelRouteId: requiredString(modelRouteId, 'modelRouteId'),
+    ...(providerRouteRef
+      ? {
+          providerRouteRef: requiredString(providerRouteRef, 'providerRouteRef'),
+          providerEndpoint: requiredString(providerEndpoint, 'providerEndpoint'),
+          providerModel: requiredString(providerModel, 'providerModel'),
+          providerProtocol: requiredString(providerProtocol, 'providerProtocol'),
+        }
+      : {}),
     workspaceRef: workspaceRef == null ? null : requiredString(workspaceRef, 'workspaceRef'),
     inputRefs: normalizeInputRefs(inputRefs),
     ...outputPolicy,

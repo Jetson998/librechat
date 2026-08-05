@@ -20,6 +20,7 @@ import { sourceLogicalIdForFile } from './office-compose-acceptance-resolver.js'
 import { resolveOfficeComposeAcceptanceAssertions } from './office-compose-acceptance-resolver.js';
 import { resolvePptxAcceptanceAssertions } from './pptx-acceptance-resolver.js';
 import { resolveXlsxAcceptanceAssertions } from './xlsx-acceptance-resolver.js';
+import { resolveProviderRoute } from './provider-route-registry.js';
 
 const CONTINUATION_INTENT = /(?:继续|接着|刚才|上一轮|上一个任务|按刚才|按之前|resume|continue|same task)/i;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
@@ -281,6 +282,7 @@ export function createUpstreamRuntimeRequestResolver({
   limits = {},
   computeFileDigest = contentSha256,
   resolveAcceptanceAssertions = null,
+  providerRouteRegistry = null,
 } = {}) {
   requiredFunction(computeFileDigest, 'computeFileDigest');
   if (resolveAcceptanceAssertions != null) {
@@ -460,6 +462,22 @@ export function createUpstreamRuntimeRequestResolver({
       throw error;
     }
 
+    let providerRoute = null;
+    if (providerRouteRegistry) {
+      try {
+        providerRoute = resolveProviderRoute({
+          registry: providerRouteRegistry,
+          librechatEndpoint: resolvedEndpoint(context.client),
+          model: resolvedProviderModel(context.client),
+        });
+      } catch (error) {
+        if (error?.code === 'PROVIDER_MODEL_NOT_ALLOWLISTED') {
+          return native('provider_model_not_allowlisted');
+        }
+        return native('provider_route_unavailable');
+      }
+    }
+
     return {
       userId,
       tenantId,
@@ -471,6 +489,14 @@ export function createUpstreamRuntimeRequestResolver({
       files,
       sessionId: [...sessionIds][0],
       modelRouteId: resolveModelRouteId(modelRouteId, context),
+      ...(providerRoute
+        ? {
+            providerRouteRef: providerRoute.providerRouteRef,
+            providerEndpoint: providerRoute.providerEndpoint,
+            providerModel: providerRoute.providerModel,
+            providerProtocol: providerRoute.protocol,
+          }
+        : {}),
       capabilityProfile: resolvedCapabilityProfile,
       taskContractVersion: resolvedTaskContractVersion,
       acceptance: [...resolvedAcceptance],
@@ -536,6 +562,16 @@ export function createUpstreamBillingSnapshotCreator({
     const currentModelTokenConfig = Object.hasOwn(endpointTokenConfig, model)
       ? { [model]: clone(endpointTokenConfig[model]) }
       : {};
+    const providerRouteRef = request.providerRouteRef ?? null;
+    const providerEndpoint = request.providerEndpoint ?? endpoint;
+    const providerModel = request.providerModel ?? model;
+    const providerProtocol = request.providerProtocol ?? null;
+    if (
+      providerRouteRef != null &&
+      (providerEndpoint == null || providerModel !== model || providerProtocol == null)
+    ) {
+      throw new Error('Resolved provider route identity does not match the selected LibreChat model');
+    }
     const pricingArgs = { model, endpoint, endpointTokenConfig };
     const prices = {
       prompt: nonNegativeRate(
@@ -560,6 +596,9 @@ export function createUpstreamBillingSnapshotCreator({
       modelRouteId: request.modelRouteId,
       endpoint,
       model,
+      ...(providerRouteRef
+        ? { providerRouteRef, providerEndpoint, providerModel, providerProtocol }
+        : {}),
       prices,
       pricing: { source: 'resolved-librechat-native-v1' },
       endpointTokenConfig: currentModelTokenConfig,
@@ -586,6 +625,7 @@ export function createUpstreamControllerBridge({
   computeFileDigest,
   resolveAcceptanceAssertions,
   preflightRequest,
+  providerRouteRegistry = null,
 }) {
   return new FileAgentControllerBridge({
     connector,
@@ -597,6 +637,7 @@ export function createUpstreamControllerBridge({
       resolveAcceptanceAssertions,
       limits,
       computeFileDigest,
+      providerRouteRegistry,
     }),
     preflightRequest,
     persistUserTurn: ({ persistUserTurn }) => persistUserTurn(),

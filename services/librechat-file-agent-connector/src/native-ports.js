@@ -1,6 +1,12 @@
 import { clone, sha256 } from './stable.js';
 
 const MESSAGE_CONTEXT = 'services/librechat-file-agent-connector/native-ports.js';
+const PROVIDER_IDENTITY_FIELDS = [
+  'providerRouteRef',
+  'providerEndpoint',
+  'providerModel',
+  'providerProtocol',
+];
 
 function requiredFunction(value, name) {
   if (typeof value !== 'function') {
@@ -293,6 +299,18 @@ export class NativeLibreChatPorts {
     }
     if (snapshot.modelRouteId !== delivery.modelRouteId) {
       throw new Error('Billing snapshot model route does not match delivery');
+    }
+    const snapshotHasProviderIdentity = PROVIDER_IDENTITY_FIELDS.some((field) => snapshot[field] != null);
+    const deliveryHasProviderIdentity = PROVIDER_IDENTITY_FIELDS.some((field) => delivery[field] != null);
+    if (snapshotHasProviderIdentity !== deliveryHasProviderIdentity) {
+      throw new Error('Billing snapshot provider route identity presence does not match delivery');
+    }
+    if (deliveryHasProviderIdentity) {
+      for (const field of PROVIDER_IDENTITY_FIELDS) {
+        if (typeof snapshot[field] !== 'string' || typeof delivery[field] !== 'string' || snapshot[field] !== delivery[field]) {
+          throw new Error(`Billing snapshot ${field} does not match delivery`);
+        }
+      }
     }
     return snapshot;
   }

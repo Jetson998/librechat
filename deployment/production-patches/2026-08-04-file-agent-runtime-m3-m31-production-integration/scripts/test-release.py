@@ -71,7 +71,8 @@ def make_handoff(root: Path, archive: dict) -> dict:
     for key, value in {
         "service_scope": "scope-secret-012345678901234567890123456789",
         "allowlist": "user-1\n",
-        "model_api_key": "model-secret-value\n",
+        "provider-openai": "model-secret-value\n",
+        "provider-anthropic": "anthropic-secret-value\n",
     }.items():
         target = root / f"{key}.secret"
         target.write_text(value, encoding="utf-8")
@@ -85,8 +86,28 @@ def make_handoff(root: Path, archive: dict) -> dict:
         "deployment": {
             "enable_runtime": True,
             "runtime_image": "registry.example.test/file-agent-runtime@sha256:" + "d" * 64,
-            "model_base_url": "https://relay.example.test/v1",
-            "model": "file-agent-model",
+            "provider_routes": [
+                {
+                    "librechat_endpoint": "Muskapis-openai",
+                    "provider_route_ref": "custom:Muskapis-openai",
+                    "provider_endpoint": "Muskapis-openai",
+                    "base_url": "https://relay.example.test/v1",
+                    "protocol": "openai-compatible",
+                    "allowed_models": ["gpt-5.6-sol"],
+                },
+                {
+                    "librechat_endpoint": "Muskapis-Anthropic",
+                    "provider_route_ref": "custom:Muskapis-Anthropic",
+                    "provider_endpoint": "Muskapis-Anthropic",
+                    "base_url": "https://relay.example.test",
+                    "protocol": "anthropic-messages",
+                    "allowed_models": ["claude-fable-5"],
+                },
+            ],
+            "provider_route_secret_host_files": {
+                "custom:Muskapis-openai": str(root / "provider-openai.secret"),
+                "custom:Muskapis-Anthropic": str(root / "provider-anthropic.secret"),
+            },
             "secret_host_files": secrets,
         },
         "connector_archive": archive,
@@ -241,7 +262,7 @@ def main() -> None:
         require(runtime["depends_on"]["codeapi"]["condition"] == "service_started", "CodeAPI dependency is missing")
         require(runtime["healthcheck"]["test"][0] == "CMD", "Runtime healthcheck is missing")
         require("file-agent-runtime-data" in patched["volumes"], "Runtime durable volume is missing")
-        require("file-agent-model-api-key" in patched["secrets"], "model secret is missing")
+        require(any(key.startswith("file-agent-provider-key-") for key in patched["secrets"]), "provider secret is missing")
         require("file-agent-allowlist" in patched["services"]["api"]["secrets"], "allowlist is not mounted into API")
         require("file-agent-runtime" in api["depends_on"], "API does not depend on Runtime")
 
@@ -270,6 +291,32 @@ def main() -> None:
             pass
         else:
             raise AssertionError("mutable Runtime image was accepted")
+
+        for legacy_field in (
+            "model",
+            "model_base_url",
+            "model_api_key",
+            "model_api_key_file",
+        ):
+            invalid = copy.deepcopy(handoff)
+            invalid["deployment"][legacy_field] = "fixed-provider-value"
+            try:
+                common.validate_handoff(invalid, workspace)
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError(f"legacy fixed provider field was accepted: {legacy_field}")
+
+        invalid = copy.deepcopy(handoff)
+        invalid["deployment"]["provider_route_secret_host_files"]["unregistered:route"] = str(
+            workspace / "provider-openai.secret"
+        )
+        try:
+            common.validate_handoff(invalid, workspace)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("secret file for an unregistered provider route was accepted")
 
         fake_root = workspace / "librechat"
         fake_root.mkdir()

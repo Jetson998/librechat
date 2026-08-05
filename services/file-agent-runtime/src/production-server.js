@@ -10,7 +10,7 @@ import { CodeApiWordExecutor, DOCX_MIME } from './deterministic-word.js';
 import { createRuntimeHttpServer } from './http-server.js';
 import { FileModelCallJournal } from './model-call-journal.js';
 import { CodeApiOfficeExecutor } from './office-executor.js';
-import { OpenAiChatTransport, SingleModelAgentProvider } from './openai-compatible-provider.js';
+import { ProviderProtocolTransport, SingleModelAgentProvider } from './openai-compatible-provider.js';
 import { loadProductionRuntimeConfig } from './production-config.js';
 import { FileAgentRuntime } from './runtime.js';
 import { FileTaskStore } from './task-store.js';
@@ -67,20 +67,25 @@ function closeServer(server) {
 /** Creates the multi-capability production Runtime without starting a network listener. */
 export function createProductionRuntime(config, { store = null, journal = null } = {}) {
   requiredConfig(config, 'dataDir');
-  const modelRoute = requiredConfig(config, 'modelRoute');
+  const modelRoute = config.modelRoute ?? null;
   const codeApi = requiredConfig(config, 'codeApi');
   const providerJournal = journal ?? new FileModelCallJournal(
     path.join(config.dataDir, 'provider-journal'),
   );
-  const routes = Object.fromEntries(
-    Object.entries(PROFILE_ROUTE_SUFFIXES).map(([capabilityProfile, suffix]) => [
-      `${modelRoute.routeId}${suffix}`,
-      { ...modelRoute, routeId: `${modelRoute.routeId}${suffix}`, capabilityProfile },
-    ]),
-  );
+  const routes = Array.isArray(config.providerRoutes)
+    ? Object.fromEntries(config.providerRoutes.map((route) => [route.providerRouteRef, route]))
+    : (() => {
+        const legacyRoute = requiredConfig(config, 'modelRoute');
+        return Object.fromEntries(
+          Object.entries(PROFILE_ROUTE_SUFFIXES).map(([capabilityProfile, suffix]) => [
+            `${legacyRoute.routeId}${suffix}`,
+            { ...legacyRoute, routeId: `${legacyRoute.routeId}${suffix}`, capabilityProfile },
+          ]),
+        );
+      })();
   const provider = new SingleModelAgentProvider({
     routes,
-    transport: new OpenAiChatTransport(),
+    transport: new ProviderProtocolTransport(),
     journal: providerJournal,
     projector: new ContextProjector({ maxChars: config.maxContextChars }),
   });

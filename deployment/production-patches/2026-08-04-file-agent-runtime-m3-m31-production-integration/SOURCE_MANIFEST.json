@@ -28,6 +28,22 @@
     "feature_flag": "FILE_AGENT_RUNTIME_ENABLED",
     "default_feature_flag": "false"
   },
+  "provider_routing": {
+    "api_route_map_env": "FILE_AGENT_PROVIDER_ROUTE_MAP_FILE",
+    "runtime_registry_env": "FILE_AGENT_PROVIDER_ROUTES_FILE",
+    "supported_protocols": [
+      "openai-compatible",
+      "anthropic-messages"
+    ],
+    "route_identity_fields": [
+      "providerRouteRef",
+      "providerEndpoint",
+      "providerModel",
+      "providerProtocol"
+    ],
+    "api_route_map_policy": "non-sensitive LibreChat endpoint, provider route reference, provider endpoint, protocol, and model allowlist only",
+    "runtime_registry_policy": "server-side base URL and one file-backed provider key per route; credentials are process-local and never enter task or usage evidence"
+  },
   "connector_archive": {
     "producer": "scripts/package-connector-archive.py",
     "source_root": "services/librechat-file-agent-connector",
@@ -60,7 +76,7 @@
   "secrets": {
     "file-agent-service-scope": "API and Runtime HMAC scope secret file",
     "file-agent-allowlist": "API user allowlist file",
-    "file-agent-model-api-key": "Runtime model relay API key file"
+    "file-agent-provider-key-<sha256-prefix>": "Runtime provider key file derived from providerRouteRef"
   },
   "rollback_scope": [
     "api",

@@ -30,6 +30,12 @@ export {
 } from './active-task-store.js';
 export { MongoBillingSnapshotStore } from './mongo-billing-snapshot-store.js';
 export {
+  ProviderRouteRegistryError,
+  loadProviderRouteMap,
+  normalizeProviderRouteMap,
+  resolveProviderRoute,
+} from './provider-route-registry.js';
+export {
   NativeLibreChatPorts,
   createFrozenPricing,
   stableTransactionId,

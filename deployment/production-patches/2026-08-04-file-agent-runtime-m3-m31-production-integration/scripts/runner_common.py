@@ -19,7 +19,16 @@ RUNTIME_DATA_VOLUME = "file-agent-runtime-data"
 SECRET_NAMES = {
     "service_scope": "file-agent-service-scope",
     "allowlist": "file-agent-allowlist",
-    "model_api_key": "file-agent-model-api-key",
+}
+LEGACY_FIXED_PROVIDER_FIELDS = {
+    "model",
+    "model_base_url",
+    "model_api_key",
+    "model_api_key_file",
+    "file_agent_model",
+    "file_agent_model_base_url",
+    "file_agent_model_api_key",
+    "file_agent_model_api_key_file",
 }
 USER_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}$")
 
@@ -95,6 +104,12 @@ def add_unique(items: list[str], value: str) -> None:
         items.append(value)
 
 
+def provider_secret_name(provider_route_ref: str) -> str:
+    require(isinstance(provider_route_ref, str) and provider_route_ref.strip() != "", "provider route reference is required")
+    digest = hashlib.sha256(provider_route_ref.encode("utf-8")).hexdigest()[:16]
+    return f"file-agent-provider-key-{digest}"
+
+
 def validate_handoff(handoff: dict, stage: Path) -> dict:
     require(handoff.get("schema_version") == 1, "unsupported dual-service handoff schema")
     require(handoff.get("status") == "packaged_for_deployment", "handoff is not deployable")
@@ -105,24 +120,51 @@ def validate_handoff(handoff: dict, stage: Path) -> dict:
 
     deployment = handoff.get("deployment")
     require(isinstance(deployment, dict), "deployment inputs are missing")
+    legacy_fields = sorted(LEGACY_FIXED_PROVIDER_FIELDS.intersection(deployment))
+    require(
+        not legacy_fields,
+        "handoff must use provider_routes; fixed provider fields are not supported: "
+        + ", ".join(legacy_fields),
+    )
     require(deployment.get("enable_runtime") is True, "production handoff must explicitly enable Runtime")
     image = deployment.get("runtime_image")
     require(isinstance(image, str) and "@sha256:" in image, "Runtime image must be pinned by digest")
     image_digest = image.rsplit("@sha256:", 1)[-1]
     require(bool(re.fullmatch(r"[0-9a-f]{64}", image_digest)), "Runtime image digest is invalid")
 
-    model_base_url = deployment.get("model_base_url")
-    parsed = urlparse(model_base_url) if isinstance(model_base_url, str) else None
+    provider_routes = deployment.get("provider_routes")
+    require(isinstance(provider_routes, list) and provider_routes, "provider route registry is missing")
+    secret_host_files = deployment.get("provider_route_secret_host_files")
+    require(isinstance(secret_host_files, dict), "provider route secret host files are missing")
+    refs = set()
+    endpoints = set()
+    for index, route in enumerate(provider_routes):
+        require(isinstance(route, dict), f"provider route {index} is invalid")
+        ref = route.get("provider_route_ref")
+        endpoint = route.get("librechat_endpoint")
+        provider_endpoint = route.get("provider_endpoint")
+        protocol = route.get("protocol")
+        models = route.get("allowed_models")
+        base_url = route.get("base_url")
+        require(isinstance(ref, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,191}", ref), f"provider route {index} ref is invalid")
+        require(isinstance(endpoint, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}", endpoint), f"provider route {index} LibreChat endpoint is invalid")
+        require(isinstance(provider_endpoint, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}", provider_endpoint), f"provider route {index} provider endpoint is invalid")
+        require(protocol in {"openai-compatible", "anthropic-messages"}, f"provider route {index} protocol is unsupported")
+        require(isinstance(models, list) and models and all(isinstance(model, str) and model.strip() for model in models), f"provider route {index} allowlist is invalid")
+        parsed = urlparse(base_url) if isinstance(base_url, str) else None
+        require(parsed is not None and parsed.scheme in {"http", "https"} and bool(parsed.hostname) and parsed.username is None and parsed.password is None and not parsed.query and not parsed.fragment, f"provider route {index} base URL is invalid")
+        require(ref not in refs and endpoint not in endpoints, "provider route references and endpoints must be unique")
+        host_file = secret_host_files.get(ref)
+        require(isinstance(host_file, str) and Path(host_file).is_absolute(), f"provider route secret path is invalid: {ref}")
+        secret_path = Path(host_file)
+        require(secret_path.is_file() and secret_path.stat().st_size > 0 and not secret_path.is_symlink(), f"provider route secret is missing: {ref}")
+        refs.add(ref)
+        endpoints.add(endpoint)
+
     require(
-        parsed is not None
-        and parsed.scheme in {"http", "https"}
-        and bool(parsed.hostname)
-        and parsed.username is None
-        and parsed.password is None,
-        "model_base_url must be an authenticated-free HTTP(S) URL",
+        set(secret_host_files) == refs,
+        "provider route secret files must match the registered route references exactly",
     )
-    model = deployment.get("model")
-    require(isinstance(model, str) and model.strip() != "", "model is required")
 
     secret_host_files = deployment.get("secret_host_files")
     require(isinstance(secret_host_files, dict), "secret host files are missing")
@@ -286,11 +328,47 @@ def compose_with_runtime(payload: dict, release_dir: Path, deployment: dict) -> 
         "FILE_AGENT_SERVICE_SCOPE_SECRET_FILE": "/run/secrets/file-agent-service-scope",
         "FILE_AGENT_RUNTIME_ALLOWLIST_FILE": "/run/secrets/file-agent-allowlist",
         "FILE_AGENT_RUNTIME_MODEL_ROUTE_ID": "file-agent-primary",
+        "FILE_AGENT_PROVIDER_ROUTE_MAP_FILE": "/run/file-agent/provider-route-map.json",
     })
     api["environment"] = api_environment
     api_volumes = list(api.get("volumes", []))
     api_volumes = [entry for entry in api_volumes if compose_target(entry) != CONNECTOR_TARGET]
     api_volumes.append(f"{(release_dir / 'connector').resolve()}:{CONNECTOR_TARGET}:ro")
+    route_map_path = release_dir / "provider-route-map.json"
+    runtime_routes_path = release_dir / "provider-routes.json"
+    route_map = {
+        "schemaVersion": 1,
+        "routes": [
+            {
+                "librechatEndpoint": route["librechat_endpoint"],
+                "providerRouteRef": route["provider_route_ref"],
+                "providerEndpoint": route["provider_endpoint"],
+                "protocol": route["protocol"],
+                "allowedModels": route["allowed_models"],
+            }
+            for route in deployment["provider_routes"]
+        ],
+    }
+    runtime_routes = {
+        "schemaVersion": 1,
+        "routes": [
+            {
+                "providerRouteRef": route["provider_route_ref"],
+                "providerEndpoint": route["provider_endpoint"],
+                "baseUrl": route["base_url"],
+                "protocol": route["protocol"],
+                "allowedModels": route["allowed_models"],
+                "apiKeyFile": f"/run/secrets/{provider_secret_name(route['provider_route_ref'])}",
+                "supportsIdempotency": route.get("supports_idempotency", False),
+                "outputBudgetTokens": route.get("output_budget_tokens", 500),
+            }
+            for route in deployment["provider_routes"]
+        ],
+    }
+    release_dir.mkdir(parents=True, exist_ok=True)
+    route_map_path.write_text(json.dumps(route_map, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    runtime_routes_path.write_text(json.dumps(runtime_routes, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    api_volumes.append(f"{route_map_path.resolve()}:/run/file-agent/provider-route-map.json:ro")
     api["volumes"] = api_volumes
     api_secrets = normalized_secret_names(api.get("secrets"))
     for secret in (SECRET_NAMES["service_scope"], SECRET_NAMES["allowlist"]):
@@ -301,6 +379,9 @@ def compose_with_runtime(payload: dict, release_dir: Path, deployment: dict) -> 
     api["depends_on"] = dependencies
 
     service_scope = "/run/secrets/file-agent-service-scope"
+    runtime_secret_names = [SECRET_NAMES["service_scope"]]
+    for route in deployment["provider_routes"]:
+        add_unique(runtime_secret_names, provider_secret_name(route["provider_route_ref"]))
     runtime = {
         "image": deployment["runtime_image"],
         "restart": "unless-stopped",
@@ -310,18 +391,16 @@ def compose_with_runtime(payload: dict, release_dir: Path, deployment: dict) -> 
             "FILE_AGENT_PORT": "8790",
             "FILE_AGENT_CODEAPI_BASE_URL": "http://codeapi:8000",
             "FILE_AGENT_SERVICE_SCOPE_SECRET_FILE": service_scope,
-            "FILE_AGENT_MODEL_API_KEY_FILE": "/run/secrets/file-agent-model-api-key",
-            "FILE_AGENT_MODEL_BASE_URL": deployment["model_base_url"],
-            "FILE_AGENT_MODEL": deployment["model"],
+            "FILE_AGENT_PROVIDER_ROUTES_FILE": "/run/file-agent/provider-routes.json",
             "FILE_AGENT_DATA_DIR": "/var/lib/file-agent-runtime",
             "FILE_AGENT_MAX_CONCURRENT_TASKS": "1",
             "FILE_AGENT_MAX_CONTEXT_CHARS": "12000",
         },
-        "secrets": [
-            SECRET_NAMES["service_scope"],
-            SECRET_NAMES["model_api_key"],
+        "secrets": runtime_secret_names,
+        "volumes": [
+            f"{RUNTIME_DATA_VOLUME}:/var/lib/file-agent-runtime",
+            f"{runtime_routes_path.resolve()}:/run/file-agent/provider-routes.json:ro",
         ],
-        "volumes": [f"{RUNTIME_DATA_VOLUME}:/var/lib/file-agent-runtime"],
         "tmpfs": ["/tmp"],
         "security_opt": ["no-new-privileges:true"],
         "cpus": "1.0",
@@ -348,6 +427,9 @@ def compose_with_runtime(payload: dict, release_dir: Path, deployment: dict) -> 
     host_files = deployment["secret_host_files"]
     for key, secret_name in SECRET_NAMES.items():
         top_secrets[secret_name] = {"file": host_files[key]}
+    for route in deployment["provider_routes"]:
+        ref = route["provider_route_ref"]
+        top_secrets[provider_secret_name(ref)] = {"file": deployment["provider_route_secret_host_files"][ref]}
     top_volumes = payload.setdefault("volumes", {})
     require(isinstance(top_volumes, dict), "Compose top-level volumes must be a mapping")
     top_volumes.setdefault(RUNTIME_DATA_VOLUME, {})
@@ -361,7 +443,9 @@ def validate_runtime_compose(payload: dict, release_dir: Path, deployment: dict)
     require(runtime.get("image") == deployment["runtime_image"], "Runtime image changed during Compose resolution")
     require("ports" not in runtime or runtime.get("ports") in (None, []), "Runtime must not publish host ports")
     require(runtime.get("expose") == ["8790"], "Runtime internal port contract changed")
-    require(runtime.get("volumes") == [f"{RUNTIME_DATA_VOLUME}:/var/lib/file-agent-runtime"], "Runtime data volume contract changed")
+    require(runtime.get("volumes", [None])[0] == f"{RUNTIME_DATA_VOLUME}:/var/lib/file-agent-runtime", "Runtime data volume contract changed")
+    require(runtime.get("environment", {}).get("FILE_AGENT_PROVIDER_ROUTES_FILE") == "/run/file-agent/provider-routes.json", "Runtime provider route registry is missing")
+    require(any("provider-routes.json:/run/file-agent/provider-routes.json:ro" in str(item) for item in runtime.get("volumes", [])), "Runtime provider route registry mount is missing")
     require(runtime.get("environment", {}).get("FILE_AGENT_CODEAPI_BASE_URL") == "http://codeapi:8000", "Runtime CodeAPI endpoint changed")
     require(runtime.get("healthcheck", {}).get("test", [None])[0] == "CMD", "Runtime healthcheck is missing")
     require(api.get("environment", {}).get("FILE_AGENT_RUNTIME_ENABLED") == "true", "API Runtime flag is not enabled")
@@ -369,4 +453,10 @@ def validate_runtime_compose(payload: dict, release_dir: Path, deployment: dict)
     expected_mount = f"{(release_dir / 'connector').resolve()}:{CONNECTOR_TARGET}:ro"
     require(expected_mount in api.get("volumes", []), "API Connector source mount is missing")
     require(api.get("depends_on", {}).get(RUNTIME_SERVICE, {}).get("condition") == "service_healthy", "API does not wait for Runtime health")
-    require(set(SECRET_NAMES.values()).issubset(set(payload.get("secrets", {}).keys())), "Compose secret contract is incomplete")
+    expected_secrets = set(SECRET_NAMES.values()) | {
+        provider_secret_name(route["provider_route_ref"])
+        for route in deployment["provider_routes"]
+    }
+    require(expected_secrets.issubset(set(payload.get("secrets", {}).keys())), "Compose secret contract is incomplete")
+    require(api.get("environment", {}).get("FILE_AGENT_PROVIDER_ROUTE_MAP_FILE") == "/run/file-agent/provider-route-map.json", "API provider route map is missing")
+    require(any("provider-route-map.json:/run/file-agent/provider-route-map.json:ro" in str(item) for item in api.get("volumes", [])), "API provider route map mount is missing")

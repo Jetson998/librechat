@@ -326,6 +326,7 @@ export async function startProductionLibreChatHostIntegration({
           return resolver ? resolver({ files, instruction }) : null;
         },
         computeFileDigest,
+        providerRouteRegistry: config.providerRouteRegistry,
         preflightRequest: createProductionOfficePreflight({
           allowlistedUserIds: config.allowlistedUserIds,
         }),

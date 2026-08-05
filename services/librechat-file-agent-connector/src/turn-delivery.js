@@ -63,6 +63,14 @@ function buildTurnDescriptor({
     capabilityProfile: activeTask.capabilityProfile,
     billingSnapshotRef: activeTask.billingSnapshotRef,
     modelRouteId: activeTask.modelRouteId,
+    ...(activeTask.providerRouteRef
+      ? {
+          providerRouteRef: activeTask.providerRouteRef,
+          providerEndpoint: activeTask.providerEndpoint,
+          providerModel: activeTask.providerModel,
+          providerProtocol: activeTask.providerProtocol,
+        }
+      : {}),
     allowedOutputMimeTypes: clone(activeTask.allowedOutputMimeTypes ?? []),
     maxVisibleArtifacts: activeTask.maxVisibleArtifacts ?? 1,
     status: 'running',

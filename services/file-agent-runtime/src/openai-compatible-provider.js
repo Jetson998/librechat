@@ -701,7 +701,11 @@ export class OpenAiChatTransport {
     const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
     let response;
     try {
-      response = await this.fetchImpl(`${route.baseUrl.replace(/\/$/, '')}/v1/chat/completions`, {
+      const baseUrl = route.baseUrl.replace(/\/$/u, '');
+      const completionsPath = baseUrl.endsWith('/v1')
+        ? '/chat/completions'
+        : '/v1/chat/completions';
+      response = await this.fetchImpl(`${baseUrl}${completionsPath}`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -771,6 +775,105 @@ export class OpenAiChatTransport {
   }
 }
 
+export class AnthropicMessagesTransport {
+  constructor({ fetchImpl = globalThis.fetch, timeoutMs = 60_000 } = {}) {
+    if (typeof fetchImpl !== 'function') {
+      throw new TypeError('AnthropicMessagesTransport fetchImpl must be a function');
+    }
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1) {
+      throw new TypeError('AnthropicMessagesTransport timeoutMs must be a positive integer');
+    }
+    this.fetchImpl = fetchImpl;
+    this.timeoutMs = timeoutMs;
+  }
+
+  async invoke({ callId, route, operation, context, signal }) {
+    const timeoutSignal = AbortSignal.timeout(route.timeoutMs ?? this.timeoutMs);
+    const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+    const baseUrl = route.baseUrl.replace(/\/$/u, '');
+    const messagesPath = baseUrl.endsWith('/v1') ? '/messages' : '/v1/messages';
+    let response;
+    try {
+      response = await this.fetchImpl(`${baseUrl}${messagesPath}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'anthropic-version': '2023-06-01',
+          'x-api-key': route.apiKey,
+          'idempotency-key': callId,
+        },
+        body: JSON.stringify({
+          model: route.model,
+          max_tokens: route.outputBudgetTokens,
+          temperature: 0,
+          system: 'Return one JSON plan only. Choose declared actions. Never emit code, commands, credentials, prices, or file contents.',
+          messages: [{
+            role: 'user',
+            content: JSON.stringify({ operation, context }),
+          }],
+        }),
+        signal: combinedSignal,
+      });
+    } catch (error) {
+      if (signal?.aborted) {
+        throw new ProviderCanceledError('Provider request was canceled', { cause: error });
+      }
+      if (timeoutSignal.aborted) {
+        throw new ProviderTransportError('Provider request timed out', {
+          code: 'PROVIDER_TIMEOUT',
+          cause: error,
+        });
+      }
+      throw new ProviderTransportError('Provider request failed', { cause: error });
+    }
+    const text = await response.text();
+    if (!response.ok) {
+      if (response.status >= 500) {
+        throw new ProviderTransportError(`Provider returned ${response.status}: ${boundedText(text)}`);
+      }
+      throw new ProviderRejectedError(`Provider rejected the request with ${response.status}: ${boundedText(text)}`);
+    }
+    let body;
+    try {
+      body = JSON.parse(text);
+    } catch (error) {
+      throw new ProviderProtocolError('Provider response was not valid JSON', { cause: error });
+    }
+    const content = body?.content?.find((entry) => entry?.type === 'text')?.text;
+    if (typeof content !== 'string' || content.trim() === '') {
+      throw new ProviderProtocolError('Provider response contained no plan content');
+    }
+    let plan;
+    try {
+      plan = JSON.parse(content);
+    } catch (error) {
+      throw new ProviderProtocolError('Provider plan content was not valid JSON', { cause: error });
+    }
+    return {
+      plan,
+      providerModel: body.model ?? route.model,
+      usage: normalizeUsage(body.usage),
+    };
+  }
+}
+
+export class ProviderProtocolTransport {
+  constructor({ fetchImpl = globalThis.fetch, timeoutMs = 60_000 } = {}) {
+    this.transports = {
+      'openai-compatible': new OpenAiChatTransport({ fetchImpl, timeoutMs }),
+      'anthropic-messages': new AnthropicMessagesTransport({ fetchImpl, timeoutMs }),
+    };
+  }
+
+  invoke(args) {
+    const transport = this.transports[args?.route?.protocol];
+    if (!transport) {
+      throw new ProviderRouteError(`Unsupported provider protocol: ${args?.route?.protocol ?? 'missing'}`);
+    }
+    return transport.invoke(args);
+  }
+}
+
 export class SingleModelAgentProvider {
   constructor({ routes, transport, journal, projector }) {
     if (!routes || typeof routes !== 'object' || Array.isArray(routes)) {
@@ -807,31 +910,52 @@ export class SingleModelAgentProvider {
   async #invoke({ callId, task, operation, signal }) {
     const routeId = task.manifest.model?.modelRouteId;
     const capabilityProfile = task.manifest.model?.capabilityProfile;
-    const route = this.routes[routeId];
+    const model = task.manifest.model ?? {};
+    const providerRouteRef = model.providerRouteRef;
+    const route = this.routes[providerRouteRef ?? routeId];
     if (!route) {
       throw new ProviderRouteError(`Model route is not allowed: ${routeId ?? 'missing'}`);
     }
-    if (route.capabilityProfile !== capabilityProfile) {
+    if (route.capabilityProfile && route.capabilityProfile !== capabilityProfile) {
       throw new ProviderRouteError('Task capability profile does not match the configured route');
     }
     if (!PROFILE_CONFIG[capabilityProfile]) {
       throw new ProviderRouteError(`Unsupported capability profile: ${capabilityProfile}`);
     }
-    if (
-      typeof route.baseUrl !== 'string' ||
-      typeof route.model !== 'string' ||
-      !Number.isInteger(route.outputBudgetTokens)
-    ) {
+    const providerModel = model.providerModel ?? route.model;
+    const providerProtocol = model.providerProtocol ?? route.protocol ?? 'openai-compatible';
+    const providerEndpoint = model.providerEndpoint ?? route.providerEndpoint ?? null;
+    if (typeof route.baseUrl !== 'string' || typeof providerModel !== 'string' || !Number.isInteger(route.outputBudgetTokens)) {
       throw new ProviderRouteError(`Model route is incomplete: ${routeId}`);
     }
+    if (route.allowedModels && !route.allowedModels.includes(providerModel)) {
+      throw new ProviderRouteError(`Provider model is not allowed for route: ${providerRouteRef ?? routeId}`);
+    }
+    if (route.protocol && route.protocol !== providerProtocol) {
+      throw new ProviderRouteError('Task provider protocol does not match the configured route');
+    }
+    if (route.providerEndpoint && route.providerEndpoint !== providerEndpoint) {
+      throw new ProviderRouteError('Task provider endpoint does not match the configured route');
+    }
+    const effectiveRoute = {
+      ...route,
+      routeId,
+      model: providerModel,
+      protocol: providerProtocol,
+      capabilityProfile,
+    };
 
     const projection = this.projector.project(task);
     const requestDigest = sha256(JSON.stringify({
       schemaVersion: '1.0',
       operation,
       routeId,
-      model: route.model,
+      model: providerModel,
       capabilityProfile,
+      providerRouteRef: providerRouteRef ?? null,
+      providerEndpoint,
+      providerModel,
+      providerProtocol,
       contextDigest: projection.digest,
     }));
     const journalState = await this.journal.begin({
@@ -856,7 +980,7 @@ export class SingleModelAgentProvider {
 
     const response = await this.transport.invoke({
       callId,
-      route,
+      route: effectiveRoute,
       operation,
       context: projection.context,
       signal,
@@ -866,6 +990,9 @@ export class SingleModelAgentProvider {
       callId,
       modelRouteId: routeId,
       providerModel: response.providerModel,
+      providerRouteRef: providerRouteRef ?? route.providerRouteRef ?? null,
+      providerEndpoint: providerEndpoint ?? route.providerEndpoint ?? null,
+      providerProtocol,
       replayed: journalState.replay === true,
     };
     const usage = { ...response.usage, occurredAt };

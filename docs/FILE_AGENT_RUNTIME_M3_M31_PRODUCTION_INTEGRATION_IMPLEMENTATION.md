@@ -72,8 +72,11 @@ It defines:
   canonical shared acceptance contracts at
   `src/acceptance-contracts/`; the API never imports acceptance code from the
   Runtime container's filesystem;
-- API-to-Runtime HMAC scope secret, API allowlist file, and Runtime model API
-  key as file-backed Compose secrets;
+- API-to-Runtime HMAC scope secret and API allowlist as file-backed Compose
+  secrets;
+- one file-backed provider key per registered Runtime route; the API does not
+  receive provider keys;
+- a non-sensitive API route map and a private Runtime provider route registry;
 - Runtime healthcheck at `/healthz` and API internal health check at
   `http://127.0.0.1:3080/api/config`;
 - API dependency on Runtime health and Runtime dependency on the internal
@@ -134,9 +137,14 @@ handoff.
 
 The current source-level results are:
 
-- Connector full suite: `112/112` passed serially;
-- Runtime full suite after production multi-capability changes: `97/97`
-  passed serially;
+- Connector full suite: `119/119` passed serially, including the dynamic
+  provider-route and persistence/usage identity contracts;
+- Runtime full suite: `102` tests were discovered. The aggregate serial run on
+  this macOS host hit four local `20s` wait timeouts in the isolated
+  CodeAPI/Office workload; those four cases each passed when rerun alone with
+  `--test-concurrency=1`. This is recorded as an environment timing
+  limitation, not promoted to a full-suite green result;
+- Runtime dynamic provider-route focused suite and protocol suite: passed;
 - strict Provider schema includes every XLSX and PPTX Action parameter and
   uses profile-specific reorder types;
 - PPTX resolver covers append/delete/reorder and the Verifier checks existing
@@ -161,8 +169,10 @@ The current source-level results are:
 - XLSX rename is independently asserted and formula/protected-cell checks
   follow the frozen sheet identity across the rename;
 - Connector and Runtime `npm run check`: passed;
-- production host profile/route focused suite: `4/4` passed;
-- production Runtime capability/manifest focused suite: `2/2` passed;
+- production host profile/route focused suite: passed;
+- production Runtime capability/manifest and protocol focused suites: passed;
+- provider-route persistence suite: billing snapshot, delivery, active task,
+  usage mismatch, and snapshot/delivery mismatch cases passed;
 - dual-service Compose and rollback isolated replay:
   `file_agent_dual_service_contract=passed`;
 - Sol rejection regressions, including real archive import and rollback

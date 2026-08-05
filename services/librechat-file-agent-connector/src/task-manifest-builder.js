@@ -60,6 +60,10 @@ export function buildTaskSubmission({
   files,
   sessionId,
   modelRouteId,
+  providerRouteRef = null,
+  providerEndpoint = null,
+  providerModel = null,
+  providerProtocol = null,
   billingSnapshotRef,
   capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
   taskContractVersion = capabilityProfile === WORD_CAPABILITY_PROFILE
@@ -82,6 +86,20 @@ export function buildTaskSubmission({
   sessionId = requiredString(sessionId, 'sessionId');
   modelRouteId = requiredString(modelRouteId, 'modelRouteId');
   billingSnapshotRef = requiredString(billingSnapshotRef, 'billingSnapshotRef');
+  const providerIdentity = [providerRouteRef, providerEndpoint, providerModel, providerProtocol];
+  if (providerIdentity.some((value) => value != null) && providerIdentity.some((value) => value == null)) {
+    throw new TypeError('Provider route identity must be complete');
+  }
+  for (const [value, name] of [
+    [providerRouteRef, 'providerRouteRef'],
+    [providerEndpoint, 'providerEndpoint'],
+    [providerModel, 'providerModel'],
+    [providerProtocol, 'providerProtocol'],
+  ]) {
+    if (value != null) {
+      requiredString(value, name);
+    }
+  }
   if (![TASK_CONTRACT_VERSION, TASK_CONTRACT_VERSION_V1_1, TASK_CONTRACT_VERSION_V1_2].includes(taskContractVersion)) {
     throw new TypeError(`Unsupported task contract version: ${taskContractVersion}`);
   }
@@ -171,6 +189,10 @@ export function buildTaskSubmission({
     ...inputs.map((input) => `${input.librechatFileRef}:${input.sha256}`),
     taskContractVersion,
     normalizedAcceptanceAssertions ? digestJson(normalizedAcceptanceAssertions) : '',
+    providerRouteRef ?? '',
+    providerEndpoint ?? '',
+    providerModel ?? '',
+    providerProtocol ?? '',
   ].join('\0'));
   const manifest = {
     schemaVersion: '1.0',
@@ -192,6 +214,9 @@ export function buildTaskSubmission({
     model: {
       modelRouteId,
       capabilityProfile,
+      ...(providerRouteRef
+        ? { providerRouteRef, providerEndpoint, providerModel, providerProtocol }
+        : {}),
     },
     billingRef: billingSnapshotRef,
     execution: {

@@ -49,11 +49,18 @@ at deployment time:
 
 - File Agent HMAC service-scope secret;
 - File Agent user allowlist;
-- model relay API key.
+- one server-side provider key file for each allowlisted provider route.
+
+The API receives a non-sensitive provider route map and the Runtime receives a
+private provider route registry. The registry declares endpoint identity,
+protocol, model allowlist, base URL, and the container secret path for each
+route. User-selected endpoint/model values are resolved against this registry;
+the user cannot supply a URL or API key to the task.
 
 The runner requires an explicit `enable_runtime=true` handoff input. A missing
-input, non-digest image, missing secret file, missing allowlist, missing model
-configuration, or failed health check stops before the Compose write. A failed
+input, non-digest image, missing secret file, missing allowlist, missing
+provider route registry, or failed health check stops before the Compose write.
+A failed
 post-write check restores the prior Compose override and recreates only the
 previous API/Runtime state. Existing Mongo, CodeAPI, RAG, Nginx, and Admin
 services are outside the rollback scope.

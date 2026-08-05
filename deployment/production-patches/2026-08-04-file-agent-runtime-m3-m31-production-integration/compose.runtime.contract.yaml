@@ -9,10 +9,15 @@ services:
       FILE_AGENT_SERVICE_SCOPE_SECRET_FILE: /run/secrets/file-agent-service-scope
       FILE_AGENT_RUNTIME_ALLOWLIST_FILE: /run/secrets/file-agent-allowlist
       FILE_AGENT_RUNTIME_MODEL_ROUTE_ID: file-agent-primary
+      FILE_AGENT_PROVIDER_ROUTE_MAP_FILE: /run/file-agent/provider-route-map.json
     volumes:
       - ${FILE_AGENT_CONNECTOR_SOURCE_DIR:?FILE_AGENT_CONNECTOR_SOURCE_DIR is required}:/opt/librechat/file-agent-runtime/connector:ro
+      - ${FILE_AGENT_PROVIDER_ROUTE_MAP_HOST_FILE:?FILE_AGENT_PROVIDER_ROUTE_MAP_HOST_FILE is required}:/run/file-agent/provider-route-map.json:ro
     secrets:
       - file-agent-service-scope
+      # The release runner adds the provider-key secrets required by the
+      # providerRouteRef entries in the handoff. The API never receives them.
+      # The release runner adds one file-agent-provider-key-* secret per route.
       - file-agent-allowlist
 
   file-agent-runtime:
@@ -25,17 +30,16 @@ services:
       FILE_AGENT_PORT: "8790"
       FILE_AGENT_CODEAPI_BASE_URL: http://codeapi:8000
       FILE_AGENT_SERVICE_SCOPE_SECRET_FILE: /run/secrets/file-agent-service-scope
-      FILE_AGENT_MODEL_API_KEY_FILE: /run/secrets/file-agent-model-api-key
-      FILE_AGENT_MODEL_BASE_URL: ${FILE_AGENT_MODEL_BASE_URL:?FILE_AGENT_MODEL_BASE_URL is required}
-      FILE_AGENT_MODEL: ${FILE_AGENT_MODEL:?FILE_AGENT_MODEL is required}
+      FILE_AGENT_PROVIDER_ROUTES_FILE: /run/file-agent/provider-routes.json
       FILE_AGENT_DATA_DIR: /var/lib/file-agent-runtime
       FILE_AGENT_MAX_CONCURRENT_TASKS: "1"
       FILE_AGENT_MAX_CONTEXT_CHARS: "12000"
     secrets:
       - file-agent-service-scope
-      - file-agent-model-api-key
+      # The release runner adds one provider-key secret per route here.
     volumes:
       - file-agent-runtime-data:/var/lib/file-agent-runtime
+      - ${FILE_AGENT_PROVIDER_ROUTES_HOST_FILE:?FILE_AGENT_PROVIDER_ROUTES_HOST_FILE is required}:/run/file-agent/provider-routes.json:ro
     tmpfs:
       - /tmp
     security_opt:
@@ -66,5 +70,7 @@ secrets:
     file: ${FILE_AGENT_SERVICE_SCOPE_SECRET_HOST_FILE:?FILE_AGENT_SERVICE_SCOPE_SECRET_HOST_FILE is required}
   file-agent-allowlist:
     file: ${FILE_AGENT_ALLOWLIST_HOST_FILE:?FILE_AGENT_ALLOWLIST_HOST_FILE is required}
-  file-agent-model-api-key:
-    file: ${FILE_AGENT_MODEL_API_KEY_HOST_FILE:?FILE_AGENT_MODEL_API_KEY_HOST_FILE is required}
+  # Placeholder only for this human-readable template. The generated Compose
+  # uses deterministic names per providerRouteRef and replaces this entry.
+  file-agent-provider-key-placeholder:
+    file: ${FILE_AGENT_PROVIDER_KEY_HOST_FILE:?FILE_AGENT_PROVIDER_KEY_HOST_FILE is required}

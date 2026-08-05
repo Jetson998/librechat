@@ -57,6 +57,15 @@ export function validateTaskManifest(manifest) {
     throw new TypeError(`Unsupported task contract version: ${manifest.taskContractVersion}`);
   }
   const capabilityProfile = manifest.model?.capabilityProfile;
+  const providerIdentity = [
+    manifest.model?.providerRouteRef,
+    manifest.model?.providerEndpoint,
+    manifest.model?.providerModel,
+    manifest.model?.providerProtocol,
+  ];
+  if (providerIdentity.some((value) => value != null) && providerIdentity.some((value) => value == null)) {
+    throw new TypeError('Task provider route identity must be complete');
+  }
   const hasDocxInput = Array.isArray(manifest.inputs)
     && manifest.inputs.some((input) => input?.mimeType === DOCX_MIME);
   if (
@@ -384,7 +393,14 @@ function persistProviderMetadata(task, emit, result, itemId) {
       usageEventId: call.callId,
       callId: call.callId,
       modelRouteId: call.modelRouteId,
-      providerModel: call.providerModel,
+      ...(call.providerRouteRef
+        ? {
+            providerRouteRef: call.providerRouteRef,
+            providerEndpoint: call.providerEndpoint,
+            providerModel: call.providerModel,
+            providerProtocol: call.providerProtocol,
+          }
+        : {}),
       inputTokens: usage.inputTokens,
       cacheReadTokens: usage.cacheReadTokens,
       cacheWriteTokens: usage.cacheWriteTokens,

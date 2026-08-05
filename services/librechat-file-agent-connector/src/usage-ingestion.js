@@ -5,6 +5,13 @@ function nonNegativeInteger(value, name) {
   return value;
 }
 
+const PROVIDER_IDENTITY_FIELDS = [
+  'providerRouteRef',
+  'providerEndpoint',
+  'providerModel',
+  'providerProtocol',
+];
+
 export class UsageIngestion {
   constructor({ store, ports, activeTaskStore = null }) {
     this.store = store;
@@ -31,6 +38,18 @@ export class UsageIngestion {
     }
     if (usage.modelRouteId !== delivery.modelRouteId) {
       throw new Error('Runtime usage model route does not match the delivery billing snapshot');
+    }
+    const deliveryHasProviderIdentity = PROVIDER_IDENTITY_FIELDS.some((field) => delivery[field] != null);
+    const usageHasProviderIdentity = PROVIDER_IDENTITY_FIELDS.some((field) => usage[field] != null);
+    if (deliveryHasProviderIdentity !== usageHasProviderIdentity) {
+      throw new Error('Runtime usage provider route identity presence does not match the delivery billing snapshot');
+    }
+    if (deliveryHasProviderIdentity) {
+      for (const field of PROVIDER_IDENTITY_FIELDS) {
+        if (typeof usage[field] !== 'string' || typeof delivery[field] !== 'string' || usage[field] !== delivery[field]) {
+          throw new Error(`Runtime usage ${field} does not match the delivery billing snapshot`);
+        }
+      }
     }
     const normalized = {
       ...usage,

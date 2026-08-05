@@ -12,6 +12,12 @@ const FORBIDDEN_KEYS = new Set([
   'secret',
   'servicetoken',
 ]);
+const PROVIDER_IDENTITY_FIELDS = [
+  'providerRouteRef',
+  'providerEndpoint',
+  'providerModel',
+  'providerProtocol',
+];
 
 function validatePrice(value, name) {
   if (value == null) {
@@ -59,6 +65,21 @@ function validateMessageIdentity(value) {
   return clone(value);
 }
 
+function normalizeProviderIdentity(values) {
+  const supplied = PROVIDER_IDENTITY_FIELDS.map((field) => values[field]);
+  const hasAny = supplied.some((value) => value != null);
+  if (!hasAny) {
+    return null;
+  }
+  if (supplied.some((value) => value == null)) {
+    throw new TypeError('Billing snapshot provider route identity must be complete');
+  }
+  return Object.fromEntries(PROVIDER_IDENTITY_FIELDS.map((field) => [
+    field,
+    requiredString(values[field], field),
+  ]));
+}
+
 export class MongoBillingSnapshotStore {
   constructor({ collection }) {
     if (!collection || typeof collection.findOne !== 'function') {
@@ -77,6 +98,10 @@ export class MongoBillingSnapshotStore {
     modelRouteId,
     endpoint,
     model,
+    providerRouteRef = null,
+    providerEndpoint = null,
+    providerModel = null,
+    providerProtocol = null,
     prices,
     pricing,
     endpointTokenConfig,
@@ -89,6 +114,12 @@ export class MongoBillingSnapshotStore {
       PRICE_FIELDS.map((field) => [field, validatePrice(prices?.[field], `prices.${field}`)]),
     );
     const createdAt = new Date().toISOString();
+    const providerIdentity = normalizeProviderIdentity({
+      providerRouteRef,
+      providerEndpoint,
+      providerModel,
+      providerProtocol,
+    });
     const snapshot = {
       _id: randomUUID(),
       schemaVersion: '1.0',
@@ -97,6 +128,7 @@ export class MongoBillingSnapshotStore {
       modelRouteId: requiredString(modelRouteId, 'modelRouteId'),
       endpoint: requiredString(endpoint, 'endpoint'),
       model: requiredString(model, 'model'),
+      ...(providerIdentity ?? {}),
       prices: normalizedPrices,
       pricing: clone(pricing ?? {}),
       endpointTokenConfig: clone(endpointTokenConfig ?? normalizedPrices),
@@ -108,6 +140,7 @@ export class MongoBillingSnapshotStore {
       pricingConfigDigest: pricingConfigDigest ?? digestJson({
         endpoint,
         model,
+        ...(providerIdentity ?? {}),
         prices: normalizedPrices,
       }),
       createdAt,
