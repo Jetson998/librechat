@@ -2,7 +2,7 @@ import { XLSX_MIME } from './constants.js';
 import {
   normalizeXlsxAcceptanceAssertions,
   XLSX_ACCEPTANCE_TYPES,
-} from '../../file-agent-runtime/src/xlsx-acceptance.js';
+} from './acceptance-contracts/xlsx-acceptance.js';
 
 export const XLSX_ACCEPTANCE_RESOLVER_VERSION = '1.0.0';
 

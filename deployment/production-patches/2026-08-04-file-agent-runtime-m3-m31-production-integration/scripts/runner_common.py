@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import tarfile
 from pathlib import Path
 from urllib.parse import urlparse
@@ -175,6 +176,72 @@ def safe_extract_connector(archive_path: Path, destination: Path, files: list[di
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(payload)
             target.chmod(0o444)
+
+
+NATIVE_FALLBACK_PROBE = r'''
+const { pathToFileURL } = require('node:url');
+
+(async () => {
+  const connectorRoot = '/opt/librechat/file-agent-runtime/connector';
+  const { resolveOfficeTaskIntent } = await import(
+    pathToFileURL(`${connectorRoot}/src/office-task-intent.js`).href
+  );
+  const { createProductionOfficePreflight } = await import(
+    pathToFileURL(`${connectorRoot}/src/production-host-integration.js`).href
+  );
+  const baseContext = {
+    req: { body: { files: [] } },
+    client: { options: { attachments: [] } },
+    conversationId: 'native-probe-conversation',
+    userMessageId: 'native-probe-message',
+    assistantMessageId: 'native-probe-assistant',
+    streamId: 'native-probe-stream',
+  };
+  if (resolveOfficeTaskIntent({ files: [], instruction: 'Hello' }) !== null) {
+    throw new Error('ordinary chat was classified as an Office task');
+  }
+  const preflight = createProductionOfficePreflight({
+    allowlistedUserIds: new Set(['native-probe-allowlisted']),
+  });
+  const ordinary = await preflight({
+    ...baseContext,
+    userId: 'native-probe-allowlisted',
+    text: 'Hello',
+  });
+  if (ordinary?.route !== 'native' || ordinary.reason !== 'not_complex_file_intent') {
+    throw new Error(`ordinary chat did not stay native: ${JSON.stringify(ordinary)}`);
+  }
+  const unauthorized = await preflight({
+    ...baseContext,
+    userId: 'native-probe-not-allowlisted',
+    text: '根据这个 Excel 生成一页 API 模型来源说明 PPT',
+  });
+  if (unauthorized?.route !== 'native' || unauthorized.reason !== 'user_not_allowlisted') {
+    throw new Error(`unauthorized Office request did not stay native: ${JSON.stringify(unauthorized)}`);
+  }
+  const before = await fetch('http://file-agent-runtime:8790/healthz').then(async (response) => {
+    if (!response.ok) throw new Error('Runtime health probe failed');
+    return (await response.json()).runtime_request_count;
+  });
+  if (before !== 0) throw new Error(`Runtime already received task requests: ${before}`);
+  const after = await fetch('http://file-agent-runtime:8790/healthz').then(async (response) => {
+    if (!response.ok) throw new Error('Runtime health probe failed');
+    return (await response.json()).runtime_request_count;
+  });
+  if (after !== before) throw new Error(`native fallback probe changed Runtime task count: ${before} -> ${after}`);
+})().catch((error) => {
+  process.stderr.write(`${error.message}\n`);
+  process.exit(1);
+});
+'''
+
+
+def native_fallback_probe(*, api_container: str, run_command=subprocess.run) -> None:
+    result = run_command(
+        ["docker", "exec", api_container, "node", "-e", NATIVE_FALLBACK_PROBE],
+        check=False,
+    )
+    require(result.returncode == 0, "native fallback probe failed")
 
 
 def compose_with_runtime(payload: dict, release_dir: Path, deployment: dict) -> dict:

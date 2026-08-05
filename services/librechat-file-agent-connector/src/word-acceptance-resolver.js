@@ -2,7 +2,7 @@ import { DOCX_MIME } from './constants.js';
 import {
   normalizeWordAcceptanceAssertions,
   WORD_ACCEPTANCE_TYPES,
-} from '../../file-agent-runtime/src/word-acceptance.js';
+} from './acceptance-contracts/word-acceptance.js';
 
 export const WORD_ACCEPTANCE_RESOLVER_VERSION = '1.0.0';
 

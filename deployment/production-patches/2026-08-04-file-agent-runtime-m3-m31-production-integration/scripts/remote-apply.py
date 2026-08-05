@@ -22,6 +22,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from runner_common import (
     API_SERVICE,
+    native_fallback_probe,
     RUNTIME_SERVICE,
     compose_with_runtime,
     require,
@@ -164,72 +165,6 @@ def verify_internal_health(api_id: str, runtime_id: str, *, run_command=run) -> 
     require(api_health.returncode == 0, "API internal health endpoint failed")
 
 
-NATIVE_FALLBACK_PROBE = r'''
-const { pathToFileURL } = require('node:url');
-
-(async () => {
-  const connectorRoot = '/opt/librechat/file-agent-runtime/connector';
-  const { resolveOfficeTaskIntent } = await import(
-    pathToFileURL(`${connectorRoot}/src/office-task-intent.js`).href
-  );
-  const { createProductionOfficePreflight } = await import(
-    pathToFileURL(`${connectorRoot}/src/production-host-integration.js`).href
-  );
-  const baseContext = {
-    req: { body: { files: [] } },
-    client: { options: { attachments: [] } },
-    conversationId: 'native-probe-conversation',
-    userMessageId: 'native-probe-message',
-    assistantMessageId: 'native-probe-assistant',
-    streamId: 'native-probe-stream',
-  };
-  if (resolveOfficeTaskIntent({ files: [], instruction: 'Hello' }) !== null) {
-    throw new Error('ordinary chat was classified as an Office task');
-  }
-  const preflight = createProductionOfficePreflight({
-    allowlistedUserIds: new Set(['native-probe-allowlisted']),
-  });
-  const ordinary = await preflight({
-    ...baseContext,
-    userId: 'native-probe-allowlisted',
-    text: 'Hello',
-  });
-  if (ordinary?.route !== 'native' || ordinary.reason !== 'not_complex_file_intent') {
-    throw new Error(`ordinary chat did not stay native: ${JSON.stringify(ordinary)}`);
-  }
-  const unauthorized = await preflight({
-    ...baseContext,
-    userId: 'native-probe-not-allowlisted',
-    text: '根据这个 Excel 生成一页 API 模型来源说明 PPT',
-  });
-  if (unauthorized?.route !== 'native' || unauthorized.reason !== 'user_not_allowlisted') {
-    throw new Error(`unauthorized Office request did not stay native: ${JSON.stringify(unauthorized)}`);
-  }
-  const before = await fetch('http://file-agent-runtime:8790/healthz').then(async (response) => {
-    if (!response.ok) throw new Error('Runtime health probe failed');
-    return (await response.json()).runtime_request_count;
-  });
-  if (before !== 0) throw new Error(`Runtime already received task requests: ${before}`);
-  const after = await fetch('http://file-agent-runtime:8790/healthz').then(async (response) => {
-    if (!response.ok) throw new Error('Runtime health probe failed');
-    return (await response.json()).runtime_request_count;
-  });
-  if (after !== before) throw new Error(`native fallback probe changed Runtime task count: ${before} -> ${after}`);
-})().catch((error) => {
-  process.stderr.write(`${error.message}\n`);
-  process.exit(1);
-});
-'''
-
-
-def native_fallback_probe(*, api_container: str, run_command=run) -> None:
-    result = run_command(
-        ["docker", "exec", api_container, "node", "-e", NATIVE_FALLBACK_PROBE],
-        check=False,
-    )
-    require(result.returncode == 0, "native fallback probe failed")
-
-
 def apply(
     stage: Path,
     root: Path = ROOT,
@@ -257,6 +192,19 @@ def apply(
         work_dir = Path(tempfile.mkdtemp(prefix="file-agent-m3-m31-"))
         changed = False
         candidate_runtime_id = None
+
+        def rollback_state(candidate_id: str | None) -> dict:
+            return {
+                "runtime_service_present": bool(baseline.get("runtime_service_present")),
+                "candidate_runtime_container_id": candidate_id,
+                "compose_override_sha256_before": baseline["compose_override_sha256"],
+                "api": baseline.get("api", {}),
+                "runtime": baseline.get("runtime", {}),
+                "protected_container_ids": {
+                    name: expected["id"] for name, expected in baseline.get("containers", {}).items()
+                },
+            }
+
         try:
             archive = stage / handoff["connector_archive"]["filename"]
             release_dir.mkdir(parents=True, exist_ok=False)
@@ -274,17 +222,7 @@ def apply(
             )
             state_path = backup_dir / "state.json"
             state_path.write_text(
-                json.dumps(
-                    {
-                        "runtime_service_present": bool(baseline.get("runtime_service_present")),
-                        "candidate_runtime_container_id": None,
-                        "compose_override_sha256_before": baseline["compose_override_sha256"],
-                        "protected_container_ids": {
-                            name: expected["id"] for name, expected in baseline.get("containers", {}).items()
-                        },
-                    },
-                    indent=2,
-                ) + "\n",
+                json.dumps(rollback_state(None), indent=2) + "\n",
                 encoding="utf-8",
             )
 
@@ -354,17 +292,7 @@ def apply(
                 candidate_runtime_id = compose_container_id(root, RUNTIME_SERVICE)
                 if candidate_runtime_id:
                     state_path.write_text(
-                        json.dumps(
-                            {
-                                "runtime_service_present": bool(baseline.get("runtime_service_present")),
-                                "candidate_runtime_container_id": candidate_runtime_id,
-                                "compose_override_sha256_before": baseline["compose_override_sha256"],
-                                "protected_container_ids": {
-                                    name: expected["id"] for name, expected in baseline.get("containers", {}).items()
-                                },
-                            },
-                            indent=2,
-                        ) + "\n",
+                        json.dumps(rollback_state(candidate_runtime_id), indent=2) + "\n",
                         encoding="utf-8",
                     )
             require(candidate_runtime_id is not None, "Runtime container was not created")

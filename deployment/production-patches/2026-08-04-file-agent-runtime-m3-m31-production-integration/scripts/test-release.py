@@ -42,22 +42,28 @@ def digest_bytes(payload: bytes) -> str:
 
 
 def make_archive(path: Path) -> dict:
-    files = {
-        "src/production-host-integration.js": b"export const production = true;\n",
-        "src/word-acceptance-resolver.js": b"export const resolver = true;\n",
+    manifest_path = path.with_suffix(".manifest.json")
+    subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS / "package-connector-archive.py"),
+            "--source-root",
+            str(ROOT / "services/librechat-file-agent-connector"),
+            "--output",
+            str(path),
+            "--manifest-output",
+            str(manifest_path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    metadata = json.loads(manifest_path.read_text(encoding="utf-8"))
+    return {
+        "filename": path.name,
+        "sha256": digest_bytes(path.read_bytes()),
+        "files": metadata["files"],
     }
-    manifest_files = []
-    with tarfile.open(path, "w:gz", format=tarfile.PAX_FORMAT) as archive:
-        for name, payload in files.items():
-            info = tarfile.TarInfo(name)
-            info.size = len(payload)
-            info.mode = 0o444
-            info.uid = 0
-            info.gid = 0
-            info.mtime = 0
-            archive.addfile(info, io.BytesIO(payload))
-            manifest_files.append({"path": name, "bytes": len(payload), "sha256": digest_bytes(payload)})
-    return {"filename": path.name, "sha256": digest_bytes(path.read_bytes()), "files": manifest_files}
 
 
 def make_handoff(root: Path, archive: dict) -> dict:
@@ -243,6 +249,18 @@ def main() -> None:
         extracted.mkdir()
         common.safe_extract_connector(archive, extracted, archive_metadata["files"])
         require((extracted / "src/production-host-integration.js").is_file(), "Connector archive replay failed")
+        imported = subprocess.run(
+            [
+                "node",
+                "--input-type=module",
+                "-e",
+                "import { pathToFileURL } from 'node:url'; import(process.argv[1] ? pathToFileURL(process.argv[1]).href : '').then((module) => { if (typeof module.createProductionOfficePreflight !== 'function') process.exit(2); }).catch((error) => { console.error(error.stack || error); process.exit(1); });",
+                str(extracted / "src/production-host-integration.js"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        require(imported.returncode == 0, f"real extracted Connector import failed: {imported.stderr}")
 
         invalid = copy.deepcopy(handoff)
         invalid["deployment"]["runtime_image"] = "registry.example.test/file-agent-runtime:latest"
@@ -266,6 +284,21 @@ def main() -> None:
                 "candidate_runtime_container_id": "runtime-candidate",
                 "compose_override_sha256_before": digest_bytes(b"before: true\n"),
                 "protected_container_ids": {},
+                "api": {
+                    "image_id": "api-image-before",
+                    "image_ref": "api:before",
+                    "runtime_enabled": None,
+                    "connector_root": None,
+                    "runtime_base_url": None,
+                },
+                "runtime": {
+                    "present": False,
+                    "container_id": None,
+                    "image_id": None,
+                    "image_ref": None,
+                    "running": False,
+                    "health": None,
+                },
             }),
             encoding="utf-8",
         )
@@ -277,6 +310,13 @@ def main() -> None:
             calls.append(command)
             if command[:3] == ["docker", "inspect", "--format"]:
                 return subprocess.CompletedProcess(command, 0, "true\n", "")
+            if command[:2] == ["docker", "inspect"] and command[-1] == "LibreChat-API":
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    json.dumps([{"Id": "api-after", "Image": "api-image-before", "Config": {"Image": "api:before", "Env": []}}]),
+                    "",
+                )
             if command[:3] == ["docker", "rm", "-f"]:
                 candidate_removed = True
                 return subprocess.CompletedProcess(command, 0, "", "")
@@ -340,15 +380,16 @@ def main() -> None:
     require("file-agent-runtime:" in compose_text, "Compose Runtime service contract is missing")
     require("FILE_AGENT_RUNTIME_ENABLED:-false" in compose_text, "Compose contract is not disabled by default")
     apply_text = (SCRIPTS / "remote-apply.py").read_text(encoding="utf-8")
+    common_text = (SCRIPTS / "runner_common.py").read_text(encoding="utf-8")
     require("restore_state" in apply_text, "automatic dual-service rollback is missing")
     require('"--no-deps"' in apply_text and '"--force-recreate"' in apply_text, "bounded Compose apply is missing")
     require(
-        "resolveOfficeTaskIntent" in apply_text
-        and "createProductionOfficePreflight" in apply_text
-        and "/opt/librechat/file-agent-runtime/connector" in apply_text,
+        "resolveOfficeTaskIntent" in common_text
+        and "createProductionOfficePreflight" in common_text
+        and "/opt/librechat/file-agent-runtime/connector" in common_text,
         "native fallback probe does not load the production Connector classifier and preflight",
     )
-    require("user_not_allowlisted" in apply_text and "not_complex_file_intent" in apply_text, "native fallback cases are incomplete")
+    require("user_not_allowlisted" in common_text and "not_complex_file_intent" in common_text, "native fallback cases are incomplete")
     runtime_dir = ROOT / "services/file-agent-runtime"
     dockerfile_text = (runtime_dir / "Dockerfile").read_text(encoding="utf-8")
     require("node:20-bookworm-slim@sha256:" in dockerfile_text, "Node base image is not digest-pinned")

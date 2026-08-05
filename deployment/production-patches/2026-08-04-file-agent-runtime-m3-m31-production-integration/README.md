@@ -16,6 +16,11 @@ container filesystem. The API receives a read-only Connector source mount. The
 Runtime image is immutable by digest and owns a separate durable task/journal
 volume.
 
+The Connector production archive contains the complete `src/` tree, including
+the canonical shared acceptance contracts under `src/acceptance-contracts/`.
+The API therefore loads the same acceptance contract from its own mounted
+archive; it does not resolve modules from the Runtime container filesystem.
+
 No secret value is stored in this directory. Operators provide these host files
 at deployment time:
 
@@ -43,10 +48,14 @@ modified by this integration.
 - `scripts/remote-apply.py`: bounded API + Runtime apply with automatic
   rollback.
 - `scripts/remote-rollback.py`: restores the pre-apply two-service state.
+- `scripts/package-connector-archive.py`: creates the deterministic,
+  manifest-backed Connector source archive used by the handoff.
 - `scripts/deploy.sh`: release-governance scoped entry point for a later
   authorized release.
 - `scripts/test-release.py`: isolated Compose transformation and rollback
   replay; it does not contact Docker, SSH, Mongo, or production.
+- `scripts/test-sol-rejections.py`: failure tests for real archive import,
+  rollback baseline restoration, and the immutable Debian source.
 
 Candidate creation remains a separate later step. This directory does not
 authorize image builds, source packaging, preflight, deployment, restart, or

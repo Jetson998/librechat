@@ -8,8 +8,15 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from runner_common import native_fallback_probe, normalized_environment
 
 
 ROOT = Path("/opt/librechat")
@@ -36,8 +43,10 @@ def sha256(path: Path) -> str:
     return value.hexdigest()
 
 
-def inspect_container(container_id: str) -> dict:
-    return json.loads(run(["docker", "inspect", container_id]).stdout)[0]
+def inspect_container(container_id: str, *, run_command=run) -> dict:
+    result = run_command(["docker", "inspect", container_id], check=False)
+    require(result.returncode == 0, f"container is missing after rollback: {container_id}")
+    return json.loads(result.stdout)[0]
 
 
 def wait_running(container: str, *, run_command=run, attempts: int = 90) -> None:
@@ -49,7 +58,41 @@ def wait_running(container: str, *, run_command=run, attempts: int = 90) -> None
     raise RuntimeError(f"container did not become running after rollback: {container}")
 
 
-def verify_api_recovered(api_container: str, *, run_command=run) -> None:
+def verify_api_recovered(api_container: str, state: dict, *, run_command=run) -> None:
+    payload = inspect_container(api_container, run_command=run_command)
+    baseline = state.get("api", {})
+    if baseline.get("image_id"):
+        require(payload.get("Image") == baseline["image_id"], "API image was not restored after rollback")
+    if baseline.get("image_ref"):
+        require(
+            payload.get("Config", {}).get("Image") == baseline["image_ref"],
+            "API image reference was not restored after rollback",
+        )
+    environment = normalized_environment(payload.get("Config", {}).get("Env"))
+    require(
+        environment.get("FILE_AGENT_RUNTIME_ENABLED") == baseline.get("runtime_enabled"),
+        "API Runtime feature flag was not restored after rollback",
+    )
+    for key in ("FILE_AGENT_CONNECTOR_ROOT", "FILE_AGENT_RUNTIME_BASE_URL"):
+        baseline_key = "connector_root" if key == "FILE_AGENT_CONNECTOR_ROOT" else "runtime_base_url"
+        if baseline_key in baseline:
+            require(environment.get(key) == baseline.get(baseline_key), f"API {key} was not restored after rollback")
+    expected_mount = baseline.get("connector_mount")
+    actual_mount = next(
+        (mount for mount in payload.get("Mounts", []) if mount.get("Destination") == "/opt/librechat/file-agent-runtime/connector"),
+        None,
+    )
+    if expected_mount is None:
+        require(actual_mount is None, "Connector mount was not removed after rollback")
+    else:
+        require(actual_mount is not None, "Connector mount was not restored after rollback")
+        require(actual_mount.get("Source") == expected_mount.get("source"), "Connector source was not restored after rollback")
+        require(actual_mount.get("Destination") == expected_mount.get("target"), "Connector target was not restored after rollback")
+        expected_rw = not bool(expected_mount.get("read_only"))
+        require(
+            actual_mount.get("RW") is expected_rw,
+            "Connector mount mode was not restored after rollback",
+        )
     health = run_command(
         [
             "docker",
@@ -62,18 +105,28 @@ def verify_api_recovered(api_container: str, *, run_command=run) -> None:
         check=False,
     )
     require(health.returncode == 0, "API health failed after rollback")
-    native = run_command(
-        [
-            "docker",
-            "exec",
-            api_container,
-            "node",
-            "-e",
-            "Promise.all(['/','/api/config'].map((path)=>fetch('http://127.0.0.1:3080'+path).then((r)=>{if(!r.ok)throw new Error(path)}))).catch(()=>process.exit(1))",
-        ],
-        check=False,
-    )
-    require(native.returncode == 0, "native fallback failed after rollback")
+
+
+def verify_runtime_recovered(state: dict, *, run_command=run) -> None:
+    baseline = state.get("runtime", {})
+    require(baseline.get("present") is True, "Runtime baseline is missing for an existing Runtime rollback")
+    runtime_id = baseline.get("container_id")
+    require(isinstance(runtime_id, str) and runtime_id, "Runtime baseline container ID is missing")
+    payload = inspect_container("file-agent-runtime", run_command=run_command)
+    if baseline.get("image_id"):
+        require(payload.get("Image") == baseline["image_id"], "Runtime image was not restored after rollback")
+    if baseline.get("image_ref"):
+        require(
+            payload.get("Config", {}).get("Image") == baseline["image_ref"],
+            "Runtime image reference was not restored after rollback",
+        )
+    require(payload.get("State", {}).get("Running") is True, "Runtime is not running after rollback")
+    expected_health = baseline.get("health")
+    if expected_health:
+        require(
+            payload.get("State", {}).get("Health", {}).get("Status") == expected_health,
+            "Runtime health was not restored after rollback",
+        )
 
 
 def restore_state(
@@ -134,7 +187,12 @@ def restore_state(
         ]
     )
     wait_running(API_CONTAINER, run_command=run_command)
-    verify_api_recovered(API_CONTAINER, run_command=run_command)
+    verify_api_recovered(API_CONTAINER, state, run_command=run_command)
+
+    if previous_runtime_present:
+        verify_runtime_recovered(state, run_command=run_command)
+    elif state.get("api", {}).get("runtime_enabled") != "true":
+        native_fallback_probe(api_container=API_CONTAINER, run_command=run_command)
 
     for name, expected_id in state.get("protected_container_ids", {}).items():
         inspected = run_command(["docker", "inspect", name], check=False)

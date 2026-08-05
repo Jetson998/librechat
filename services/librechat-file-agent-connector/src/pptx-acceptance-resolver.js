@@ -2,7 +2,7 @@ import { PPTX_MIME } from './constants.js';
 import {
   normalizePptxAcceptanceAssertions,
   PPTX_ACCEPTANCE_TYPES,
-} from '../../file-agent-runtime/src/pptx-acceptance.js';
+} from './acceptance-contracts/pptx-acceptance.js';
 
 export const PPTX_ACCEPTANCE_RESOLVER_VERSION = '1.0.0';
 

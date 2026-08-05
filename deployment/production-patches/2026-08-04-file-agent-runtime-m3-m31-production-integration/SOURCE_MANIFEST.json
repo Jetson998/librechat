@@ -28,6 +28,22 @@
     "feature_flag": "FILE_AGENT_RUNTIME_ENABLED",
     "default_feature_flag": "false"
   },
+  "connector_archive": {
+    "producer": "scripts/package-connector-archive.py",
+    "source_root": "services/librechat-file-agent-connector",
+    "included_paths": [
+      "package.json",
+      "src/**"
+    ],
+    "acceptance_contract_root": "src/acceptance-contracts",
+    "api_mount": "/opt/librechat/file-agent-runtime/connector"
+  },
+  "runtime_build": {
+    "node_base_policy": "digest pinned",
+    "debian_snapshot": "20250701T000000Z",
+    "apt_lock": "services/file-agent-runtime/apt-packages.lock",
+    "python_lock": "services/file-agent-runtime/requirements.lock"
+  },
   "secrets": {
     "file-agent-service-scope": "API and Runtime HMAC scope secret file",
     "file-agent-allowlist": "API user allowlist file",

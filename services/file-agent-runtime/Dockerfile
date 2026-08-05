@@ -13,7 +13,12 @@ COPY --chown=node:node services/librechat-file-agent-connector /opt/file-agent/s
 COPY services/file-agent-runtime/apt-packages.lock /tmp/apt-packages.lock
 
 USER root
-RUN apt-get update \
+RUN rm -f /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources \
+  && printf '%s\n' \
+    'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20250701T000000Z bookworm main bookworm-updates' \
+    'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20250701T000000Z bookworm-security main' \
+    > /etc/apt/sources.list.d/debian-snapshot.list \
+  && apt-get update \
   && xargs -r apt-get install -y --no-install-recommends < /tmp/apt-packages.lock \
   && python3 -m venv /opt/file-agent/venv \
   && /opt/file-agent/venv/bin/pip install --no-cache-dir --require-hashes \

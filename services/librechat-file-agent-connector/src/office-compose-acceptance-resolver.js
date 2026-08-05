@@ -7,7 +7,7 @@ import {
 import {
   OFFICE_COMPOSE_ACCEPTANCE_TYPES,
   normalizeOfficeComposeAcceptanceAssertions,
-} from '../../file-agent-runtime/src/office-compose-acceptance.js';
+} from './acceptance-contracts/office-compose-acceptance.js';
 import { sha256 } from './stable.js';
 
 export const OFFICE_COMPOSE_ACCEPTANCE_RESOLVER_VERSION = '1.0.0';

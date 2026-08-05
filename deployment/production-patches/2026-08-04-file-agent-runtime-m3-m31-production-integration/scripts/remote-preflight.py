@@ -9,7 +9,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from runner_common import RUNTIME_SERVICE, require, sha256, validate_handoff
+from runner_common import CONNECTOR_TARGET, RUNTIME_SERVICE, normalized_environment, require, sha256, validate_handoff
 
 
 ROOT = Path("/opt/librechat")
@@ -124,9 +124,25 @@ def main() -> None:
         require(runtime_id is not None, "existing Runtime service has no container")
         runtime_payload = inspect(runtime_id)
         require(not runtime_payload.get("HostConfig", {}).get("PortBindings"), "existing Runtime publishes a host port")
+    else:
+        runtime_payload = None
 
     containers = {name: inspect(name) for name in PROTECTED_CONTAINERS}
     api_payload = inspect(API_CONTAINER)
+    api_environment = normalized_environment(api_payload.get("Config", {}).get("Env"))
+    connector_mount = next(
+        (
+            {
+                "source": entry.get("source"),
+                "target": entry.get("target"),
+                "read_only": entry.get("read_only"),
+                "type": entry.get("type"),
+            }
+            for entry in services.get("api", {}).get("volumes", [])
+            if isinstance(entry, dict) and entry.get("target") == CONNECTOR_TARGET
+        ),
+        None,
+    )
     codeapi_health = run(
         [
             "docker",
@@ -168,6 +184,18 @@ def main() -> None:
             "api": {
                 "image_id": api_payload["Image"],
                 "image_ref": api_payload.get("Config", {}).get("Image"),
+                "runtime_enabled": api_environment.get("FILE_AGENT_RUNTIME_ENABLED"),
+                "connector_root": api_environment.get("FILE_AGENT_CONNECTOR_ROOT"),
+                "runtime_base_url": api_environment.get("FILE_AGENT_RUNTIME_BASE_URL"),
+                "connector_mount": connector_mount,
+            },
+            "runtime": {
+                "present": runtime_present,
+                "container_id": runtime_id,
+                "image_id": runtime_payload.get("Image") if runtime_payload else None,
+                "image_ref": runtime_payload.get("Config", {}).get("Image") if runtime_payload else None,
+                "running": runtime_payload.get("State", {}).get("Running") if runtime_payload else False,
+                "health": runtime_payload.get("State", {}).get("Health", {}).get("Status") if runtime_payload else None,
             },
             "containers": {
                 name: {

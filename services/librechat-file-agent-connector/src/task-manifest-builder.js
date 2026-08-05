@@ -14,10 +14,10 @@ import {
   WORD_CAPABILITY_PROFILE,
 } from './constants.js';
 import { digestJson, opaqueRef, requiredString, sha256 } from './stable.js';
-import { normalizeWordAcceptanceAssertions } from '../../file-agent-runtime/src/word-acceptance.js';
-import { normalizeXlsxAcceptanceAssertions } from '../../file-agent-runtime/src/xlsx-acceptance.js';
-import { normalizePptxAcceptanceAssertions } from '../../file-agent-runtime/src/pptx-acceptance.js';
-import { normalizeOfficeComposeAcceptanceAssertions } from '../../file-agent-runtime/src/office-compose-acceptance.js';
+import { normalizeWordAcceptanceAssertions } from './acceptance-contracts/word-acceptance.js';
+import { normalizeXlsxAcceptanceAssertions } from './acceptance-contracts/xlsx-acceptance.js';
+import { normalizePptxAcceptanceAssertions } from './acceptance-contracts/pptx-acceptance.js';
+import { normalizeOfficeComposeAcceptanceAssertions } from './acceptance-contracts/office-compose-acceptance.js';
 import { sourceLogicalIdForFile } from './office-compose-acceptance-resolver.js';
 
 function normalizeFile(file, { conversationId, sessionId, userId }) {
