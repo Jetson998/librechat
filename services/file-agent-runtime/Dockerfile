@@ -18,6 +18,13 @@ RUN test "$TARGETARCH" = "amd64" \
   && test "$(dpkg --print-architecture)" = "amd64" \
   && rm -f /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources \
   && printf '%s\n' \
+    'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260702T000000Z bookworm main' \
+    > /etc/apt/sources.list.d/debian-ca-bootstrap.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates=20230311+deb12u1 \
+  && rm -f /etc/apt/sources.list.d/debian-ca-bootstrap.list \
+  && rm -rf /var/lib/apt/lists/* \
+  && printf '%s\n' \
     'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260702T000000Z bookworm main' \
     'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260702T000000Z bookworm-updates main' \
     'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20260702T000000Z bookworm-security main' \
