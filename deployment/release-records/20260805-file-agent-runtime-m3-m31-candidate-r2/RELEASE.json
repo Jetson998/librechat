@@ -103,6 +103,21 @@
       "size_bytes": 291480511,
       "evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/BUILD_EVIDENCE.json"
     },
+    "registry_delivery": {
+      "status": "blocked",
+      "target_tag": "ghcr.io/jetson998/librechat-file-agent-runtime:7b98b59",
+      "local_image_digest": "sha256:86aef0635831904d38ad1fd8220f46f9f326955d901d134b910bd27f33fa30e3",
+      "registry_manifest_digest": null,
+      "failure_evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/REGISTRY_PUBLISH_FAILURE.json",
+      "reason": "GHCR denied the push because the build host has no Docker registry credentials or write:packages authorization."
+    },
+    "operations_delivery": {
+      "status": "partial_pending_registry_authentication",
+      "directory": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/ops-delivery",
+      "handoff_template": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/handoff-manifest.template.json",
+      "handoff_is_deployable": false,
+      "reason": "A deployable handoff requires the real GHCR digest and target-created secret/allowlist files; no secret was created or read."
+    },
     "source_archive": {
       "path": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/20260805-file-agent-runtime-m3-m31-candidate-r2-7b98b59eeb23.tar.gz",
       "sha256": "3d8966b8d570b7cb718bacd41cc5667af73fc18010dd1678832590eef5f40da4"
@@ -182,7 +197,8 @@
   "source_revision": "7b98b59eeb239918f63a4b039cd00c679c25f40c",
   "status": "ready",
   "unresolved_issues": [
-    "production_deployment_not_authorized"
+    "production_deployment_not_authorized",
+    "registry_publish_authentication_required"
   ],
   "updated_at": "2026-08-05T08:28:13Z",
   "validation_plan": [
