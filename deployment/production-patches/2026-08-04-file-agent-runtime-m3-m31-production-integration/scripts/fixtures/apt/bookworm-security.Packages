@@ -1,0 +1,14 @@
+Package: libreoffice-calc
+Version: 4:7.4.7-1+deb12u13
+Architecture: amd64
+Filename: pool/updates/main/libr/libreoffice/libreoffice-calc_7.4.7-1+deb12u13_amd64.deb
+
+Package: libreoffice-impress
+Version: 4:7.4.7-1+deb12u13
+Architecture: amd64
+Filename: pool/updates/main/libr/libreoffice/libreoffice-impress_7.4.7-1+deb12u13_amd64.deb
+
+Package: libreoffice-writer
+Version: 4:7.4.7-1+deb12u13
+Architecture: amd64
+Filename: pool/updates/main/libr/libreoffice/libreoffice-writer_7.4.7-1+deb12u13_amd64.deb

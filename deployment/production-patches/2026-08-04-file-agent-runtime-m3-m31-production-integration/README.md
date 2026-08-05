@@ -21,9 +21,23 @@ The Dockerfile uses the Debian snapshot at `20260702T000000Z` with separate
 LibreOffice Calc, Impress, and Writer lock is
 `4:7.4.7-1+deb12u13`, which is present in the declared `bookworm-security`
 amd64 `Packages` index. `scripts/verify-apt-snapshot.py` checks the actual
-snapshot, suite, amd64 index, exact locked versions, and the reachable
-`Depends`/`Pre-Depends` closure. This source-level check does not replace a
-later Docker build; the image is not built during development-only review.
+snapshot, suite, amd64 index, index digest, and exact locked package records.
+It does not claim to solve the transitive APT transaction; the authorized
+candidate Docker build is the evidence for native `apt-get install`. The
+image is not built during development-only review.
+
+The explicit candidate-stage index check is:
+
+```sh
+python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts/verify-apt-snapshot.py \
+  --dockerfile services/file-agent-runtime/Dockerfile \
+  --apt-lock services/file-agent-runtime/apt-packages.lock \
+  --architecture amd64 \
+  --download
+```
+
+Routine rejection tests use the fixed offline fixtures under
+`scripts/fixtures/apt/` and do not invoke this download path.
 
 The Connector production archive contains the complete `src/` tree, including
 the canonical shared acceptance contracts under `src/acceptance-contracts/`.
@@ -65,7 +79,8 @@ modified by this integration.
   replay; it does not contact Docker, SSH, Mongo, or production.
 - `scripts/test-sol-rejections.py`: failure tests for real archive import,
   disabled-baseline rollback semantics, Compose service container resolution,
-  rollback baseline restoration, and the compatible Debian source.
+  rollback baseline restoration, and exact Debian root-package index checks
+  using fixed offline fixtures.
 
 Candidate creation remains a separate later step. This directory does not
 authorize image builds, source packaging, preflight, deployment, restart, or

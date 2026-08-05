@@ -11,7 +11,6 @@ from __future__ import annotations
 import importlib.util
 import json
 import hashlib
-import os
 import re
 import sys
 import subprocess
@@ -21,6 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
 SCRIPTS = ROOT / "deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts"
+APT_FIXTURES = SCRIPTS / "fixtures/apt"
 
 
 def load_module(name: str, path: Path):
@@ -519,13 +519,13 @@ def test_runtime_build_indexes_provide_every_locked_package() -> None:
         str(ROOT / "services/file-agent-runtime/apt-packages.lock"),
         "--architecture",
         "amd64",
+        "--index",
+        f"bookworm={APT_FIXTURES / 'bookworm.Packages'}",
+        "--index",
+        f"bookworm-updates={APT_FIXTURES / 'bookworm-updates.Packages'}",
+        "--index",
+        f"bookworm-security={APT_FIXTURES / 'bookworm-security.Packages'}",
     ]
-    index_specs = os.environ.get("FILE_AGENT_APT_INDEX_SPECS")
-    if index_specs:
-        for spec in index_specs.split(","):
-            command.extend(("--index", spec))
-    else:
-        command.append("--download")
 
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0, (
@@ -533,6 +533,8 @@ def test_runtime_build_indexes_provide_every_locked_package() -> None:
         f"through amd64 Packages indexes; stdout={result.stdout!r} "
         f"stderr={result.stderr!r}"
     )
+    evidence = json.loads(result.stdout)
+    assert "transitive_package_records" not in evidence
 
 
 def test_runtime_build_indexes_reject_unavailable_exact_version() -> None:
@@ -554,16 +556,47 @@ def test_runtime_build_indexes_reject_unavailable_exact_version() -> None:
             str(invalid_lock),
             "--architecture",
             "amd64",
+            "--index",
+            f"bookworm={APT_FIXTURES / 'bookworm.Packages'}",
+            "--index",
+            f"bookworm-updates={APT_FIXTURES / 'bookworm-updates.Packages'}",
+            "--index",
+            f"bookworm-security={APT_FIXTURES / 'bookworm-security.Packages'}",
         ]
-        index_specs = os.environ.get("FILE_AGENT_APT_INDEX_SPECS")
-        if index_specs:
-            for spec in index_specs.split(","):
-                command.extend(("--index", spec))
-        else:
-            command.append("--download")
         result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode != 0, "an exact version absent from Packages indexes was accepted"
     assert "deb12u14" in result.stderr
+
+
+def test_runtime_build_rejects_invalid_packages_fixture() -> None:
+    verifier = SCRIPTS / "verify-apt-snapshot.py"
+    command = [
+        sys.executable,
+        str(verifier),
+        "--dockerfile",
+        str(ROOT / "services/file-agent-runtime/Dockerfile"),
+        "--apt-lock",
+        str(ROOT / "services/file-agent-runtime/apt-packages.lock"),
+        "--architecture",
+        "amd64",
+        "--index",
+        f"bookworm={APT_FIXTURES / 'invalid.Packages'}",
+        "--index",
+        f"bookworm-updates={APT_FIXTURES / 'bookworm-updates.Packages'}",
+        "--index",
+        f"bookworm-security={APT_FIXTURES / 'bookworm-security.Packages'}",
+    ]
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode != 0, "an invalid Packages fixture was accepted"
+    assert "no amd64 records" in result.stderr
+
+
+def test_runtime_build_verifier_does_not_claim_transitive_installability() -> None:
+    source = (SCRIPTS / "verify-apt-snapshot.py").read_text(encoding="utf-8")
+    assert "compare_debian_versions" not in source
+    assert "dependency_satisfied" not in source
+    assert "resolve_dependencies" not in source
+    assert "transitive_package_records" not in source
 
 
 if __name__ == "__main__":
@@ -581,6 +614,8 @@ if __name__ == "__main__":
         ("compatible-debian-snapshot", test_runtime_build_snapshot_matches_locked_package_release_and_suite_syntax),
         ("apt-index-exact-package-resolution", test_runtime_build_indexes_provide_every_locked_package),
         ("apt-index-rejects-unavailable-version", test_runtime_build_indexes_reject_unavailable_exact_version),
+        ("apt-index-rejects-invalid-fixture", test_runtime_build_rejects_invalid_packages_fixture),
+        ("apt-index-no-custom-transitive-solver", test_runtime_build_verifier_does_not_claim_transitive_installability),
     ):
         try:
             check()

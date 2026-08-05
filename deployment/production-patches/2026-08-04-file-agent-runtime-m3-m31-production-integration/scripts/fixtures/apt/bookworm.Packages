@@ -1,0 +1,14 @@
+Package: ca-certificates
+Version: 20230311+deb12u1
+Architecture: all
+Filename: pool/main/c/ca-certificates/ca-certificates_20230311+deb12u1_all.deb
+
+Package: python3
+Version: 3.11.2-1+b1
+Architecture: amd64
+Filename: pool/main/p/python3-defaults/python3_3.11.2-1+b1_amd64.deb
+
+Package: python3-venv
+Version: 3.11.2-1+b1
+Architecture: amd64
+Filename: pool/main/p/python3-defaults/python3-venv_3.11.2-1+b1_amd64.deb

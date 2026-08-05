@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Verify that an immutable Debian snapshot can satisfy an APT lock.
+"""Verify exact APT lock entries against immutable Debian package indexes.
 
 The Dockerfile is the source of truth for the snapshot and suites.  This
 checker then reads the corresponding binary-amd64 Packages indexes and
-requires every exact package/version in apt-packages.lock to be present.  It
-also walks Depends and Pre-Depends so an exact lock cannot pass merely because
-the three LibreOffice package names happen to exist in a pool directory.
+requires every exact package/version in apt-packages.lock to be present as an
+installable amd64 or all-architecture package record.  It deliberately does
+not attempt to prove the transitive dependency transaction; the authorized
+Docker build and native apt-get are the authority for that question.
 """
 
 from __future__ import annotations
 
 import argparse
-from functools import cmp_to_key
 import hashlib
 import json
 import lzma
@@ -27,10 +27,6 @@ SOURCE_RE = re.compile(
     r"(?P<snapshot>\d{8}T\d{6}Z)\s+(?P<suite>\S+)\s+(?P<components>[^']+)"
 )
 PACKAGE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
-DEPENDENCY_RE = re.compile(
-    r"^(?P<name>[a-z0-9][a-z0-9+.-]*)(?::(?:any|native|amd64))?"
-    r"(?:\s*\((?P<operator><<|<=|=|>=|>>|<|>)\s*(?P<version>[^)]+)\))?$"
-)
 
 
 class SnapshotValidationError(ValueError):
@@ -147,7 +143,9 @@ def parse_packages_index(text: str, suite: str, architecture: str) -> list[dict[
         if package_architecture not in {architecture, "all"}:
             continue
         filename = fields.get("Filename", "")
-        if filename and not (filename.endswith(f"_{architecture}.deb") or filename.endswith("_all.deb")):
+        if not filename or not (
+            filename.endswith(f"_{architecture}.deb") or filename.endswith("_all.deb")
+        ):
             continue
         records.append(
             {
@@ -155,194 +153,12 @@ def parse_packages_index(text: str, suite: str, architecture: str) -> list[dict[
                 "Version": version,
                 "Architecture": package_architecture,
                 "Filename": filename,
-                "Depends": fields.get("Depends", ""),
-                "Pre-Depends": fields.get("Pre-Depends", ""),
-                "Provides": fields.get("Provides", ""),
                 "Suite": suite,
             }
         )
     if not records:
         raise SnapshotValidationError(f"Packages index for {suite} has no {architecture} records")
     return records
-
-
-def split_dependency(value: str, separator: str) -> list[str]:
-    parts: list[str] = []
-    start = 0
-    parentheses = 0
-    brackets = 0
-    for index, character in enumerate(value):
-        if character == "(":
-            parentheses += 1
-        elif character == ")":
-            parentheses = max(parentheses - 1, 0)
-        elif character == "[":
-            brackets += 1
-        elif character == "]":
-            brackets = max(brackets - 1, 0)
-        elif character == separator and parentheses == 0 and brackets == 0:
-            parts.append(value[start:index].strip())
-            start = index + 1
-    parts.append(value[start:].strip())
-    return [part for part in parts if part]
-
-
-def compare_debian_versions(left: str, right: str) -> int:
-    def split_version(value: str) -> tuple[int, str, str]:
-        epoch_text, separator, remainder = value.partition(":")
-        if not separator:
-            remainder = epoch_text
-            epoch_text = "0"
-        epoch = int(epoch_text)
-        upstream, dash, revision = remainder.rpartition("-")
-        if not dash:
-            upstream, revision = remainder, ""
-        return epoch, upstream, revision
-
-    def compare_part(left_part: str, right_part: str) -> int:
-        index = 0
-        other = 0
-        while index < len(left_part) or other < len(right_part):
-            # Debian compares the non-digit runs first. A missing character
-            # sorts before punctuation, while '~' sorts before everything.
-            while (
-                (index < len(left_part) and not left_part[index].isdigit())
-                or (other < len(right_part) and not right_part[other].isdigit())
-            ):
-                left_char = left_part[index] if index < len(left_part) and not left_part[index].isdigit() else ""
-                right_char = right_part[other] if other < len(right_part) and not right_part[other].isdigit() else ""
-                if left_char == right_char:
-                    if left_char:
-                        index += 1
-                    if right_char:
-                        other += 1
-                    continue
-                if left_char == "~" or right_char == "~":
-                    return -1 if left_char == "~" else 1
-                if not left_char:
-                    return -1
-                if not right_char:
-                    return 1
-                return -1 if left_char < right_char else 1
-
-            left_start = index
-            right_start = other
-            while index < len(left_part) and left_part[index].isdigit():
-                index += 1
-            while other < len(right_part) and right_part[other].isdigit():
-                other += 1
-            left_digits = left_part[left_start:index].lstrip("0") or "0"
-            right_digits = right_part[right_start:other].lstrip("0") or "0"
-            if len(left_digits) != len(right_digits):
-                return -1 if len(left_digits) < len(right_digits) else 1
-            if left_digits != right_digits:
-                return -1 if left_digits < right_digits else 1
-        return 0
-
-    left_epoch, left_upstream, left_revision = split_version(left)
-    right_epoch, right_upstream, right_revision = split_version(right)
-    for left_value, right_value in (
-        (left_epoch, right_epoch),
-        (compare_part(left_upstream, right_upstream), 0),
-        (compare_part(left_revision, right_revision), 0),
-    ):
-        if left_value != right_value:
-            return -1 if left_value < right_value else 1
-    return 0
-
-
-def dependency_satisfied(candidate_version: str | None, operator: str | None, version: str | None) -> bool:
-    if operator is None:
-        return True
-    if candidate_version is None:
-        return False
-    comparison = compare_debian_versions(candidate_version, version or "")
-    return {
-        "=": comparison == 0,
-        ">=": comparison >= 0,
-        ">": comparison > 0,
-        ">>": comparison > 0,
-        "<=": comparison <= 0,
-        "<": comparison < 0,
-        "<<": comparison < 0,
-    }[operator]
-
-
-def resolve_dependencies(records: list[dict[str, str]], roots: list[dict[str, str]], architecture: str) -> int:
-    # A candidate is (record, effective version, is virtual provider).  A
-    # versioned Provides must satisfy a versioned dependency using the version
-    # declared in Provides, not the provider package's own version.
-    by_name: dict[str, list[tuple[dict[str, str], str, bool]]] = {}
-    providers: dict[str, list[tuple[dict[str, str], str | None, bool]]] = {}
-    for record in records:
-        by_name.setdefault(record["Package"], []).append((record, record["Version"], False))
-        for provided in split_dependency(record["Provides"], ","):
-            provided_match = re.fullmatch(
-                r"(?P<name>[a-z0-9][a-z0-9+.-]*)(?:\s*\(=\s*(?P<version>[^)]+)\))?",
-                provided.strip(),
-            )
-            if provided_match:
-                providers.setdefault(provided_match.group("name"), []).append(
-                    (record, provided_match.group("version"), True)
-                )
-
-    def candidates(name: str) -> list[tuple[dict[str, str], str | None, bool]]:
-        return by_name.get(name, []) + providers.get(name, [])
-
-    visited: set[tuple[str, str, str]] = set()
-    visiting: set[tuple[str, str, str]] = set()
-
-    def visit(record: dict[str, str]) -> None:
-        identity = (record["Package"], record["Version"], record["Suite"])
-        if identity in visited:
-            return
-        if identity in visiting:
-            return
-        visiting.add(identity)
-        for field in ("Pre-Depends", "Depends"):
-            for clause in split_dependency(record[field], ","):
-                if not clause:
-                    continue
-                alternatives = split_dependency(clause, "|")
-                selected: tuple[dict[str, str], str | None, bool] | None = None
-                for alternative in alternatives:
-                    normalized = re.sub(r"\[[^]]*\]", "", alternative)
-                    normalized = re.sub(r"<[^>]*>", "", normalized).strip()
-                    match = DEPENDENCY_RE.fullmatch(normalized)
-                    if not match:
-                        raise SnapshotValidationError(
-                            f"cannot safely parse {field} dependency {alternative!r} of {record['Package']}"
-                        )
-                    name = match.group("name")
-                    operator = match.group("operator")
-                    version = match.group("version")
-                    possible = [
-                        candidate
-                        for candidate in candidates(name)
-                        if dependency_satisfied(candidate[1], operator, version)
-                    ]
-                    if possible:
-                        selected = max(
-                            possible,
-                            key=cmp_to_key(
-                                lambda left, right: compare_debian_versions(
-                                    left[1] or "", right[1] or ""
-                                )
-                            ),
-                        )
-                        break
-                if selected is None:
-                    raise SnapshotValidationError(
-                        f"no {architecture}-installable candidate satisfies {field} dependency "
-                        f"{clause!r} of {record['Package']}={record['Version']}"
-                    )
-                visit(selected[0])
-        visiting.remove(identity)
-        visited.add(identity)
-
-    for root in roots:
-        visit(root)
-    return len(visited)
 
 
 def verify(args: argparse.Namespace) -> dict[str, object]:
@@ -413,14 +229,12 @@ def verify(args: argparse.Namespace) -> dict[str, object]:
                 "architecture": selected["Architecture"],
                 "filename": selected["Filename"],
             }
-        transitive_count = resolve_dependencies(all_records, list(resolved_record for package in resolved for resolved_record in by_name[package] if resolved_record["Version"] == locked[package]), args.architecture)
         return {
             "status": "passed",
             "snapshot": next(iter({str(source["snapshot"]) for source in sources.values()})),
             "architecture": args.architecture,
             "suites": index_evidence,
             "locked_packages": resolved,
-            "transitive_package_records": transitive_count,
         }
     finally:
         if temporary is not None:
