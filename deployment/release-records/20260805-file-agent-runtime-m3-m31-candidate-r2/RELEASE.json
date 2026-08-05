@@ -8,30 +8,115 @@
     "status": "not_applicable"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/20260805-file-agent-runtime-m3-m31-candidate-r2-7b98b59eeb23.tar.gz",
+      "manifest": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/manifest.json",
+      "value": "3d8966b8d570b7cb718bacd41cc5667af73fc18010dd1678832590eef5f40da4"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {
-      "production_backup": "not_applicable; candidate build does not modify a target host",
-      "candidate_recovery": "retain the reviewed source revision and discard only failed local candidate artifacts if validation fails"
+      "candidate_recovery": "retain the reviewed source revision and discard only failed local candidate artifacts if validation fails",
+      "production_backup": "not_applicable; candidate build does not modify a target host"
     },
     "reason": "No production service or data is changed while producing this candidate.",
     "status": "not_applicable"
   },
   "baseline_reference": {
     "details": {
+      "description": "This candidate is built from the exact Sol-reviewed Dockerfile repair revision 7b98b59; the failed fa47c811 candidate is retained as separate recovery evidence.",
       "failed_previous_candidate": "20260805-file-agent-runtime-m3-m31-candidate at fa47c811; failure was archived before this candidate",
       "previous_production_release": "20260804-file-agent-runtime-m3r-api-bootstrap",
       "previous_source_revision": "f28b63b31f2df0fca1c2ad63cf8c286248becd70",
-      "production_runtime_state": "Runtime integration is not authorized or customer-enabled by this candidate task",
-      "description": "This candidate is built from the exact Sol-reviewed Dockerfile repair revision 7b98b59; the failed fa47c811 candidate is retained as separate recovery evidence."
+      "production_runtime_state": "Runtime integration is not authorized or customer-enabled by this candidate task"
     },
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "3d8966b8d570b7cb718bacd41cc5667af73fc18010dd1678832590eef5f40da4",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "deployable-artifact",
+      "validated-runtime-config",
+      "versioned-patch-artifact",
+      "full-service-health-audit",
+      "patch-contract-tests",
+      "release-scope-tests",
+      "routing-config-tests"
+    ],
+    "details": {
+      "artifact_inventory": {
+        "connector_archive": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/connector.tar.gz",
+        "connector_manifest": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/connector.manifest.json",
+        "image_digest": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/IMAGE_DIGEST.txt",
+        "source_archive": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/20260805-file-agent-runtime-m3-m31-candidate-r2-7b98b59eeb23.tar.gz"
+      },
+      "candidate_build": {
+        "evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/BUILD_EVIDENCE.json",
+        "image": "file-agent-runtime@sha256:86aef0635831904d38ad1fd8220f46f9f326955d901d134b910bd27f33fa30e3",
+        "status": "passed"
+      },
+      "candidate_smoke": {
+        "checks": [
+          "Docker healthcheck healthy",
+          "Runtime /healthz 200 production mode",
+          "LibreOffice Writer/Calc/Impress packages and version",
+          "Python Office imports"
+        ],
+        "evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/SMOKE_EVIDENCE.json",
+        "status": "passed"
+      },
+      "contract_checks": {
+        "file_agent_dual_service_contract": "passed",
+        "git_diff_check": "passed",
+        "release_governance_validation": "34 tests passed",
+        "sol_rejection_tests": "passed"
+      },
+      "reused_business_regression": {
+        "connector": "112/112 serially passed on the reviewed business revision; 7b98b59 only changes Dockerfile CA bootstrap",
+        "runtime": "97/97 serially passed on the reviewed business revision; 7b98b59 only changes Dockerfile CA bootstrap",
+        "source_business_code_changed": false
+      },
+      "target_boundary": {
+        "customer_file_acceptance": "not run",
+        "full_service_health_audit": "reused unchanged-service baseline evidence; fresh target verification remains deferred to an authorized release",
+        "model_requests": 0,
+        "production_preflight": "not run",
+        "production_restart": "not run",
+        "production_write_attempts": 0,
+        "ssh_scp": "not run"
+      }
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "4a746c46fc7baeba85edd6ec43f14bff6387a359bef6dd74b32066b79a43de1e",
+    "source_revision": "7b98b59eeb239918f63a4b039cd00c679c25f40c",
+    "status": "passed"
+  },
+  "candidate_artifacts": {
+    "status": "passed",
+    "runtime_image": {
+      "reference": "file-agent-runtime@sha256:86aef0635831904d38ad1fd8220f46f9f326955d901d134b910bd27f33fa30e3",
+      "architecture": "linux/amd64",
+      "size_bytes": 291480511,
+      "evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/BUILD_EVIDENCE.json"
+    },
+    "source_archive": {
+      "path": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/20260805-file-agent-runtime-m3-m31-candidate-r2-7b98b59eeb23.tar.gz",
+      "sha256": "3d8966b8d570b7cb718bacd41cc5667af73fc18010dd1678832590eef5f40da4"
+    },
+    "connector_archive": {
+      "path": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/connector.tar.gz",
+      "sha256": "6eba03270ccf749c4721c1612862083633f538e91f514cc1bef893fe178aaf2e",
+      "manifest": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/connector.manifest.json",
+      "file_count": 35
+    },
+    "smoke_evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/SMOKE_EVIDENCE.json",
+    "attestation": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/attestation.json",
+    "sha256sums": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/SHA256SUMS",
+    "operator_handoff": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/OPS_HANDOFF.md"
   },
   "change_summary": {
     "expected_result": "Produce a reproducible Linux/amd64 Runtime OCI image and a manifest-backed Connector/source handoff from 7b98b59, then stop at candidate-ready without production writes.",
@@ -75,7 +160,7 @@
   "release_id": "20260805-file-agent-runtime-m3-m31-candidate-r2",
   "release_plan": {
     "details": {},
-    "sha256": ""
+    "sha256": "4a746c46fc7baeba85edd6ec43f14bff6387a359bef6dd74b32066b79a43de1e"
   },
   "rollback_reference": {
     "details": {
@@ -95,12 +180,11 @@
   },
   "schema_version": 1,
   "source_revision": "7b98b59eeb239918f63a4b039cd00c679c25f40c",
-  "status": "planned",
+  "status": "ready",
   "unresolved_issues": [
-    "production_deployment_not_authorized",
-    "candidate_artifact_and_image_digest_pending_build"
+    "production_deployment_not_authorized"
   ],
-  "updated_at": "2026-08-05T07:50:36Z",
+  "updated_at": "2026-08-05T08:28:13Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts/test-sol-rejections.py",
