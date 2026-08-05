@@ -1,0 +1,141 @@
+{
+  "acceptance_result": {
+    "details": {
+      "candidate_scope": "source, image, and isolated artifact validation only",
+      "production_write_attempts": 0
+    },
+    "reason": "No production target, customer file, model request, or production acceptance is authorized in the candidate stage.",
+    "status": "not_applicable"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {
+      "production_backup": "not_applicable; candidate build does not modify a target host",
+      "candidate_recovery": "retain the reviewed source revision and discard only failed local candidate artifacts if validation fails"
+    },
+    "reason": "No production service or data is changed while producing this candidate.",
+    "status": "not_applicable"
+  },
+  "baseline_reference": {
+    "details": {
+      "failed_previous_candidate": "20260805-file-agent-runtime-m3-m31-candidate at fa47c811; failure was archived before this candidate",
+      "previous_production_release": "20260804-file-agent-runtime-m3r-api-bootstrap",
+      "previous_source_revision": "f28b63b31f2df0fca1c2ad63cf8c286248becd70",
+      "production_runtime_state": "Runtime integration is not authorized or customer-enabled by this candidate task",
+      "description": "This candidate is built from the exact Sol-reviewed Dockerfile repair revision 7b98b59; the failed fa47c811 candidate is retained as separate recovery evidence."
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "Produce a reproducible Linux/amd64 Runtime OCI image and a manifest-backed Connector/source handoff from 7b98b59, then stop at candidate-ready without production writes.",
+    "functions": [
+      "Build the file-agent-runtime image from the digest-pinned Node base, fixed Debian snapshot, CA bootstrap, exact LibreOffice root package lock, and locked Python dependencies.",
+      "Verify the Runtime image starts, exposes /healthz, and reports usable LibreOffice Writer, Calc, and Impress binaries.",
+      "Verify the locked Python Office dependencies import inside the candidate image.",
+      "Package the complete Connector source archive and canonical acceptance contracts with a source manifest and SHA-256 inventory."
+    ],
+    "limitations": [
+      "No production preflight, SSH/SCP, Compose apply, feature-flag enablement, restart, customer file, model request, or production acceptance is included.",
+      "The Docker build and image-local smoke prove candidate construction and the image-local health path; they do not prove target-host compatibility or production business acceptance.",
+      "Runtime and Connector business regression results remain reused because 7b98b59 changes only the Dockerfile build bootstrap after Sol review."
+    ],
+    "reason": "Create a new controlled production-integration candidate after the previous fa47c811 candidate failed before image creation and the Dockerfile-only repair passed narrow Sol review.",
+    "risk": "This candidate exercises Debian APT bootstrap and installation, Python lock installation, LibreOffice startup, Runtime health, and deterministic Connector packaging. Any failure invalidates this candidate and does not change production.",
+    "scope": [
+      "services/file-agent-runtime",
+      "services/librechat-file-agent-connector",
+      "deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration",
+      "docs/FILE_AGENT_RUNTIME_M3_M31_PRODUCTION_INTEGRATION_IMPLEMENTATION.md",
+      "docs/FILE_AGENT_RUNTIME_M3_M31_UNIFIED_BATCH_PLAN.md"
+    ]
+  },
+  "created_at": "2026-08-05T07:50:36Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "",
+    "package_required_paths": [
+      "services/file-agent-runtime/Dockerfile",
+      "services/file-agent-runtime/apt-packages.lock",
+      "services/file-agent-runtime/requirements.lock",
+      "deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/SOURCE_MANIFEST.json"
+    ],
+    "protected_services": [],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260805-file-agent-runtime-m3-m31-candidate-r2",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "method": "If the r2 candidate build or image-local checks fail, retain 7b98b59 as the reviewed source, retain the failed fa47c811 evidence, discard only failed local candidate artifacts/images, and do not perform a target write.",
+      "production_rollback": "not exercised; deployment remains separately unauthorized",
+      "source_recovery_revision": "f28b63b31f2df0fca1c2ad63cf8c286248becd70"
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {
+      "production_target": false,
+      "target": "local candidate build host"
+    },
+    "reason": "Candidate validation uses a local Docker container only and does not inspect or change production.",
+    "status": "not_applicable"
+  },
+  "schema_version": 1,
+  "source_revision": "7b98b59eeb239918f63a4b039cd00c679c25f40c",
+  "status": "planned",
+  "unresolved_issues": [
+    "production_deployment_not_authorized",
+    "candidate_artifact_and_image_digest_pending_build"
+  ],
+  "updated_at": "2026-08-05T07:50:36Z",
+  "validation_plan": [
+    {
+      "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts/test-sol-rejections.py",
+      "expected": "Offline Sol rejection, fixed APT fixture, archive, Compose, and rollback contract tests pass.",
+      "type": "local"
+    },
+    {
+      "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts/test-release.py",
+      "expected": "Dual-service Compose and rollback isolated contract tests pass.",
+      "type": "local"
+    },
+    {
+      "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts/verify-apt-snapshot.py --dockerfile services/file-agent-runtime/Dockerfile --apt-lock services/file-agent-runtime/apt-packages.lock --architecture amd64 --download",
+      "expected": "The declared snapshot's amd64 Packages indexes are complete and contain every exact locked root package; this is the one explicit online candidate check.",
+      "type": "candidate"
+    },
+    {
+      "command": "docker buildx build --platform linux/amd64 --load -f services/file-agent-runtime/Dockerfile -t file-agent-runtime:7b98b59 .",
+      "expected": "CA bootstrap, APT installation, Python lock installation, image assembly, and Dockerfile healthcheck configuration complete successfully.",
+      "type": "candidate-build"
+    },
+    {
+      "command": "docker run --rm --name file-agent-runtime-7b98b59-smoke file-agent-runtime:7b98b59",
+      "expected": "Container starts for bounded image-local smoke; /healthz, Writer/Calc/Impress, and Python Office dependency probes pass before cleanup.",
+      "type": "candidate-smoke"
+    },
+    {
+      "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts/package-connector-archive.py --source-root services/librechat-file-agent-connector --output <candidate>/connector.tar.gz --manifest-output <candidate>/connector.manifest.json",
+      "expected": "Complete Connector source and shared acceptance contracts are archived deterministically with a manifest.",
+      "type": "candidate-package"
+    },
+    {
+      "command": "sha256sum -c SHA256SUMS",
+      "expected": "Candidate image reference, source archive, Connector archive, manifests, and operator handoff checksums match the r2 candidate record.",
+      "type": "candidate-evidence"
+    }
+  ]
+}
