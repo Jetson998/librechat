@@ -1,6 +1,6 @@
 ca-certificates=20230311+deb12u1
-libreoffice-calc=4:7.4.7-1+deb12u14
-libreoffice-impress=4:7.4.7-1+deb12u14
-libreoffice-writer=4:7.4.7-1+deb12u14
+libreoffice-calc=4:7.4.7-1+deb12u13
+libreoffice-impress=4:7.4.7-1+deb12u13
+libreoffice-writer=4:7.4.7-1+deb12u13
 python3=3.11.2-1+b1
 python3-venv=3.11.2-1+b1

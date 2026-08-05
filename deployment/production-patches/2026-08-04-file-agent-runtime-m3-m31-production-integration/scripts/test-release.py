@@ -403,6 +403,29 @@ def main() -> None:
         == ["bookworm", "bookworm-updates", "bookworm-security"],
         "SOURCE_MANIFEST does not record the Debian suite set",
     )
+    runtime_build = source_manifest.get("runtime_build", {})
+    require(runtime_build.get("debian_architecture") == "amd64", "Runtime Debian architecture is not amd64")
+    verifier = PATCH / str(runtime_build.get("apt_index_verifier", ""))
+    require(verifier.is_file(), "APT snapshot verifier is missing from the production contract")
+    compile(verifier.read_text(encoding="utf-8"), str(verifier), "exec")
+    require(
+        runtime_build.get("apt_locked_versions")
+        == {
+            "libreoffice-calc": "4:7.4.7-1+deb12u13",
+            "libreoffice-impress": "4:7.4.7-1+deb12u13",
+            "libreoffice-writer": "4:7.4.7-1+deb12u13",
+        },
+        "SOURCE_MANIFEST does not record the verified LibreOffice versions",
+    )
+    require(
+        runtime_build.get("apt_index_sha256")
+        == {
+            "bookworm": "62d555a3a8be1d6de520fcd497ae85f2317c6dbb1249976e07720043e77b85d8",
+            "bookworm-updates": "87e7e94047fb7fb6f4ceecc7022d4bee55b66031cc2a7666d3196f3e0aabb846",
+            "bookworm-security": "7d6bede61fbab39ad6aa61bdcaff2dbe1649187352ff2f2950d4ec5aed189f8a",
+        },
+        "SOURCE_MANIFEST does not record the verified Packages index digests",
+    )
     requirements_lock = runtime_dir / "requirements.lock"
     require(requirements_lock.is_file(), "Python requirements lock is missing")
     requirements_text = requirements_lock.read_text(encoding="utf-8")

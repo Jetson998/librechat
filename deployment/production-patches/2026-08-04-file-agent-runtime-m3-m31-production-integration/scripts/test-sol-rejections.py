@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import hashlib
+import os
 import re
 import sys
 import subprocess
@@ -498,11 +499,71 @@ def test_runtime_build_snapshot_matches_locked_package_release_and_suite_syntax(
     assert " bookworm main'" in dockerfile
     assert " bookworm-updates main'" in dockerfile
     assert " bookworm-security main'" in dockerfile
+    assert 'test "$TARGETARCH" = "amd64"' in dockerfile
+    assert 'test "$(dpkg --print-architecture)" = "amd64"' in dockerfile
 
     apt_lock = (ROOT / "services/file-agent-runtime/apt-packages.lock").read_text(encoding="utf-8")
-    assert "libreoffice-calc=4:7.4.7-1+deb12u14" in apt_lock
-    assert "libreoffice-impress=4:7.4.7-1+deb12u14" in apt_lock
-    assert "libreoffice-writer=4:7.4.7-1+deb12u14" in apt_lock
+    assert "libreoffice-calc=4:7.4.7-1+deb12u13" in apt_lock
+    assert "libreoffice-impress=4:7.4.7-1+deb12u13" in apt_lock
+    assert "libreoffice-writer=4:7.4.7-1+deb12u13" in apt_lock
+
+
+def test_runtime_build_indexes_provide_every_locked_package() -> None:
+    verifier = SCRIPTS / "verify-apt-snapshot.py"
+    command = [
+        sys.executable,
+        str(verifier),
+        "--dockerfile",
+        str(ROOT / "services/file-agent-runtime/Dockerfile"),
+        "--apt-lock",
+        str(ROOT / "services/file-agent-runtime/apt-packages.lock"),
+        "--architecture",
+        "amd64",
+    ]
+    index_specs = os.environ.get("FILE_AGENT_APT_INDEX_SPECS")
+    if index_specs:
+        for spec in index_specs.split(","):
+            command.extend(("--index", spec))
+    else:
+        command.append("--download")
+
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 0, (
+        "the declared Debian snapshot must expose every exact locked package "
+        f"through amd64 Packages indexes; stdout={result.stdout!r} "
+        f"stderr={result.stderr!r}"
+    )
+
+
+def test_runtime_build_indexes_reject_unavailable_exact_version() -> None:
+    verifier = SCRIPTS / "verify-apt-snapshot.py"
+    with tempfile.TemporaryDirectory(prefix="apt-snapshot-invalid-lock-") as temporary:
+        invalid_lock = Path(temporary) / "apt-packages.lock"
+        invalid_lock.write_text(
+            (ROOT / "services/file-agent-runtime/apt-packages.lock")
+            .read_text(encoding="utf-8")
+            .replace("4:7.4.7-1+deb12u13", "4:7.4.7-1+deb12u14"),
+            encoding="utf-8",
+        )
+        command = [
+            sys.executable,
+            str(verifier),
+            "--dockerfile",
+            str(ROOT / "services/file-agent-runtime/Dockerfile"),
+            "--apt-lock",
+            str(invalid_lock),
+            "--architecture",
+            "amd64",
+        ]
+        index_specs = os.environ.get("FILE_AGENT_APT_INDEX_SPECS")
+        if index_specs:
+            for spec in index_specs.split(","):
+                command.extend(("--index", spec))
+        else:
+            command.append("--download")
+        result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode != 0, "an exact version absent from Packages indexes was accepted"
+    assert "deb12u14" in result.stderr
 
 
 if __name__ == "__main__":
@@ -518,6 +579,8 @@ if __name__ == "__main__":
         ("disabled-rollback-probe", test_disabled_rollback_uses_only_the_baseline_probe),
         ("runtime-service-container-id", test_existing_runtime_rollback_resolves_compose_service_container_id),
         ("compatible-debian-snapshot", test_runtime_build_snapshot_matches_locked_package_release_and_suite_syntax),
+        ("apt-index-exact-package-resolution", test_runtime_build_indexes_provide_every_locked_package),
+        ("apt-index-rejects-unavailable-version", test_runtime_build_indexes_reject_unavailable_exact_version),
     ):
         try:
             check()

@@ -2,6 +2,7 @@
 # docker build -f services/file-agent-runtime/Dockerfile -t file-agent-runtime:<revision> .
 ARG NODE_IMAGE=public.ecr.aws/docker/library/node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
 FROM ${NODE_IMAGE}
+ARG TARGETARCH=amd64
 
 WORKDIR /opt/file-agent
 
@@ -13,7 +14,9 @@ COPY --chown=node:node services/librechat-file-agent-connector /opt/file-agent/s
 COPY services/file-agent-runtime/apt-packages.lock /tmp/apt-packages.lock
 
 USER root
-RUN rm -f /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources \
+RUN test "$TARGETARCH" = "amd64" \
+  && test "$(dpkg --print-architecture)" = "amd64" \
+  && rm -f /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources \
   && printf '%s\n' \
     'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260702T000000Z bookworm main' \
     'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260702T000000Z bookworm-updates main' \

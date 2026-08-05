@@ -42,7 +42,19 @@
     "node_base_policy": "digest pinned",
     "debian_snapshot": "20260702T000000Z",
     "debian_suites": ["bookworm", "bookworm-updates", "bookworm-security"],
+    "debian_architecture": "amd64",
     "apt_lock": "services/file-agent-runtime/apt-packages.lock",
+    "apt_index_verifier": "scripts/verify-apt-snapshot.py",
+    "apt_locked_versions": {
+      "libreoffice-calc": "4:7.4.7-1+deb12u13",
+      "libreoffice-impress": "4:7.4.7-1+deb12u13",
+      "libreoffice-writer": "4:7.4.7-1+deb12u13"
+    },
+    "apt_index_sha256": {
+      "bookworm": "62d555a3a8be1d6de520fcd497ae85f2317c6dbb1249976e07720043e77b85d8",
+      "bookworm-updates": "87e7e94047fb7fb6f4ceecc7022d4bee55b66031cc2a7666d3196f3e0aabb846",
+      "bookworm-security": "7d6bede61fbab39ad6aa61bdcaff2dbe1649187352ff2f2950d4ec5aed189f8a"
+    },
     "python_lock": "services/file-agent-runtime/requirements.lock"
   },
   "secrets": {

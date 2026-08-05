@@ -16,11 +16,14 @@ container filesystem. The API receives a read-only Connector source mount. The
 Runtime image is immutable by digest and owns a separate durable task/journal
 volume.
 
-The Dockerfile uses the Debian snapshot at `20260702T000000Z`, which is after
-the locked LibreOffice `4:7.4.7-1+deb12u14` package became available. The
-`bookworm`, `bookworm-updates`, and `bookworm-security` suites are declared as
-separate APT sources. This source change is validated locally; the image is
-not built during development-only review.
+The Dockerfile uses the Debian snapshot at `20260702T000000Z` with separate
+`bookworm`, `bookworm-updates`, and `bookworm-security` APT sources. The
+LibreOffice Calc, Impress, and Writer lock is
+`4:7.4.7-1+deb12u13`, which is present in the declared `bookworm-security`
+amd64 `Packages` index. `scripts/verify-apt-snapshot.py` checks the actual
+snapshot, suite, amd64 index, exact locked versions, and the reachable
+`Depends`/`Pre-Depends` closure. This source-level check does not replace a
+later Docker build; the image is not built during development-only review.
 
 The Connector production archive contains the complete `src/` tree, including
 the canonical shared acceptance contracts under `src/acceptance-contracts/`.
