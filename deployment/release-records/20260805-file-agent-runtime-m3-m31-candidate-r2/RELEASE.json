@@ -104,19 +104,22 @@
       "evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/BUILD_EVIDENCE.json"
     },
     "registry_delivery": {
-      "status": "blocked",
+      "status": "passed",
       "target_tag": "ghcr.io/jetson998/librechat-file-agent-runtime:7b98b59",
       "local_image_digest": "sha256:86aef0635831904d38ad1fd8220f46f9f326955d901d134b910bd27f33fa30e3",
-      "registry_manifest_digest": null,
-      "failure_evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/REGISTRY_PUBLISH_FAILURE.json",
-      "reason": "GHCR denied the push because the build host has no Docker registry credentials or write:packages authorization."
+      "registry_manifest_digest": "sha256:86aef0635831904d38ad1fd8220f46f9f326955d901d134b910bd27f33fa30e3",
+      "registry_reference": "ghcr.io/jetson998/librechat-file-agent-runtime@sha256:86aef0635831904d38ad1fd8220f46f9f326955d901d134b910bd27f33fa30e3",
+      "publish_evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/REGISTRY_PUBLISH_SUCCESS.json",
+      "pull_smoke_evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/REGISTRY_SMOKE_EVIDENCE.json",
+      "historical_failure_evidence": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/REGISTRY_PUBLISH_FAILURE.json",
+      "reason": "The existing linux/amd64 candidate image was pushed to GHCR and pulled successfully by its immutable registry digest."
     },
     "operations_delivery": {
-      "status": "partial_pending_registry_authentication",
+      "status": "pending_target_inputs",
       "directory": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/ops-delivery",
       "handoff_template": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/handoff-manifest.template.json",
       "handoff_is_deployable": false,
-      "reason": "A deployable handoff requires the real GHCR digest and target-created secret/allowlist files; no secret was created or read."
+      "reason": "The registry digest is recorded. Operations must still supply approved model settings and create non-empty, non-symlink target secret and allowlist files before handoff validation."
     },
     "source_archive": {
       "path": ".release-state/20260805-file-agent-runtime-m3-m31-candidate-r2/artifacts/20260805-file-agent-runtime-m3-m31-candidate-r2-7b98b59eeb23.tar.gz",
@@ -198,9 +201,9 @@
   "status": "ready",
   "unresolved_issues": [
     "production_deployment_not_authorized",
-    "registry_publish_authentication_required"
+    "production_handoff_target_inputs_required"
   ],
-  "updated_at": "2026-08-05T08:28:13Z",
+  "updated_at": "2026-08-05T14:55:43Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/scripts/test-sol-rejections.py",
