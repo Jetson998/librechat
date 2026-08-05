@@ -178,7 +178,7 @@ def safe_extract_connector(archive_path: Path, destination: Path, files: list[di
             target.chmod(0o444)
 
 
-NATIVE_FALLBACK_PROBE = r'''
+ENABLED_RUNTIME_PROBE = r'''
 const { pathToFileURL } = require('node:url');
 
 (async () => {
@@ -236,12 +236,39 @@ const { pathToFileURL } = require('node:url');
 '''
 
 
-def native_fallback_probe(*, api_container: str, run_command=subprocess.run) -> None:
+def enabled_runtime_probe(*, api_container: str, run_command=subprocess.run) -> None:
     result = run_command(
-        ["docker", "exec", api_container, "node", "-e", NATIVE_FALLBACK_PROBE],
+        ["docker", "exec", api_container, "node", "-e", ENABLED_RUNTIME_PROBE],
         check=False,
     )
-    require(result.returncode == 0, "native fallback probe failed")
+    require(result.returncode == 0, "enabled Runtime probe failed")
+
+
+DISABLED_BASELINE_PROBE = r'''
+const fetch = globalThis.fetch;
+
+(async () => {
+  if (process.env.FILE_AGENT_RUNTIME_ENABLED === 'true') {
+    throw new Error('disabled baseline still enables the Runtime');
+  }
+  if (process.env.FILE_AGENT_CONNECTOR_ROOT || process.env.FILE_AGENT_RUNTIME_BASE_URL) {
+    throw new Error('disabled baseline still exposes the File Agent bridge');
+  }
+  const response = await fetch('http://127.0.0.1:3080/api/config');
+  if (!response.ok) throw new Error('API health probe failed');
+})().catch((error) => {
+  process.stderr.write(`${error.message}\n`);
+  process.exit(1);
+});
+'''
+
+
+def disabled_baseline_probe(*, api_container: str, run_command=subprocess.run) -> None:
+    result = run_command(
+        ["docker", "exec", api_container, "node", "-e", DISABLED_BASELINE_PROBE],
+        check=False,
+    )
+    require(result.returncode == 0, "disabled native baseline probe failed")
 
 
 def compose_with_runtime(payload: dict, release_dir: Path, deployment: dict) -> dict:

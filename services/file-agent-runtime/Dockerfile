@@ -15,8 +15,9 @@ COPY services/file-agent-runtime/apt-packages.lock /tmp/apt-packages.lock
 USER root
 RUN rm -f /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources \
   && printf '%s\n' \
-    'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20250701T000000Z bookworm main bookworm-updates' \
-    'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20250701T000000Z bookworm-security main' \
+    'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260702T000000Z bookworm main' \
+    'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260702T000000Z bookworm-updates main' \
+    'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20260702T000000Z bookworm-security main' \
     > /etc/apt/sources.list.d/debian-snapshot.list \
   && apt-get update \
   && xargs -r apt-get install -y --no-install-recommends < /tmp/apt-packages.lock \

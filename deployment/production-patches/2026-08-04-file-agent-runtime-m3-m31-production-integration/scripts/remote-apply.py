@@ -22,7 +22,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from runner_common import (
     API_SERVICE,
-    native_fallback_probe,
+    enabled_runtime_probe,
     RUNTIME_SERVICE,
     compose_with_runtime,
     require,
@@ -170,7 +170,7 @@ def apply(
     root: Path = ROOT,
     *,
     run_command=run,
-    native_fallback_probe=native_fallback_probe,
+    enabled_runtime_probe=enabled_runtime_probe,
 ) -> dict:
     handoff, deployment, preflight = load_stage(stage)
     baseline = preflight["baseline"]
@@ -327,7 +327,7 @@ def apply(
             require(api_has_enabled_flag(api_payload), "API Runtime flag is not true after apply")
             require(not runtime_payload.get("HostConfig", {}).get("PortBindings"), "Runtime published a host port")
             verify_internal_health(API_CONTAINER, candidate_runtime_id, run_command=run_command)
-            native_fallback_probe(api_container=API_CONTAINER, run_command=run_command)
+            enabled_runtime_probe(api_container=API_CONTAINER, run_command=run_command)
 
             for name, expected in baseline["containers"].items():
                 require(inspect(name)["Id"] == expected["id"], f"protected service changed: {name}")

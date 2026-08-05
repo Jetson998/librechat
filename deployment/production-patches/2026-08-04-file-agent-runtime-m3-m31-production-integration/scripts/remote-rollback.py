@@ -16,7 +16,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from runner_common import native_fallback_probe, normalized_environment
+from runner_common import disabled_baseline_probe, normalized_environment
 
 
 ROOT = Path("/opt/librechat")
@@ -107,12 +107,36 @@ def verify_api_recovered(api_container: str, state: dict, *, run_command=run) ->
     require(health.returncode == 0, "API health failed after rollback")
 
 
-def verify_runtime_recovered(state: dict, *, run_command=run) -> None:
+def compose_service_container_id(root: Path, service: str, *, run_command=run) -> str:
+    result = run_command(
+        [
+            "docker",
+            "compose",
+            "--project-directory",
+            str(root),
+            "-f",
+            str(root / "compose.yaml"),
+            "-f",
+            str(root / "compose.override.yaml"),
+            "ps",
+            "-q",
+            service,
+        ],
+        check=False,
+    )
+    require(result.returncode == 0, f"Compose service is missing after rollback: {service}")
+    container_ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    require(len(container_ids) == 1, f"Compose service has no unique container after rollback: {service}")
+    return container_ids[0]
+
+
+def verify_runtime_recovered(root: Path, state: dict, *, run_command=run) -> None:
     baseline = state.get("runtime", {})
     require(baseline.get("present") is True, "Runtime baseline is missing for an existing Runtime rollback")
     runtime_id = baseline.get("container_id")
     require(isinstance(runtime_id, str) and runtime_id, "Runtime baseline container ID is missing")
-    payload = inspect_container("file-agent-runtime", run_command=run_command)
+    restored_runtime_id = compose_service_container_id(root, "file-agent-runtime", run_command=run_command)
+    payload = inspect_container(restored_runtime_id, run_command=run_command)
     if baseline.get("image_id"):
         require(payload.get("Image") == baseline["image_id"], "Runtime image was not restored after rollback")
     if baseline.get("image_ref"):
@@ -190,9 +214,9 @@ def restore_state(
     verify_api_recovered(API_CONTAINER, state, run_command=run_command)
 
     if previous_runtime_present:
-        verify_runtime_recovered(state, run_command=run_command)
+        verify_runtime_recovered(root, state, run_command=run_command)
     elif state.get("api", {}).get("runtime_enabled") != "true":
-        native_fallback_probe(api_container=API_CONTAINER, run_command=run_command)
+        disabled_baseline_probe(api_container=API_CONTAINER, run_command=run_command)
 
     for name, expected_id in state.get("protected_container_ids", {}).items():
         inspected = run_command(["docker", "inspect", name], check=False)

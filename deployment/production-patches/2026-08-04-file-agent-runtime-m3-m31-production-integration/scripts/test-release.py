@@ -164,7 +164,7 @@ def exercise_apply_failure(
 
     runner.load_rollback_module = fake_rollback_module
 
-    def fake_native_fallback_probe(*, api_container: str, **_kwargs):
+    def fake_enabled_runtime_probe(*, api_container: str, **_kwargs):
         if failure in {"native-fallback", "first-enable-rollback", "existing-runtime-rollback"}:
             raise RuntimeError("native fallback failed")
 
@@ -190,7 +190,7 @@ def exercise_apply_failure(
             stage,
             root=root,
             run_command=fake_run,
-            native_fallback_probe=fake_native_fallback_probe,
+            enabled_runtime_probe=fake_enabled_runtime_probe,
         )
     except Exception:
         pass
@@ -393,6 +393,16 @@ def main() -> None:
     runtime_dir = ROOT / "services/file-agent-runtime"
     dockerfile_text = (runtime_dir / "Dockerfile").read_text(encoding="utf-8")
     require("node:20-bookworm-slim@sha256:" in dockerfile_text, "Node base image is not digest-pinned")
+    source_manifest = json.loads((PATCH / "SOURCE_MANIFEST.json").read_text(encoding="utf-8"))
+    require(
+        source_manifest.get("runtime_build", {}).get("debian_snapshot") == "20260702T000000Z",
+        "SOURCE_MANIFEST does not record the compatible Debian snapshot",
+    )
+    require(
+        source_manifest.get("runtime_build", {}).get("debian_suites")
+        == ["bookworm", "bookworm-updates", "bookworm-security"],
+        "SOURCE_MANIFEST does not record the Debian suite set",
+    )
     requirements_lock = runtime_dir / "requirements.lock"
     require(requirements_lock.is_file(), "Python requirements lock is missing")
     requirements_text = requirements_lock.read_text(encoding="utf-8")

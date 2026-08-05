@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import hashlib
+import re
 import sys
 import subprocess
 import tempfile
@@ -104,12 +105,12 @@ def test_runtime_created_then_api_create_fails_records_runtime_for_rollback() ->
     assert rollback_state[0]["candidate_runtime_container_id"] == "runtime-created"
 
 
-def test_native_fallback_probe_failure_rolls_back_without_success_record() -> None:
+def test_enabled_runtime_probe_failure_rolls_back_without_success_record() -> None:
     runner = load_module("sol_rejection_remote_apply_native", SCRIPTS / "remote-apply.py")
     calls: list[str] = []
     rollback_state: list[dict] = []
 
-    def fake_native_fallback_probe(*, api_container: str, **_kwargs) -> None:
+    def fake_enabled_runtime_probe(*, api_container: str, **_kwargs) -> None:
         calls.append(api_container)
         raise RuntimeError("native fallback probe failed")
 
@@ -151,7 +152,7 @@ def test_native_fallback_probe_failure_rolls_back_without_success_record() -> No
                 stage,
                 root=root,
                 run_command=fake_run,
-                native_fallback_probe=fake_native_fallback_probe,
+                enabled_runtime_probe=fake_enabled_runtime_probe,
             )
         except Exception:
             pass
@@ -329,7 +330,9 @@ def test_rollback_rejects_unhealthy_existing_runtime() -> None:
             if command[:2] == ["docker", "inspect"] and command[-1] == "LibreChat-API":
                 payload = {"Id": "new-api", "Image": "api-image-before", "Config": {"Image": "api:before", "Env": ["FILE_AGENT_RUNTIME_ENABLED=true"]}}
                 return subprocess.CompletedProcess(command, 0, json.dumps([payload]), "")
-            if command[:2] == ["docker", "inspect"] and command[-1] == "file-agent-runtime":
+            if command[:3] == ["docker", "compose", "--project-directory"] and "ps" in command:
+                return subprocess.CompletedProcess(command, 0, "runtime-after\n", "")
+            if command[:2] == ["docker", "inspect"] and command[-1] == "runtime-after":
                 payload = {"Id": "new-runtime", "Image": "runtime-image-before", "Config": {"Image": "runtime:before"}, "State": {"Running": True, "Health": {"Status": "starting"}}}
                 return subprocess.CompletedProcess(command, 0, json.dumps([payload]), "")
             if command[:2] == ["docker", "exec"]:
@@ -344,21 +347,177 @@ def test_rollback_rejects_unhealthy_existing_runtime() -> None:
             raise AssertionError("rollback accepted an unhealthy existing Runtime")
 
 
-def test_runtime_build_uses_an_immutable_debian_source() -> None:
+def test_disabled_baseline_probe_has_no_runtime_or_connector_dependencies() -> None:
+    rollback = load_module("sol_rejection_disabled_probe_contract", SCRIPTS / "remote-rollback.py")
+    if not hasattr(rollback, "disabled_baseline_probe"):
+        raise AssertionError("disabled baseline probe is missing")
+
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], check: bool = True):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    rollback.disabled_baseline_probe(api_container="LibreChat-API", run_command=fake_run)
+    command_text = " ".join(" ".join(command) for command in calls)
+    assert "127.0.0.1:3080/api/config" in command_text
+    assert "file-agent-runtime" not in command_text
+    assert "production-host-integration" not in command_text
+    assert "/opt/librechat/file-agent-runtime/connector" not in command_text
+
+
+def test_disabled_rollback_uses_only_the_baseline_probe() -> None:
+    rollback = load_module("sol_rejection_disabled_rollback_probe", SCRIPTS / "remote-rollback.py")
+    with tempfile.TemporaryDirectory(prefix="sol-disabled-rollback-probe-") as temporary:
+        workspace = Path(temporary)
+        root = workspace / "librechat"
+        root.mkdir()
+        (root / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+        (root / "compose.override.yaml").write_text("candidate: true\n", encoding="utf-8")
+        backup = workspace / "backup"
+        backup.mkdir()
+        before = backup / "compose.override.yaml.before"
+        before.write_text("before: true\n", encoding="utf-8")
+        (backup / "state.json").write_text(
+            json.dumps({
+                "runtime_service_present": False,
+                "candidate_runtime_container_id": "runtime-candidate",
+                "compose_override_sha256_before": hashlib.sha256(before.read_bytes()).hexdigest(),
+                "protected_container_ids": {},
+                "api": {
+                    "image_id": "api-image-before",
+                    "image_ref": "api:before",
+                    "runtime_enabled": "false",
+                },
+                "runtime": {"present": False},
+            }),
+            encoding="utf-8",
+        )
+        enabled_calls: list[str] = []
+        disabled_calls: list[str] = []
+
+        rollback.native_fallback_probe = lambda **_kwargs: enabled_calls.append("enabled")
+        rollback.disabled_baseline_probe = lambda **_kwargs: disabled_calls.append("disabled")
+
+        def fake_run(command: list[str], check: bool = True):
+            if command[:3] == ["docker", "inspect", "--format"]:
+                return subprocess.CompletedProcess(command, 0, "true\n", "")
+            if command[:2] == ["docker", "inspect"] and command[-1] == "LibreChat-API":
+                payload = {
+                    "Id": "api-after",
+                    "Image": "api-image-before",
+                    "Config": {"Image": "api:before", "Env": ["FILE_AGENT_RUNTIME_ENABLED=false"]},
+                    "Mounts": [],
+                }
+                return subprocess.CompletedProcess(command, 0, json.dumps([payload]), "")
+            if command[:2] == ["docker", "inspect"] and command[-1] == "runtime-candidate":
+                return subprocess.CompletedProcess(command, 1, "", "not found")
+            if command[:2] == ["docker", "exec"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        rollback.restore_state(backup, root=root, run_command=fake_run)
+        assert disabled_calls == ["disabled"]
+        assert enabled_calls == []
+
+
+def test_existing_runtime_rollback_resolves_compose_service_container_id() -> None:
+    rollback = load_module("sol_rejection_runtime_service_id", SCRIPTS / "remote-rollback.py")
+    with tempfile.TemporaryDirectory(prefix="sol-runtime-service-id-") as temporary:
+        workspace = Path(temporary)
+        root = workspace / "librechat"
+        root.mkdir()
+        (root / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+        (root / "compose.override.yaml").write_text("candidate: true\n", encoding="utf-8")
+        backup = workspace / "backup"
+        backup.mkdir()
+        before = backup / "compose.override.yaml.before"
+        before.write_text("before: true\n", encoding="utf-8")
+        (backup / "state.json").write_text(
+            json.dumps({
+                "runtime_service_present": True,
+                "candidate_runtime_container_id": None,
+                "compose_override_sha256_before": hashlib.sha256(before.read_bytes()).hexdigest(),
+                "protected_container_ids": {},
+                "api": {
+                    "image_id": "api-image-before",
+                    "image_ref": "api:before",
+                    "runtime_enabled": "true",
+                },
+                "runtime": {
+                    "present": True,
+                    "container_id": "runtime-before",
+                    "image_id": "runtime-image-before",
+                    "image_ref": "runtime:before",
+                    "health": "healthy",
+                },
+            }),
+            encoding="utf-8",
+        )
+        commands: list[list[str]] = []
+
+        def fake_run(command: list[str], check: bool = True):
+            commands.append(command)
+            if command[:3] == ["docker", "inspect", "--format"]:
+                return subprocess.CompletedProcess(command, 0, "true\n", "")
+            if command[:2] == ["docker", "inspect"] and command[-1] == "LibreChat-API":
+                payload = {
+                    "Id": "api-after",
+                    "Image": "api-image-before",
+                    "Config": {"Image": "api:before", "Env": ["FILE_AGENT_RUNTIME_ENABLED=true"]},
+                    "Mounts": [],
+                }
+                return subprocess.CompletedProcess(command, 0, json.dumps([payload]), "")
+            if command[:3] == ["docker", "compose", "--project-directory"] and "ps" in command:
+                return subprocess.CompletedProcess(command, 0, "runtime-after\n", "")
+            if command[:2] == ["docker", "inspect"] and command[-1] == "file-agent-runtime":
+                return subprocess.CompletedProcess(command, 1, "", "service name is not a container")
+            if command[:2] == ["docker", "inspect"] and command[-1] == "runtime-after":
+                payload = {
+                    "Id": "runtime-after",
+                    "Image": "runtime-image-before",
+                    "Config": {"Image": "runtime:before"},
+                    "State": {"Running": True, "Health": {"Status": "healthy"}},
+                }
+                return subprocess.CompletedProcess(command, 0, json.dumps([payload]), "")
+            if command[:2] == ["docker", "exec"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        rollback.restore_state(backup, root=root, run_command=fake_run)
+        assert any("ps" in command and "file-agent-runtime" in command for command in commands)
+        assert not any(command[-1] == "file-agent-runtime" for command in commands if command[:2] == ["docker", "inspect"])
+
+
+def test_runtime_build_snapshot_matches_locked_package_release_and_suite_syntax() -> None:
     dockerfile = (ROOT / "services/file-agent-runtime/Dockerfile").read_text(encoding="utf-8")
-    assert "snapshot.debian.org" in dockerfile or "DEBIAN_SNAPSHOT" in dockerfile
+    snapshot_matches = re.findall(r"snapshot\.debian\.org/archive/debian(?:-security)?/(\d{8}T\d{6}Z)", dockerfile)
+    assert snapshot_matches
+    assert min(snapshot_matches) >= "20260702T000000Z"
+    assert "bookworm main bookworm-updates" not in dockerfile
+    assert " bookworm main'" in dockerfile
+    assert " bookworm-updates main'" in dockerfile
+    assert " bookworm-security main'" in dockerfile
+
+    apt_lock = (ROOT / "services/file-agent-runtime/apt-packages.lock").read_text(encoding="utf-8")
+    assert "libreoffice-calc=4:7.4.7-1+deb12u14" in apt_lock
+    assert "libreoffice-impress=4:7.4.7-1+deb12u14" in apt_lock
+    assert "libreoffice-writer=4:7.4.7-1+deb12u14" in apt_lock
 
 
 if __name__ == "__main__":
     failures = []
     for name, check in (
         ("runtime-created-api-failure", test_runtime_created_then_api_create_fails_records_runtime_for_rollback),
-        ("native-fallback-failure", test_native_fallback_probe_failure_rolls_back_without_success_record),
+        ("enabled-runtime-probe-failure", test_enabled_runtime_probe_failure_rolls_back_without_success_record),
         ("real-connector-archive-import", test_real_connector_archive_imports_after_production_extraction),
         ("rollback-baseline-mismatch", test_rollback_rejects_api_baseline_or_runtime_health_mismatch),
         ("rollback-feature-flag-mismatch", test_rollback_rejects_feature_flag_mismatch),
         ("rollback-existing-runtime-health", test_rollback_rejects_unhealthy_existing_runtime),
-        ("immutable-debian-source", test_runtime_build_uses_an_immutable_debian_source),
+        ("disabled-baseline-probe-contract", test_disabled_baseline_probe_has_no_runtime_or_connector_dependencies),
+        ("disabled-rollback-probe", test_disabled_rollback_uses_only_the_baseline_probe),
+        ("runtime-service-container-id", test_existing_runtime_rollback_resolves_compose_service_container_id),
+        ("compatible-debian-snapshot", test_runtime_build_snapshot_matches_locked_package_release_and_suite_syntax),
     ):
         try:
             check()

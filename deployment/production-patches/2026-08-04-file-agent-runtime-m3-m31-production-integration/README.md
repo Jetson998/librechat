@@ -16,6 +16,12 @@ container filesystem. The API receives a read-only Connector source mount. The
 Runtime image is immutable by digest and owns a separate durable task/journal
 volume.
 
+The Dockerfile uses the Debian snapshot at `20260702T000000Z`, which is after
+the locked LibreOffice `4:7.4.7-1+deb12u14` package became available. The
+`bookworm`, `bookworm-updates`, and `bookworm-security` suites are declared as
+separate APT sources. This source change is validated locally; the image is
+not built during development-only review.
+
 The Connector production archive contains the complete `src/` tree, including
 the canonical shared acceptance contracts under `src/acceptance-contracts/`.
 The API therefore loads the same acceptance contract from its own mounted
@@ -55,7 +61,8 @@ modified by this integration.
 - `scripts/test-release.py`: isolated Compose transformation and rollback
   replay; it does not contact Docker, SSH, Mongo, or production.
 - `scripts/test-sol-rejections.py`: failure tests for real archive import,
-  rollback baseline restoration, and the immutable Debian source.
+  disabled-baseline rollback semantics, Compose service container resolution,
+  rollback baseline restoration, and the compatible Debian source.
 
 Candidate creation remains a separate later step. This directory does not
 authorize image builds, source packaging, preflight, deployment, restart, or

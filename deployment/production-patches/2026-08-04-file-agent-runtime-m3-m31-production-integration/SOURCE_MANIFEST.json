@@ -40,7 +40,8 @@
   },
   "runtime_build": {
     "node_base_policy": "digest pinned",
-    "debian_snapshot": "20250701T000000Z",
+    "debian_snapshot": "20260702T000000Z",
+    "debian_suites": ["bookworm", "bookworm-updates", "bookworm-security"],
     "apt_lock": "services/file-agent-runtime/apt-packages.lock",
     "python_lock": "services/file-agent-runtime/requirements.lock"
   },

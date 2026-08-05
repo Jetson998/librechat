@@ -92,8 +92,8 @@ allowlist availability, and host resources.
 `remote-apply.py` performs these bounded operations:
 
 1. rechecks the Compose and container baseline from preflight;
-2. produces and verifies a deterministic Connector source archive, then
-   extracts it symlink-free into a release-scoped directory;
+2. verifies the handoff's pre-generated deterministic Connector source archive,
+   then extracts it symlink-free into a release-scoped directory;
 3. writes a generated Compose override with API + Runtime changes;
 4. recreates only `file-agent-runtime` and `api`;
 5. waits for Runtime health, API running state, and both internal health
@@ -111,6 +111,19 @@ state. It verifies the original API image ID/reference, feature flag,
 Connector mount, native route, and—when a Runtime already existed—the original
 Runtime image and healthy state. CodeAPI, Mongo, RAG, Nginx, and Admin are
 outside the runner's write and rollback scope.
+
+The enabled apply path uses the candidate Connector and Runtime health/request
+probe. A first-enable rollback restores a disabled/no-Runtime baseline and uses
+an independent API-only baseline probe; it does not import the candidate
+Connector or contact the Runtime URL. When a Runtime already existed, rollback
+resolves the recreated container through `docker compose ps -q
+file-agent-runtime` before checking its image and health, rather than assuming
+the Compose service name is a container name.
+
+The Connector archive and its manifest are produced during the later candidate
+packaging step by `package-connector-archive.py`. `remote-apply.py` does not
+produce a new archive; it validates the handoff digest and file manifest, then
+performs safe extraction only.
 
 The runner requires an explicit `deployment.enable_runtime=true` handoff. Its
 default source Compose contract remains disabled (`FILE_AGENT_RUNTIME_ENABLED`
