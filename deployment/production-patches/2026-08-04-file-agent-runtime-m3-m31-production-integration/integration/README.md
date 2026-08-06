@@ -67,8 +67,9 @@ Start the environment and build only the API overlay/Fake Relay helper images:
 
 `integration-up.sh` also runs the infrastructure smoke. It checks all five
 services, the API overlay marker, one Fake Relay request and one harmless real
-CodeAPI `/exec` command. It does not create an Agent, upload a DOCX or run the
-business E2E.
+CodeAPI `/exec` command. It also proves that an API-only bounded restart returns
+to readiness without changing MongoDB, CodeAPI, Runtime or Fake Relay container
+identity. It does not create an Agent, upload a DOCX or run the business E2E.
 
 Inspect a running environment without changing it:
 

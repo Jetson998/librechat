@@ -87,10 +87,17 @@ The operator must first establish:
 7. down removes containers, volume, state and generated secrets;
 8. `runtimeSourceRevision` and `integrationHarnessRevision` are both recorded;
    the Runtime/Connector business diff between them is empty.
+9. a bounded API-only restart returns to `healthy`, `/readyz` and `/api/config`
+   while MongoDB, CodeAPI, Runtime and Fake Relay container IDs stay unchanged.
 ```
 
 The harmless CodeAPI smoke is infrastructure-only. It is not a DOCX business
 acceptance and must not be reported as one.
+
+The disposable API has a 10-second stop grace period because LibreChat's
+graceful SIGTERM path can otherwise outlive the E2E readiness window. A clean
+MongoDB API boot has a separate bounded 300-second allowance for first-start
+index creation; other service waits remain 120 seconds.
 
 ## Evidence
 

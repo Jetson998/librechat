@@ -359,7 +359,8 @@ fi
 
 wait_healthy() {
   local service="$1"
-  local deadline=$((SECONDS + 120))
+  local timeout_seconds="${2:-120}"
+  local deadline=$((SECONDS + timeout_seconds))
   while (( SECONDS < deadline )); do
     local container_id status
     container_id="$("${compose[@]}" ps -q "$service" 2>/dev/null || true)"
@@ -378,7 +379,10 @@ wait_healthy() {
 
 wait_healthy fake-model-relay
 wait_healthy file-agent-runtime
-wait_healthy api
+# A clean MongoDB makes LibreChat build its complete index set on the first API
+# boot. The captured API can legitimately need more than the generic 120-second
+# service window on linux/amd64 emulation, so keep a bounded API-only allowance.
+wait_healthy api 300
 
 python3 - "${INTEGRATION_CODEAPI_PORT:-8001}" <<'PY'
 from __future__ import annotations

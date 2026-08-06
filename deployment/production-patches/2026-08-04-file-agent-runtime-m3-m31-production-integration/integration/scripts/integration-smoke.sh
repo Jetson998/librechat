@@ -138,5 +138,111 @@ if [[ -f "$STATE_DIR/fake-relay/requests.ndjson" ]]; then
   chmod 600 "$EVIDENCE_DIR/fake-relay-requests.ndjson"
 fi
 
+# The developer E2E rewrites the disposable allowlist after registering its
+# users, then restarts only the API so the startup-loaded allowlist is refreshed.
+# Prove that exact environment operation before handoff without creating an
+# Agent, uploading a file or exercising any business route.
+protected_before="$EVIDENCE_DIR/protected-service-ids-before-api-restart.txt"
+protected_after="$EVIDENCE_DIR/protected-service-ids-after-api-restart.txt"
+api_restart_evidence="$EVIDENCE_DIR/api-restart-smoke.txt"
+: > "$protected_before"
+: > "$api_restart_evidence"
+chmod 600 "$protected_before" "$api_restart_evidence"
+for service in mongodb codeapi fake-model-relay file-agent-runtime; do
+  container_id="$("${compose[@]}" ps -q "$service" 2>/dev/null || true)"
+  if [[ -z "$container_id" ]]; then
+    printf 'protected service missing before API restart: %s\n' "$service" >&2
+    exit 6
+  fi
+  printf '%s=%s\n' "$service" "$container_id" >> "$protected_before"
+done
+
+api_container_before="$("${compose[@]}" ps -q api 2>/dev/null || true)"
+if [[ -z "$api_container_before" ]]; then
+  printf 'API container missing before restart smoke\n' >&2
+  exit 6
+fi
+api_started_before="$(docker inspect "$api_container_before" --format '{{.State.StartedAt}}')"
+api_stop_timeout="$(docker inspect "$api_container_before" --format '{{json .HostConfig.StopTimeout}}')"
+if [[ "$api_stop_timeout" != 10 ]]; then
+  printf 'integration API stop timeout is not bounded to 10 seconds: %s\n' "$api_stop_timeout" >&2
+  exit 6
+fi
+
+restart_started_epoch="$(date +%s)"
+printf 'status=started\napi_container_before=%s\napi_started_before=%s\napi_stop_timeout_seconds=%s\n' \
+  "$api_container_before" "$api_started_before" "$api_stop_timeout" > "$api_restart_evidence"
+"${compose[@]}" restart --timeout 10 api >> "$api_restart_evidence" 2>&1
+
+restart_deadline=$((SECONDS + 180))
+api_ready=false
+while (( SECONDS < restart_deadline )); do
+  api_container_after="$("${compose[@]}" ps -q api 2>/dev/null || true)"
+  if [[ -n "$api_container_after" ]]; then
+    api_status="$(docker inspect "$api_container_after" --format '{{.State.Status}}' 2>/dev/null || true)"
+    api_health="$(docker inspect "$api_container_after" --format '{{with (index .State "Health")}}{{.Status}}{{else}}unreported{{end}}' 2>/dev/null || true)"
+    if [[ "$api_status" == running && "$api_health" == healthy ]] \
+      && curl --silent --show-error --fail --output /dev/null \
+        "http://127.0.0.1:${INTEGRATION_API_PORT:-3081}/readyz" \
+      && curl --silent --show-error --fail --output /dev/null \
+        "http://127.0.0.1:${INTEGRATION_API_PORT:-3081}/api/config"; then
+      api_ready=true
+      break
+    fi
+  fi
+  sleep 2
+done
+if [[ "$api_ready" != true ]]; then
+  printf 'status=failed\nreason=api_not_ready_after_bounded_restart\n' >> "$api_restart_evidence"
+  printf 'integration API did not become ready after bounded restart\n' >&2
+  exit 6
+fi
+
+api_container_after="$("${compose[@]}" ps -q api)"
+api_started_after="$(docker inspect "$api_container_after" --format '{{.State.StartedAt}}')"
+restart_ready_epoch="$(date +%s)"
+if [[ "$api_container_after" != "$api_container_before" || "$api_started_after" == "$api_started_before" ]]; then
+  printf 'status=failed\nreason=api_restart_identity_or_started_at_mismatch\n' >> "$api_restart_evidence"
+  printf 'integration API restart identity/timestamp check failed\n' >&2
+  exit 6
+fi
+
+: > "$protected_after"
+chmod 600 "$protected_after"
+for service in mongodb codeapi fake-model-relay file-agent-runtime; do
+  container_id="$("${compose[@]}" ps -q "$service" 2>/dev/null || true)"
+  printf '%s=%s\n' "$service" "$container_id" >> "$protected_after"
+done
+if ! cmp -s "$protected_before" "$protected_after"; then
+  printf 'status=failed\nreason=protected_service_identity_changed\n' >> "$api_restart_evidence"
+  printf 'protected service identity changed during API restart smoke\n' >&2
+  exit 6
+fi
+
+marker_after_restart="$EVIDENCE_DIR/api-overlay-marker-after-restart.json"
+"${compose[@]}" exec -T api cat /tmp/file-agent-integration-api-overlay.json > "$marker_after_restart"
+python3 - "$marker_after_restart" "$FILE_AGENT_RUNTIME_SOURCE_REVISION" "$INTEGRATION_HARNESS_REVISION" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+value = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+if value.get('marker') != 'file-agent-api-overlay-loaded':
+    raise SystemExit('API overlay marker is missing after bounded restart')
+if value.get('runtimeSourceRevision') != sys.argv[2]:
+    raise SystemExit('API overlay Runtime revision mismatch after bounded restart')
+if value.get('integrationHarnessRevision') != sys.argv[3]:
+    raise SystemExit('API overlay harness revision mismatch after bounded restart')
+print('api_overlay_marker_after_restart=passed')
+PY
+chmod 600 "$marker_after_restart"
+
+printf 'status=passed\napi_container_after=%s\napi_started_after=%s\nrestart_to_ready_seconds=%s\nprotected_service_identity=unchanged\n' \
+  "$api_container_after" "$api_started_after" "$((restart_ready_epoch - restart_started_epoch))" \
+  >> "$api_restart_evidence"
+
 printf 'operator_smoke=passed\n'
+printf 'api_restart_smoke=passed\n'
 printf 'evidence_dir=%s\n' "$EVIDENCE_DIR"
