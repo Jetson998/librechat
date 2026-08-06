@@ -8,6 +8,8 @@ const execFileAsync = promisify(execFile);
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const apiPort = Number(process.env.INTEGRATION_API_PORT || 3081);
 const apiBase = `http://127.0.0.1:${apiPort}`;
+const codeApiPort = Number(process.env.INTEGRATION_CODEAPI_PORT || 8001);
+const codeApiBase = `http://127.0.0.1:${codeApiPort}`;
 const relayPort = Number(process.env.INTEGRATION_FAKE_RELAY_PORT || 8788);
 const relayBase = `http://127.0.0.1:${relayPort}`;
 const stateDir = path.resolve(process.env.INTEGRATION_STATE_DIR || '.state');
@@ -22,6 +24,10 @@ const endpoint = process.env.INTEGRATION_LIBRECHAT_ENDPOINT || 'Muskapis-openai'
 const routeRef = process.env.INTEGRATION_PROVIDER_ROUTE_REF || 'custom:Muskapis-openai';
 const fixtureOne = path.resolve(process.env.INTEGRATION_FIXTURE_ONE || path.join(stateDir, 'api-uploads/integration-one.docx'));
 const fixtureTwo = path.resolve(process.env.INTEGRATION_FIXTURE_TWO || path.join(stateDir, 'api-uploads/integration-two.docx'));
+const expectedReplacementByIndex = new Map([
+  [1, 'Integration One Verified'],
+  [2, 'Integration Two Verified'],
+]);
 
 function safeText(value, limit = 800) {
   return String(value ?? '')
@@ -159,7 +165,7 @@ async function restartApi() {
   }, 'API health after allowlist reload', 90_000);
 }
 
-async function createAgent(user) {
+async function createAgent(user, { model = user.model } = {}) {
   const value = await apiJson('/api/agents', {
     method: 'POST',
     token: user.token,
@@ -169,7 +175,7 @@ async function createAgent(user) {
       description: 'Non-production File Agent integration fixture',
       instructions: 'Handle the current request only.',
       provider: endpoint,
-      model: user.model,
+      model,
       tools: ['execute_code'],
       model_parameters: {},
     },
@@ -228,28 +234,44 @@ async function uploadFile(user, filePath) {
   };
 }
 
-async function startChat(user, uploaded) {
-  const instruction = user.index === 1
+async function startChat(user, uploaded, { includeFiles = true, bodyOverrides = {}, instruction = null } = {}) {
+  const messageId = randomUUID();
+  const resolvedInstruction = instruction ?? (user.index === 1
     ? '将“Integration One”替换为“Integration One Verified”，生成一个 DOCX 文件'
-    : '将“Integration Two”替换为“Integration Two Verified”，生成一个 DOCX 文件';
+    : '将“Integration Two”替换为“Integration Two Verified”，生成一个 DOCX 文件');
+  const body = {
+    ...bodyOverrides,
+    text: resolvedInstruction,
+    messageId,
+    conversationId: 'new',
+    endpoint: 'agents',
+    agent_id: user.agentId,
+    endpointOption: { endpoint: 'agents', agent_id: user.agentId },
+    ...(includeFiles
+      ? { files: [{ file_id: uploaded.fileId, filename: uploaded.filename, type: DOCX_MIME }] }
+      : {}),
+  };
   const value = await apiJson('/api/agents/chat', {
     method: 'POST',
     token: user.token,
     jar: user.jar,
-    body: {
-      text: instruction,
-      conversationId: 'new',
-      endpoint: 'agents',
-      agent_id: user.agentId,
-      endpointOption: { endpoint: 'agents', agent_id: user.agentId },
-      files: [{ file_id: uploaded.fileId, filename: uploaded.filename, type: DOCX_MIME }],
-    },
+    body,
   });
   assert(typeof value?.streamId === 'string' && value.streamId !== '', `Chat start did not return streamId for user ${user.index}`);
-  return { ...user, uploaded, instruction, streamId: value.streamId, conversationId: value.conversationId };
+  assert(typeof value?.conversationId === 'string' && value.conversationId !== '', `Chat start did not return conversationId for user ${user.index}`);
+  return {
+    ...user,
+    uploaded,
+    instruction: resolvedInstruction,
+    streamId: value.streamId,
+    conversationId: value.conversationId,
+    userMessageId: messageId,
+    assistantMessageId: `${messageId}_`,
+    expectedReplacement: expectedReplacementByIndex.get(user.index) ?? null,
+  };
 }
 
-async function readStream(run) {
+async function readStream(run, { requireArtifact = true } = {}) {
   const url = `${apiBase}/api/agents/chat/stream/${encodeURIComponent(run.streamId)}?resume=true`;
   const response = await fetch(url, {
     headers: {
@@ -264,12 +286,18 @@ async function readStream(run) {
   if (!response.ok) throw new HttpError('GET', url, response.status, text);
   assert(text.length > 0, `Empty SSE stream for user ${run.index}`);
   const artifactObserved = /Generated file|working\.docx|file_id|attachments|tool_call/iu.test(text);
-  assert(artifactObserved, `SSE stream for user ${run.index} did not expose an artifact/file delivery event`);
+  const hasFinalEvent = /"final"\s*:\s*true/iu.test(text);
+  const hasDoneMarker = /data:\s*\[DONE\]/iu.test(text) || hasFinalEvent;
+  assert(hasDoneMarker, `SSE stream for user ${run.index} did not expose an explicit terminal event`);
+  if (requireArtifact) {
+    assert(artifactObserved, `SSE stream for user ${run.index} did not expose an artifact delivery event`);
+  }
   return {
     status: response.status,
     bytes: Buffer.byteLength(text),
     artifactObserved,
-    hasDoneMarker: /\[DONE\]|done|complete/iu.test(text),
+    hasDoneMarker,
+    hasFinalEvent,
   };
 }
 
@@ -282,7 +310,125 @@ async function jsonLines(filePath) {
   }
 }
 
-async function waitForEvidence() {
+function opaqueRef(kind, value) {
+  return `${kind}_${createHash('sha256').update(`${kind}:${value}`).digest('hex').slice(0, 32)}`;
+}
+
+function taskMatchesRun(task, run) {
+  const identity = task?.manifest?.identity;
+  return identity?.userScope === opaqueRef('user', run.userId)
+    && identity?.conversationRef === opaqueRef('conversation', run.conversationId)
+    && identity?.messageRef === opaqueRef('message', run.userMessageId);
+}
+
+function findTaskForRun(tasks, run) {
+  const matches = tasks.filter((task) => taskMatchesRun(task, run));
+  assert(matches.length === 1, `Expected exactly one Runtime task for user ${run.index}, found ${matches.length}`);
+  return matches[0];
+}
+
+function fileIdFrom(value) {
+  const fileId = value?.file_id ?? value?.fileId ?? value?.id;
+  return typeof fileId === 'string' && fileId.trim() !== '' ? fileId.trim() : null;
+}
+
+function fileRefsFromMessage(message) {
+  const refs = [];
+  for (const field of ['files', 'attachments']) {
+    if (!Array.isArray(message?.[field])) continue;
+    for (const file of message[field]) {
+      const fileId = fileIdFrom(file);
+      if (fileId) refs.push({ field, fileId, file });
+    }
+  }
+  return refs;
+}
+
+async function loadConversationMessages(run) {
+  const value = await apiJson(`/api/messages/${encodeURIComponent(run.conversationId)}`, {
+    token: run.token,
+    jar: run.jar,
+  });
+  const messages = Array.isArray(value)
+    ? value
+    : value?.messages ?? value?.data ?? [];
+  assert(Array.isArray(messages), `Conversation ${run.conversationId} did not return a message list`);
+  return messages;
+}
+
+function findAssistantMessage(messages, run) {
+  const message = messages.find((candidate) => candidate?.messageId === run.assistantMessageId);
+  assert(message, `Assistant message ${run.assistantMessageId} was not persisted`);
+  assert(message.conversationId === run.conversationId, 'Assistant message conversation identity mismatch');
+  // GET /api/messages/:conversationId authorizes by the bearer user and
+  // intentionally projects the persisted `user` field out of the response.
+  // If a deployment exposes it, still verify it; otherwise the authenticated
+  // conversation query is the user-scope evidence.
+  const exposedUser = message.user ?? message.userId;
+  if (exposedUser != null) {
+    assert(String(exposedUser) === String(run.userId), 'Assistant message user identity mismatch');
+  }
+  assert(message.unfinished !== true, 'Assistant message remained unfinished');
+  assert(!message.error, 'Assistant message is marked as an error');
+  return message;
+}
+
+function downloadPathForFile(file) {
+  const candidate = file?.filepath ?? file?.path ?? file?.url;
+  if (typeof candidate === 'string' && candidate.startsWith('/api/files/')) {
+    return candidate;
+  }
+  const fileId = fileIdFrom(file);
+  assert(fileId, 'Download card has no file_id');
+  return `/api/files/${encodeURIComponent(fileId)}`;
+}
+
+async function downloadAndValidateDocx(run, file, artifact, task) {
+  const pathname = downloadPathForFile(file);
+  const response = await fetch(`${apiBase}${pathname}`, {
+    headers: {
+      authorization: `Bearer ${run.token}`,
+      ...(run.jar.header() ? { cookie: run.jar.header() } : {}),
+    },
+    signal: AbortSignal.timeout(90_000),
+  });
+  const bytes = Buffer.from(await response.arrayBuffer());
+  assert(response.ok, `Generated file download returned ${response.status}`);
+  assert(bytes.length > 0, 'Generated file download was empty');
+  assert(response.headers.get('content-type')?.split(';', 1)[0] === DOCX_MIME, 'Generated file MIME type is not DOCX');
+  assert(String(file.filename ?? file.name ?? '').toLowerCase().endsWith('.docx'), 'Visible artifact filename is not DOCX');
+  assert(String(file.filename ?? file.name) === artifact.name, 'Visible artifact filename does not match Runtime artifact');
+
+  const downloadedPath = path.join(evidenceDir, `downloaded-${run.index}.docx`);
+  await writeFile(downloadedPath, bytes, { mode: 0o600 });
+  const digest = createHash('sha256').update(bytes).digest('hex');
+  await execFileAsync('unzip', ['-t', downloadedPath], { maxBuffer: 2 * 1024 * 1024 });
+  const { stdout: documentXml } = await execFileAsync('unzip', ['-p', downloadedPath, 'word/document.xml'], {
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  assert(documentXml.includes(run.expectedReplacement), `Downloaded DOCX does not contain ${run.expectedReplacement}`);
+
+  const codeApiRef = artifact?.codeEnvRef;
+  const visibleCodeApiArtifactId = file?.metadata?.codeEnvRef?.file_id ?? file?.codeEnvRef?.file_id ?? null;
+  assert(visibleCodeApiArtifactId === codeApiRef?.file_id,
+    'Visible LibreChat attachment does not reference the Runtime CodeAPI artifact');
+  assert(codeApiRef?.storage_session_id === task.execution?.sessionId, 'Output artifact storage session mismatch');
+  if (codeApiRef?.resource_id != null) {
+    assert(codeApiRef.resource_id === run.userId, 'Output artifact user identity mismatch');
+  }
+  return {
+    pathname,
+    librechatFileId: fileIdFrom(file),
+    codeApiArtifactId: codeApiRef?.file_id ?? null,
+    filename: file.filename ?? file.name,
+    mimeType: response.headers.get('content-type')?.split(';', 1)[0] ?? null,
+    bytes: bytes.length,
+    sha256: digest,
+    contentVerified: true,
+  };
+}
+
+async function waitForEvidence(minimumCount = 2) {
   const auditPath = path.join(stateDir, 'runtime-data/integration-audit/codeapi.ndjson');
   return waitFor(async () => {
     const [relayResponse, audit] = await Promise.all([
@@ -294,8 +440,15 @@ async function waitForEvidence() {
     const businessRelay = Array.isArray(relay)
       ? relay.filter((record) => record.operation !== 'ops-smoke')
       : [];
-    return businessRelay.length >= 2 && audit.length >= 2 ? { relay: businessRelay, audit } : null;
+    const businessAudit = businessCodeApiAudit(audit);
+    return businessRelay.length >= minimumCount && businessAudit.length >= minimumCount
+      ? { relay: businessRelay, audit: businessAudit }
+      : null;
   }, 'Fake Relay and CodeAPI audit evidence', 90_000);
+}
+
+function businessCodeApiAudit(audit) {
+  return audit.filter((record) => record.request?.session_id !== 'integration-ops-smoke');
 }
 
 async function listRelativeFiles(root) {
@@ -325,8 +478,65 @@ async function summarizeTaskFiles() {
         file: relative,
         taskId: value.taskId ?? null,
         status: value.status ?? null,
+        phase: value.phase ?? null,
+        identity: value.manifest?.identity ?? null,
+        model: value.manifest?.model
+          ? {
+              providerRouteRef: value.manifest.model.providerRouteRef ?? null,
+              providerEndpoint: value.manifest.model.providerEndpoint ?? null,
+              providerModel: value.manifest.model.providerModel ?? null,
+              providerProtocol: value.manifest.model.providerProtocol ?? null,
+              routeConfigDigest: value.manifest.model.routeConfigDigest ?? null,
+              capabilityProfile: value.manifest.model.capabilityProfile ?? null,
+            }
+          : null,
+        execution: value.manifest?.execution
+          ? { sessionId: value.manifest.execution.sessionId ?? null }
+          : null,
         userIds: [...new Set((value.manifest?.inputs ?? []).map((input) => input.codeEnvRef?.resource_id).filter(Boolean))],
         inputRefs: (value.manifest?.inputs ?? []).map((input) => input.librechatFileRef).filter(Boolean),
+        inputCodeApiRefs: (value.manifest?.inputs ?? []).map((input) => ({
+          resource_id: input.codeEnvRef?.resource_id ?? null,
+          storage_session_id: input.codeEnvRef?.storage_session_id ?? null,
+          file_id: input.codeEnvRef?.file_id ?? null,
+        })),
+        verification: value.verification
+          ? {
+              passed: value.verification.passed === true,
+              profile: value.verification.profile ?? null,
+              fingerprint: value.verification.fingerprint ?? null,
+              artifact: value.verification.artifact
+                ? {
+                    logicalId: value.verification.artifact.logicalId ?? null,
+                    sha256: value.verification.artifact.sha256 ?? null,
+                  }
+                : null,
+            }
+          : null,
+        result: {
+          artifacts: (value.result?.artifacts ?? []).map((artifact) => ({
+            name: artifact.name ?? null,
+            mimeType: artifact.mimeType ?? null,
+            size: artifact.size ?? null,
+            codeEnvRef: artifact.codeEnvRef
+              ? {
+                  resource_id: artifact.codeEnvRef.resource_id ?? null,
+                  id: artifact.codeEnvRef.id ?? null,
+                  storage_session_id: artifact.codeEnvRef.storage_session_id ?? null,
+                  file_id: artifact.codeEnvRef.file_id ?? null,
+                }
+              : null,
+          })),
+        },
+        usageRecords: (value.usageRecords ?? []).map((record) => ({
+          providerRouteRef: record.providerRouteRef ?? null,
+          providerEndpoint: record.providerEndpoint ?? null,
+          providerModel: record.providerModel ?? null,
+          providerProtocol: record.providerProtocol ?? null,
+          routeConfigDigest: record.routeConfigDigest ?? null,
+          requestedModel: record.requestedModel ?? null,
+          actualModel: record.actualModel ?? null,
+        })),
       });
     } catch {
       // Evidence collection is best effort; the protocol and relay assertions
@@ -334,6 +544,96 @@ async function summarizeTaskFiles() {
     }
   }
   return { files, taskFiles };
+}
+
+async function assertNativeFallback(user, uploaded, { instruction, label }) {
+  const before = await summarizeTaskFiles();
+  try {
+    const run = await startChat(user, uploaded, {
+      includeFiles: uploaded != null,
+      instruction,
+    });
+    const stream = await readStream(run, { requireArtifact: false });
+    const after = await summarizeTaskFiles();
+    assert(!after.taskFiles.some((task) => taskMatchesRun(task, run)), `${label} unexpectedly created a Runtime task`);
+    return {
+      status: 'passed',
+      label,
+      route: 'native',
+      conversationId: run.conversationId,
+      userId: run.userId,
+      stream,
+      runtimeTaskCountBefore: before.taskFiles.length,
+      runtimeTaskCountAfter: after.taskFiles.length,
+    };
+  } catch (error) {
+    // The production contract permits either native fallback or fail-closed
+    // rejection for a request outside the File Agent route.
+    assert(error instanceof HttpError, `${label} failed unexpectedly: ${safeText(error?.message ?? error)}`);
+    assert([400, 401, 403, 404, 409, 422].includes(error.status), `${label} returned unexpected HTTP ${error.status}`);
+    return { status: 'passed', label, route: 'rejected', httpStatus: error.status };
+  }
+}
+
+async function assertMalformedCodeApiBody() {
+  const response = await fetch(`${codeApiBase}/exec`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      item_id: 'forged-item',
+      command: 'printf should-not-run',
+      injected_files: [],
+      artifact_paths: ['/tmp/forged.docx'],
+      session_id: 'integration-malformed-body',
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const text = await response.text();
+  assert(response.status >= 400 && response.status < 500, `Malformed CodeAPI body was not rejected: HTTP ${response.status} ${safeText(text)}`);
+  return { status: 'passed', httpStatus: response.status };
+}
+
+async function assertUnsupportedModel(user, fixture) {
+  let unsupportedAgent;
+  try {
+    unsupportedAgent = await createAgent(user, { model: 'unsupported-integration-model' });
+  } catch (error) {
+    // Rejecting the unsupported model while creating the Agent is also a
+    // valid fail-closed boundary; do not turn that expected 4xx into a runner
+    // failure.
+    assert(error instanceof HttpError, `unsupported_model failed unexpectedly: ${safeText(error?.message ?? error)}`);
+    assert([400, 401, 403, 404, 409, 422].includes(error.status), `unsupported_model returned unexpected HTTP ${error.status}`);
+    return { status: 'passed', label: 'unsupported_model', route: 'rejected-at-agent-create', httpStatus: error.status };
+  }
+  const run = { ...user, ...unsupportedAgent };
+  const uploaded = await uploadFile(run, fixture);
+  return assertNativeFallback(run, uploaded, {
+    label: 'unsupported_model',
+    instruction: '将“Integration One”替换为“Integration One Unsupported”，生成一个 DOCX 文件',
+  });
+}
+
+async function assertForeignFileRejected(user, foreignFile) {
+  const before = await summarizeTaskFiles();
+  try {
+    const run = await startChat(user, foreignFile, {
+      instruction: '将外部用户文件替换并生成一个 DOCX 文件',
+    });
+    await readStream(run, { requireArtifact: false });
+    const after = await summarizeTaskFiles();
+    assert(!after.taskFiles.some((task) => taskMatchesRun(task, run)), 'Foreign file reference unexpectedly created a Runtime task');
+    return {
+      status: 'passed',
+      route: 'native-or-rejected',
+      conversationId: run.conversationId,
+      runtimeTaskCountBefore: before.taskFiles.length,
+      runtimeTaskCountAfter: after.taskFiles.length,
+    };
+  } catch (error) {
+    assert(error instanceof HttpError, `Foreign file rejection failed unexpectedly: ${safeText(error?.message ?? error)}`);
+    assert([400, 401, 403, 404, 409, 422].includes(error.status), `Foreign file reference returned unexpected HTTP ${error.status}`);
+    return { status: 'passed', route: 'rejected', httpStatus: error.status };
+  }
 }
 
 function summarizeRelay(relay) {
@@ -401,22 +701,73 @@ try {
   await restartApi();
   const agents = [await createAgent(users[0]), await createAgent(users[1])];
   const runs = [];
+  const positiveUploads = [];
   for (const [user, fixture] of [[agents[0], fixtureOne], [agents[1], fixtureTwo]]) {
     const uploaded = await uploadFile(user, fixture);
+    positiveUploads.push(uploaded);
     runs.push(await startChat(user, uploaded));
   }
+  const forgedRouteUpload = await uploadFile(agents[1], fixtureTwo);
+  runs.push(await startChat(agents[1], forgedRouteUpload, {
+    bodyOverrides: {
+      providerRouteRef: 'custom:forged-client-route',
+      providerEndpoint: 'https://attacker.invalid/v1',
+      baseURL: 'https://attacker.invalid/v1',
+      apiKey: 'forged-client-secret',
+    },
+  }));
+
+  const negativePaths = {
+    nonAllowlisted: 'not_run',
+    ordinaryChatNativeFallback: 'not_run',
+    unsupportedModel: 'not_run',
+    forgedRouteRef: 'passed',
+    bridgeMissing: 'not_run',
+    malformedCodeApiBody: 'not_run',
+    artifactIdentityMismatch: 'not_run',
+    foreignInputIdentity: 'not_run',
+  };
+  const negativeEvidence = [];
+  const nativeUser = await loginUser({ index: 3 });
+  const nativeAgent = await createAgent(nativeUser);
+  const nativeRun = { ...nativeUser, ...nativeAgent };
+  const nativeUpload = await uploadFile(nativeRun, fixtureOne);
+  negativeEvidence.push(await assertNativeFallback(nativeRun, nativeUpload, {
+    label: 'non_allowlisted_user',
+    instruction: '将“Integration One”替换为“Integration One Native”，生成一个 DOCX 文件',
+  }));
+  negativePaths.nonAllowlisted = 'passed';
+
+  negativeEvidence.push(await assertNativeFallback(agents[0], null, {
+    label: 'ordinary_chat',
+    instruction: '请只回复 integration-native-pong，不要读取或生成文件',
+  }));
+  negativePaths.ordinaryChatNativeFallback = 'passed';
+
+  negativeEvidence.push(await assertUnsupportedModel(users[0], fixtureOne));
+  negativePaths.unsupportedModel = 'passed';
+  negativeEvidence.push({ label: 'malformed_codeapi_body', ...(await assertMalformedCodeApiBody()) });
+  negativePaths.malformedCodeApiBody = 'passed';
+  negativeEvidence.push({
+    label: 'foreign_file_identity',
+    ...(await assertForeignFileRejected(agents[1], positiveUploads[0])),
+  });
+  negativePaths.foreignInputIdentity = 'passed';
+
   const streams = [];
   for (const run of runs) streams.push(await readStream(run));
-  const collected = await waitForEvidence();
+  const collected = await waitForEvidence(runs.length);
   const relaySummary = summarizeRelay(collected.relay);
   const auditSummary = summarizeAudit(collected.audit);
+  const taskSummary = await summarizeTaskFiles();
+  const runtimeTasks = runs.map((run) => findTaskForRun(taskSummary.taskFiles, run));
   assert(auditSummary.length >= 2, 'CodeAPI did not receive one execution for each integration task');
   assert(relaySummary.every((record) => record.endpoint === 'http://fake-model-relay:8788/v1'), 'Fake Relay endpoint identity mismatch');
   assert(relaySummary.every((record) => record.path === '/v1/chat/completions'), 'Fake Relay protocol path mismatch');
   assert(relaySummary.some((record) => record.model === modelOne), 'Fake Relay did not observe the first selected model');
   assert(relaySummary.some((record) => record.model === modelTwo), 'Fake Relay did not observe the second selected model');
   assert(relaySummary.every((record) => record.idempotencyKeyPresent && record.authorizationPresent), 'Fake Relay request identity headers are incomplete');
-  assert(auditSummary.every((record) => record.request.method === 'POST'), 'CodeAPI execution method mismatch');
+  assert(auditSummary.every((record) => record.method === 'POST'), 'CodeAPI execution method mismatch');
   assert(auditSummary.every((record) => record.responseStatus === 200), 'CodeAPI execution did not complete successfully');
   assert(auditSummary.every((record) => ['lang', 'code', 'session_id', 'files'].every((field) => record.request.fields.includes(field))), 'CodeAPI /exec required field missing');
   assert(auditSummary.every((record) => record.request.legacyFields.length === 0), 'Legacy CodeAPI /exec fields were emitted');
@@ -428,11 +779,82 @@ try {
   assert(resourceIds.length >= 2, 'CodeAPI resource identities were not isolated per user');
   const artifactIds = [...new Set(auditSummary.flatMap((record) => record.response.files.map((file) => file.id).filter(Boolean)))];
   assert(artifactIds.length >= 2, 'CodeAPI output artifact identities were not isolated per task');
-  const taskSummary = await summarizeTaskFiles();
+  for (const [index, task] of runtimeTasks.entries()) {
+    const run = runs[index];
+    assert(task.taskId, `Runtime task ${index + 1} has no taskId`);
+    assert(task.status === 'completed', `Runtime task ${task.taskId} did not reach completed status`);
+    assert(task.verification?.passed === true, `Runtime task ${task.taskId} does not have Verifier passed=true`);
+    assert(task.result?.artifacts?.length === 1, `Runtime task ${task.taskId} did not produce exactly one artifact`);
+    const artifact = task.result.artifacts[0];
+    assert(artifact.mimeType === DOCX_MIME, `Runtime task ${task.taskId} artifact MIME is not DOCX`);
+    assert(artifact.name === 'working.docx', `Runtime task ${task.taskId} artifact name is not working.docx`);
+    assert(task.model?.providerRouteRef === routeRef, `Runtime task ${task.taskId} routeRef mismatch`);
+    assert(task.model?.providerEndpoint === endpoint, `Runtime task ${task.taskId} provider endpoint mismatch`);
+    assert(task.model?.providerModel === run.model, `Runtime task ${task.taskId} selected model mismatch`);
+    assert(task.model?.providerProtocol === 'openai-compatible', `Runtime task ${task.taskId} protocol mismatch`);
+    assert(typeof task.model?.routeConfigDigest === 'string' && task.model.routeConfigDigest !== '', `Runtime task ${task.taskId} routeConfigDigest is missing`);
+    assert(task.execution?.sessionId, `Runtime task ${task.taskId} session identity is missing`);
+    assert(task.userIds.length === 1 && task.userIds[0] === run.userId, `Runtime task ${task.taskId} user identity mismatch`);
+    assert(task.usageRecords.length >= 1, `Runtime task ${task.taskId} has no provider usage record`);
+    assert(task.usageRecords.every((record) => record.providerRouteRef === routeRef
+      && record.providerEndpoint === endpoint
+      && record.providerModel === run.model
+      && record.providerProtocol === 'openai-compatible'
+      && record.requestedModel === run.model
+      && record.actualModel === run.model
+      && record.routeConfigDigest === task.model.routeConfigDigest), `Runtime task ${task.taskId} usage route identity does not reconcile`);
+    const matchingAudits = auditSummary.filter((record) => record.request.session_id === task.execution.sessionId);
+    assert(matchingAudits.length >= 1, `Runtime task ${task.taskId} has no CodeAPI audit for its session`);
+    assert(matchingAudits.every((record) => record.request.files.every((file) => file.resource_id === run.userId)), `Runtime task ${task.taskId} CodeAPI input user identity mismatch`);
+    assert(matchingAudits.every((record) => record.response.files.some((file) => file.id === artifact.codeEnvRef.file_id)), `Runtime task ${task.taskId} audit artifact does not match task result`);
+  }
+  const forgedTaskEvidence = JSON.stringify(runtimeTasks[2]);
+  assert(!forgedTaskEvidence.includes('attacker.invalid') && !forgedTaskEvidence.includes('forged-client-secret'), 'Forged client route data leaked into Runtime task evidence');
+  const forgedAuditEvidence = JSON.stringify(auditSummary.filter((record) => record.request.session_id === runtimeTasks[2].execution.sessionId));
+  assert(!forgedAuditEvidence.includes('attacker.invalid') && !forgedAuditEvidence.includes('forged-client-secret'), 'Forged client route data leaked into CodeAPI audit evidence');
+
+  const deliveryEvidence = [];
+  for (const [index, run] of runs.entries()) {
+    const messages = await loadConversationMessages(run);
+    const assistant = findAssistantMessage(messages, run);
+    const visibleRefs = fileRefsFromMessage(assistant);
+    const uniqueVisibleFileIds = [...new Set(visibleRefs.map((entry) => entry.fileId))];
+    // LibreChat stores code-execution outputs on assistant `attachments`;
+    // this repository's message builder mirrors the same output in `files`
+    // for compatibility. Require both mirrors to contain exactly one equal
+    // reference so a second logical attachment cannot hide in either field.
+    assert(Array.isArray(assistant.attachments) && assistant.attachments.length === 1,
+      `Conversation ${run.conversationId} did not expose exactly one assistant attachment`);
+    assert(Array.isArray(assistant.files) && assistant.files.length === 1,
+      `Conversation ${run.conversationId} did not expose the mirrored assistant file reference`);
+    assert(uniqueVisibleFileIds.length === 1, `Conversation ${run.conversationId} exposed more than one visible attachment`);
+    assert(fileIdFrom(assistant.attachments[0]), `Conversation ${run.conversationId} downloadable attachment has no file_id`);
+    assert(fileIdFrom(assistant.files[0]) === fileIdFrom(assistant.attachments[0]),
+      `Conversation ${run.conversationId} attachment fields disagree`);
+    const task = runtimeTasks[index];
+    const downloaded = await downloadAndValidateDocx(run, assistant.attachments[0], task.result.artifacts[0], task);
+    deliveryEvidence.push({
+      conversationId: run.conversationId,
+      userId: run.userId,
+      userMessageId: run.userMessageId,
+      assistantMessageId: run.assistantMessageId,
+      taskId: task.taskId,
+      sessionId: task.execution.sessionId,
+      requestedModel: task.model.providerModel,
+      actualModel: [...new Set(task.usageRecords.map((record) => record.actualModel))],
+      routeConfigDigest: task.model.routeConfigDigest,
+      artifactId: task.result.artifacts[0].codeEnvRef.file_id,
+      verifier: task.verification,
+      visibleAttachmentCount: uniqueVisibleFileIds.length,
+      visibleAttachmentField: 'attachments',
+      downloaded,
+    });
+  }
   const generatedFiles = (await listRelativeFiles(path.join(stateDir, 'codeapi-data'))).filter((name) => /working\.docx|artifact|output/iu.test(name));
+  const allNegativePathsPassed = Object.values(negativePaths).every((status) => status === 'passed');
   evidence = {
     ...evidence,
-    status: 'passed',
+    status: allNegativePathsPassed ? 'passed' : 'partial',
     apiOverlay: { startupMarker: 'integration-evidence/api-overlay-marker.json', bridgeRouteObserved: true },
     providerRouting: { ...evidence.providerRouting, fakeRelayRequests: relaySummary },
     codeApiProtocol: { ...evidence.codeApiProtocol, runtimeExecRequests: auditSummary, passed: true },
@@ -444,11 +866,21 @@ try {
       outputArtifacts: generatedFiles,
       passed: true,
     },
-    streams,
+    businessE2E: {
+      status: allNegativePathsPassed ? 'passed' : 'partial',
+      streams,
+      deliveries: deliveryEvidence,
+      negativePaths,
+      negativeEvidence,
+    },
     finishedAt: new Date().toISOString(),
   };
   await writeEvidence(evidence);
-  process.stdout.write('integration_e2e_assertions=passed\n');
+  process.stdout.write(`integration_e2e_assertions=${evidence.status}\n`);
+  if (!allNegativePathsPassed) {
+    process.stderr.write('integration_e2e_assertions=partial: fault-injection negative paths remain not_run\n');
+    process.exitCode = 2;
+  }
 } catch (error) {
   evidence = {
     ...evidence,
@@ -460,7 +892,9 @@ try {
     const relayResponse = await fetch(`${relayBase}/requests`, { signal: AbortSignal.timeout(5_000) });
     if (relayResponse.ok) evidence.providerRouting.fakeRelayRequests = summarizeRelay(await relayResponse.json());
   } catch {}
-  evidence.codeApiProtocol.runtimeExecRequests = summarizeAudit(await jsonLines(path.join(stateDir, 'runtime-data/integration-audit/codeapi.ndjson')));
+  evidence.codeApiProtocol.runtimeExecRequests = summarizeAudit(
+    businessCodeApiAudit(await jsonLines(path.join(stateDir, 'runtime-data/integration-audit/codeapi.ndjson'))),
+  );
   await writeEvidence(evidence);
   process.stderr.write(`integration_e2e_assertions=failed: ${evidence.failure.message}\n`);
   process.exitCode = 1;
