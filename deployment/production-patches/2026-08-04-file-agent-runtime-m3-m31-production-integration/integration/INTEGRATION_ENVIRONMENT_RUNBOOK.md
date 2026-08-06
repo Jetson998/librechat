@@ -97,7 +97,8 @@ acceptance and must not be reported as one.
 The disposable API has a 10-second stop grace period because LibreChat's
 graceful SIGTERM path can otherwise outlive the E2E readiness window. A clean
 MongoDB API boot has a separate bounded 300-second allowance for first-start
-index creation; other service waits remain 120 seconds.
+index creation; the post-allowlist API readiness wait is bounded at 180 seconds;
+other service waits remain 120 seconds.
 
 ## Evidence
 

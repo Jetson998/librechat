@@ -158,12 +158,13 @@ async function loginUser({ index }) {
 
 async function restartApi() {
   await execFileAsync('docker', [
-    'compose', '--env-file', envFile, '-f', composeFile, '-p', projectName, 'restart', 'api',
-  ], { env: process.env, maxBuffer: 2 * 1024 * 1024 });
+    'compose', '--env-file', envFile, '-f', composeFile, '-p', projectName,
+    'restart', '--timeout', '10', 'api',
+  ], { env: process.env, maxBuffer: 2 * 1024 * 1024, timeout: 30_000 });
   await waitFor(async () => {
     const response = await fetch(`${apiBase}/api/config`, { signal: AbortSignal.timeout(3_000) });
     return response.ok;
-  }, 'API health after allowlist reload', 90_000);
+  }, 'API health after allowlist reload', 180_000);
 }
 
 async function createAgent(user, { model = user.model } = {}) {
