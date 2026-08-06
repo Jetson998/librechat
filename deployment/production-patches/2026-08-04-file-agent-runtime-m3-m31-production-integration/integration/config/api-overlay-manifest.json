@@ -4,6 +4,11 @@
   "files": [
     {
       "role": "baseline",
+      "path": "deployment/production-patches/2026-08-01-diagnostic-log-backend/backend/overlay/api/models/index.js",
+      "sha256": "37cf0b99c1d92719ef7f6b9ffe78216813d6193aa91044ad1376603fa9b90505"
+    },
+    {
+      "role": "baseline",
       "path": "services/librechat-file-agent-connector/production-overlay/api/baseline/api/server/index.js",
       "sha256": "6c24bc39d97a78caaa47dfe4b8ab510dcd385254b615c7e92ac9e8e4c3381cf1"
     },
@@ -19,8 +24,23 @@
     },
     {
       "role": "baseline",
+      "path": "deployment/production-patches/2026-08-01-diagnostic-log-backend/backend/overlay/api/server/routes/index.js",
+      "sha256": "67544339303e0280ec944e18bc2f0967462c45cd99685013cb192383e099a474"
+    },
+    {
+      "role": "baseline",
+      "path": "deployment/production-patches/2026-08-01-diagnostic-log-backend/backend/overlay/api/server/routes/admin/diagnosticEvents.js",
+      "sha256": "12ba3dee71a2584a0f5c6d65e960f4139c5494e2b7e1e7d001b88c747df28fd1"
+    },
+    {
+      "role": "baseline",
       "path": "services/librechat-file-agent-connector/production-overlay/api/baseline/api/server/routes/agents/chat.js",
       "sha256": "f77d6ff5279e7b172d53bca04f85978b30ce2f4f5d2dcbceb036b46e0c4e42a3"
+    },
+    {
+      "role": "baseline",
+      "path": "deployment/production-patches/2026-08-01-diagnostic-log-backend/backend/overlay/api/server/services/DiagnosticEvents.js",
+      "sha256": "c60f930fb6f24d5802c2249650d1557c4de4cbdfbbe09263cf05785be9467934"
     },
     {
       "role": "overlay",

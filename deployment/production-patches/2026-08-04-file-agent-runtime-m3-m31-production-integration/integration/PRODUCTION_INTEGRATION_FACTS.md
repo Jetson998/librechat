@@ -23,7 +23,7 @@ blocked        cannot be checked because required external input/access is absen
 | API logical service | `LibreChat-API` | repo-derived | production records |
 | API overlay source revision | `eaa07d9142783a33931d3f3d131449120a8b7590` | repo-derived | `config/api-overlay-manifest.json` |
 | File Agent API overlay files | `index.js`, `controllers/agents/request.js`, `routes/agents/chat.js`, `services/FileAgentRuntime.js` | repo-derived | overlay manifest |
-| API mounted baseline dependency | `controllers/agents/InitializationFailure.js`, SHA-256 `547bd84e25b136148cd12582e900c6b41ab85170b909b01bd14a7c37b0e78abd` | repo-derived | overlay manifest and `2026-07-31-office-preparse-result-contract-fix` source |
+| API mounted baseline dependencies | `models/index.js`, `controllers/agents/InitializationFailure.js`, `routes/index.js`, `routes/admin/diagnosticEvents.js`, `services/DiagnosticEvents.js` | repo-derived | overlay manifest and existing production patch source manifests |
 | Host installer | `installFileAgentRuntimeHost()` | repo-derived | overlay API index |
 | Bridge app-local slot | `app.locals.fileAgentRuntimeBridge` | repo-derived | overlay controller/route |
 | Agent route injection | `req.app.locals.fileAgentRuntimeBridge` to Agent controller | repo-derived | overlay chat route |
