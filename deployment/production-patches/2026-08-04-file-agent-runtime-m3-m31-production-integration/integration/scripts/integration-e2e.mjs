@@ -204,6 +204,25 @@ function findFileId(value) {
   return null;
 }
 
+function findStorageSessionId(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (typeof value.storage_session_id === 'string' && value.storage_session_id.trim() !== '') {
+    return value.storage_session_id.trim();
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findStorageSessionId(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  for (const item of Object.values(value)) {
+    const found = findStorageSessionId(item);
+    if (found) return found;
+  }
+  return null;
+}
+
 async function uploadFile(user, filePath) {
   const payload = await readFile(filePath);
   const requestedFileId = randomUUID();
@@ -227,8 +246,11 @@ async function uploadFile(user, filePath) {
   })).value;
   const fileId = findFileId(value);
   assert(fileId, `File upload did not return a file_id for user ${user.index}`);
+  const storageSessionId = findStorageSessionId(value);
+  assert(storageSessionId, `File upload did not return a storage_session_id for user ${user.index}`);
   return {
     fileId,
+    storageSessionId,
     requestedFileId,
     filename: path.basename(filePath),
     bytes: payload.length,
@@ -667,18 +689,21 @@ async function assertBridgeMissing() {
   const normalApiReady = await fetch(`${apiBase}/readyz`, { signal: AbortSignal.timeout(5_000) });
   assert(normalApiReady.ok, 'normal five-service API was not ready after bridge-missing probe');
   const after = await summarizeTaskFiles();
-  assert(taskFilesKey(after) === taskFilesKey(before), 'bridge-missing probe created a Runtime task');
+  const connectorRootLoadFailure = /\/nonexistent|Cannot find module|ENOENT/iu.test(output);
+  assert(connectorRootLoadFailure, 'bridge-missing probe did not observe a connector-root load failure');
+  const runtimeTaskCreated = taskFilesKey(after) !== taskFilesKey(before);
+  assert(!runtimeTaskCreated, 'bridge-missing probe created a Runtime task');
+  const bridgeInitializationFailed = exitCode !== 0 && connectorRootLoadFailure;
+  assert(bridgeInitializationFailed, 'bridge-missing probe did not observe fail-closed bridge initialization');
   return {
     label: 'bridge_missing',
     status: 'passed',
     faultInjected: true,
-    effectiveConnectorRoot: '/nonexistent',
-    processExitCode: exitCode,
-    ready: false,
-    bridgeSuccessMarkerObserved: false,
-    normalEnvironmentUnaffected: true,
-    runtimeTaskCreated: false,
-    errorClass: /Cannot find module|ENOENT/iu.test(output) ? 'connector_root_load_failure' : 'startup_failure',
+    bridgeInitializationFailed,
+    apiProcessExitCode: exitCode,
+    connectorRootLoadFailure,
+    normalApiReady: normalApiReady.ok,
+    runtimeTaskCreated,
   };
 }
 
@@ -698,22 +723,53 @@ async function removeFaultControl() {
   }
 }
 
+function createArtifactIdentityFaultControl(storageSessionId) {
+  if (typeof storageSessionId !== 'string' || storageSessionId.trim() === '') {
+    throw new TypeError('artifact identity fault requires a storage session id');
+  }
+  return {
+    schemaVersion: 1,
+    mode: 'artifact-identity-mismatch',
+    targetSessionId: storageSessionId.trim(),
+    mutation: 'storage_session_id',
+    once: true,
+  };
+}
+
+function artifactIdentityFaultIsArmed(control, storageSessionId) {
+  return control?.schemaVersion === 1
+    && control.mode === 'artifact-identity-mismatch'
+    && control.once === true
+    && control.targetSessionId === storageSessionId
+    && control.mutation === 'storage_session_id';
+}
+
+function runArtifactIdentityFaultFixtureRegression() {
+  const fixtureSessionId = 'integration-fault-fixture-session';
+  const control = createArtifactIdentityFaultControl(fixtureSessionId);
+  assert(artifactIdentityFaultIsArmed(control, fixtureSessionId),
+    'artifact identity fault fixture did not arm before chat');
+  return { status: 'passed', targetSessionId: fixtureSessionId, armedBeforeChat: true };
+}
+
 async function assertArtifactIdentityMismatch(user, fixture) {
   await removeFaultControl();
   const uploaded = await uploadFile(user, fixture);
+  const control = createArtifactIdentityFaultControl(uploaded.storageSessionId);
+  assert(artifactIdentityFaultIsArmed(control, uploaded.storageSessionId),
+    'artifact identity fault control was not armed before chat');
+  await mkdir(path.dirname(faultControlFile), { recursive: true, mode: 0o777 });
+  await writeFile(faultControlFile, `${JSON.stringify(control)}\n`, { mode: 0o644 });
+  const armedControl = JSON.parse(await readFile(faultControlFile, 'utf8'));
+  assert(artifactIdentityFaultIsArmed(armedControl, uploaded.storageSessionId),
+    'artifact identity fault control was not persisted before chat');
   const run = await startChat(user, uploaded, {
     instruction: '将“Integration One”替换为“Integration One Fault”，生成一个 DOCX 文件',
   });
   const taskBeforeFault = await waitForTaskForRun(run);
   assert(taskBeforeFault.execution?.sessionId, 'artifact identity fault task has no session identity');
-  await mkdir(path.dirname(faultControlFile), { recursive: true, mode: 0o777 });
-  await writeFile(faultControlFile, `${JSON.stringify({
-    schemaVersion: 1,
-    mode: 'artifact-identity-mismatch',
-    targetSessionId: taskBeforeFault.execution.sessionId,
-    mutation: 'storage_session_id',
-    once: true,
-  })}\n`, { mode: 0o644 });
+  assert(taskBeforeFault.execution.sessionId === uploaded.storageSessionId,
+    'Runtime task execution session does not match the upload storage session');
 
   let stream;
   let controlClearedByShim = false;
@@ -758,6 +814,7 @@ async function assertArtifactIdentityMismatch(user, fixture) {
     visibleAttachmentCount: visibleRefs.length,
     auditFaultInjected: faultAudit.faultInjected === true,
     controlFileCleared: controlClearedByShim,
+    controlArmedBeforeChat: true,
   };
 }
 
@@ -882,6 +939,7 @@ try {
   });
   negativePaths.foreignInputIdentity = 'passed';
 
+  negativeEvidence.push({ label: 'artifact_identity_fault_fixture', ...runArtifactIdentityFaultFixtureRegression() });
   negativeEvidence.push(await assertArtifactIdentityMismatch(agents[0], fixtureOne));
   negativePaths.artifactIdentityMismatch = 'passed';
 
