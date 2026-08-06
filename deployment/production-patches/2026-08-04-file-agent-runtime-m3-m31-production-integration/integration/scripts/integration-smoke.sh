@@ -163,7 +163,7 @@ if [[ -z "$api_container_before" ]]; then
   exit 6
 fi
 api_started_before="$(docker inspect "$api_container_before" --format '{{.State.StartedAt}}')"
-api_stop_timeout="$(docker inspect "$api_container_before" --format '{{json .HostConfig.StopTimeout}}')"
+api_stop_timeout="$(docker inspect "$api_container_before" --format '{{json .Config.StopTimeout}}')"
 if [[ "$api_stop_timeout" != 10 ]]; then
   printf 'integration API stop timeout is not bounded to 10 seconds: %s\n' "$api_stop_timeout" >&2
   exit 6
