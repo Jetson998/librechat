@@ -10,8 +10,9 @@ USER root
 COPY services/librechat-file-agent-connector/production-overlay/api/baseline/api/server/index.js /app/api/server/index.js
 COPY services/librechat-file-agent-connector/production-overlay/api/baseline/api/server/controllers/agents/request.js /app/api/server/controllers/agents/request.js
 COPY services/librechat-file-agent-connector/production-overlay/api/baseline/api/server/routes/agents/chat.js /app/api/server/routes/agents/chat.js
+COPY deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/InitializationFailure.js /app/api/server/controllers/agents/InitializationFailure.js
 
-RUN node -e 'const fs=require("node:fs");const crypto=require("node:crypto");const expected={"/app/api/server/index.js":"6c24bc39d97a78caaa47dfe4b8ab510dcd385254b615c7e92ac9e8e4c3381cf1","/app/api/server/controllers/agents/request.js":"eb0ba1cb054951dcd653014753884fed9f1f1cd1d9ffcf444a749ece34df6c9f","/app/api/server/routes/agents/chat.js":"f77d6ff5279e7b172d53bca04f85978b30ce2f4f5d2dcbceb036b46e0c4e42a3"};for(const [file,digest] of Object.entries(expected)){const actual=crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");if(actual!==digest)throw new Error(`${file} captured baseline mismatch: ${actual}`)}'
+RUN node -e 'const fs=require("node:fs");const crypto=require("node:crypto");const expected={"/app/api/server/index.js":"6c24bc39d97a78caaa47dfe4b8ab510dcd385254b615c7e92ac9e8e4c3381cf1","/app/api/server/controllers/agents/request.js":"eb0ba1cb054951dcd653014753884fed9f1f1cd1d9ffcf444a749ece34df6c9f","/app/api/server/routes/agents/chat.js":"f77d6ff5279e7b172d53bca04f85978b30ce2f4f5d2dcbceb036b46e0c4e42a3","/app/api/server/controllers/agents/InitializationFailure.js":"547bd84e25b136148cd12582e900c6b41ab85170b909b01bd14a7c37b0e78abd"};for(const [file,digest] of Object.entries(expected)){const actual=crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");if(actual!==digest)throw new Error(`${file} captured baseline mismatch: ${actual}`)}'
 
 COPY services/librechat-file-agent-connector/production-overlay/api/overlay/api/server/index.js /app/api/server/index.js
 COPY services/librechat-file-agent-connector/production-overlay/api/overlay/api/server/controllers/agents/request.js /app/api/server/controllers/agents/request.js
@@ -25,6 +26,7 @@ RUN node -e 'const fs=require("node:fs");const crypto=require("node:crypto");con
 RUN chmod 0444 \
       /app/api/server/index.js \
       /app/api/server/controllers/agents/request.js \
+      /app/api/server/controllers/agents/InitializationFailure.js \
       /app/api/server/routes/agents/chat.js \
       /app/api/server/services/FileAgentRuntime.js \
       /opt/file-agent-integration/startup-marker.cjs \

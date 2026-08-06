@@ -14,6 +14,11 @@
     },
     {
       "role": "baseline",
+      "path": "deployment/production-patches/2026-07-31-office-preparse-result-contract-fix/office-context-patch/InitializationFailure.js",
+      "sha256": "547bd84e25b136148cd12582e900c6b41ab85170b909b01bd14a7c37b0e78abd"
+    },
+    {
+      "role": "baseline",
       "path": "services/librechat-file-agent-connector/production-overlay/api/baseline/api/server/routes/agents/chat.js",
       "sha256": "f77d6ff5279e7b172d53bca04f85978b30ce2f4f5d2dcbceb036b46e0c4e42a3"
     },
