@@ -45,7 +45,7 @@ require_service() {
     return 1
   fi
   status="$(docker inspect "$container_id" --format '{{.State.Status}}' 2>/dev/null || true)"
-  health="$(docker inspect "$container_id" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}unreported{{end}}' 2>/dev/null || true)"
+  health="$(docker inspect "$container_id" --format '{{with (index .State "Health")}}{{.Status}}{{else}}unreported{{end}}' 2>/dev/null || true)"
   printf 'service=%s status=%s health=%s\n' "$service" "$status" "$health"
   [[ "$status" == running ]] || return 1
   case "$service" in

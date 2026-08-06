@@ -53,7 +53,7 @@ sha256_file() {
   for service in mongodb codeapi fake-model-relay file-agent-runtime api; do
     container_id="$("${compose[@]}" ps -q "$service" 2>/dev/null || true)"
     if [[ -n "$container_id" ]]; then
-      docker inspect "$container_id" --format "service=$service id={{.Id}} image={{.Config.Image}} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}unreported{{end}}"
+      docker inspect "$container_id" --format "service=$service id={{.Id}} image={{.Config.Image}} status={{.State.Status}} health={{with (index .State \"Health\")}}{{.Status}}{{else}}unreported{{end}}"
     else
       printf 'service=%s status=missing\n' "$service"
     fi

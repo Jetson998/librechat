@@ -364,7 +364,7 @@ wait_healthy() {
     local container_id status
     container_id="$("${compose[@]}" ps -q "$service" 2>/dev/null || true)"
     if [[ -n "$container_id" ]]; then
-      status="$(docker inspect "$container_id" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null || true)"
+      status="$(docker inspect "$container_id" --format '{{with (index .State "Health")}}{{.Status}}{{else}}{{$.State.Status}}{{end}}' 2>/dev/null || true)"
       if [[ "$status" == healthy ]]; then
         return 0
       fi
