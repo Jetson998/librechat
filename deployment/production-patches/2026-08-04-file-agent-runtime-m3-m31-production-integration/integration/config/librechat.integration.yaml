@@ -1,0 +1,57 @@
+version: 1.2.8
+
+interface:
+  endpointsMenu: true
+  modelSelect: true
+
+endpoints:
+  agents:
+    allowedProviders:
+      - Muskapis-openai
+    capabilities:
+      - execute_code
+      - artifacts
+      - tools
+      - context
+  custom:
+    - name: "Muskapis-openai"
+      apiKey: "${INTEGRATION_RELAY_API_KEY}"
+      baseURL: "http://fake-model-relay:8788/v1"
+      models:
+        default:
+          - "gpt-5.6-sol"
+          - "claude-fable-5"
+        fetch: false
+      titleConvo: false
+      modelDisplayLabel: "Integration Fake Relay"
+
+modelSpecs:
+  enforce: false
+  prioritize: false
+  list:
+    - name: "gpt-5.6-sol"
+      label: "Integration GPT"
+      default: true
+      executeCode: true
+      preset:
+        endpoint: "Muskapis-openai"
+        model: "gpt-5.6-sol"
+    - name: "claude-fable-5"
+      label: "Integration Fable"
+      default: false
+      executeCode: true
+      preset:
+        endpoint: "Muskapis-openai"
+        model: "claude-fable-5"
+
+fileConfig:
+  endpoints:
+    agents:
+      fileLimit: 5
+      fileSizeLimit: 25
+      totalSizeLimit: 60
+    default:
+      fileLimit: 5
+      fileSizeLimit: 25
+      totalSizeLimit: 60
+  serverFileSizeLimit: 100

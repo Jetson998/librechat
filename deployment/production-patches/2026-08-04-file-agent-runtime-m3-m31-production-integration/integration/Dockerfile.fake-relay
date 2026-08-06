@@ -1,0 +1,15 @@
+# Use the public ECR mirror for the same immutable Node 20 Bookworm slim
+# manifest. This keeps the helper reproducible without making ordinary runs
+# depend on Docker Hub's anonymous-token endpoint.
+FROM public.ecr.aws/docker/library/node@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
+
+WORKDIR /opt/fake-relay
+COPY deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/integration/fake-relay/server.mjs /opt/fake-relay/server.mjs
+
+ENV FAKE_RELAY_PORT=8788
+ENV FAKE_RELAY_STATE_DIR=/var/lib/fake-relay
+RUN mkdir -p /var/lib/fake-relay
+
+USER node
+EXPOSE 8788
+CMD ["node", "/opt/fake-relay/server.mjs"]

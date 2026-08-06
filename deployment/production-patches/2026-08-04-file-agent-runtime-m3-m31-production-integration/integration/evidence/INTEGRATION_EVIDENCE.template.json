@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "status": "not_run",
+  "scope": "non-production-production-isomorphic-integration",
+  "runtimeSourceRevision": null,
+  "integrationHarnessRevision": null,
+  "runtimeImage": {
+    "reference": null,
+    "imageId": null,
+    "architecture": null
+  },
+  "codeApiImage": {
+    "reference": "local/librechat-codeapi:office",
+    "imageId": null,
+    "source": "external-operator-supplied-oci-image",
+    "verified": false
+  },
+  "apiOverlay": {
+    "sourceRevision": null,
+    "baselineHashes": {},
+    "overlayHashes": {},
+    "startupMarker": null,
+    "bridgeRouteObserved": false
+  },
+  "services": {
+    "api": null,
+    "mongodb": null,
+    "codeapi": null,
+    "runtime": null,
+    "fakeRelay": null
+  },
+  "providerRouting": {
+    "fakeRelayRequests": [],
+    "expectedEndpoint": null,
+    "expectedModel": null,
+    "expectedProtocol": null
+  },
+  "codeApiProtocol": {
+    "runtimeExecRequests": [],
+    "requiredFields": ["lang", "code", "session_id", "files"],
+    "forbiddenLegacyFields": ["item_id", "command", "injected_files", "artifact_paths", "timeout_ms"],
+    "passed": false
+  },
+  "isolation": {
+    "users": [],
+    "tasks": [],
+    "sessions": [],
+    "inputArtifacts": [],
+    "outputArtifacts": [],
+    "passed": false
+  },
+  "cleanup": {
+    "performed": false,
+    "stateDirectoryRemoved": false,
+    "secretFilesRemoved": false,
+    "containersRemoved": false,
+    "volumesRemoved": false
+  },
+  "externalFacts": [],
+  "limitations": [
+    "This is not production preflight, deployment, restart, or customer acceptance.",
+    "CodeAPI is an external operator-supplied OCI image; the repository does not contain its source.",
+    "The Fake Relay records route identity and returns deterministic plans; it never calls a public model endpoint."
+  ]
+}

@@ -1,0 +1,171 @@
+services:
+  mongodb:
+    platform: linux/amd64
+    image: mongo:8.0.20@sha256:098862b1339f031900ca66cf8fef799e616d6324fa41b9a263f2ec899552c1ef
+    restart: "no"
+    command: ["mongod", "--noauth", "--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  codeapi:
+    platform: linux/amd64
+    image: ${CODEAPI_IMAGE:?CODEAPI_IMAGE must name the real LibreChat CodeAPI image}
+    pull_policy: never
+    restart: "no"
+    init: true
+    user: sandbox
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1536m
+    memswap_limit: 3072m
+    pids_limit: 256
+    environment:
+      CODEAPI_DATA_DIR: /srv/codeapi-data
+      CODEAPI_EXEC_TIMEOUT: "90"
+      CODEAPI_MAX_EXEC_TIMEOUT: "180"
+      CODEAPI_MAX_UPLOAD_BYTES: "157286400"
+      CODEAPI_MAX_ARTIFACT_BYTES: "209715200"
+    ports:
+      - "127.0.0.1:${INTEGRATION_CODEAPI_PORT:-8001}:8000"
+    volumes:
+      - ${INTEGRATION_CODEAPI_DATA_HOST_DIR:?INTEGRATION_CODEAPI_DATA_HOST_DIR is required}:/srv/codeapi-data
+
+  fake-model-relay:
+    platform: linux/amd64
+    build:
+      context: ${REPO_ROOT:?REPO_ROOT is required}
+      dockerfile: deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/integration/Dockerfile.fake-relay
+    image: file-agent-integration-fake-relay:${INTEGRATION_HARNESS_REVISION:?INTEGRATION_HARNESS_REVISION is required}
+    restart: "no"
+    environment:
+      FAKE_RELAY_PORT: "8788"
+      FAKE_RELAY_STATE_DIR: /var/lib/fake-relay
+    ports:
+      - "127.0.0.1:${INTEGRATION_FAKE_RELAY_PORT:-8788}:8788"
+    volumes:
+      - ${INTEGRATION_FAKE_RELAY_STATE_HOST_DIR:?INTEGRATION_FAKE_RELAY_STATE_HOST_DIR is required}:/var/lib/fake-relay
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8788/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  file-agent-runtime:
+    platform: linux/amd64
+    image: ${FILE_AGENT_RUNTIME_IMAGE:?FILE_AGENT_RUNTIME_IMAGE must name the candidate Runtime image}
+    pull_policy: never
+    restart: "no"
+    environment:
+      FILE_AGENT_HOST: 0.0.0.0
+      FILE_AGENT_PORT: "8790"
+      FILE_AGENT_CODEAPI_BASE_URL: http://codeapi:8000
+      FILE_AGENT_SERVICE_SCOPE_SECRET_FILE: /run/secrets/file-agent-service-scope
+      FILE_AGENT_PROVIDER_ROUTES_FILE: /run/file-agent/provider-routes.json
+      FILE_AGENT_DATA_DIR: /var/lib/file-agent-runtime
+      FILE_AGENT_MAX_CONCURRENT_TASKS: "1"
+      FILE_AGENT_MAX_CONTEXT_CHARS: "12000"
+      FILE_AGENT_INTEGRATION_RUNTIME_SOURCE_REVISION: ${FILE_AGENT_RUNTIME_SOURCE_REVISION}
+      FILE_AGENT_INTEGRATION_HARNESS_REVISION: ${INTEGRATION_HARNESS_REVISION}
+      FILE_AGENT_INTEGRATION_CODEAPI_AUDIT_FILE: /var/lib/file-agent-runtime/integration-audit/codeapi.ndjson
+      NODE_OPTIONS: --require=/opt/file-agent-integration/fetch-audit.cjs
+    expose:
+      - "8790"
+    volumes:
+      - ${INTEGRATION_RUNTIME_DATA_HOST_DIR:?INTEGRATION_RUNTIME_DATA_HOST_DIR is required}:/var/lib/file-agent-runtime
+      - ${REPO_ROOT}/deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/integration/scripts/fetch-audit.cjs:/opt/file-agent-integration/fetch-audit.cjs:ro
+      - ${INTEGRATION_PROVIDER_ROUTES_HOST_FILE:?INTEGRATION_PROVIDER_ROUTES_HOST_FILE is required}:/run/file-agent/provider-routes.json:ro
+    secrets:
+      - file-agent-service-scope
+      - file-agent-provider-key-integration
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp"]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      codeapi:
+        condition: service_started
+      fake-model-relay:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8790/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 5s
+      start_period: 5s
+      retries: 30
+
+  api:
+    platform: linux/amd64
+    build:
+      context: ${REPO_ROOT:?REPO_ROOT is required}
+      dockerfile: deployment/production-patches/2026-08-04-file-agent-runtime-m3-m31-production-integration/integration/Dockerfile.api
+      args:
+        LIBRECHAT_API_IMAGE: ${LIBRECHAT_API_IMAGE:?LIBRECHAT_API_IMAGE is required}
+    image: file-agent-integration-api:${INTEGRATION_HARNESS_REVISION:?INTEGRATION_HARNESS_REVISION is required}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${INTEGRATION_API_PORT:-3081}:3080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3080"
+      NODE_ENV: production
+      MONGO_URI: mongodb://mongodb:27017/LibreChatIntegration
+      ALLOW_REGISTRATION: "true"
+      ALLOW_SOCIAL_REGISTRATION: "false"
+      ALLOW_SOCIAL_LOGIN: "false"
+      DOMAIN_CLIENT: http://127.0.0.1:${INTEGRATION_API_PORT:-3081}
+      FILE_STRATEGY: local
+      LIBRECHAT_CODE_BASEURL: http://codeapi:8000
+      CODE_API_KEY: integration-codeapi-test-key
+      FILE_AGENT_INTEGRATION_RUNTIME_SOURCE_REVISION: ${FILE_AGENT_RUNTIME_SOURCE_REVISION}
+      FILE_AGENT_INTEGRATION_HARNESS_REVISION: ${INTEGRATION_HARNESS_REVISION}
+      FILE_AGENT_RUNTIME_ENABLED: "true"
+      FILE_AGENT_CONNECTOR_ROOT: /opt/librechat/file-agent-runtime/connector
+      FILE_AGENT_RUNTIME_BASE_URL: http://file-agent-runtime:8790
+      FILE_AGENT_SERVICE_SCOPE_SECRET_FILE: /run/secrets/file-agent-service-scope
+      FILE_AGENT_RUNTIME_ALLOWLIST_FILE: /run/secrets/file-agent-allowlist
+      FILE_AGENT_RUNTIME_MODEL_ROUTE_ID: file-agent-primary
+      FILE_AGENT_PROVIDER_ROUTE_MAP_FILE: /run/file-agent/provider-route-map.json
+      CONFIG_PATH: /app/librechat.yaml
+      INTEGRATION_RELAY_API_KEY: ${INTEGRATION_RELAY_API_KEY:?INTEGRATION_RELAY_API_KEY is required}
+      CREDS_KEY: ${INTEGRATION_API_CREDS_KEY:?INTEGRATION_API_CREDS_KEY is required}
+      CREDS_IV: ${INTEGRATION_API_CREDS_IV:?INTEGRATION_API_CREDS_IV is required}
+      JWT_SECRET: ${INTEGRATION_API_JWT_SECRET:?INTEGRATION_API_JWT_SECRET is required}
+      JWT_REFRESH_SECRET: ${INTEGRATION_API_JWT_REFRESH_SECRET:?INTEGRATION_API_JWT_REFRESH_SECRET is required}
+    volumes:
+      - ${INTEGRATION_CONNECTOR_HOST_DIR:?INTEGRATION_CONNECTOR_HOST_DIR is required}:/opt/librechat/file-agent-runtime/connector:ro
+      - ${INTEGRATION_PROVIDER_ROUTE_MAP_HOST_FILE:?INTEGRATION_PROVIDER_ROUTE_MAP_HOST_FILE is required}:/run/file-agent/provider-route-map.json:ro
+      - ${INTEGRATION_CONFIG_HOST_FILE:?INTEGRATION_CONFIG_HOST_FILE is required}:/app/librechat.yaml:ro
+      - ${INTEGRATION_API_UPLOADS_HOST_DIR:?INTEGRATION_API_UPLOADS_HOST_DIR is required}:/app/uploads
+      - ${INTEGRATION_API_LOGS_HOST_DIR:?INTEGRATION_API_LOGS_HOST_DIR is required}:/app/logs
+    secrets:
+      - file-agent-service-scope
+      - file-agent-allowlist
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      codeapi:
+        condition: service_started
+      file-agent-runtime:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3080/readyz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 5s
+      start_period: 15s
+      retries: 30
+
+volumes:
+  mongo-data:
+
+secrets:
+  file-agent-service-scope:
+    file: ${FILE_AGENT_SERVICE_SCOPE_SECRET_HOST_FILE:?FILE_AGENT_SERVICE_SCOPE_SECRET_HOST_FILE is required}
+  file-agent-allowlist:
+    file: ${FILE_AGENT_ALLOWLIST_HOST_FILE:?FILE_AGENT_ALLOWLIST_HOST_FILE is required}
+  file-agent-provider-key-integration:
+    file: ${FILE_AGENT_PROVIDER_KEY_HOST_FILE:?FILE_AGENT_PROVIDER_KEY_HOST_FILE is required}
