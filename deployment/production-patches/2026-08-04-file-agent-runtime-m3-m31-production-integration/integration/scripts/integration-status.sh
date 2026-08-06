@@ -152,7 +152,7 @@ if command -v docker >/dev/null 2>&1; then
       printf 'service=%s status=missing\n' "$service"
       continue
     fi
-    docker inspect "$container_id" --format "service=$service id={{.Id}} image={{.Config.Image}} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}unreported{{end}}" 2>&1 || true
+    docker inspect "$container_id" --format "service=$service id={{.Id}} image={{.Config.Image}} status={{.State.Status}} health={{with (index .State \"Health\")}}{{.Status}}{{else}}unreported{{end}}" 2>&1 || true
   done
   api_container="$("${compose[@]}" ps -q api 2>/dev/null || true)"
   if [[ -n "$api_container" ]]; then
