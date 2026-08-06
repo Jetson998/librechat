@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -24,6 +24,7 @@ const endpoint = process.env.INTEGRATION_LIBRECHAT_ENDPOINT || 'Muskapis-openai'
 const routeRef = process.env.INTEGRATION_PROVIDER_ROUTE_REF || 'custom:Muskapis-openai';
 const fixtureOne = path.resolve(process.env.INTEGRATION_FIXTURE_ONE || path.join(stateDir, 'api-uploads/integration-one.docx'));
 const fixtureTwo = path.resolve(process.env.INTEGRATION_FIXTURE_TWO || path.join(stateDir, 'api-uploads/integration-two.docx'));
+const faultControlFile = path.join(stateDir, 'runtime-data/fault-control.json');
 const expectedReplacementByIndex = new Map([
   [1, 'Integration One Verified'],
   [2, 'Integration Two Verified'],
@@ -636,6 +637,130 @@ async function assertForeignFileRejected(user, foreignFile) {
   }
 }
 
+function taskFilesKey(summary) {
+  return summary.taskFiles.map((task) => task.file).sort().join('\n');
+}
+
+async function assertBridgeMissing() {
+  const before = await summarizeTaskFiles();
+  let exitCode = 0;
+  let output = '';
+  try {
+    await execFileAsync('docker', [
+      'compose', '--env-file', envFile, '-f', composeFile, '-p', projectName,
+      'run', '--rm', '--no-deps',
+      '-e', 'FILE_AGENT_RUNTIME_ENABLED=true',
+      // The API implementation consumes FILE_AGENT_CONNECTOR_ROOT. Keep the
+      // review spelling too so this probe cannot accidentally pass because a
+      // stale variable name was silently ignored.
+      '-e', 'FILE_AGENT_RUNTIME_CONNECTOR_ROOT=/nonexistent',
+      '-e', 'FILE_AGENT_CONNECTOR_ROOT=/nonexistent',
+      'api',
+    ], { env: process.env, maxBuffer: 4 * 1024 * 1024, timeout: 90_000 });
+  } catch (error) {
+    exitCode = typeof error.code === 'number' ? error.code : -1;
+    output = `${error.stdout ?? ''}\n${error.stderr ?? ''}`;
+  }
+  assert(exitCode !== 0, 'bridge-missing probe unexpectedly started the API successfully');
+  assert(/\/nonexistent|Cannot find module|ENOENT/iu.test(output),
+    'bridge-missing probe did not fail while loading the missing connector root');
+  const normalApiReady = await fetch(`${apiBase}/readyz`, { signal: AbortSignal.timeout(5_000) });
+  assert(normalApiReady.ok, 'normal five-service API was not ready after bridge-missing probe');
+  const after = await summarizeTaskFiles();
+  assert(taskFilesKey(after) === taskFilesKey(before), 'bridge-missing probe created a Runtime task');
+  return {
+    label: 'bridge_missing',
+    status: 'passed',
+    faultInjected: true,
+    effectiveConnectorRoot: '/nonexistent',
+    processExitCode: exitCode,
+    ready: false,
+    bridgeSuccessMarkerObserved: false,
+    normalEnvironmentUnaffected: true,
+    runtimeTaskCreated: false,
+    errorClass: /Cannot find module|ENOENT/iu.test(output) ? 'connector_root_load_failure' : 'startup_failure',
+  };
+}
+
+async function waitForTaskForRun(run) {
+  return waitFor(async () => {
+    const summary = await summarizeTaskFiles();
+    const matches = summary.taskFiles.filter((task) => taskMatchesRun(task, run));
+    return matches.length === 1 ? matches[0] : null;
+  }, `Runtime task for user ${run.index}`, 30_000, 250);
+}
+
+async function removeFaultControl() {
+  try {
+    await unlink(faultControlFile);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
+
+async function assertArtifactIdentityMismatch(user, fixture) {
+  await removeFaultControl();
+  const uploaded = await uploadFile(user, fixture);
+  const run = await startChat(user, uploaded, {
+    instruction: '将“Integration One”替换为“Integration One Fault”，生成一个 DOCX 文件',
+  });
+  const taskBeforeFault = await waitForTaskForRun(run);
+  assert(taskBeforeFault.execution?.sessionId, 'artifact identity fault task has no session identity');
+  await mkdir(path.dirname(faultControlFile), { recursive: true, mode: 0o777 });
+  await writeFile(faultControlFile, `${JSON.stringify({
+    schemaVersion: 1,
+    mode: 'artifact-identity-mismatch',
+    targetSessionId: taskBeforeFault.execution.sessionId,
+    mutation: 'storage_session_id',
+    once: true,
+  })}\n`, { mode: 0o644 });
+
+  let stream;
+  let controlClearedByShim = false;
+  try {
+    stream = await readStream(run, { requireArtifact: false });
+  } finally {
+    try {
+      await stat(faultControlFile);
+    } catch (error) {
+      if (error.code === 'ENOENT') controlClearedByShim = true;
+      else throw error;
+    }
+    // The shim must consume the control itself. This cleanup only prevents a
+    // failed probe from leaking a future fault into another task.
+    await removeFaultControl();
+  }
+  const faultAudit = await waitFor(async () => {
+    const records = await jsonLines(path.join(stateDir, 'runtime-data/integration-audit/codeapi.ndjson'));
+    return records.find((record) => record.request?.session_id === taskBeforeFault.execution.sessionId
+      && record.faultInjected === true) ?? null;
+  }, 'artifact identity fault audit', 30_000, 250);
+  const faultTask = await waitForTaskForRun(run);
+  assert(faultTask.status !== 'completed', 'artifact identity mismatch task was marked completed');
+  assert(faultTask.verification?.passed !== true, 'Verifier accepted an artifact with mismatched identity');
+  assert((faultTask.result?.artifacts ?? []).length === 0, 'artifact identity mismatch task retained a delivered artifact');
+
+  const messages = await loadConversationMessages(run);
+  const assistant = messages.find((message) => message?.messageId === run.assistantMessageId);
+  const visibleRefs = assistant ? fileRefsFromMessage(assistant) : [];
+  assert(visibleRefs.length === 0, 'artifact identity mismatch conversation exposed a downloadable attachment');
+  assert(controlClearedByShim, 'artifact identity fault control file was not consumed and cleared');
+  return {
+    label: 'artifact_identity_mismatch',
+    status: 'passed',
+    faultInjected: true,
+    mutation: 'storage_session_id',
+    taskId: faultTask.taskId,
+    sessionId: taskBeforeFault.execution.sessionId,
+    stream,
+    runtimeStatus: faultTask.status,
+    verifierPassed: faultTask.verification?.passed === true,
+    visibleAttachmentCount: visibleRefs.length,
+    auditFaultInjected: faultAudit.faultInjected === true,
+    controlFileCleared: controlClearedByShim,
+  };
+}
+
 function summarizeRelay(relay) {
   return relay.map((record) => ({
     endpoint: record.endpoint ?? null,
@@ -653,6 +778,7 @@ function summarizeAudit(audit) {
     url: record.url ?? null,
     method: record.method ?? null,
     responseStatus: record.responseStatus ?? null,
+    faultInjected: record.faultInjected === true,
     response: {
       fields: record.responseFields ?? [],
       session_id: record.responseSessionId ?? null,
@@ -746,6 +872,8 @@ try {
 
   negativeEvidence.push(await assertUnsupportedModel(users[0], fixtureOne));
   negativePaths.unsupportedModel = 'passed';
+  negativeEvidence.push(await assertBridgeMissing());
+  negativePaths.bridgeMissing = 'passed';
   negativeEvidence.push({ label: 'malformed_codeapi_body', ...(await assertMalformedCodeApiBody()) });
   negativePaths.malformedCodeApiBody = 'passed';
   negativeEvidence.push({
@@ -754,9 +882,12 @@ try {
   });
   negativePaths.foreignInputIdentity = 'passed';
 
+  negativeEvidence.push(await assertArtifactIdentityMismatch(agents[0], fixtureOne));
+  negativePaths.artifactIdentityMismatch = 'passed';
+
   const streams = [];
   for (const run of runs) streams.push(await readStream(run));
-  const collected = await waitForEvidence(runs.length);
+  const collected = await waitForEvidence(runs.length + 1);
   const relaySummary = summarizeRelay(collected.relay);
   const auditSummary = summarizeAudit(collected.audit);
   const taskSummary = await summarizeTaskFiles();

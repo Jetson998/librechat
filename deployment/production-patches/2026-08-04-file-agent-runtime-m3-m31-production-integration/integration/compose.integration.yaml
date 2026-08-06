@@ -72,6 +72,7 @@ services:
       FILE_AGENT_INTEGRATION_RUNTIME_SOURCE_REVISION: ${FILE_AGENT_RUNTIME_SOURCE_REVISION}
       FILE_AGENT_INTEGRATION_HARNESS_REVISION: ${INTEGRATION_HARNESS_REVISION}
       FILE_AGENT_INTEGRATION_CODEAPI_AUDIT_FILE: /var/lib/file-agent-runtime/integration-audit/codeapi.ndjson
+      FILE_AGENT_INTEGRATION_FAULT_CONTROL_FILE: /var/lib/file-agent-runtime/fault-control.json
       NODE_OPTIONS: --require=/opt/file-agent-integration/fetch-audit.cjs
     expose:
       - "8790"

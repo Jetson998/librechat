@@ -4,6 +4,8 @@ const path = require('node:path');
 
 const auditFile = process.env.FILE_AGENT_INTEGRATION_CODEAPI_AUDIT_FILE
   || '/var/lib/file-agent-runtime/integration-audit/codeapi.ndjson';
+const faultControlFile = process.env.FILE_AGENT_INTEGRATION_FAULT_CONTROL_FILE
+  || '/var/lib/file-agent-runtime/fault-control.json';
 const originalFetch = globalThis.fetch;
 
 function append(record) {
@@ -66,6 +68,57 @@ async function safeResponseBody(response) {
   }
 }
 
+function readFaultControl() {
+  try {
+    const value = JSON.parse(fs.readFileSync(faultControlFile, 'utf8'));
+    if (
+      value?.schemaVersion !== 1
+      || value.mode !== 'artifact-identity-mismatch'
+      || value.once !== true
+      || typeof value.targetSessionId !== 'string'
+      || !['storage_session_id', 'file_id'].includes(value.mutation)
+    ) {
+      return null;
+    }
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+async function injectArtifactIdentityMismatch(response, control) {
+  let value;
+  try {
+    value = await response.clone().json();
+  } catch {
+    return { response, faultInjected: false };
+  }
+  if (!Array.isArray(value?.files) || value.files.length === 0) {
+    return { response, faultInjected: false };
+  }
+  const files = value.files.map((file, index) => {
+    if (index !== 0) return file;
+    if (control.mutation === 'file_id') {
+      return { ...file, id: `fault-artifact-${control.targetSessionId}` };
+    }
+    return {
+      ...file,
+      storage_session_id: `fault-storage-session-${control.targetSessionId}`,
+    };
+  });
+  const mutated = { ...value, files };
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  return {
+    response: new Response(JSON.stringify(mutated), {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    }),
+    faultInjected: true,
+  };
+}
+
 globalThis.fetch = async function auditedFetch(input, init = {}) {
   const url = typeof input === 'string' ? input : input?.url;
   const isCodeApi = typeof url === 'string' && /\/exec(?:\?|$)/u.test(url);
@@ -78,13 +131,30 @@ globalThis.fetch = async function auditedFetch(input, init = {}) {
   };
   try {
     const response = await originalFetch(input, init);
+    const control = record.request?.session_id === undefined ? null : readFaultControl();
+    let responseForRuntime = response;
+    let faultInjected = false;
+    if (control?.targetSessionId === record.request.session_id) {
+      const injected = await injectArtifactIdentityMismatch(response, control);
+      responseForRuntime = injected.response;
+      faultInjected = injected.faultInjected;
+      if (faultInjected && control.once === true) {
+        try {
+          fs.unlinkSync(faultControlFile);
+        } catch {
+          // The host-side runner records a missing control file as part of the
+          // one-shot assertion; an already-consumed control is still safe.
+        }
+      }
+    }
     append({
       ...record,
-      responseStatus: response.status,
-      ok: response.ok,
-      ...(await safeResponseBody(response)),
+      responseStatus: responseForRuntime.status,
+      ok: responseForRuntime.ok,
+      faultInjected,
+      ...(await safeResponseBody(responseForRuntime)),
     });
-    return response;
+    return responseForRuntime;
   } catch (error) {
     append({ ...record, error: { name: error.name, message: error.message } });
     throw error;

@@ -69,7 +69,24 @@ curl --fail --silent --show-error "http://127.0.0.1:${INTEGRATION_FAKE_RELAY_POR
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" \
   exec -T file-agent-runtime node -e "fetch('http://127.0.0.1:8790/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 
+set +e
 node "$SCRIPT_DIR/integration-e2e.mjs"
-"$SCRIPT_DIR/collect-evidence.sh" "$ENV_FILE"
+runner_status=$?
+set -e
+
+# Preserve the runner's status and retain the state directory on failure, but
+# still collect the best available redacted evidence before a human performs
+# integration-down.sh. A collection failure must never hide the original
+# business assertion failure.
+collect_status=0
+"$SCRIPT_DIR/collect-evidence.sh" "$ENV_FILE" || collect_status=$?
+if [[ "$runner_status" -ne 0 ]]; then
+  printf 'integration_e2e_runner_status=%s\n' "$runner_status" >&2
+  exit "$runner_status"
+fi
+if [[ "$collect_status" -ne 0 ]]; then
+  printf 'integration_e2e_collect_status=%s\n' "$collect_status" >&2
+  exit "$collect_status"
+fi
 printf 'integration_e2e=passed\n'
 printf 'evidence_dir=%s\n' "$INTEGRATION_EVIDENCE_DIR"
