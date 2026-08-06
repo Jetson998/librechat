@@ -120,6 +120,7 @@ function resolveWordContract(task) {
     outputPath: `${workspaceRoot}/output/working.docx`,
     injectedFiles: [{
       name: filename,
+      resource_id: codeEnvRef.resource_id,
       storage_session_id: codeEnvRef.storage_session_id,
       file_id: codeEnvRef.file_id,
     }],

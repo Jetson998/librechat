@@ -10,6 +10,9 @@ const PROVIDER_IDENTITY_FIELDS = [
   'providerEndpoint',
   'providerModel',
   'providerProtocol',
+  'routeConfigDigest',
+  'requestedModel',
+  'actualModel',
 ];
 
 export class UsageIngestion {
@@ -46,6 +49,9 @@ export class UsageIngestion {
     }
     if (deliveryHasProviderIdentity) {
       for (const field of PROVIDER_IDENTITY_FIELDS) {
+        if (usage[field] == null && delivery[field] == null) {
+          continue;
+        }
         if (typeof usage[field] !== 'string' || typeof delivery[field] !== 'string' || usage[field] !== delivery[field]) {
           throw new Error(`Runtime usage ${field} does not match the delivery billing snapshot`);
         }

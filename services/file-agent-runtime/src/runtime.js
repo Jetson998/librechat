@@ -62,6 +62,7 @@ export function validateTaskManifest(manifest) {
     manifest.model?.providerEndpoint,
     manifest.model?.providerModel,
     manifest.model?.providerProtocol,
+    manifest.model?.routeConfigDigest,
   ];
   if (providerIdentity.some((value) => value != null) && providerIdentity.some((value) => value == null)) {
     throw new TypeError('Task provider route identity must be complete');
@@ -366,6 +367,7 @@ function normalizeInputRebind(task, inputRebind) {
       !codeEnvRef ||
       codeEnvRef.kind !== originalCodeEnvRef?.kind ||
       codeEnvRef.id !== originalCodeEnvRef?.id ||
+      codeEnvRef.resource_id !== originalCodeEnvRef?.resource_id ||
       typeof codeEnvRef.storage_session_id !== 'string' ||
       codeEnvRef.storage_session_id.trim() === '' ||
       typeof codeEnvRef.file_id !== 'string' ||
@@ -399,6 +401,9 @@ function persistProviderMetadata(task, emit, result, itemId) {
             providerEndpoint: call.providerEndpoint,
             providerModel: call.providerModel,
             providerProtocol: call.providerProtocol,
+            routeConfigDigest: call.routeConfigDigest,
+            requestedModel: call.requestedModel,
+            actualModel: call.actualModel,
           }
         : {}),
       inputTokens: usage.inputTokens,

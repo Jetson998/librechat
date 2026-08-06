@@ -57,7 +57,7 @@ test('enabled production host configuration reads only file-backed secrets and a
         providerRouteRef: 'custom:Muskapis-openai',
         providerEndpoint: 'Muskapis-openai',
         protocol: 'openai-compatible',
-        allowedModels: ['gpt-5.6-sol'],
+        allowedModels: ['gpt-5.6-sol', 'claude-fable-5'],
       }],
     }),
   };
@@ -74,10 +74,70 @@ test('enabled production host configuration reads only file-backed secrets and a
   assert.equal(config.runtimeBaseUrl, 'http://file-agent-runtime:8790');
   assert.equal(config.modelRouteId, 'file-agent-primary');
   assert.equal(config.providerRouteRegistry.routes[0].providerRouteRef, 'custom:Muskapis-openai');
+  assert.match(config.routeConfigDigest, /^[a-f0-9]{64}$/u);
   assert.deepEqual([...config.allowlistedUserIds], ['user-1', 'user-2']);
   assert.equal(config.reconcileIntervalMs, 7500);
   assert.equal(config.serviceScopeTtlSeconds, 120);
   assert.equal(config.serviceScopeSecret, SECRET);
+});
+
+test('enabled production host configuration rejects Anthropic, extra routes, and models outside the fixed route contract', async () => {
+  const baseFiles = {
+    '/run/secrets/file-agent-allowlist': 'user-1\n',
+    '/run/secrets/file-agent-service-scope': SECRET,
+  };
+  const invalidMaps = [
+    {
+      schemaVersion: 1,
+      routes: [{
+        librechatEndpoint: 'Muskapis-openai',
+        providerRouteRef: 'custom:Muskapis-openai',
+        providerEndpoint: 'Muskapis-openai',
+        protocol: 'anthropic-messages',
+        allowedModels: ['gpt-5.6-sol', 'claude-fable-5'],
+      }],
+    },
+    {
+      schemaVersion: 1,
+      routes: [{
+        librechatEndpoint: 'Muskapis-openai',
+        providerRouteRef: 'custom:Muskapis-openai',
+        providerEndpoint: 'Muskapis-openai',
+        protocol: 'openai-compatible',
+        allowedModels: ['gpt-5.6-sol', 'claude-fable-5', 'other-model'],
+      }],
+    },
+    {
+      schemaVersion: 1,
+      routes: [{
+        librechatEndpoint: 'Muskapis-openai',
+        providerRouteRef: 'custom:Muskapis-openai',
+        providerEndpoint: 'Muskapis-openai',
+        protocol: 'openai-compatible',
+        allowedModels: ['gpt-5.6-sol', 'claude-fable-5'],
+      }, {
+        librechatEndpoint: 'extra',
+        providerRouteRef: 'custom:extra',
+        providerEndpoint: 'extra',
+        protocol: 'openai-compatible',
+        allowedModels: ['other-model'],
+      }],
+    },
+  ];
+  for (const routeMap of invalidMaps) {
+    const files = {
+      ...baseFiles,
+      '/run/file-agent/provider-route-map.json': JSON.stringify(routeMap),
+    };
+    await assert.rejects(
+      loadProductionHostConfig({
+        environment: enabledEnvironment(),
+        readSecretFile: reader(files),
+        readTextFile: reader(files),
+      }),
+      /FILE_AGENT_PROVIDER_ROUTE_MAP_FILE/u,
+    );
+  }
 });
 
 test('enabled production host configuration fails closed for unsafe Runtime targets and empty allowlists', async () => {

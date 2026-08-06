@@ -138,6 +138,7 @@ export async function loadProductionRuntimeConfig({
     filePath: environment.FILE_AGENT_PROVIDER_ROUTES_FILE,
     readTextFile: readSecretFile,
     readSecretFile,
+    requireProductionContract: true,
   });
 
   const host = optionalString(environment, 'FILE_AGENT_HOST', DEFAULTS.host);
@@ -181,6 +182,7 @@ export async function loadProductionRuntimeConfig({
       ),
     },
     providerRoutes,
+    routeConfigDigest: providerRoutes[0].routeConfigDigest,
     serviceScope: {
       secret: serviceScopeSecret,
       ttlSeconds: integer(

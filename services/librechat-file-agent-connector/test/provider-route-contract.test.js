@@ -4,6 +4,7 @@ import test from 'node:test';
 import { buildTaskSubmission } from '../src/task-manifest-builder.js';
 import { createUpstreamRuntimeRequestResolver } from '../src/upstream-controller-adapter.js';
 import { XLSX_MIME } from '../src/constants.js';
+import { providerRouteConfigDigest } from '../src/provider-route-registry.js';
 
 const ROUTE_MAP = {
   schemaVersion: 1,
@@ -24,6 +25,7 @@ const ROUTE_MAP = {
     },
   ],
 };
+const ROUTE_CONFIG_DIGEST = providerRouteConfigDigest(ROUTE_MAP);
 
 function attachment(overrides = {}) {
   return {
@@ -81,6 +83,7 @@ test('Connector request carries the allowlisted provider route selected by Libre
   assert.equal(request.providerEndpoint, 'Muskapis-openai');
   assert.equal(request.providerModel, 'gpt-5.6-sol');
   assert.equal(request.providerProtocol, 'openai-compatible');
+  assert.equal(request.routeConfigDigest, ROUTE_CONFIG_DIGEST);
   assert.equal(request.providerApiKey, undefined);
 });
 
@@ -100,11 +103,13 @@ test('Connector selects the explicit Anthropic protocol from the route registry'
     providerEndpoint: request.providerEndpoint,
     providerModel: request.providerModel,
     providerProtocol: request.providerProtocol,
+    routeConfigDigest: request.routeConfigDigest,
   }, {
     providerRouteRef: 'custom:Muskapis-Anthropic',
     providerEndpoint: 'Muskapis-Anthropic',
     providerModel: 'claude-fable-5',
     providerProtocol: 'anthropic-messages',
+    routeConfigDigest: ROUTE_CONFIG_DIGEST,
   });
 });
 
@@ -148,6 +153,7 @@ test('Task manifest and idempotency identity include the selected provider route
     providerEndpoint: 'Muskapis-openai',
     providerModel: 'gpt-5.6-sol',
     providerProtocol: 'openai-compatible',
+    routeConfigDigest: ROUTE_CONFIG_DIGEST,
     acceptanceAssertions: [{ type: 'xlsx.cell_value.v1', sheet: 'Sheet1', cell: 'A1', value: 'x' }],
   };
   const openai = buildTaskSubmission(base);

@@ -17,7 +17,11 @@ const PROVIDER_IDENTITY_FIELDS = [
   'providerEndpoint',
   'providerModel',
   'providerProtocol',
+  'routeConfigDigest',
+  'requestedModel',
+  'actualModel',
 ];
+const CORE_PROVIDER_IDENTITY_FIELDS = PROVIDER_IDENTITY_FIELDS.slice(0, 4);
 
 function validatePrice(value, name) {
   if (value == null) {
@@ -66,18 +70,34 @@ function validateMessageIdentity(value) {
 }
 
 function normalizeProviderIdentity(values) {
-  const supplied = PROVIDER_IDENTITY_FIELDS.map((field) => values[field]);
+  const supplied = CORE_PROVIDER_IDENTITY_FIELDS.map((field) => values[field]);
   const hasAny = supplied.some((value) => value != null);
   if (!hasAny) {
     return null;
   }
-  if (supplied.some((value) => value == null)) {
+  if (supplied.some((value) => value == null) || (
+    values.routeConfigDigest != null && typeof values.routeConfigDigest !== 'string'
+  )) {
     throw new TypeError('Billing snapshot provider route identity must be complete');
   }
-  return Object.fromEntries(PROVIDER_IDENTITY_FIELDS.map((field) => [
+  const identity = Object.fromEntries(CORE_PROVIDER_IDENTITY_FIELDS.map((field) => [
     field,
     requiredString(values[field], field),
   ]));
+  if (values.routeConfigDigest != null) {
+    identity.routeConfigDigest = requiredString(values.routeConfigDigest, 'routeConfigDigest');
+  }
+  if (values.requestedModel != null || values.actualModel != null) {
+    identity.requestedModel = requiredString(
+      values.requestedModel ?? values.providerModel,
+      'requestedModel',
+    );
+    identity.actualModel = requiredString(
+      values.actualModel ?? values.providerModel,
+      'actualModel',
+    );
+  }
+  return identity;
 }
 
 export class MongoBillingSnapshotStore {
@@ -102,6 +122,9 @@ export class MongoBillingSnapshotStore {
     providerEndpoint = null,
     providerModel = null,
     providerProtocol = null,
+    routeConfigDigest = null,
+    requestedModel = null,
+    actualModel = null,
     prices,
     pricing,
     endpointTokenConfig,
@@ -119,6 +142,9 @@ export class MongoBillingSnapshotStore {
       providerEndpoint,
       providerModel,
       providerProtocol,
+      routeConfigDigest,
+      ...(requestedModel != null ? { requestedModel } : {}),
+      ...(actualModel != null ? { actualModel } : {}),
     });
     const snapshot = {
       _id: randomUUID(),

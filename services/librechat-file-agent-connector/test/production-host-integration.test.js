@@ -253,3 +253,38 @@ test('host installation puts the bridge on app.locals and an unallowlisted turn 
   await host.stop();
   assert.equal(app.locals.fileAgentRuntimeBridge, undefined);
 });
+
+test('enabled production startup fails closed when the app already has no replaceable bridge slot', async () => {
+  const collections = new Map();
+  const app = { locals: { fileAgentRuntimeBridge: { tryRoute: async () => ({}) } } };
+  let stopped = 0;
+  await assert.rejects(
+    startProductionLibreChatHostIntegration({
+      app,
+      config: {
+        enabled: true,
+        runtimeBaseUrl: 'http://file-agent-runtime:8790',
+        modelRouteId: 'file-agent-primary',
+        serviceScopeSecret: SECRET,
+        allowlistedUserIds: new Set(['user-1']),
+        reconcileIntervalMs: 1000,
+        serviceScopeTtlSeconds: 60,
+      },
+      database: {
+        collection: (name) => {
+          if (!collections.has(name)) collections.set(name, new FakeCollection());
+          return collections.get(name);
+        },
+      },
+      native: nativeHarness(),
+      runtimeClient: { discoverCapabilities: async () => ({}) },
+      registerShutdownTask: () => {},
+    }).catch((error) => {
+      stopped += 1;
+      throw error;
+    }),
+    /already has a File Agent Runtime bridge/u,
+  );
+  assert.equal(stopped, 1);
+  assert.equal(typeof app.locals.fileAgentRuntimeBridge?.tryRoute, 'function');
+});

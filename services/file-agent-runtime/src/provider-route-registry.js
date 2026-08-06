@@ -1,9 +1,32 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const SUPPORTED_PROTOCOLS = new Set(['openai-compatible', 'anthropic-messages']);
 const ROUTE_REF = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/u;
 const ENDPOINT_ID = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}$/u;
+const PRODUCTION_ROUTE_REF = 'custom:Muskapis-openai';
+const PRODUCTION_PROVIDER_ENDPOINT = 'Muskapis-openai';
+const PRODUCTION_PROTOCOL = 'openai-compatible';
+const PRODUCTION_ALLOWED_MODELS = Object.freeze(['gpt-5.6-sol', 'claude-fable-5']);
+
+function canonicalize(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalize);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]),
+    );
+  }
+  return value;
+}
+
+function digestJson(value) {
+  return createHash('sha256')
+    .update(JSON.stringify(canonicalize(value)))
+    .digest('hex');
+}
 
 export class RuntimeProviderRouteRegistryError extends Error {
   constructor(message, code = 'RUNTIME_PROVIDER_ROUTE_REGISTRY_INVALID') {
@@ -75,7 +98,12 @@ async function loadApiKey(filePath, readSecretFile, field) {
   return requiredString(value, field);
 }
 
-export async function loadProviderRoutes({ filePath, readTextFile = readFile, readSecretFile = readFile } = {}) {
+export async function loadProviderRoutes({
+  filePath,
+  readTextFile = readFile,
+  readSecretFile = readFile,
+  requireProductionContract = false,
+} = {}) {
   const normalizedPath = apiKeyPath(filePath, 'FILE_AGENT_PROVIDER_ROUTES_FILE');
   let text;
   try {
@@ -105,6 +133,9 @@ export async function loadProviderRoutes({ filePath, readTextFile = readFile, re
       throw new RuntimeProviderRouteRegistryError(`routes[${index}] must be an object`);
     }
     const normalized = {
+      librechatEndpoint: route.librechatEndpoint == null
+        ? null
+        : normalizedId(route.librechatEndpoint, `routes[${index}].librechatEndpoint`),
       providerRouteRef: normalizedId(route.providerRouteRef, `routes[${index}].providerRouteRef`, ROUTE_REF),
       providerEndpoint: normalizedId(route.providerEndpoint, `routes[${index}].providerEndpoint`),
       baseUrl: normalizedUrl(route.baseUrl, `routes[${index}].baseUrl`),
@@ -131,7 +162,48 @@ export async function loadProviderRoutes({ filePath, readTextFile = readFile, re
       apiKey: await loadApiKey(normalized.apiKeyFile, readSecretFile, `routes[${index}].apiKey`),
     }));
   }
-  return Object.freeze(routes);
+  if (requireProductionContract) {
+    if (routes.length !== 1) {
+      throw new RuntimeProviderRouteRegistryError(
+        'Production provider route registry must contain exactly one route',
+        'RUNTIME_PROVIDER_ROUTE_PRODUCTION_CONTRACT_INVALID',
+      );
+    }
+    const [route] = routes;
+    if (
+      route.librechatEndpoint !== PRODUCTION_PROVIDER_ENDPOINT ||
+      route.providerRouteRef !== PRODUCTION_ROUTE_REF ||
+      route.providerEndpoint !== PRODUCTION_PROVIDER_ENDPOINT ||
+      route.protocol !== PRODUCTION_PROTOCOL ||
+      route.allowedModels.length !== PRODUCTION_ALLOWED_MODELS.length ||
+      route.allowedModels.some((model) => !PRODUCTION_ALLOWED_MODELS.includes(model))
+    ) {
+      throw new RuntimeProviderRouteRegistryError(
+        'Runtime provider route registry does not match the fixed File Agent route contract',
+        'RUNTIME_PROVIDER_ROUTE_PRODUCTION_CONTRACT_INVALID',
+      );
+    }
+  }
+  const routeConfigDigest = providerRouteConfigDigest(routes);
+  return Object.freeze(routes.map((route) => Object.freeze({ ...route, routeConfigDigest })));
+}
+
+export function providerRouteConfigDigest(routes) {
+  if (!Array.isArray(routes) || routes.length === 0) {
+    throw new RuntimeProviderRouteRegistryError('Runtime provider routes are required');
+  }
+  return digestJson({
+    schemaVersion: 1,
+    routes: routes
+      .map((route) => ({
+        librechatEndpoint: route.librechatEndpoint,
+        providerRouteRef: route.providerRouteRef,
+        providerEndpoint: route.providerEndpoint,
+        protocol: route.protocol,
+        allowedModels: [...route.allowedModels].sort(),
+      }))
+      .sort((left, right) => left.providerRouteRef.localeCompare(right.providerRouteRef)),
+  });
 }
 
 export function providerRouteMap(routes) {

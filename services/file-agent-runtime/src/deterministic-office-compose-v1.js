@@ -172,6 +172,7 @@ function resolveComposeContract(task) {
     outputPath: `${workspaceRoot}/output/working.pptx`,
     injectedFiles: normalizedInputs.map((input, index) => ({
       name: input.filename,
+      resource_id: input.codeEnvRef.resource_id,
       storage_session_id: input.codeEnvRef.storage_session_id,
       file_id: input.codeEnvRef.file_id,
     })),

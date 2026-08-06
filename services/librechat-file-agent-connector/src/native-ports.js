@@ -6,6 +6,9 @@ const PROVIDER_IDENTITY_FIELDS = [
   'providerEndpoint',
   'providerModel',
   'providerProtocol',
+  'routeConfigDigest',
+  'requestedModel',
+  'actualModel',
 ];
 
 function requiredFunction(value, name) {
@@ -307,6 +310,9 @@ export class NativeLibreChatPorts {
     }
     if (deliveryHasProviderIdentity) {
       for (const field of PROVIDER_IDENTITY_FIELDS) {
+        if (snapshot[field] == null && delivery[field] == null) {
+          continue;
+        }
         if (typeof snapshot[field] !== 'string' || typeof delivery[field] !== 'string' || snapshot[field] !== delivery[field]) {
           throw new Error(`Billing snapshot ${field} does not match delivery`);
         }

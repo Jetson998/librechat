@@ -31,6 +31,7 @@ function routeKey(request) {
     providerEndpoint: request.providerEndpoint ?? null,
     providerModel: request.providerModel ?? null,
     providerProtocol: request.providerProtocol ?? null,
+    routeConfigDigest: request.routeConfigDigest ?? null,
     capabilityProfile: request.capabilityProfile,
     acceptance: request.acceptance,
     acceptanceAssertions: request.acceptanceAssertions,
@@ -160,6 +161,7 @@ export class LibreChatFileAgentConnector {
         providerEndpoint: request.providerEndpoint,
         providerModel: request.providerModel,
         providerProtocol: request.providerProtocol,
+        routeConfigDigest: request.routeConfigDigest,
         capabilityProfile: submission.manifest.model.capabilityProfile,
         inputRefs: submission.manifest.inputs,
         allowedOutputMimeTypes: [...capabilities.outputMimeTypes],
@@ -508,6 +510,7 @@ export class LibreChatFileAgentConnector {
         providerEndpoint: delivery.providerEndpoint,
         providerModel: delivery.providerModel,
         providerProtocol: delivery.providerProtocol,
+        routeConfigDigest: delivery.routeConfigDigest,
         workspaceRef: opaqueRef('workspace', workspaceSeed),
         inputRefs: manifest.inputs ?? delivery.inputRefs ?? [],
         allowedOutputMimeTypes: delivery.allowedOutputMimeTypes ?? [],
@@ -531,6 +534,7 @@ export class LibreChatFileAgentConnector {
         'providerEndpoint',
         'providerModel',
         'providerProtocol',
+        'routeConfigDigest',
       ]) {
         if (delivery[field] && delivery[field] !== activeTask[field]) {
           const error = new Error(`Runtime task ${field} does not match the bound task`);

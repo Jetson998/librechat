@@ -118,6 +118,7 @@ function createRecord({
   providerEndpoint = null,
   providerModel = null,
   providerProtocol = null,
+  routeConfigDigest = null,
   workspaceRef = null,
   inputRefs = [],
   allowedOutputMimeTypes = [],
@@ -142,6 +143,9 @@ function createRecord({
           providerEndpoint: requiredString(providerEndpoint, 'providerEndpoint'),
           providerModel: requiredString(providerModel, 'providerModel'),
           providerProtocol: requiredString(providerProtocol, 'providerProtocol'),
+          ...(routeConfigDigest != null
+            ? { routeConfigDigest: requiredString(routeConfigDigest, 'routeConfigDigest') }
+            : {}),
         }
       : {}),
     workspaceRef: workspaceRef == null ? null : requiredString(workspaceRef, 'workspaceRef'),

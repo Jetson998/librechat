@@ -18,7 +18,7 @@ const request = {
     storage_session_id: 'session-1',
     file_id: 'input-1',
   }],
-  artifactPaths: ['/mnt/data/output/result.xlsx'],
+  artifactPaths: ['/mnt/data/.agent/runtime-item-1/output/result.xlsx'],
   timeoutMs: 20_000,
 };
 
@@ -64,9 +64,10 @@ test('maps Runtime execution to the LibreChat CodeAPI protocol and returns one X
     stdout: 'done',
     stderr: '',
     artifacts: [{
-      name: 'output/result.xlsx',
+      name: 'result.xlsx',
       mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       codeEnvRef: {
+        resource_id: 'test-user',
         storage_session_id: 'session-1',
         file_id: 'output-1',
       },
@@ -103,6 +104,18 @@ test('fails closed when the requested artifact is absent or ambiguous', async ()
       ],
     }), { status: 200 })).execute(request),
     ExecutorProtocolError,
+  );
+});
+
+test('rejects a published artifact from a different resource', async () => {
+  await assert.rejects(
+    transport(async () => new Response(JSON.stringify({
+      stdout: '',
+      stderr: '',
+      session_id: 'session-1',
+      files: [{ id: 'output-1', name: 'result.xlsx', resource_id: 'different-user' }],
+    }), { status: 200 })).execute(request),
+    /artifact resource identity does not match/u,
   );
 });
 

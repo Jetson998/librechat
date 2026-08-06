@@ -1,8 +1,14 @@
 import { readFile } from 'node:fs/promises';
 
+import { digestJson } from './stable.js';
+
 const SUPPORTED_PROTOCOLS = new Set(['openai-compatible', 'anthropic-messages']);
 const ROUTE_REF = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/u;
 const ENDPOINT_ID = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}$/u;
+const PRODUCTION_ROUTE_REF = 'custom:Muskapis-openai';
+const PRODUCTION_PROVIDER_ENDPOINT = 'Muskapis-openai';
+const PRODUCTION_PROTOCOL = 'openai-compatible';
+const PRODUCTION_ALLOWED_MODELS = Object.freeze(['gpt-5.6-sol', 'claude-fable-5']);
 
 export class ProviderRouteRegistryError extends Error {
   constructor(message, code = 'PROVIDER_ROUTE_REGISTRY_INVALID') {
@@ -123,7 +129,59 @@ export function resolveProviderRoute({ registry, librechatEndpoint, model }) {
       'PROVIDER_MODEL_NOT_ALLOWLISTED',
     );
   }
-  return Object.freeze({ ...route, providerModel });
+  return Object.freeze({
+    ...route,
+    providerModel,
+    routeConfigDigest: providerRouteConfigDigest(normalized),
+  });
+}
+
+function publicRouteConfig(registry) {
+  const normalized = normalizeProviderRouteMap(registry);
+  return {
+    schemaVersion: normalized.schemaVersion,
+    routes: normalized.routes
+      .map((route) => ({
+        librechatEndpoint: route.librechatEndpoint,
+        providerRouteRef: route.providerRouteRef,
+        providerEndpoint: route.providerEndpoint,
+        protocol: route.protocol,
+        allowedModels: [...route.allowedModels].sort(),
+      }))
+      .sort((left, right) => left.providerRouteRef.localeCompare(right.providerRouteRef)),
+  };
+}
+
+export function providerRouteConfigDigest(registry) {
+  return digestJson(publicRouteConfig(registry));
+}
+
+export function validateProductionProviderRouteMap(registry) {
+  const normalized = normalizeProviderRouteMap(registry);
+  if (normalized.routes.length !== 1) {
+    throw new ProviderRouteRegistryError(
+      'Production provider route map must contain exactly one route',
+      'PROVIDER_ROUTE_PRODUCTION_CONTRACT_INVALID',
+    );
+  }
+  const [route] = normalized.routes;
+  if (
+    route.librechatEndpoint !== PRODUCTION_PROVIDER_ENDPOINT ||
+    route.providerRouteRef !== PRODUCTION_ROUTE_REF ||
+    route.providerEndpoint !== PRODUCTION_PROVIDER_ENDPOINT ||
+    route.protocol !== PRODUCTION_PROTOCOL ||
+    route.allowedModels.length !== PRODUCTION_ALLOWED_MODELS.length ||
+    route.allowedModels.some((model) => !PRODUCTION_ALLOWED_MODELS.includes(model))
+  ) {
+    throw new ProviderRouteRegistryError(
+      'Production provider route map does not match the fixed File Agent route contract',
+      'PROVIDER_ROUTE_PRODUCTION_CONTRACT_INVALID',
+    );
+  }
+  return Object.freeze({
+    ...normalized,
+    routeConfigDigest: providerRouteConfigDigest(normalized),
+  });
 }
 
 export function providerRouteIdentity(route) {
@@ -135,7 +193,14 @@ export function providerRouteIdentity(route) {
     providerEndpoint: route.providerEndpoint,
     providerModel: route.providerModel,
     providerProtocol: route.protocol ?? route.providerProtocol,
+    ...(route.routeConfigDigest ? { routeConfigDigest: route.routeConfigDigest } : {}),
   };
 }
 
-export { SUPPORTED_PROTOCOLS };
+export {
+  PRODUCTION_ALLOWED_MODELS,
+  PRODUCTION_PROVIDER_ENDPOINT,
+  PRODUCTION_PROTOCOL,
+  PRODUCTION_ROUTE_REF,
+  SUPPORTED_PROTOCOLS,
+};

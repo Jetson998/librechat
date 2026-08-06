@@ -28,6 +28,7 @@ function attachment(overrides = {}) {
       codeEnvRef: {
         kind: 'user',
         id: 'user-1',
+        resource_id: 'resource-1',
         storage_session_id: 'storage-session-1',
         file_id: 'codeapi-file-1',
       },
@@ -75,6 +76,7 @@ test('upstream request resolver uses initialized current-request attachments', a
   assert.equal(request.sessionId, 'storage-session-1');
   assert.equal(request.files.length, 1);
   assert.deepEqual(request.files[0].codeEnvRef, {
+    resource_id: 'resource-1',
     storage_session_id: 'storage-session-1',
     file_id: 'codeapi-file-1',
   });
@@ -391,6 +393,7 @@ test('different CodeAPI storage sessions are rejected before persistence', async
       codeEnvRef: {
         kind: 'user',
         id: 'user-1',
+        resource_id: 'resource-2',
         storage_session_id: 'storage-session-2',
         file_id: 'codeapi-file-2',
       },

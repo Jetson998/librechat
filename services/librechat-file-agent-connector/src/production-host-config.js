@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { loadProviderRouteMap } from './provider-route-registry.js';
+import {
+  loadProviderRouteMap,
+  validateProductionProviderRouteMap,
+} from './provider-route-registry.js';
 
 const DEFAULTS = Object.freeze({
   connectorRoot: '/opt/librechat/file-agent-runtime/connector',
@@ -171,6 +174,19 @@ export async function loadProductionHostConfig({
     return Object.freeze({ enabled: false });
   }
 
+  let providerRouteRegistry;
+  try {
+    providerRouteRegistry = validateProductionProviderRouteMap(await loadProviderRouteMap({
+      filePath: absolutePath(environment, 'FILE_AGENT_PROVIDER_ROUTE_MAP_FILE', null),
+      readTextFile,
+    }));
+  } catch (error) {
+    if (error instanceof ProductionHostConfigError) {
+      throw error;
+    }
+    throw new ProductionHostConfigError('FILE_AGENT_PROVIDER_ROUTE_MAP_FILE');
+  }
+
   return deepFreeze({
     enabled: true,
     connectorRoot: absolutePath(
@@ -180,12 +196,8 @@ export async function loadProductionHostConfig({
     ),
     runtimeBaseUrl: runtimeBaseUrl(environment),
     modelRouteId: routeId(environment),
-    providerRouteRegistry: await loadProviderRouteMap({
-      filePath: absolutePath(environment, 'FILE_AGENT_PROVIDER_ROUTE_MAP_FILE', null),
-      readTextFile,
-    }).catch(() => {
-      throw new ProductionHostConfigError('FILE_AGENT_PROVIDER_ROUTE_MAP_FILE');
-    }),
+    providerRouteRegistry,
+    routeConfigDigest: providerRouteRegistry.routeConfigDigest,
     serviceScopeSecret: await requiredSecret(
       environment,
       'FILE_AGENT_SERVICE_SCOPE_SECRET_FILE',

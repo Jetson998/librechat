@@ -43,6 +43,7 @@ function normalizeFile(file, { conversationId, sessionId, userId }) {
     codeEnvRef: {
       kind: 'user',
       id: opaqueRef('user', userId),
+      resource_id: requiredString(codeEnvRef.resource_id ?? userId, 'file.codeEnvRef.resource_id'),
       storage_session_id: sessionId,
       file_id: codeEnvRef.file_id.trim(),
     },
@@ -64,6 +65,7 @@ export function buildTaskSubmission({
   providerEndpoint = null,
   providerModel = null,
   providerProtocol = null,
+  routeConfigDigest = null,
   billingSnapshotRef,
   capabilityProfile = DEFAULT_CAPABILITY_PROFILE,
   taskContractVersion = capabilityProfile === WORD_CAPABILITY_PROFILE
@@ -86,7 +88,13 @@ export function buildTaskSubmission({
   sessionId = requiredString(sessionId, 'sessionId');
   modelRouteId = requiredString(modelRouteId, 'modelRouteId');
   billingSnapshotRef = requiredString(billingSnapshotRef, 'billingSnapshotRef');
-  const providerIdentity = [providerRouteRef, providerEndpoint, providerModel, providerProtocol];
+  const providerIdentity = [
+    providerRouteRef,
+    providerEndpoint,
+    providerModel,
+    providerProtocol,
+    routeConfigDigest,
+  ];
   if (providerIdentity.some((value) => value != null) && providerIdentity.some((value) => value == null)) {
     throw new TypeError('Provider route identity must be complete');
   }
@@ -95,6 +103,7 @@ export function buildTaskSubmission({
     [providerEndpoint, 'providerEndpoint'],
     [providerModel, 'providerModel'],
     [providerProtocol, 'providerProtocol'],
+    [routeConfigDigest, 'routeConfigDigest'],
   ]) {
     if (value != null) {
       requiredString(value, name);
@@ -193,6 +202,7 @@ export function buildTaskSubmission({
     providerEndpoint ?? '',
     providerModel ?? '',
     providerProtocol ?? '',
+    routeConfigDigest ?? '',
   ].join('\0'));
   const manifest = {
     schemaVersion: '1.0',
@@ -215,7 +225,13 @@ export function buildTaskSubmission({
       modelRouteId,
       capabilityProfile,
       ...(providerRouteRef
-        ? { providerRouteRef, providerEndpoint, providerModel, providerProtocol }
+        ? {
+            providerRouteRef,
+            providerEndpoint,
+            providerModel,
+            providerProtocol,
+            routeConfigDigest,
+          }
         : {}),
     },
     billingRef: billingSnapshotRef,

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { CodeApiHttpTransport } from './codeapi-transport.js';
+import { LibreChatCodeApiTransport } from './librechat-codeapi-transport.js';
 import { ContextProjector } from './context-projector.js';
 import { CodeApiOfficeComposeV1Executor } from './deterministic-office-compose-v1.js';
 import { CodeApiPptxV1Executor, PPTX_MIME } from './deterministic-pptx-v1.js';
@@ -64,6 +64,14 @@ function closeServer(server) {
   });
 }
 
+export function createProductionCodeApiTransport(codeApi) {
+  requiredConfig(codeApi, 'baseUrl');
+  return new LibreChatCodeApiTransport({
+    baseUrl: codeApi.baseUrl,
+    timeoutMs: codeApi.timeoutMs,
+  });
+}
+
 /** Creates the multi-capability production Runtime without starting a network listener. */
 export function createProductionRuntime(config, { store = null, journal = null } = {}) {
   requiredConfig(config, 'dataDir');
@@ -89,10 +97,7 @@ export function createProductionRuntime(config, { store = null, journal = null }
     journal: providerJournal,
     projector: new ContextProjector({ maxChars: config.maxContextChars }),
   });
-  const transport = new CodeApiHttpTransport({
-    baseUrl: codeApi.baseUrl,
-    timeoutMs: codeApi.timeoutMs,
-  });
+  const transport = createProductionCodeApiTransport(codeApi);
   const executor = new CodeApiOfficeExecutor({
     wordExecutor: new CodeApiWordExecutor({ transport, timeoutMs: codeApi.timeoutMs }),
     xlsxExecutor: new CodeApiXlsxV1Executor({ transport, timeoutMs: codeApi.timeoutMs }),

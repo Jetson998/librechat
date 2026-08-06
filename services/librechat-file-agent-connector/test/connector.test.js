@@ -159,6 +159,7 @@ function request(overrides = {}) {
         conversationId: 'conversation-1',
         ownershipVerified: true,
         codeEnvRef: {
+          resource_id: 'resource-1',
           storage_session_id: 'phase3a-session',
           file_id: 'codeapi-source-1',
         },

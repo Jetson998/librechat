@@ -925,6 +925,7 @@ export class SingleModelAgentProvider {
     const providerModel = model.providerModel ?? route.model;
     const providerProtocol = model.providerProtocol ?? route.protocol ?? 'openai-compatible';
     const providerEndpoint = model.providerEndpoint ?? route.providerEndpoint ?? null;
+    const routeConfigDigest = model.routeConfigDigest ?? null;
     if (typeof route.baseUrl !== 'string' || typeof providerModel !== 'string' || !Number.isInteger(route.outputBudgetTokens)) {
       throw new ProviderRouteError(`Model route is incomplete: ${routeId}`);
     }
@@ -936,6 +937,12 @@ export class SingleModelAgentProvider {
     }
     if (route.providerEndpoint && route.providerEndpoint !== providerEndpoint) {
       throw new ProviderRouteError('Task provider endpoint does not match the configured route');
+    }
+    if (routeConfigDigest != null && route.routeConfigDigest !== routeConfigDigest) {
+      throw new ProviderRouteError('Task provider route configuration digest does not match the Runtime registry');
+    }
+    if (providerRouteRef && (routeConfigDigest == null || route.routeConfigDigest == null)) {
+      throw new ProviderRouteError('Dynamic provider routes require a route configuration digest');
     }
     const effectiveRoute = {
       ...route,
@@ -956,6 +963,7 @@ export class SingleModelAgentProvider {
       providerEndpoint,
       providerModel,
       providerProtocol,
+      routeConfigDigest,
       contextDigest: projection.digest,
     }));
     const journalState = await this.journal.begin({
@@ -985,6 +993,11 @@ export class SingleModelAgentProvider {
       context: projection.context,
       signal,
     });
+    if (response.providerModel !== providerModel) {
+      throw new ProviderProtocolError(
+        `Provider response model ${response.providerModel ?? 'missing'} does not match requested model ${providerModel}`,
+      );
+    }
     const occurredAt = new Date().toISOString();
     const call = {
       callId,
@@ -993,6 +1006,9 @@ export class SingleModelAgentProvider {
       providerRouteRef: providerRouteRef ?? route.providerRouteRef ?? null,
       providerEndpoint: providerEndpoint ?? route.providerEndpoint ?? null,
       providerProtocol,
+      routeConfigDigest,
+      requestedModel: providerModel,
+      actualModel: response.providerModel,
       replayed: journalState.replay === true,
     };
     const usage = { ...response.usage, occurredAt };

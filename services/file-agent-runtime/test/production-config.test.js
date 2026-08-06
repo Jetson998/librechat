@@ -23,11 +23,12 @@ async function withSecretFiles(run) {
     await writeFile(routesPath, JSON.stringify({
       schemaVersion: 1,
       routes: [{
-        providerRouteRef: 'custom:test-openai',
-        providerEndpoint: 'test-openai',
+        librechatEndpoint: 'Muskapis-openai',
+        providerRouteRef: 'custom:Muskapis-openai',
+        providerEndpoint: 'Muskapis-openai',
         baseUrl: 'https://model-relay.example.test/v1',
         protocol: 'openai-compatible',
-        allowedModels: ['word-planner'],
+        allowedModels: ['gpt-5.6-sol', 'claude-fable-5'],
         apiKeyFile: modelPath,
       }],
     }), 'utf8');
@@ -54,8 +55,8 @@ test('production config reads secret files and constrains the Runtime to its pri
     assert.equal(config.port, 8790);
     assert.equal(config.dataDir, path.join(files.root, 'runtime-data'));
     assert.equal(config.codeApi.baseUrl, 'http://codeapi:8000');
-    assert.equal(config.providerRoutes[0].providerRouteRef, 'custom:test-openai');
-    assert.equal(config.providerRoutes[0].providerEndpoint, 'test-openai');
+    assert.equal(config.providerRoutes[0].providerRouteRef, 'custom:Muskapis-openai');
+    assert.equal(config.providerRoutes[0].providerEndpoint, 'Muskapis-openai');
     assert.equal(config.providerRoutes[0].protocol, 'openai-compatible');
     assert.equal(config.serviceScope.secret, SERVICE_SCOPE_SECRET);
     assert.equal(config.providerRoutes[0].apiKey, MODEL_API_KEY);

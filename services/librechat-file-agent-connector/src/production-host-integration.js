@@ -332,6 +332,9 @@ export async function startProductionLibreChatHostIntegration({
         }),
       },
     });
+    if (app.locals.fileAgentRuntimeBridge !== host.bridge || typeof host.bridge?.tryRoute !== 'function') {
+      throw new Error('Production File Agent bridge was not installed on the LibreChat app');
+    }
     if (registerShutdownTask) {
       registerShutdownTask('file agent Runtime host', host.stop);
     }

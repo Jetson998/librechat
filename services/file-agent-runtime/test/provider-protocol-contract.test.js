@@ -4,8 +4,10 @@ import test from 'node:test';
 import {
   AnthropicMessagesTransport,
   OpenAiChatTransport,
+  ProviderProtocolTransport,
   SingleModelAgentProvider,
 } from '../src/openai-compatible-provider.js';
+import { providerRouteConfigDigest } from '../src/provider-route-registry.js';
 
 function response(body, status = 200) {
   return {
@@ -79,18 +81,20 @@ test('Anthropic transport uses Messages API and explicit Anthropic headers', asy
 
 test('SingleModelAgentProvider resolves the task route identity instead of a fixed model', async () => {
   let invokedRoute;
+  const route = {
+    providerRouteRef: 'custom:Muskapis-openai',
+    providerEndpoint: 'Muskapis-openai',
+    baseUrl: 'https://api.example.test/v1',
+    protocol: 'openai-compatible',
+    allowedModels: ['gpt-5.6-sol'],
+    apiKey: 'secret',
+    outputBudgetTokens: 500,
+    supportsIdempotency: false,
+  };
+  const routeConfigDigestValue = providerRouteConfigDigest([route]);
   const provider = new SingleModelAgentProvider({
     routes: {
-      'custom:Muskapis-openai': {
-        providerRouteRef: 'custom:Muskapis-openai',
-        providerEndpoint: 'Muskapis-openai',
-        baseUrl: 'https://api.example.test/v1',
-        protocol: 'openai-compatible',
-        allowedModels: ['gpt-5.6-sol'],
-        apiKey: 'secret',
-        outputBudgetTokens: 500,
-        supportsIdempotency: false,
-      },
+      'custom:Muskapis-openai': { ...route, routeConfigDigest: routeConfigDigestValue },
     },
     transport: {
       async invoke({ route }) {
@@ -132,6 +136,7 @@ test('SingleModelAgentProvider resolves the task route identity instead of a fix
           providerEndpoint: 'Muskapis-openai',
           providerModel: 'gpt-5.6-sol',
           providerProtocol: 'openai-compatible',
+          routeConfigDigest: routeConfigDigestValue,
         },
       },
     },
@@ -140,4 +145,134 @@ test('SingleModelAgentProvider resolves the task route identity instead of a fix
   assert.equal(invokedRoute.providerEndpoint, 'Muskapis-openai');
   assert.equal(result.call.providerRouteRef, 'custom:Muskapis-openai');
   assert.equal(result.call.providerProtocol, 'openai-compatible');
+});
+
+test('production route contract sends both allowlisted models through one OpenAI-compatible relay', async () => {
+  const routes = [{
+    librechatEndpoint: 'Muskapis-openai',
+    providerRouteRef: 'custom:Muskapis-openai',
+    providerEndpoint: 'Muskapis-openai',
+    baseUrl: 'https://relay.example.test/v1',
+    protocol: 'openai-compatible',
+    allowedModels: ['gpt-5.6-sol', 'claude-fable-5'],
+    apiKey: 'test-secret',
+    outputBudgetTokens: 500,
+    supportsIdempotency: false,
+  }];
+  const routeConfigDigestValue = providerRouteConfigDigest(routes);
+  const observedModels = [];
+  const provider = new SingleModelAgentProvider({
+    routes: { 'custom:Muskapis-openai': { ...routes[0], routeConfigDigest: routeConfigDigestValue } },
+    transport: new ProviderProtocolTransport({
+      fetchImpl: async (_url, options) => {
+        const body = JSON.parse(options.body);
+        observedModels.push(body.model);
+        return response({
+          model: body.model,
+          choices: [{ message: { content: '{"schemaVersion":"1.0","summary":"clarify","needsInput":true,"question":"clarify","actions":[]}' } }],
+          usage: { prompt_tokens: 2, completion_tokens: 3 },
+        });
+      },
+    }),
+    journal: {
+      async begin() { return { action: 'new' }; },
+      async completeValid({ result }) { return result; },
+      async completeInvalid() { throw new Error('not expected'); },
+    },
+    projector: { project: () => ({ context: {}, digest: 'context-digest', characters: 0 }) },
+  });
+
+  for (const [index, model] of ['gpt-5.6-sol', 'claude-fable-5'].entries()) {
+    const result = await provider.plan({
+      callId: `production-route-${index}`,
+      task: {
+        manifest: {
+          model: {
+            modelRouteId: 'file-agent-primary',
+            capabilityProfile: 'word-edit-v1',
+            providerRouteRef: 'custom:Muskapis-openai',
+            providerEndpoint: 'Muskapis-openai',
+            providerModel: model,
+            providerProtocol: 'openai-compatible',
+            routeConfigDigest: routeConfigDigestValue,
+          },
+        },
+      },
+    });
+    assert.equal(result.call.requestedModel, model);
+    assert.equal(result.call.actualModel, model);
+    assert.equal(result.call.routeConfigDigest, routeConfigDigestValue);
+  }
+  assert.deepEqual(observedModels, ['gpt-5.6-sol', 'claude-fable-5']);
+  await assert.rejects(
+    provider.plan({
+      callId: 'production-route-rejected',
+      task: {
+        manifest: {
+          model: {
+            modelRouteId: 'file-agent-primary',
+            capabilityProfile: 'word-edit-v1',
+            providerRouteRef: 'custom:Muskapis-openai',
+            providerEndpoint: 'Muskapis-openai',
+            providerModel: 'unsupported-model',
+            providerProtocol: 'openai-compatible',
+            routeConfigDigest: routeConfigDigestValue,
+          },
+        },
+      },
+    }),
+    /Provider model is not allowed/u,
+  );
+});
+
+test('provider fails closed when the relay reports an actual model different from the requested model', async () => {
+  const routes = [{
+    librechatEndpoint: 'Muskapis-openai',
+    providerRouteRef: 'custom:Muskapis-openai',
+    providerEndpoint: 'Muskapis-openai',
+    baseUrl: 'https://relay.example.test/v1',
+    protocol: 'openai-compatible',
+    allowedModels: ['gpt-5.6-sol', 'claude-fable-5'],
+    apiKey: 'test-secret',
+    outputBudgetTokens: 500,
+    supportsIdempotency: false,
+  }];
+  const routeConfigDigestValue = providerRouteConfigDigest(routes);
+  const provider = new SingleModelAgentProvider({
+    routes: { 'custom:Muskapis-openai': { ...routes[0], routeConfigDigest: routeConfigDigestValue } },
+    transport: {
+      async invoke() {
+        return {
+          plan: { schemaVersion: '1.0', summary: 'clarify', needsInput: true, question: 'clarify', actions: [] },
+          providerModel: 'gpt-5.6-sol',
+          usage: { inputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 1 },
+        };
+      },
+    },
+    journal: {
+      async begin() { return { action: 'new' }; },
+      async completeValid({ result }) { return result; },
+      async completeInvalid() { throw new Error('not expected'); },
+    },
+    projector: { project: () => ({ context: {}, digest: 'context-digest', characters: 0 }) },
+  });
+  await assert.rejects(
+    provider.plan({
+      callId: 'production-route-model-mismatch',
+      task: {
+        manifest: {
+          model: {
+            modelRouteId: 'file-agent-primary',
+            capabilityProfile: 'word-edit-v1',
+            providerRouteRef: 'custom:Muskapis-openai',
+            providerEndpoint: 'Muskapis-openai',
+            providerModel: 'claude-fable-5',
+            providerProtocol: 'openai-compatible',
+            routeConfigDigest: routeConfigDigestValue,
+          },
+        },
+      },
+    }),
+    /does not match requested model/u,
+  );
 });

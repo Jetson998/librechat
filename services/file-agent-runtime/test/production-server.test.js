@@ -6,15 +6,25 @@ import test from 'node:test';
 
 import {
   PRODUCTION_RUNTIME_CAPABILITIES,
+  createProductionCodeApiTransport,
   createProductionRuntime,
   createProductionRuntimeServer,
 } from '../src/production-server.js';
+import { LibreChatCodeApiTransport } from '../src/librechat-codeapi-transport.js';
 import { validateTaskManifest } from '../src/runtime.js';
 import {
   ServiceScopeSigner,
 } from '../../librechat-file-agent-connector/src/service-scope.js';
 
 const SERVICE_SCOPE_SECRET = 'file-agent-production-runtime-test-secret-0123456789';
+
+test('production Runtime constructs the real LibreChat CodeAPI /exec transport', () => {
+  const transport = createProductionCodeApiTransport({
+    baseUrl: 'http://codeapi:8000',
+    timeoutMs: 120_000,
+  });
+  assert.ok(transport instanceof LibreChatCodeApiTransport);
+});
 
 function config(dataDir) {
   return {

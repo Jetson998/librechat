@@ -42,6 +42,7 @@ function buildTurnDescriptor({
     ...normalizedIdentifiers,
     instructionId: normalizedInstructionId,
     instruction: normalizedInstruction,
+    routeConfigDigest: activeTask.routeConfigDigest ?? null,
     inputRebind,
   }));
   const manifest = {
@@ -69,6 +70,7 @@ function buildTurnDescriptor({
           providerEndpoint: activeTask.providerEndpoint,
           providerModel: activeTask.providerModel,
           providerProtocol: activeTask.providerProtocol,
+          routeConfigDigest: activeTask.routeConfigDigest,
         }
       : {}),
     allowedOutputMimeTypes: clone(activeTask.allowedOutputMimeTypes ?? []),
@@ -159,6 +161,7 @@ function normalizeRebindInputs(activeTask, files, userId, conversationId) {
         ...clone(original.codeEnvRef),
         kind: 'user',
         id: original.codeEnvRef?.id ?? opaqueRef('user', userId),
+        resource_id: original.codeEnvRef?.resource_id ?? userId,
         storage_session_id: codeEnvRef.storage_session_id.trim(),
         file_id: codeEnvRef.file_id.trim(),
       },

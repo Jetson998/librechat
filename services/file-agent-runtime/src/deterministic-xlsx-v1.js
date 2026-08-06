@@ -122,6 +122,7 @@ function resolveXlsxContract(task) {
     outputPath: `${workspaceRoot}/output/working.xlsx`,
     injectedFiles: [{
       name: filename,
+      resource_id: codeEnvRef.resource_id,
       storage_session_id: codeEnvRef.storage_session_id,
       file_id: codeEnvRef.file_id,
     }],

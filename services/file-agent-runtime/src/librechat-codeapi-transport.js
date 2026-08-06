@@ -85,11 +85,19 @@ function normalizeOutputFiles(value, request, responseSessionId) {
     relativeName: artifactPath.replace(/^\/mnt\/data\//, ''),
     basename: path.posix.basename(artifactPath),
   }));
+  const requestedResourceIds = new Set(
+    (request.injectedFiles ?? [])
+      .map((entry) => entry.resource_id ?? entry.resourceId)
+      .filter(Boolean),
+  );
+  const defaultResourceId = requestedResourceIds.size === 1
+    ? [...requestedResourceIds][0]
+    : null;
 
   return requested.map(({ artifactPath, relativeName, basename }) => {
     const matches = value.filter((file) => {
       const name = typeof file?.name === 'string' ? file.name.replace(/^\/mnt\/data\//, '') : '';
-      return name === relativeName || name === basename || file?.path === artifactPath;
+      return name === relativeName || path.posix.basename(name) === basename || file?.path === artifactPath;
     });
     if (matches.length !== 1) {
       throw new ExecutorProtocolError(
@@ -97,15 +105,20 @@ function normalizeOutputFiles(value, request, responseSessionId) {
       );
     }
     const file = matches[0];
+    const resourceId = file.resource_id ?? file.resourceId ?? defaultResourceId;
+    if (resourceId == null || !requestedResourceIds.has(resourceId)) {
+      throw new ExecutorProtocolError('LibreChat CodeAPI artifact resource identity does not match the task input');
+    }
     const fileId = requiredString(file.id ?? file.file_id ?? file.fileId, 'artifact file id');
     const storageSessionId = requiredString(
       file.storage_session_id ?? file.session_id ?? responseSessionId ?? request.sessionId,
       'artifact storage session id',
     );
     return {
-      name: relativeName,
+      name: basename,
       mimeType: mimeTypeFor(relativeName),
       codeEnvRef: {
+        resource_id: resourceId,
         storage_session_id: storageSessionId,
         file_id: fileId,
       },
@@ -118,7 +131,7 @@ export class LibreChatCodeApiTransport {
     baseUrl,
     headers = {},
     resourceKind = 'user',
-    resourceId,
+    resourceId = null,
     fetchImpl = globalThis.fetch,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   }) {
@@ -131,7 +144,7 @@ export class LibreChatCodeApiTransport {
     this.baseUrl = normalizeBaseUrl(baseUrl);
     this.headers = { ...headers };
     this.resourceKind = requiredString(resourceKind, 'LibreChat CodeAPI resourceKind');
-    this.resourceId = requiredString(resourceId, 'LibreChat CodeAPI resourceId');
+    this.resourceId = resourceId == null ? null : requiredString(resourceId, 'LibreChat CodeAPI resourceId');
     this.fetchImpl = fetchImpl;
     this.timeoutMs = timeoutMs;
   }
@@ -141,6 +154,7 @@ export class LibreChatCodeApiTransport {
       throw new TypeError('LibreChat CodeAPI execute request must be an object');
     }
     const sessionId = requiredString(request.sessionId, 'CodeAPI request sessionId');
+    const itemId = requiredString(request.itemId, 'CodeAPI request itemId');
     const command = requiredString(request.command, 'CodeAPI request command');
     const timeoutMs = request.timeoutMs ?? this.timeoutMs;
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > this.timeoutMs) {
@@ -156,6 +170,15 @@ export class LibreChatCodeApiTransport {
         resourceId: this.resourceId,
       }),
     );
+    if (files.length === 0) {
+      throw new ExecutorProtocolError('LibreChat CodeAPI requires at least one task input file');
+    }
+    const taskId = itemId.split(':', 1)[0];
+    if (!taskId || (request.artifactPaths ?? []).some((artifactPath) => (
+      typeof artifactPath !== 'string' || !artifactPath.startsWith(`/mnt/data/.agent/${taskId}/`)
+    ))) {
+      throw new ExecutorProtocolError('LibreChat CodeAPI artifact path is outside the task workspace');
+    }
 
     let response;
     try {
@@ -230,7 +253,11 @@ export class LibreChatCodeApiTransport {
       exitCode,
       stdout,
       stderr,
-      artifacts: normalizeOutputFiles(value.files, request, value.session_id),
+      artifacts: normalizeOutputFiles(
+        value.files,
+        { ...request, injectedFiles: files },
+        value.session_id,
+      ),
       replayed: false,
     };
   }

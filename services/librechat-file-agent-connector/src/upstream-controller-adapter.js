@@ -437,6 +437,10 @@ export function createUpstreamRuntimeRequestResolver({
           conversationId: requiredString(context.conversationId, 'conversationId'),
           ownershipVerified: true,
           codeEnvRef: {
+            resource_id: requiredString(
+              valueString(file.metadata.codeEnvRef.resource_id) ?? userId,
+              'file.codeEnvRef.resource_id',
+            ),
             storage_session_id: requiredString(
               valueString(file.metadata.codeEnvRef.storage_session_id),
               'file.codeEnvRef.storage_session_id',
@@ -495,6 +499,7 @@ export function createUpstreamRuntimeRequestResolver({
             providerEndpoint: providerRoute.providerEndpoint,
             providerModel: providerRoute.providerModel,
             providerProtocol: providerRoute.protocol,
+            routeConfigDigest: providerRoute.routeConfigDigest,
           }
         : {}),
       capabilityProfile: resolvedCapabilityProfile,
@@ -566,9 +571,15 @@ export function createUpstreamBillingSnapshotCreator({
     const providerEndpoint = request.providerEndpoint ?? endpoint;
     const providerModel = request.providerModel ?? model;
     const providerProtocol = request.providerProtocol ?? null;
+    const routeConfigDigest = request.routeConfigDigest ?? null;
     if (
       providerRouteRef != null &&
-      (providerEndpoint == null || providerModel !== model || providerProtocol == null)
+      (
+        providerEndpoint == null ||
+        providerModel !== model ||
+        providerProtocol == null ||
+        routeConfigDigest == null
+      )
     ) {
       throw new Error('Resolved provider route identity does not match the selected LibreChat model');
     }
@@ -597,7 +608,15 @@ export function createUpstreamBillingSnapshotCreator({
       endpoint,
       model,
       ...(providerRouteRef
-        ? { providerRouteRef, providerEndpoint, providerModel, providerProtocol }
+        ? {
+            providerRouteRef,
+            providerEndpoint,
+            providerModel,
+            providerProtocol,
+            routeConfigDigest,
+            requestedModel: model,
+            actualModel: providerModel,
+          }
         : {}),
       prices,
       pricing: { source: 'resolved-librechat-native-v1' },
