@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260807-empty-response-runtime-fix/artifacts/20260807-empty-response-runtime-fix-a927512aef23.tar.gz",
+      "artifact": ".release-state/20260807-empty-response-runtime-fix/artifacts/20260807-empty-response-runtime-fix-a1932fac7858.tar.gz",
       "manifest": ".release-state/20260807-empty-response-runtime-fix/artifacts/manifest.json",
-      "value": "526ed5376406684e763b8ed6f6ea13cf240424b380a682375cf5337fca14b6f9"
+      "value": "6220fea42aa4d1a8d03ec1e6ca295a7bf11679599e6b5369f1d94fe57fcf09a6"
     },
     "status": "passed"
   },
@@ -36,7 +36,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "526ed5376406684e763b8ed6f6ea13cf240424b380a682375cf5337fca14b6f9",
+    "artifact_sha256": "6220fea42aa4d1a8d03ec1e6ca295a7bf11679599e6b5369f1d94fe57fcf09a6",
     "build_environment": "independent-build",
     "completed_requirements": [
       "api-artifact",
@@ -67,9 +67,9 @@
     },
     "production_host": false,
     "provider": "local independent source overlay build",
-    "release_plan_sha256": "f0e8866c46699d203b998d29b0050cb09d517e072f15f2c9732f75b7b6ea868e",
+    "release_plan_sha256": "7dda7289d0098b2d02c30bbce4a18bb5e30885b92b12b99a4d42f1a5061572c9",
     "schema_version": 1,
-    "source_revision": "a927512aef232002baa4085397711bb54af8dab8",
+    "source_revision": "a1932fac7858ba4ce983027d718ca8434fa7f079",
     "status": "passed"
   },
   "change_summary": {
@@ -141,7 +141,7 @@
         "release-scope-tests"
       ]
     },
-    "sha256": "f0e8866c46699d203b998d29b0050cb09d517e072f15f2c9732f75b7b6ea868e"
+    "sha256": "7dda7289d0098b2d02c30bbce4a18bb5e30885b92b12b99a4d42f1a5061572c9"
   },
   "rollback_reference": {
     "details": {
@@ -159,7 +159,7 @@
   "source_revision": "a1932fac7858ba4ce983027d718ca8434fa7f079",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-08-07T03:55:41Z",
+  "updated_at": "2026-08-07T05:12:05Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-diagnostic-events.js && node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-empty-response-runtime.js",
