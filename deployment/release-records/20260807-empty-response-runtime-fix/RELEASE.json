@@ -55,7 +55,7 @@
     ]
   },
   "created_at": "2026-08-07T03:21:15Z",
-  "mode": "protected",
+  "mode": "enhanced",
   "project_adapter": {
     "billable_model_request_allowed": true,
     "deploy_runner": "deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/deploy.sh",
