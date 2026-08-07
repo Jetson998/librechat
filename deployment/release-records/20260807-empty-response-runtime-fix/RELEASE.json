@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260807-empty-response-runtime-fix/artifacts/20260807-empty-response-runtime-fix-d4ff4a4c6f6a.tar.gz",
+      "artifact": ".release-state/20260807-empty-response-runtime-fix/artifacts/20260807-empty-response-runtime-fix-a927512aef23.tar.gz",
       "manifest": ".release-state/20260807-empty-response-runtime-fix/artifacts/manifest.json",
-      "value": "41702a62cc43708b64aef639b0aef033c0c7bda6745cf88565b19b23a82fd8dc"
+      "value": "526ed5376406684e763b8ed6f6ea13cf240424b380a682375cf5337fca14b6f9"
     },
     "status": "passed"
   },
@@ -36,7 +36,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "41702a62cc43708b64aef639b0aef033c0c7bda6745cf88565b19b23a82fd8dc",
+    "artifact_sha256": "526ed5376406684e763b8ed6f6ea13cf240424b380a682375cf5337fca14b6f9",
     "build_environment": "independent-build",
     "completed_requirements": [
       "api-artifact",
@@ -67,9 +67,9 @@
     },
     "production_host": false,
     "provider": "local independent source overlay build",
-    "release_plan_sha256": "550150a34cebeffd144e3b8c1205f2b9c8cbe7202c940974da1a14b303a9b8fc",
+    "release_plan_sha256": "f0e8866c46699d203b998d29b0050cb09d517e072f15f2c9732f75b7b6ea868e",
     "schema_version": 1,
-    "source_revision": "d4ff4a4c6f6aeb58499792c1f884022ae08d278c",
+    "source_revision": "a927512aef232002baa4085397711bb54af8dab8",
     "status": "passed"
   },
   "change_summary": {
@@ -128,7 +128,9 @@
         "LibreChat-NGINX",
         "chat-mongodb"
       ],
-      "deployment_targets": ["LibreChat-API"],
+      "deployment_targets": [
+        "LibreChat-API"
+      ],
       "minimum_mode": "enhanced",
       "preflight_evidence": ".release-state/20260807-empty-response-runtime-fix/runtime-preflight.json",
       "test_requirements": [
@@ -139,7 +141,7 @@
         "release-scope-tests"
       ]
     },
-    "sha256": "550150a34cebeffd144e3b8c1205f2b9c8cbe7202c940974da1a14b303a9b8fc"
+    "sha256": "f0e8866c46699d203b998d29b0050cb09d517e072f15f2c9732f75b7b6ea868e"
   },
   "rollback_reference": {
     "details": {
@@ -157,7 +159,7 @@
   "source_revision": "a927512aef232002baa4085397711bb54af8dab8",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-08-07T03:42:17Z",
+  "updated_at": "2026-08-07T03:55:41Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-diagnostic-events.js && node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-empty-response-runtime.js",
