@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "batch_id": "2026-08-07-empty-response-runtime-fix",
+  "status": "development_only",
+  "release_actions_performed": [],
+  "targets": [
+    {
+      "source": "client/overlay/BaseClient.js",
+      "destination": "/app/api/app/clients/BaseClient.js",
+      "baseline_sha256": "5675ea2a03db9f77a76816fb2605ffe0e3520dc998005987ab1c791bc6e38060",
+      "candidate_sha256": "bca91346ada898b5653c9475024484642973f782fb93bbd4a84d4621b14bee26",
+      "bytes": 61417
+    },
+    {
+      "source": "backend/overlay/api/server/controllers/agents/request.js",
+      "destination": "/app/api/server/controllers/agents/request.js",
+      "baseline_sha256": "7e0f1915530b90addd4424ff0dce128af98ad86037bef8fa1aeb4db03f1dc3e9",
+      "candidate_sha256": "de3942138a148faf50abc8a041d94008df33c02371a6d2908dfa7d593b388446",
+      "bytes": 64113
+    },
+    {
+      "source": "backend/overlay/api/server/controllers/agents/InitializationFailure.js",
+      "destination": "/app/api/server/controllers/agents/InitializationFailure.js",
+      "baseline_sha256": "547bd84e25b136148cd12582e900c6b41ab85170b909b01bd14a7c37b0e78abd",
+      "candidate_sha256": "8a8a4eaedadc6fff343618e0f6fb333768eca87da76680c43ac3964bc00e6881",
+      "bytes": 3801
+    },
+    {
+      "source": "backend/overlay/api/server/services/DiagnosticEvents.js",
+      "destination": "/app/api/server/services/DiagnosticEvents.js",
+      "baseline_sha256": "c60f930fb6f24d5802c2249650d1557c4de4cbdfbbe09263cf05785be9467934",
+      "candidate_sha256": "7b9e45730138c8b7c2922c99afd8cc786db9a0ccab55c54fc15cd3edd280ae67",
+      "bytes": 20302
+    }
+  ],
+  "recreated_services": ["LibreChat-API"],
+  "protected_services": [
+    "LibreChat-CodeAPI",
+    "LibreChat-NGINX",
+    "LibreChat-RAG-API",
+    "chat-mongodb",
+    "LibreChat-Admin-Panel"
+  ],
+  "rollback": {
+    "scope": "LibreChat-API",
+    "method": "Restore the timestamp-matched compose.override.yaml backup and recreate only the api service.",
+    "data_mutation": false
+  },
+  "privacy": {
+    "response_shape_only": true,
+    "raw_response_persisted": false,
+    "prompt_file_and_secret_persisted": false
+  }
+}
