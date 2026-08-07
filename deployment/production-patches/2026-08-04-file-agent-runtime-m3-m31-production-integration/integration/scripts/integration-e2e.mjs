@@ -14,7 +14,9 @@ const relayPort = Number(process.env.INTEGRATION_FAKE_RELAY_PORT || 8788);
 const relayBase = `http://127.0.0.1:${relayPort}`;
 const stateDir = path.resolve(process.env.INTEGRATION_STATE_DIR || '.state');
 const evidenceDir = path.resolve(process.env.INTEGRATION_EVIDENCE_DIR || path.join(stateDir, 'evidence'));
-const allowlistFile = path.resolve(process.env.FILE_AGENT_ALLOWLIST_HOST_FILE || path.join(stateDir, 'secrets/file-agent-allowlist'));
+const testUsersFile = path.resolve(
+  process.env.INTEGRATION_TEST_USERS_FILE || path.join(stateDir, 'config/integration-test-users.json'),
+);
 const envFile = path.resolve(process.env.INTEGRATION_ENV_FILE || path.join(process.cwd(), '.env.integration'));
 const composeFile = path.resolve(process.env.INTEGRATION_COMPOSE_FILE || path.join(process.cwd(), 'compose.integration.yaml'));
 const projectName = process.env.COMPOSE_PROJECT_NAME || 'file-agent-integration';
@@ -128,18 +130,8 @@ async function apiJson(pathname, options = {}) {
   return (await request(`${apiBase}${pathname}`, options)).value;
 }
 
-async function loginUser({ index }) {
-  const suffix = `${Date.now()}-${index}-${randomBytes(3).toString('hex')}`;
-  const email = `file-agent-integration-${suffix}@example.invalid`;
-  const password = `Integration-${randomBytes(18).toString('base64url')}`;
-  const name = `File Agent Integration ${index}`;
-  const username = `file-agent-integration-${suffix}`;
+async function loginUser({ index, email, password, userId: expectedUserId = null, model = null }) {
   const jar = new CookieJar();
-  await request(`${apiBase}/api/auth/register`, {
-    method: 'POST',
-    jar,
-    body: { name, username, email, password, confirm_password: password },
-  });
   const login = await request(`${apiBase}/api/auth/login`, {
     method: 'POST',
     jar,
@@ -153,18 +145,33 @@ async function loginUser({ index }) {
   assert(typeof token === 'string' && token !== '', 'LibreChat login did not return an access token');
   const userId = userIdFrom(login.value) ?? userIdFrom(decodeJwt(token));
   assert(userId, 'LibreChat login token did not expose a user identity');
-  return { userId, token, jar, index, model: index === 1 ? modelOne : modelTwo };
+  if (expectedUserId) assert(userId === expectedUserId, `provisioned user ${index} identity changed`);
+  return { userId, token, jar, index, model: model ?? (index === 1 ? modelOne : modelTwo) };
 }
 
-async function restartApi() {
-  await execFileAsync('docker', [
-    'compose', '--env-file', envFile, '-f', composeFile, '-p', projectName,
-    'restart', '--timeout', '10', 'api',
-  ], { env: process.env, maxBuffer: 2 * 1024 * 1024, timeout: 30_000 });
-  await waitFor(async () => {
-    const response = await fetch(`${apiBase}/api/config`, { signal: AbortSignal.timeout(3_000) });
-    return response.ok;
-  }, 'API health after allowlist reload', 180_000);
+async function registerUser({ index }) {
+  const suffix = `${Date.now()}-${index}-${randomBytes(3).toString('hex')}`;
+  const email = `file-agent-integration-${suffix}@example.invalid`;
+  const password = `Integration-${randomBytes(18).toString('base64url')}`;
+  const name = `File Agent Integration ${index}`;
+  const username = `file-agent-integration-${suffix}`;
+  const jar = new CookieJar();
+  await request(`${apiBase}/api/auth/register`, {
+    method: 'POST',
+    jar,
+    body: { name, username, email, password, confirm_password: password },
+  });
+  return loginUser({ index, email, password });
+}
+
+async function loadProvisionedUsers() {
+  const value = JSON.parse(await readFile(testUsersFile, 'utf8'));
+  assert(value?.schemaVersion === 1 && Array.isArray(value.users) && value.users.length === 2,
+    'operator-provisioned integration test users are missing or invalid');
+  const users = [...value.users].sort((left, right) => left.index - right.index);
+  assert(users[0]?.model === modelOne && users[1]?.model === modelTwo,
+    'operator-provisioned test user model assignments do not match this run');
+  return Promise.all(users.map((user) => loginUser(user)));
 }
 
 async function createAgent(user, { model = user.model } = {}) {
@@ -880,9 +887,7 @@ let evidence = {
 
 try {
   assert(new Set([modelOne, modelTwo]).size === 2, 'integration models must exercise two distinct selected models');
-  const users = [await loginUser({ index: 1 }), await loginUser({ index: 2 })];
-  await writeFile(allowlistFile, `${users.map((user) => user.userId).join('\n')}\n`, { mode: 0o600 });
-  await restartApi();
+  const users = await loadProvisionedUsers();
   const agents = [await createAgent(users[0]), await createAgent(users[1])];
   const runs = [];
   const positiveUploads = [];
@@ -912,7 +917,7 @@ try {
     foreignInputIdentity: 'not_run',
   };
   const negativeEvidence = [];
-  const nativeUser = await loginUser({ index: 3 });
+  const nativeUser = await registerUser({ index: 3 });
   const nativeAgent = await createAgent(nativeUser);
   const nativeRun = { ...nativeUser, ...nativeAgent };
   const nativeUpload = await uploadFile(nativeRun, fixtureOne);

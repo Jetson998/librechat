@@ -108,9 +108,8 @@ services:
         LIBRECHAT_API_IMAGE: ${LIBRECHAT_API_IMAGE:?LIBRECHAT_API_IMAGE is required}
     image: file-agent-integration-api:${INTEGRATION_HARNESS_REVISION:?INTEGRATION_HARNESS_REVISION is required}
     restart: "no"
-    # LibreChat's graceful shutdown can outlive the E2E readiness window on a
-    # disposable integration API. Bound only this non-production container so
-    # allowlist reloads cannot stall the harness for the daemon default.
+    # Keep explicit cleanup bounded for this disposable test API. Allowlist
+    # activation uses a fresh API container rather than graceful restart.
     stop_grace_period: 10s
     ports:
       - "127.0.0.1:${INTEGRATION_API_PORT:-3081}:3080"

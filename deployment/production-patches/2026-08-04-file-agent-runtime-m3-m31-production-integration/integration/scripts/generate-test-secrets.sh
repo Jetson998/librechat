@@ -79,9 +79,9 @@ if [[ -e "$SECRETS_DIR/file-agent-allowlist" && ! -f "$SECRETS_DIR/file-agent-al
   exit 1
 fi
 if [[ ! -s "$SECRETS_DIR/file-agent-allowlist" ]]; then
-  # The API must start with a syntactically valid non-empty allowlist. The E2E
-  # runner replaces this bootstrap entry with the two newly registered test
-  # user IDs before sending any File Agent request.
+  # The API initially starts with a syntactically valid non-empty allowlist.
+  # Operator smoke provisions two disposable users, writes their internal IDs,
+  # and recreates only the test API before handing the environment to E2E.
   printf '%s\n' integration-bootstrap > "$SECRETS_DIR/file-agent-allowlist"
 fi
 chmod 600 "$SECRETS_DIR/file-agent-allowlist"

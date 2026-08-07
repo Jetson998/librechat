@@ -241,6 +241,7 @@ export FILE_AGENT_PROVIDER_KEY_HOST_FILE="$STATE_DIR/secrets/file-agent-provider
 export INTEGRATION_PROVIDER_ROUTE_MAP_HOST_FILE="$STATE_DIR/config/provider-route-map.json"
 export INTEGRATION_PROVIDER_ROUTES_HOST_FILE="$STATE_DIR/config/provider-routes.json"
 export INTEGRATION_CONFIG_HOST_FILE="$STATE_DIR/config/librechat.integration.yaml"
+export INTEGRATION_TEST_USERS_FILE="$STATE_DIR/config/integration-test-users.json"
 
 python3 - "$STATE_DIR/config/provider-route-map.json" "$STATE_DIR/config/provider-routes.json" \
   "$INTEGRATION_MODEL" "$INTEGRATION_LIBRECHAT_ENDPOINT" "$INTEGRATION_PROVIDER_ENDPOINT" \
@@ -329,6 +330,7 @@ FILE_AGENT_PROVIDER_KEY_HOST_FILE=$FILE_AGENT_PROVIDER_KEY_HOST_FILE
 INTEGRATION_PROVIDER_ROUTE_MAP_HOST_FILE=$INTEGRATION_PROVIDER_ROUTE_MAP_HOST_FILE
 INTEGRATION_PROVIDER_ROUTES_HOST_FILE=$INTEGRATION_PROVIDER_ROUTES_HOST_FILE
 INTEGRATION_CONFIG_HOST_FILE=$INTEGRATION_CONFIG_HOST_FILE
+INTEGRATION_TEST_USERS_FILE=$INTEGRATION_TEST_USERS_FILE
 INTEGRATION_API_PORT=${INTEGRATION_API_PORT:-3081}
 INTEGRATION_CODEAPI_PORT=${INTEGRATION_CODEAPI_PORT:-8001}
 INTEGRATION_FAKE_RELAY_PORT=${INTEGRATION_FAKE_RELAY_PORT:-8788}
@@ -383,6 +385,13 @@ wait_healthy file-agent-runtime
 # boot. The captured API can legitimately need more than the generic 120-second
 # service window on linux/amd64 emulation, so keep a bounded API-only allowance.
 wait_healthy api 300
+
+# Finalize the disposable access boundary before operator smoke and business
+# handoff. The first API process is bootstrap-only; the replacement process is
+# the only one used by the developer E2E.
+node "$SCRIPT_DIR/provision-test-users.mjs"
+"$SCRIPT_DIR/recreate-api-after-allowlist.sh" \
+  "$ENV_FILE" "$EVIDENCE_DIR/api-allowlist-reload.txt"
 
 python3 - "${INTEGRATION_CODEAPI_PORT:-8001}" <<'PY'
 from __future__ import annotations

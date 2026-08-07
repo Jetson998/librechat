@@ -122,6 +122,35 @@ else
   printf 'paths_env=missing\n'
 fi
 
+if [[ -n "${INTEGRATION_EVIDENCE_DIR:-}" \
+  && -f "$INTEGRATION_EVIDENCE_DIR/integration-test-users.json" ]]; then
+  python3 - "$INTEGRATION_EVIDENCE_DIR/integration-test-users.json" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+value = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+print(f"test_user_provisioning={value.get('status', 'unknown')}")
+print(f"test_user_count={value.get('userCount', 0)}")
+for user in value.get('users', []):
+    print(f"test_user_{user.get('index')}_id={user.get('userId', 'missing')}")
+    print(f"test_user_{user.get('index')}_model={user.get('model', 'missing')}")
+PY
+else
+  printf 'test_user_provisioning=not_run\n'
+fi
+
+if [[ -n "${INTEGRATION_EVIDENCE_DIR:-}" \
+  && -f "$INTEGRATION_EVIDENCE_DIR/api-allowlist-reload.txt" ]] \
+  && awk '$0 == "status=passed" { found = 1 } END { exit(found ? 0 : 1) }' \
+    "$INTEGRATION_EVIDENCE_DIR/api-allowlist-reload.txt"; then
+  printf 'api_allowlist_reload=passed\n'
+else
+  printf 'api_allowlist_reload=not_passed\n'
+fi
+
 sha256_file() {
   local file="$1"
   if command -v sha256sum >/dev/null 2>&1; then

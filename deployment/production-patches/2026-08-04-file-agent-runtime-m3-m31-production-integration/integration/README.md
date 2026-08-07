@@ -67,9 +67,12 @@ Start the environment and build only the API overlay/Fake Relay helper images:
 
 `integration-up.sh` also runs the infrastructure smoke. It checks all five
 services, the API overlay marker, one Fake Relay request and one harmless real
-CodeAPI `/exec` command. It also proves that an API-only bounded restart returns
-to readiness without changing MongoDB, CodeAPI, Runtime or Fake Relay container
-identity. It does not create an Agent, upload a DOCX or run the business E2E.
+CodeAPI `/exec` command. It provisions two disposable test identities, writes
+their internal user IDs to the temporary allowlist, then force-recreates only
+the non-production API container and proves the new process reaches `healthy`,
+`/readyz` and `/api/config` without changing MongoDB, CodeAPI, Runtime or Fake
+Relay container identity. It does not create an Agent, upload a DOCX or run the
+business E2E.
 
 Inspect a running environment without changing it:
 
@@ -77,20 +80,22 @@ Inspect a running environment without changing it:
 ./scripts/integration-status.sh
 ```
 
-Run the real API registration, login, endpoint/model selection, file upload,
-Agent chat, SSE delivery, Fake Relay observation, Runtime `/exec` audit and
-user/task/session isolation checks:
+Run real API login, endpoint/model selection, file upload, Agent chat, SSE
+delivery, Fake Relay observation, Runtime `/exec` audit and user/task/session
+isolation checks:
 
 ```sh
 ./scripts/run-file-agent-e2e.sh
 ```
 
-The E2E uses two newly generated test users and two different allowlisted model
-selections (`gpt-5.6-sol` and `claude-fable-5`) against the fixed repository
-fixture `fixtures/minimal-source.docx`. The API-side endpoint is the
+The E2E logs in as the two disposable users provisioned by `integration-up.sh`;
+their credentials remain only in the private `.state/config` directory and are
+deleted by `integration-down.sh`. The users have two different allowlisted
+model selections (`gpt-5.6-sol` and `claude-fable-5`) against the fixed
+repository fixture `fixtures/minimal-source.docx`. The API-side endpoint is the
 fixed production route identity `Muskapis-openai`; the Runtime private registry
 maps that identity to the in-network Fake Relay. No public model request is
-made.
+made, and the E2E does not restart or recreate infrastructure services.
 
 On success, the default cleanup removes the integration containers, Mongo
 named volume, test files, task data and test secrets. Redacted evidence is

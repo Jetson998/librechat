@@ -66,8 +66,9 @@ service/container state, state marker, evidence paths and the API overlay
 marker. It does not create or remove resources.
 
 `run-file-agent-e2e.sh` is the developer-facing business E2E entrypoint. The
-developer owns its positive and negative business assertions; it must use the
-environment after the operator smoke is complete.
+developer owns its positive and negative business assertions; it logs in with
+the two temporary accounts recorded under private integration state and must
+use the stable environment after the operator smoke is complete.
 
 `integration-down.sh` removes only this integration Compose project, its named
 Mongo volume, state directory and generated test secrets. It refuses unknown
@@ -87,18 +88,25 @@ The operator must first establish:
 7. down removes containers, volume, state and generated secrets;
 8. `runtimeSourceRevision` and `integrationHarnessRevision` are both recorded;
    the Runtime/Connector business diff between them is empty.
-9. a bounded API-only restart returns to `healthy`, `/readyz` and `/api/config`
-   while MongoDB, CodeAPI, Runtime and Fake Relay container IDs stay unchanged.
+9. two disposable test users are created and their internal IDs become the
+   final temporary allowlist;
+10. the bootstrap API is force-recreated once after that allowlist update, the
+    new process reaches `healthy`, `/readyz` and `/api/config`, and MongoDB,
+    CodeAPI, Runtime and Fake Relay container IDs stay unchanged.
 ```
 
 The harmless CodeAPI smoke is infrastructure-only. It is not a DOCX business
 acceptance and must not be reported as one.
 
-The disposable API has a 10-second stop grace period because LibreChat's
-graceful SIGTERM path can otherwise outlive the E2E readiness window. A clean
-MongoDB API boot has a separate bounded 300-second allowance for first-start
-index creation; the post-allowlist API readiness wait is bounded at 180 seconds;
-other service waits remain 120 seconds.
+The captured amd64 LibreChat API has shown that repeated graceful restarts can
+remain between shutdown and process startup for several minutes under local
+emulation. The harness therefore does not use repeated `docker compose restart`
+as an allowlist reload mechanism. Before any business request exists, it kills
+and removes only the disposable bootstrap API container, creates one fresh API
+container, and allows up to 300 seconds for the same clean-start path used on
+initial boot. MongoDB, CodeAPI, Runtime and Fake Relay remain running and their
+container identities must not change. The final environment is handed to E2E
+with the allowlist already active; the E2E does not own API lifecycle changes.
 
 ## Evidence
 
