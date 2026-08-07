@@ -80,6 +80,7 @@ def main() -> None:
     compose = {
         "services": {
             "api": {
+                "extra_hosts": ["gateway=host-gateway", "database:127.0.0.1"],
                 "volumes": [
                     "old:/app/api/app/clients/BaseClient.js:ro",
                     "keep:/app/keep:ro",
@@ -90,6 +91,11 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="empty-response-runner-test-") as temporary:
         patched = apply_module.compose_with_overlay(compose, Path(temporary) / "release")
         volumes = patched["services"]["api"]["volumes"]
+        require(
+            patched["services"]["api"]["extra_hosts"]
+            == {"gateway": "host-gateway", "database": "127.0.0.1"},
+            "Compose extra_hosts list was not normalized",
+        )
         require("old:/app/api/app/clients/BaseClient.js:ro" not in volumes, "old target mount retained")
         require("keep:/app/keep:ro" in volumes, "unrelated mount removed")
         require(sum("/app/api/" in entry for entry in volumes) == 4, "four API target mounts expected")
