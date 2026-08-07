@@ -1,7 +1,19 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "evidence": ".release-state/20260807-empty-response-runtime-fix/business-acceptance.json",
+      "result": ".release-state/20260807-empty-response-runtime-fix/acceptance-result.json",
+      "result_sha256": "07025caeb7bac121bebe6b82bf18257dba6af8920cea6d6cf7dd02c76f6244b8",
+      "conversation_id": "e358b802-ca52-4c0d-9279-3511b1e32e4d",
+      "billable_model_requests": 1,
+      "user_stop_verified": true,
+      "empty_model_response_reproduced": false,
+      "limitations": [
+        "The single production request was stopped by the operator before an upstream semantic-empty payload occurred.",
+        "Local EMPTY_MODEL_RESPONSE and terminal-persistence tests passed; this acceptance does not claim production reproduction of an empty payload."
+      ]
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +25,15 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "backup_dir": "/opt/librechat/backups/empty-response-runtime-fix-a1932fac7858-20260807051546",
+      "release_dir": "/opt/librechat/empty-response-runtime-fix/a1932fac7858-20260807051546",
+      "compose_override_sha256_before": "078ae5c93b822fcbc9a0b5f7803b1cb46e8d15bfe4285b8644e893288eed991f",
+      "compose_override_sha256_after": "8684266ae5675cefd0315302e354b067a56dceaa1ca3694fd37f01cf82e11012",
+      "scope": "LibreChat-API only",
+      "recoverable": true
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -152,14 +171,33 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "deployed_at": "2026-08-07T05:16:05+00:00",
+      "api_container_before": "90766189d86863cdc48474d0ee76a76d925178b9019d4a0e46a5b8807186cbca",
+      "api_container_after": "f4cf9a7e3b9e92d5e98f94697173021e99dc0f17cb586082db1fd95c60fb0e1e",
+      "recreated_services": ["LibreChat-API"],
+      "mounted_target_hashes": {
+        "/app/api/app/clients/BaseClient.js": "bca91346ada898b5653c9475024484642973f782fb93bbd4a84d4621b14bee26",
+        "/app/api/server/controllers/agents/InitializationFailure.js": "8a8a4eaedadc6fff343618e0f6fb333768eca87da76680c43ac3964bc00e6881",
+        "/app/api/server/controllers/agents/request.js": "de3942138a148faf50abc8a041d94008df33c02371a6d2908dfa7d593b388446",
+        "/app/api/server/services/DiagnosticEvents.js": "7b9e45730138c8b7c2922c99afd8cc786db9a0ccab55c54fc15cd3edd280ae67"
+      },
+      "protected_services_unchanged": true,
+      "public_checks": {
+        "main_root": 200,
+        "api_config": 200,
+        "office_auth_boundary": 401
+      },
+      "source_revision": "a1932fac7858ba4ce983027d718ca8434fa7f079",
+      "artifact_sha256": "6220fea42aa4d1a8d03ec1e6ca295a7bf11679599e6b5369f1d94fe57fcf09a6"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "a1932fac7858ba4ce983027d718ca8434fa7f079",
-  "status": "planned",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-08-07T05:12:05Z",
+  "updated_at": "2026-08-07T07:04:09Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-diagnostic-events.js && node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-empty-response-runtime.js",
