@@ -192,7 +192,7 @@ def main() -> None:
         "source_revision": arguments.source_revision,
         "artifact_sha256": arguments.artifact_sha256,
         "release_plan_sha256": arguments.release_plan_sha256,
-        "checked_services": ["LibreChat-API", "LibreChat-NGINX"],
+        "checked_services": list(CHECKED_CONTAINERS),
         "checks": [
             {"id": "service-state", "status": "passed"},
             {"id": "dependency-interface", "status": "passed"},
