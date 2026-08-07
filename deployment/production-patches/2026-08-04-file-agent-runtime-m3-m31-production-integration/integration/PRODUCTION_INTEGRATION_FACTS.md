@@ -18,7 +18,7 @@ blocked        cannot be checked because required external input/access is absen
 | Fact | Value | Status | Source |
 |---|---|---|---|
 | Repository | `/Users/jets2026/Documents/Codex/LibreChat` | repo-derived | current checkout |
-| Source revision reviewed | `35321db548412f3b36e997937a74f5ecae8acb05` | repo-derived | Git HEAD |
+| Frozen Runtime/Connector source revision | `35321db548412f3b36e997937a74f5ecae8acb05` | repo-derived | integration Runtime input |
 | API base image | `registry.librechat.ai/danny-avila/librechat-dev-api@sha256:3dfdcecc87a020983c2053f557c33072008a2d9e3ebf3268525e7022a7ea548b` | repo-derived | integration env example |
 | API logical service | `LibreChat-API` | repo-derived | production records |
 | API overlay source revision | `eaa07d9142783a33931d3f3d131449120a8b7590` | repo-derived | `config/api-overlay-manifest.json` |
@@ -36,6 +36,10 @@ blocked        cannot be checked because required external input/access is absen
 | Provider endpoint identity | `Muskapis-openai` | repo-derived | route registry |
 | Provider protocol | `openai-compatible` | repo-derived | route registry |
 | Allowlisted models | `gpt-5.6-sol`, `claude-fable-5` | repo-derived | route registry |
+| Integration Admin image | `ghcr.io/jetson998/librechat-admin-panel-zh-cn:ca5aa4c17881` | repo-derived | `.env.integration.example` |
+| Integration Admin platform | `linux/amd64` | repo-derived | `compose.integration.yaml` and image gate |
+| Integration Admin/API boundary | Admin uses `http://api:3080`; browser API uses `http://127.0.0.1:3081` | repo-derived | `compose.integration.yaml` |
+| Integration permanent test identities | one `ADMIN` user selecting both approved models | repo-derived | provisioning and Admin smoke scripts |
 
 ## Target facts still required
 
@@ -50,13 +54,15 @@ These items are deliberately not claimed from repository inspection:
 | Production CodeAPI internal address and auth mode | not_run | read-only target Compose/runtime inspection; no secrets |
 | Actual production `/exec` request/response | not_run | authenticated redacted CodeAPI observation |
 | LibreChat upload/artifact storage relationship | not_run | one authorized test-file trace |
-| Admin endpoint identity and protocol | not_run | read-only Admin configuration review |
+| Production Admin endpoint identity and protocol | not_run | read-only production Admin configuration review |
 | Whether both approved models use one relay | not_run | endpoint config or redacted request evidence |
 | Internal userId corresponding to `vip998` | blocked | authorized read-only production lookup |
 
 No production credentials, sessions, customer files, or real model requests
 belong in this document. The integration environment uses generated test
-secrets and a local Fake Relay only.
+secrets and a local Fake Relay only. The integration Admin Panel can read and
+write disposable API/Mongo configuration, but its visible Fake Relay endpoint
+is not production endpoint evidence and does not prove real provider traffic.
 
 The CodeAPI image was exported with a read-only `docker save` operation and
 loaded locally. No production container was restarted or rebuilt; no

@@ -50,7 +50,7 @@ sha256_file() {
 
 "${compose[@]}" ps > "$EVIDENCE_DIR/compose-ps-final.txt"
 {
-  for service in mongodb codeapi fake-model-relay file-agent-runtime api; do
+  for service in mongodb codeapi fake-model-relay file-agent-runtime api admin-panel; do
     container_id="$("${compose[@]}" ps -q "$service" 2>/dev/null || true)"
     if [[ -n "$container_id" ]]; then
       docker inspect "$container_id" --format "service=$service id={{.Id}} image={{.Config.Image}} status={{.State.Status}} health={{with (index .State \"Health\")}}{{.Status}}{{else}}unreported{{end}}"

@@ -80,8 +80,8 @@ if [[ -e "$SECRETS_DIR/file-agent-allowlist" && ! -f "$SECRETS_DIR/file-agent-al
 fi
 if [[ ! -s "$SECRETS_DIR/file-agent-allowlist" ]]; then
   # The API initially starts with a syntactically valid non-empty allowlist.
-  # Operator smoke provisions two disposable users, writes their internal IDs,
-  # and recreates only the test API before handing the environment to E2E.
+  # Operator smoke provisions one disposable administrator, writes its internal
+  # ID, and recreates only the test API before handing the environment to E2E.
   printf '%s\n' integration-bootstrap > "$SECRETS_DIR/file-agent-allowlist"
 fi
 chmod 600 "$SECRETS_DIR/file-agent-allowlist"
@@ -90,6 +90,7 @@ write_random "$CONFIG_DIR/api-creds-key" 32
 write_random "$CONFIG_DIR/api-creds-iv" 16
 write_random "$CONFIG_DIR/api-jwt-secret" 32
 write_random "$CONFIG_DIR/api-jwt-refresh-secret" 32
+write_random "$CONFIG_DIR/admin-panel-session-secret" 32
 
 cat > "$CONFIG_DIR/api-runtime.env" <<EOF
 INTEGRATION_RELAY_API_KEY=integration-fake-relay-key
@@ -97,6 +98,7 @@ INTEGRATION_API_CREDS_KEY=$(<"$CONFIG_DIR/api-creds-key")
 INTEGRATION_API_CREDS_IV=$(<"$CONFIG_DIR/api-creds-iv")
 INTEGRATION_API_JWT_SECRET=$(<"$CONFIG_DIR/api-jwt-secret")
 INTEGRATION_API_JWT_REFRESH_SECRET=$(<"$CONFIG_DIR/api-jwt-refresh-secret")
+INTEGRATION_ADMIN_PANEL_SESSION_SECRET=$(<"$CONFIG_DIR/admin-panel-session-secret")
 EOF
 chmod 600 "$CONFIG_DIR/api-runtime.env"
 

@@ -130,7 +130,7 @@ async function apiJson(pathname, options = {}) {
   return (await request(`${apiBase}${pathname}`, options)).value;
 }
 
-async function loginUser({ index, email, password, userId: expectedUserId = null, model = null }) {
+async function loginUser({ index, email, password, userId: expectedUserId = null, model = null, models = null }) {
   const jar = new CookieJar();
   const login = await request(`${apiBase}/api/auth/login`, {
     method: 'POST',
@@ -146,7 +146,7 @@ async function loginUser({ index, email, password, userId: expectedUserId = null
   const userId = userIdFrom(login.value) ?? userIdFrom(decodeJwt(token));
   assert(userId, 'LibreChat login token did not expose a user identity');
   if (expectedUserId) assert(userId === expectedUserId, `provisioned user ${index} identity changed`);
-  return { userId, token, jar, index, model: model ?? (index === 1 ? modelOne : modelTwo) };
+  return { userId, token, jar, index, model: model ?? modelOne, models: models ?? [modelOne, modelTwo] };
 }
 
 async function registerUser({ index }) {
@@ -166,15 +166,17 @@ async function registerUser({ index }) {
 
 async function loadProvisionedUsers() {
   const value = JSON.parse(await readFile(testUsersFile, 'utf8'));
-  assert(value?.schemaVersion === 1 && Array.isArray(value.users) && value.users.length === 2,
+  assert(value?.schemaVersion === 1 && Array.isArray(value.users) && value.users.length === 1,
     'operator-provisioned integration test users are missing or invalid');
   const users = [...value.users].sort((left, right) => left.index - right.index);
-  assert(users[0]?.model === modelOne && users[1]?.model === modelTwo,
-    'operator-provisioned test user model assignments do not match this run');
+  assert(new Set(users[0]?.models ?? []).size === 2
+    && users[0].models.includes(modelOne)
+    && users[0].models.includes(modelTwo),
+  'operator-provisioned test user model assignments do not match this run');
   return Promise.all(users.map((user) => loginUser(user)));
 }
 
-async function createAgent(user, { model = user.model } = {}) {
+async function createAgent(user, { model = user.model, scenarioIndex = user.index } = {}) {
   const value = await apiJson('/api/agents', {
     method: 'POST',
     token: user.token,
@@ -192,7 +194,7 @@ async function createAgent(user, { model = user.model } = {}) {
   const agent = value?.agent ?? value;
   const agentId = agent?.id ?? agent?._id;
   assert(typeof agentId === 'string' && agentId !== '', `Agent creation did not return an id for user ${user.index}`);
-  return { ...user, agentId };
+  return { ...user, index: scenarioIndex, model, agentId };
 }
 
 function findFileId(value) {
@@ -667,6 +669,19 @@ async function assertForeignFileRejected(user, foreignFile) {
   }
 }
 
+async function deleteTransientUser(adminUser, transientUser) {
+  await request(`${apiBase}/api/admin/users/${encodeURIComponent(transientUser.userId)}`, {
+    method: 'DELETE',
+    token: adminUser.token,
+    jar: adminUser.jar,
+  });
+  return {
+    label: 'transient_non_allowlisted_user_cleanup',
+    status: 'passed',
+    deletedUserId: transientUser.userId,
+  };
+}
+
 function taskFilesKey(summary) {
   return summary.taskFiles.map((task) => task.file).sort().join('\n');
 }
@@ -695,7 +710,7 @@ async function assertBridgeMissing() {
   assert(/\/nonexistent|Cannot find module|ENOENT/iu.test(output),
     'bridge-missing probe did not fail while loading the missing connector root');
   const normalApiReady = await fetch(`${apiBase}/readyz`, { signal: AbortSignal.timeout(5_000) });
-  assert(normalApiReady.ok, 'normal five-service API was not ready after bridge-missing probe');
+  assert(normalApiReady.ok, 'normal six-service API was not ready after bridge-missing probe');
   const after = await summarizeTaskFiles();
   const connectorRootLoadFailure = /\/nonexistent|Cannot find module|ENOENT/iu.test(output);
   assert(connectorRootLoadFailure, 'bridge-missing probe did not observe a connector-root load failure');
@@ -875,7 +890,7 @@ let evidence = {
   runtimeImage: { reference: process.env.FILE_AGENT_RUNTIME_IMAGE ?? null, imageId: process.env.FILE_AGENT_RUNTIME_IMAGE_ID ?? null, architecture: 'linux/amd64' },
   codeApiImage: { reference: process.env.CODEAPI_IMAGE ?? null, imageId: process.env.CODEAPI_IMAGE_ID ?? null, source: 'external-operator-supplied-oci-image', verified: true },
   apiOverlay: { startupMarker: null, bridgeRouteObserved: false },
-  services: { api: 'started', mongodb: 'started', codeapi: 'tcp-checked', runtime: 'healthy', fakeRelay: 'healthy' },
+  services: { api: 'started', adminPanel: 'healthy', mongodb: 'started', codeapi: 'tcp-checked', runtime: 'healthy', fakeRelay: 'healthy' },
   providerRouting: { fakeRelayRequests: [], expectedEndpoint: endpoint, expectedRouteRef: routeRef, expectedModels: [modelOne, modelTwo], expectedProtocol: 'openai-compatible' },
   codeApiProtocol: { runtimeExecRequests: [], requiredFields: ['lang', 'code', 'session_id', 'files'], forbiddenLegacyFields: ['item_id', 'command', 'injected_files', 'artifact_paths'], passed: false },
   isolation: { users: [], tasks: [], sessions: [], inputArtifacts: [], outputArtifacts: [], passed: false },
@@ -888,7 +903,10 @@ let evidence = {
 try {
   assert(new Set([modelOne, modelTwo]).size === 2, 'integration models must exercise two distinct selected models');
   const users = await loadProvisionedUsers();
-  const agents = [await createAgent(users[0]), await createAgent(users[1])];
+  const agents = [
+    await createAgent(users[0], { model: modelOne, scenarioIndex: 1 }),
+    await createAgent(users[0], { model: modelTwo, scenarioIndex: 2 }),
+  ];
   const runs = [];
   const positiveUploads = [];
   for (const [user, fixture] of [[agents[0], fixtureOne], [agents[1], fixtureTwo]]) {
@@ -941,9 +959,10 @@ try {
   negativePaths.malformedCodeApiBody = 'passed';
   negativeEvidence.push({
     label: 'foreign_file_identity',
-    ...(await assertForeignFileRejected(agents[1], positiveUploads[0])),
+    ...(await assertForeignFileRejected(agents[1], nativeUpload)),
   });
   negativePaths.foreignInputIdentity = 'passed';
+  negativeEvidence.push(await deleteTransientUser(users[0], nativeUser));
 
   negativeEvidence.push({ label: 'artifact_identity_fault_fixture', ...runArtifactIdentityFaultFixtureRegression() });
   negativeEvidence.push(await assertArtifactIdentityMismatch(agents[0], fixtureOne));
@@ -1054,7 +1073,7 @@ try {
     providerRouting: { ...evidence.providerRouting, fakeRelayRequests: relaySummary },
     codeApiProtocol: { ...evidence.codeApiProtocol, runtimeExecRequests: auditSummary, passed: true },
     isolation: {
-      users: users.map((user) => ({ userId: user.userId, model: user.model })),
+      users: users.map((user) => ({ userId: user.userId, models: user.models })),
       tasks: taskSummary.taskFiles,
       sessions,
       inputArtifacts: auditSummary.flatMap((record) => record.request.files).map((file) => ({ id: file.id, resource_id: file.resource_id, storage_session_id: file.storage_session_id, name: file.name })),

@@ -17,6 +17,8 @@ const models = [
   process.env.INTEGRATION_MODEL || 'gpt-5.6-sol',
   process.env.INTEGRATION_SECOND_MODEL || 'claude-fable-5',
 ];
+const configuredEmail = String(process.env.INTEGRATION_TEST_USER_EMAIL || '').trim();
+const configuredPassword = String(process.env.INTEGRATION_TEST_USER_PASSWORD || '');
 
 function safeText(value, limit = 500) {
   return String(value ?? '')
@@ -100,15 +102,15 @@ async function login(user) {
   return { ...user, userId };
 }
 
-async function register(index) {
+async function register(index, { email: requestedEmail = '', password: requestedPassword = '' } = {}) {
   const suffix = `${Date.now()}-${index}-${randomBytes(4).toString('hex')}`;
   const user = {
     index,
-    model: models[index - 1],
-    name: `File Agent Integration ${index}`,
-    username: `file-agent-integration-${suffix}`,
-    email: `file-agent-integration-${suffix}@example.invalid`,
-    password: `Integration-${randomBytes(18).toString('base64url')}`,
+    models,
+    name: requestedEmail ? 'Test Claude' : `File Agent Integration ${index}`,
+    username: requestedEmail ? 'test' : `file-agent-integration-${suffix}`,
+    email: requestedEmail || `file-agent-integration-${suffix}@example.invalid`,
+    password: requestedPassword || `Integration-${randomBytes(18).toString('base64url')}`,
   };
   const jar = new CookieJar();
   await request('/api/auth/register', {
@@ -139,16 +141,26 @@ async function regularFileOrMissing(filename) {
 async function loadOrCreateUsers() {
   if (await regularFileOrMissing(usersFile)) {
     const stored = JSON.parse(await readFile(usersFile, 'utf8'));
-    assert(stored?.schemaVersion === 1 && Array.isArray(stored.users) && stored.users.length === 2,
+    assert(stored?.schemaVersion === 1 && Array.isArray(stored.users) && stored.users.length === 1,
       'stored integration test users are invalid');
     return Promise.all(stored.users.map((user) => login(user)));
   }
-  const users = [await register(1), await register(2)];
+  let user;
+  if (configuredEmail && configuredPassword) {
+    try {
+      user = await login({ index: 1, email: configuredEmail, password: configuredPassword, models });
+    } catch {
+      user = await register(1, { email: configuredEmail, password: configuredPassword });
+    }
+  } else {
+    user = await register(1);
+  }
+  const users = [user];
   await writeFile(usersFile, `${JSON.stringify({
     schemaVersion: 1,
     generatedFor: 'non-production-file-agent-integration',
-    users: users.map(({ index, userId, model, name, username, email, password }) => ({
-      index, userId, model, name, username, email, password,
+    users: users.map(({ index, userId, models: selectedModels, name, username, email, password }) => ({
+      index, userId, models: selectedModels, name, username, email, password,
     })),
   }, null, 2)}\n`, { mode: 0o600 });
   return users;
@@ -156,9 +168,11 @@ async function loadOrCreateUsers() {
 
 try {
   assert(new Set(models).size === 2, 'integration user provisioning requires two distinct models');
+  assert(Boolean(configuredEmail) === Boolean(configuredPassword),
+    'configured integration test user email and password must be provided together');
   assert(await regularFileOrMissing(allowlistFile), 'integration allowlist file is missing');
   const users = await loadOrCreateUsers();
-  assert(new Set(users.map((user) => user.userId)).size === 2, 'integration test user identities are not distinct');
+  assert(users.length === 1, 'integration environment must retain exactly one permanent test user');
   const allowlist = `${users.map((user) => user.userId).join('\n')}\n`;
   await writeFile(allowlistFile, allowlist, { mode: 0o600 });
   await writeFile(evidenceFile, `${JSON.stringify({
@@ -166,7 +180,12 @@ try {
     status: 'passed',
     scope: 'disposable-integration-test-users',
     userCount: users.length,
-    users: users.map(({ index, userId, model }) => ({ index, userId, model })),
+    users: users.map(({ index, userId, models: selectedModels }) => ({
+      index,
+      userId,
+      models: selectedModels,
+      role: 'ADMIN',
+    })),
     allowlistSha256: createHash('sha256').update(allowlist).digest('hex'),
     credentialsStoredInStateOnly: true,
     productionCredentialsUsed: false,

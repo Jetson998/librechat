@@ -3,7 +3,7 @@
 This directory is a repeatable, non-production environment for the M3 + M3.1
 File Agent integration boundary. It is intentionally smaller than the
 production cluster and contains no production data, production credentials,
-public ingress, Nginx, RAG, Admin, or billable model endpoint.
+public ingress, Nginx, RAG, or billable model endpoint.
 
 The environment runs:
 
@@ -13,6 +13,7 @@ MongoDB test instance
 operator-supplied real LibreChat CodeAPI image
 candidate File Agent Runtime image
 local deterministic Fake Model Relay
+CI-verified LibreChat Admin Panel image
 test-only file, task, audit and CodeAPI storage
 ```
 
@@ -54,8 +55,8 @@ CodeAPI and Fake Relay images; they contain no credentials and are removed by
 the cleanup command. Secret and configuration files remain private.
 
 Docker Compose and a Linux/amd64-capable Docker runtime are required. The
-default API and Fake Relay host ports are `3081` and `8788`; change them if
-they conflict with another local service.
+default frontend/API, Admin Panel and Fake Relay host ports are `3081`, `3091`
+and `8788`; change them if they conflict with another local service.
 
 ## Commands
 
@@ -65,14 +66,30 @@ Start the environment and build only the API overlay/Fake Relay helper images:
 ./scripts/integration-up.sh
 ```
 
-`integration-up.sh` also runs the infrastructure smoke. It checks all five
-services, the API overlay marker, one Fake Relay request and one harmless real
-CodeAPI `/exec` command. It provisions two disposable test identities, writes
-their internal user IDs to the temporary allowlist, then force-recreates only
-the non-production API container and proves the new process reaches `healthy`,
-`/readyz` and `/api/config` without changing MongoDB, CodeAPI, Runtime or Fake
-Relay container identity. It does not create an Agent, upload a DOCX or run the
-business E2E.
+`integration-up.sh` also runs the infrastructure smoke. It checks all six
+services, the API overlay marker, one Fake Relay request, one harmless real
+CodeAPI `/exec` command and the Admin authorization boundary. It provisions
+one permanent disposable test identity, promotes it to `ADMIN`, writes its
+internal user ID to the temporary allowlist, then force-recreates only the
+non-production API container and proves the new process reaches `healthy`,
+`/readyz` and `/api/config` without changing MongoDB, CodeAPI, Runtime, Fake
+Relay or Admin container identity. It does not create an Agent, upload a DOCX
+or run the business E2E.
+
+The two local login surfaces use the same disposable account configured in the
+ignored `.env.integration` file:
+
+```text
+frontend: http://127.0.0.1:3081
+admin:    http://127.0.0.1:3091
+email:    test@claude.com
+role:     ADMIN
+```
+
+The password is intentionally absent from versioned files. The Admin smoke
+proves `/api/admin/verify`, `manage:configs` and `/api/admin/config/base`. The
+custom-endpoint page reads the same disposable API configuration used by the
+frontend.
 
 Inspect a running environment without changing it:
 
@@ -88,14 +105,16 @@ isolation checks:
 ./scripts/run-file-agent-e2e.sh
 ```
 
-The E2E logs in as the two disposable users provisioned by `integration-up.sh`;
-their credentials remain only in the private `.state/config` directory and are
-deleted by `integration-down.sh`. The users have two different allowlisted
-model selections (`gpt-5.6-sol` and `claude-fable-5`) against the fixed
-repository fixture `fixtures/minimal-source.docx`. The API-side endpoint is the
-fixed production route identity `Muskapis-openai`; the Runtime private registry
-maps that identity to the in-network Fake Relay. No public model request is
-made, and the E2E does not restart or recreate infrastructure services.
+The E2E logs in as the one disposable administrator provisioned by
+`integration-up.sh` and creates two Agents for that same user, selecting
+`gpt-5.6-sol` and `claude-fable-5` against the fixed repository fixture
+`fixtures/minimal-source.docx`. Its account record is stored in private state;
+the operator-supplied login remains only in ignored `.env.integration`. A
+non-allowlisted identity used by the negative path is temporary and must be
+deleted before success. The API-side endpoint is the fixed production route
+identity `Muskapis-openai`; the Runtime private registry maps that identity to
+the in-network Fake Relay. No public model request is made, and the E2E does
+not restart or recreate infrastructure services.
 
 On success, the default cleanup removes the integration containers, Mongo
 named volume, test files, task data and test secrets. Redacted evidence is
@@ -164,8 +183,13 @@ full command/runbook in
 This harness is not a production release runner. It does not run production
 preflight, SSH/SCP, Compose apply, restart of production services, model
 requests, customer-file acceptance, or release finalization. A passing E2E
-proves only the declared non-production API/Runtime/real-CodeAPI/Fake-Relay and
-file-isolation chain.
+proves only the declared non-production
+API/Admin/Runtime/real-CodeAPI/Fake-Relay and file-isolation chain.
+
+Admin edits are stored only in the disposable integration database. The
+versioned Runtime private route registry continues to send this harness to the
+Fake Relay; therefore opening or editing the Admin endpoint does not by itself
+prove a real provider request, authentication, rate limit or billing path.
 
 The current production route registry intentionally has one fixed route
 identity (`Muskapis-openai` / `custom:Muskapis-openai`) and an allowlist of the

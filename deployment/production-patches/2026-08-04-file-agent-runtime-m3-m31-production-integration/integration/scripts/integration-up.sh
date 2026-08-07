@@ -25,6 +25,10 @@ set +a
 : "${FILE_AGENT_RUNTIME_IMAGE_ID:?FILE_AGENT_RUNTIME_IMAGE_ID is required}"
 : "${FILE_AGENT_RUNTIME_SOURCE_REVISION:?FILE_AGENT_RUNTIME_SOURCE_REVISION is required}"
 : "${INTEGRATION_HARNESS_REVISION:?INTEGRATION_HARNESS_REVISION is required}"
+: "${ADMIN_PANEL_IMAGE:?ADMIN_PANEL_IMAGE is required}"
+: "${ADMIN_PANEL_IMAGE_ID:?ADMIN_PANEL_IMAGE_ID is required}"
+: "${INTEGRATION_TEST_USER_EMAIL:?INTEGRATION_TEST_USER_EMAIL is required}"
+: "${INTEGRATION_TEST_USER_PASSWORD:?INTEGRATION_TEST_USER_PASSWORD is required}"
 : "${INTEGRATION_MODEL:=gpt-5.6-sol}"
 : "${INTEGRATION_SECOND_MODEL:=claude-fable-5}"
 : "${INTEGRATION_LIBRECHAT_ENDPOINT:=Muskapis-openai}"
@@ -123,6 +127,20 @@ if [[ "$api_platform" != linux/amd64 ]]; then
   printf 'LibreChat API baseline must be linux/amd64: %s\n' "$api_platform" >&2
   exit 6
 fi
+if ! docker image inspect "$ADMIN_PANEL_IMAGE" >/dev/null 2>&1; then
+  docker pull --platform linux/amd64 "$ADMIN_PANEL_IMAGE" >/dev/null
+fi
+admin_panel_id="$(docker image inspect "$ADMIN_PANEL_IMAGE" --format '{{.Id}}')"
+if [[ "$admin_panel_id" != "$ADMIN_PANEL_IMAGE_ID" ]]; then
+  printf 'Admin Panel image identity mismatch: expected=%s actual=%s\n' \
+    "$ADMIN_PANEL_IMAGE_ID" "$admin_panel_id" >&2
+  exit 5
+fi
+admin_panel_platform="$(docker image inspect "$ADMIN_PANEL_IMAGE" --format '{{.Os}}/{{.Architecture}}')"
+if [[ "$admin_panel_platform" != linux/amd64 ]]; then
+  printf 'Admin Panel image must be linux/amd64: %s\n' "$admin_panel_platform" >&2
+  exit 6
+fi
 
 STATE_DIR="${INTEGRATION_STATE_DIR:-$INTEGRATION_DIR/.state}"
 STATE_DIR="$(python3 - "$STATE_DIR" "$INTEGRATION_DIR" <<'PY'
@@ -207,6 +225,9 @@ chmod 600 "$EVIDENCE_DIR/api-overlay-manifest.json"
   printf 'api_reference=%s\n' "$LIBRECHAT_API_IMAGE"
   printf 'api_image_id=%s\n' "$(docker image inspect --platform linux/amd64 "$LIBRECHAT_API_IMAGE" --format '{{.Id}}')"
   printf 'api_platform=%s\n' "$api_platform"
+  printf 'admin_panel_reference=%s\n' "$ADMIN_PANEL_IMAGE"
+  printf 'admin_panel_image_id=%s\n' "$admin_panel_id"
+  printf 'admin_panel_platform=%s\n' "$admin_panel_platform"
 } > "$EVIDENCE_DIR/image-identities.txt"
 
 "$SCRIPT_DIR/generate-test-secrets.sh" "$ENV_FILE" >/dev/null
@@ -332,6 +353,7 @@ INTEGRATION_PROVIDER_ROUTES_HOST_FILE=$INTEGRATION_PROVIDER_ROUTES_HOST_FILE
 INTEGRATION_CONFIG_HOST_FILE=$INTEGRATION_CONFIG_HOST_FILE
 INTEGRATION_TEST_USERS_FILE=$INTEGRATION_TEST_USERS_FILE
 INTEGRATION_API_PORT=${INTEGRATION_API_PORT:-3081}
+INTEGRATION_ADMIN_PANEL_PORT=${INTEGRATION_ADMIN_PANEL_PORT:-3091}
 INTEGRATION_CODEAPI_PORT=${INTEGRATION_CODEAPI_PORT:-8001}
 INTEGRATION_FAKE_RELAY_PORT=${INTEGRATION_FAKE_RELAY_PORT:-8788}
 INTEGRATION_LIBRECHAT_ENDPOINT=$INTEGRATION_LIBRECHAT_ENDPOINT
@@ -385,13 +407,16 @@ wait_healthy file-agent-runtime
 # boot. The captured API can legitimately need more than the generic 120-second
 # service window on linux/amd64 emulation, so keep a bounded API-only allowance.
 wait_healthy api 300
+wait_healthy admin-panel 180
 
 # Finalize the disposable access boundary before operator smoke and business
 # handoff. The first API process is bootstrap-only; the replacement process is
 # the only one used by the developer E2E.
 node "$SCRIPT_DIR/provision-test-users.mjs"
+"$SCRIPT_DIR/promote-test-admin.sh" "$ENV_FILE"
 "$SCRIPT_DIR/recreate-api-after-allowlist.sh" \
   "$ENV_FILE" "$EVIDENCE_DIR/api-allowlist-reload.txt"
+wait_healthy admin-panel 180
 
 python3 - "${INTEGRATION_CODEAPI_PORT:-8001}" <<'PY'
 from __future__ import annotations

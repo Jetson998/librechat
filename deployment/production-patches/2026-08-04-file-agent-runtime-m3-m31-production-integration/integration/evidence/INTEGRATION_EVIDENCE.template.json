@@ -15,6 +15,12 @@
     "source": "external-operator-supplied-oci-image",
     "verified": false
   },
+  "adminPanelImage": {
+    "reference": "ghcr.io/jetson998/librechat-admin-panel-zh-cn:ca5aa4c17881",
+    "imageId": null,
+    "architecture": "linux/amd64",
+    "verified": false
+  },
   "apiOverlay": {
     "sourceRevision": null,
     "baselineHashes": {},
@@ -24,6 +30,7 @@
   },
   "services": {
     "api": null,
+    "adminPanel": null,
     "mongodb": null,
     "codeapi": null,
     "runtime": null,
@@ -34,6 +41,12 @@
     "expectedEndpoint": null,
     "expectedModel": null,
     "expectedProtocol": null
+  },
+  "testAdministrator": {
+    "userId": null,
+    "role": "ADMIN",
+    "models": ["gpt-5.6-sol", "claude-fable-5"],
+    "adminAccessVerified": false
   },
   "codeApiProtocol": {
     "runtimeExecRequests": [],

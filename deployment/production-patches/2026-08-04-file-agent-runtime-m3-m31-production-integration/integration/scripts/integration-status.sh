@@ -87,6 +87,9 @@ printf 'runtime_reference=%s\n' "${FILE_AGENT_RUNTIME_IMAGE:-unset}"
 printf 'runtime_expected_image_id=%s\n' "${FILE_AGENT_RUNTIME_IMAGE_ID:-unset}"
 printf 'codeapi_reference=%s\n' "${CODEAPI_IMAGE:-unset}"
 printf 'codeapi_expected_image_id=%s\n' "${CODEAPI_IMAGE_ID:-unset}"
+printf 'admin_panel_reference=%s\n' "${ADMIN_PANEL_IMAGE:-unset}"
+printf 'admin_panel_expected_image_id=%s\n' "${ADMIN_PANEL_IMAGE_ID:-unset}"
+printf 'admin_panel_url=http://127.0.0.1:%s\n' "${INTEGRATION_ADMIN_PANEL_PORT:-3091}"
 
 inspect_image() {
   local label="$1"
@@ -114,6 +117,7 @@ inspect_image() {
 
 inspect_image runtime_image "${FILE_AGENT_RUNTIME_IMAGE:-}" "${FILE_AGENT_RUNTIME_IMAGE_ID:-}"
 inspect_image codeapi_image "${CODEAPI_IMAGE:-}" "${CODEAPI_IMAGE_ID:-}"
+inspect_image admin_panel_image "${ADMIN_PANEL_IMAGE:-}" "${ADMIN_PANEL_IMAGE_ID:-}"
 
 if [[ -f "$STATE_DIR/config/integration.paths.env" ]]; then
   printf 'paths_env=present\n'
@@ -136,10 +140,47 @@ print(f"test_user_provisioning={value.get('status', 'unknown')}")
 print(f"test_user_count={value.get('userCount', 0)}")
 for user in value.get('users', []):
     print(f"test_user_{user.get('index')}_id={user.get('userId', 'missing')}")
-    print(f"test_user_{user.get('index')}_model={user.get('model', 'missing')}")
+    models = user.get('models', [])
+    print(f"test_user_{user.get('index')}_models={','.join(models) if isinstance(models, list) else 'missing'}")
+    print(f"test_user_{user.get('index')}_role={user.get('role', 'missing')}")
 PY
 else
   printf 'test_user_provisioning=not_run\n'
+fi
+
+if [[ -n "${INTEGRATION_EVIDENCE_DIR:-}" \
+  && -f "$INTEGRATION_EVIDENCE_DIR/integration-test-admin.json" ]]; then
+  python3 - "$INTEGRATION_EVIDENCE_DIR/integration-test-admin.json" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+value = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+print(f"test_admin_promotion={value.get('status', 'unknown')}")
+print(f"test_admin_role={value.get('role', 'missing')}")
+print(f"test_admin_user_count={value.get('userCount', 0)}")
+PY
+else
+  printf 'test_admin_promotion=not_run\n'
+fi
+
+if [[ -n "${INTEGRATION_EVIDENCE_DIR:-}" \
+  && -f "$INTEGRATION_EVIDENCE_DIR/admin-access-smoke.json" ]]; then
+  python3 - "$INTEGRATION_EVIDENCE_DIR/admin-access-smoke.json" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+value = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+print(f"admin_access_smoke={value.get('status', 'unknown')}")
+print(f"admin_manage_configs={str(bool(value.get('manageConfigs'))).lower()}")
+PY
+else
+  printf 'admin_access_smoke=not_run\n'
 fi
 
 if [[ -n "${INTEGRATION_EVIDENCE_DIR:-}" \
@@ -175,7 +216,7 @@ if command -v docker >/dev/null 2>&1; then
   printf '%s\n' 'compose_ps_begin'
   "${compose[@]}" ps 2>&1 || true
   printf '%s\n' 'compose_ps_end'
-  for service in mongodb codeapi fake-model-relay file-agent-runtime api; do
+  for service in mongodb codeapi fake-model-relay file-agent-runtime api admin-panel; do
     container_id="$("${compose[@]}" ps -q "$service" 2>/dev/null || true)"
     if [[ -z "$container_id" ]]; then
       printf 'service=%s status=missing\n' "$service"

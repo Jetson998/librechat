@@ -13,7 +13,9 @@ redacted evidence files. Allowed status values are exactly:
 | Runtime/Connector paths unchanged between revisions | `integration-up.sh` ancestor/diff gate | `git diff` check | fill | revision gate output | not_run |
 | Clean-machine environment creation | `compose.integration.yaml`, `.env.integration.example` | `integration-up.sh` | fill | Compose/image evidence | not_run |
 | Reviewed API overlay is loaded | `Dockerfile.api`, startup marker | `integration-status.sh` | fill | API marker + manifest | not_run |
-| Test user IDs are loaded into the final allowlist | `provision-test-users.mjs` | `integration-up.sh` | fill | `integration-test-users.json` | not_run |
+| Admin Panel image and `linux/amd64` identity match | `compose.integration.yaml`, image gate | `integration-up.sh` | fill | `image-identities.txt` | not_run |
+| One test administrator is loaded into the final allowlist | `provision-test-users.mjs`, `promote-test-admin.sh` | `integration-up.sh` | fill | `integration-test-users.json`, `integration-test-admin.json` | not_run |
+| Administrator can read configuration | `verify-admin-access.mjs` | `integration-smoke.sh` | fill | `admin-access-smoke.json` | not_run |
 | API is recreated once after allowlist update | `recreate-api-after-allowlist.sh` | `integration-up.sh` | fill | `api-allowlist-reload.txt` | not_run |
 | Real CodeAPI image is used | `CODEAPI_IMAGE` and exact image ID | `import-codeapi-image.sh` | fill | image identity | blocked |
 | Runtime sends real `/exec` contract | `librechat-codeapi-transport.js` | developer E2E | fill | `codeapi-audit.ndjson` | not_run |

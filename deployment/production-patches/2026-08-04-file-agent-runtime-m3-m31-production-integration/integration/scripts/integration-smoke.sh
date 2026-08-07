@@ -54,9 +54,17 @@ require_service() {
   esac
 }
 
-for service in mongodb codeapi fake-model-relay file-agent-runtime api; do
+for service in mongodb codeapi fake-model-relay file-agent-runtime api admin-panel; do
   require_service "$service"
 done > "$EVIDENCE_DIR/operator-service-smoke.txt"
+
+admin_health_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+  "http://127.0.0.1:${INTEGRATION_ADMIN_PANEL_PORT:-3091}/health")"
+if [[ "$admin_health_status" != 200 ]]; then
+  printf 'Admin Panel health returned HTTP %s\n' "$admin_health_status" >&2
+  exit 4
+fi
+printf 'admin_panel_health=passed\n' >> "$EVIDENCE_DIR/operator-service-smoke.txt"
 
 api_response="$EVIDENCE_DIR/operator-api-config.json"
 curl --silent --show-error --fail --output "$api_response" \
@@ -153,18 +161,40 @@ from pathlib import Path
 
 value = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
 users = value.get('users', [])
-if value.get('status') != 'passed' or len(users) != 2:
+if value.get('status') != 'passed' or len(users) != 1:
     raise SystemExit('test user provisioning evidence is incomplete')
-if len({user.get('userId') for user in users}) != 2:
-    raise SystemExit('test user identities are not distinct')
-if {user.get('model') for user in users} != {'gpt-5.6-sol', 'claude-fable-5'}:
+if set(users[0].get('models', [])) != {'gpt-5.6-sol', 'claude-fable-5'}:
     raise SystemExit('test user model assignments are incomplete')
+if users[0].get('role') != 'ADMIN':
+    raise SystemExit('test user is not an administrator')
 print('integration_test_user_evidence=passed')
 PY
 then
   printf 'integration test user evidence is incomplete\n' >&2
   exit 6
 fi
+
+if [[ ! -f "$EVIDENCE_DIR/integration-test-admin.json" ]] \
+  || ! python3 - "$EVIDENCE_DIR/integration-test-admin.json" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+value = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+if value.get('status') != 'passed' or value.get('role') != 'ADMIN':
+    raise SystemExit('administrator promotion evidence is incomplete')
+if value.get('userCount') != 1:
+    raise SystemExit('disposable integration database contains more than one permanent user')
+print('integration_test_admin_evidence=passed')
+PY
+then
+  printf 'integration administrator evidence is incomplete\n' >&2
+  exit 6
+fi
+
+node "$SCRIPT_DIR/verify-admin-access.mjs"
 
 printf 'operator_smoke=passed\n'
 printf 'api_allowlist_reload_smoke=passed\n'

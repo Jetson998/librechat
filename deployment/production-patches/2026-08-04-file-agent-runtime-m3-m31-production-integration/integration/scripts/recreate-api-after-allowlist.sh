@@ -52,7 +52,7 @@ touch "$EVIDENCE_FILE"
 chmod 600 "$EVIDENCE_FILE"
 
 compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}")
-protected_services=(mongodb codeapi fake-model-relay file-agent-runtime)
+protected_services=(mongodb codeapi fake-model-relay file-agent-runtime admin-panel)
 
 service_ids() {
   local service container_id
