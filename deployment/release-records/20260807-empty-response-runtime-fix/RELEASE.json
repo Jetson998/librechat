@@ -71,8 +71,12 @@
     "sha256": ""
   },
   "rollback_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "method": "The versioned runner saves compose.override.yaml and the preflight/container baseline before the write; remote-rollback.py restores that exact Compose file and recreates only LibreChat-API.",
+      "scope": "LibreChat-API only",
+      "unchanged_data": "No MongoDB data, CodeAPI processes, NGINX, RAG, Admin Panel, Office service, users, files, or conversations are modified by the runner."
+    },
+    "status": "passed"
   },
   "runtime_snapshot": {
     "details": {},
