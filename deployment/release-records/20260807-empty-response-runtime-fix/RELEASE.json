@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260807-empty-response-runtime-fix/artifacts/20260807-empty-response-runtime-fix-d4ff4a4c6f6a.tar.gz",
+      "manifest": ".release-state/20260807-empty-response-runtime-fix/artifacts/manifest.json",
+      "value": "41702a62cc43708b64aef639b0aef033c0c7bda6745cf88565b19b23a82fd8dc"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -16,8 +21,8 @@
       "description": "The production API currently carries the Office/diagnostic Agent overlays recorded before this candidate.",
       "files": {
         "/app/api/app/clients/BaseClient.js": "5675ea2a03db9f77a76816fb2605ffe0e3520dc998005987ab1c791bc6e38060",
-        "/app/api/server/controllers/agents/request.js": "7e0f1915530b90addd4424ff0dce128af98ad86037bef8fa1aeb4db03f1dc3e9",
         "/app/api/server/controllers/agents/InitializationFailure.js": "547bd84e25b136148cd12582e900c6b41ab85170b909b01bd14a7c37b0e78abd",
+        "/app/api/server/controllers/agents/request.js": "7e0f1915530b90addd4424ff0dce128af98ad86037bef8fa1aeb4db03f1dc3e9",
         "/app/api/server/services/DiagnosticEvents.js": "c60f930fb6f24d5802c2249650d1557c4de4cbdfbbe09263cf05785be9467934"
       },
       "protected_services": [
@@ -31,8 +36,41 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "41702a62cc43708b64aef639b0aef033c0c7bda6745cf88565b19b23a82fd8dc",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "client-bundle",
+      "deployable-artifact",
+      "model-tool-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "client-tests",
+      "model-tool-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "checks": [
+        "Focused DiagnosticEvents privacy, bounded responseShape, queue, and exact-lookup tests passed.",
+        "Focused empty-response initialization failure test passed, including terminal assistant persistence and user-facing action text.",
+        "BaseClient, Agent request controller, InitializationFailure, and DiagnosticEvents Node syntax checks passed.",
+        "API/client/model-tool contract coverage is represented by the two dependency-free focused tests; no upstream full-suite checkout or dependency installation is present in this governance repository.",
+        "Versioned four-file API overlay, manifest, protected-service guards, rollback runner, Bash syntax, Python compilation, and Compose mutation contract passed.",
+        "No production host build, dependency installation, model request, or container write ran during candidate construction."
+      ],
+      "limitations": [
+        "The client-bundle requirement is satisfied at the runtime overlay contract level; this batch does not rebuild the full web frontend bundle.",
+        "Full upstream API Jest, Client build, and provider integration suites require the separate LibreChat source/dependency checkout and remain outside this candidate evidence."
+      ],
+      "production_write_attempts": 0
+    },
+    "production_host": false,
+    "provider": "local independent source overlay build",
+    "release_plan_sha256": "550150a34cebeffd144e3b8c1205f2b9c8cbe7202c940974da1a14b303a9b8fc",
+    "schema_version": 1,
+    "source_revision": "d4ff4a4c6f6aeb58499792c1f884022ae08d278c",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "A semantically empty Agent model response is shown as an actionable regenerate/choose-another-model error, is persisted as a terminal assistant failure, and does not leave the conversation parent in saving state. User-initiated Stop remains distinct from system generation failure.",
@@ -60,15 +98,48 @@
     "billable_model_request_allowed": true,
     "deploy_runner": "deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/deploy.sh",
     "package_required_paths": [],
-    "protected_services": ["LibreChat-API"],
+    "protected_services": [
+      "LibreChat-API"
+    ],
     "release_kind": "batch",
     "release_plan": "computed-from-change-summary.scope-at-verify"
   },
   "project_id": "librechat-self-host",
   "release_id": "20260807-empty-response-runtime-fix",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_checks": [
+        "api-smoke",
+        "browser-ui",
+        "changed-path-smoke",
+        "limited-model-request"
+      ],
+      "acceptance_level": "heavy",
+      "artifact": ".release-state/20260807-empty-response-runtime-fix/artifacts/manifest.json",
+      "build_requirements": [
+        "api-artifact",
+        "client-bundle",
+        "deployable-artifact",
+        "model-tool-artifact",
+        "versioned-patch-artifact"
+      ],
+      "dependency_services": [
+        "LibreChat-CodeAPI",
+        "LibreChat-NGINX",
+        "chat-mongodb"
+      ],
+      "deployment_targets": ["LibreChat-API"],
+      "minimum_mode": "enhanced",
+      "preflight_evidence": ".release-state/20260807-empty-response-runtime-fix/runtime-preflight.json",
+      "test_requirements": [
+        "api-tests",
+        "client-tests",
+        "model-tool-tests",
+        "patch-contract-tests",
+        "release-scope-tests"
+      ]
+    },
+    "sha256": "550150a34cebeffd144e3b8c1205f2b9c8cbe7202c940974da1a14b303a9b8fc"
   },
   "rollback_reference": {
     "details": {
@@ -86,32 +157,32 @@
   "source_revision": "d4ff4a4c6f6aeb58499792c1f884022ae08d278c",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-08-07T03:21:15Z",
+  "updated_at": "2026-08-07T03:42:17Z",
   "validation_plan": [
     {
-      "type": "local",
       "command": "node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-diagnostic-events.js && node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-empty-response-runtime.js",
-      "expected": "Focused empty-response lifecycle and privacy-boundary tests pass."
+      "expected": "Focused empty-response lifecycle and privacy-boundary tests pass.",
+      "type": "local"
     },
     {
-      "type": "local",
       "command": "python3 deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-release.py",
-      "expected": "Runner, target lock, protected-service, rollback, and Python/Bash syntax contracts pass."
+      "expected": "Runner, target lock, protected-service, rollback, and Python/Bash syntax contracts pass.",
+      "type": "local"
     },
     {
-      "type": "target-preflight",
       "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260807-empty-response-runtime-fix --evidence .release-state/20260807-empty-response-runtime-fix/runtime-preflight.json",
-      "expected": "Fresh read-only container, Compose, resource, dependency, and four-target baseline checks pass."
+      "expected": "Fresh read-only container, Compose, resource, dependency, and four-target baseline checks pass.",
+      "type": "target-preflight"
     },
     {
-      "type": "deployment",
       "command": "scripts/release-deploy.sh 20260807-empty-response-runtime-fix --confirm 20260807-empty-response-runtime-fix -- .release-state/20260807-empty-response-runtime-fix/runtime-preflight.json .release-state/20260807-empty-response-runtime-fix/deployment/deployment-result.json",
-      "expected": "Only LibreChat-API is recreated; four target hashes and protected service IDs verify."
+      "expected": "Only LibreChat-API is recreated; four target hashes and protected service IDs verify.",
+      "type": "deployment"
     },
     {
-      "type": "acceptance",
       "command": "Use vip998 for one non-destructive Agent request, inspect the changed failure/retry path and user Stop path, then run scripts/release-acceptance.sh with evidence.",
-      "expected": "Actionable empty-response error is visible, regeneration is no longer blocked by a saving parent, and protected public health checks remain passing."
+      "expected": "Actionable empty-response error is visible, regeneration is no longer blocked by a saving parent, and protected public health checks remain passing.",
+      "type": "acceptance"
     }
   ]
 }
