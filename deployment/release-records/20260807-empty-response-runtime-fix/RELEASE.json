@@ -1,0 +1,113 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "The production API currently carries the Office/diagnostic Agent overlays recorded before this candidate.",
+      "files": {
+        "/app/api/app/clients/BaseClient.js": "5675ea2a03db9f77a76816fb2605ffe0e3520dc998005987ab1c791bc6e38060",
+        "/app/api/server/controllers/agents/request.js": "7e0f1915530b90addd4424ff0dce128af98ad86037bef8fa1aeb4db03f1dc3e9",
+        "/app/api/server/controllers/agents/InitializationFailure.js": "547bd84e25b136148cd12582e900c6b41ab85170b909b01bd14a7c37b0e78abd",
+        "/app/api/server/services/DiagnosticEvents.js": "c60f930fb6f24d5802c2249650d1557c4de4cbdfbbe09263cf05785be9467934"
+      },
+      "protected_services": [
+        "LibreChat-CodeAPI",
+        "LibreChat-NGINX",
+        "LibreChat-RAG-API",
+        "chat-mongodb",
+        "LibreChat-Admin-Panel"
+      ]
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "A semantically empty Agent model response is shown as an actionable regenerate/choose-another-model error, is persisted as a terminal assistant failure, and does not leave the conversation parent in saving state. User-initiated Stop remains distinct from system generation failure.",
+    "functions": [
+      "Classify semantic empty responses as EMPTY_MODEL_RESPONSE with a bounded responseShape.",
+      "Persist a terminal assistant error and emit final after a generation failure.",
+      "Use only the job AbortController signal for user Stop classification.",
+      "Store only allowlisted bounded response-shape metadata in diagnostic events.",
+      "Replace four read-only API mounts and recreate only LibreChat-API."
+    ],
+    "limitations": [
+      "The candidate does not rebuild the full frontend bundle; BaseClient.js is mounted as a versioned API runtime overlay.",
+      "Acceptance uses at most one non-destructive vip998 Agent request and does not create or mutate business data.",
+      "This release does not prove every upstream provider response shape or load behavior."
+    ],
+    "reason": "Production logs show repeated system-side generation_failed events after 135-227 seconds with an SSE 200 response and a semantically empty model payload. The failure path did not finalize the preliminary parent, so follow-up requests could receive HTTP 409 parent-saving errors.",
+    "risk": "The API runtime and user-visible error lifecycle change could affect Agent streaming, retry, and Stop behavior. The release is limited to four read-only API mounts, requires baseline hashes and protected-container identity checks, and has automatic Compose rollback.",
+    "scope": [
+      "deployment/production-patches/2026-08-07-empty-response-runtime-fix"
+    ]
+  },
+  "created_at": "2026-08-07T03:21:15Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": true,
+    "deploy_runner": "deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": ["LibreChat-API"],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260807-empty-response-runtime-fix",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "d4ff4a4c6f6aeb58499792c1f884022ae08d278c",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-08-07T03:21:15Z",
+  "validation_plan": [
+    {
+      "type": "local",
+      "command": "node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-diagnostic-events.js && node deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-empty-response-runtime.js",
+      "expected": "Focused empty-response lifecycle and privacy-boundary tests pass."
+    },
+    {
+      "type": "local",
+      "command": "python3 deployment/production-patches/2026-08-07-empty-response-runtime-fix/scripts/test-release.py",
+      "expected": "Runner, target lock, protected-service, rollback, and Python/Bash syntax contracts pass."
+    },
+    {
+      "type": "target-preflight",
+      "command": "Versioned collect-preflight.sh followed by scripts/release-preflight.sh 20260807-empty-response-runtime-fix --evidence .release-state/20260807-empty-response-runtime-fix/runtime-preflight.json",
+      "expected": "Fresh read-only container, Compose, resource, dependency, and four-target baseline checks pass."
+    },
+    {
+      "type": "deployment",
+      "command": "scripts/release-deploy.sh 20260807-empty-response-runtime-fix --confirm 20260807-empty-response-runtime-fix -- .release-state/20260807-empty-response-runtime-fix/runtime-preflight.json .release-state/20260807-empty-response-runtime-fix/deployment/deployment-result.json",
+      "expected": "Only LibreChat-API is recreated; four target hashes and protected service IDs verify."
+    },
+    {
+      "type": "acceptance",
+      "command": "Use vip998 for one non-destructive Agent request, inspect the changed failure/retry path and user Stop path, then run scripts/release-acceptance.sh with evidence.",
+      "expected": "Actionable empty-response error is visible, regeneration is no longer blocked by a saving parent, and protected public health checks remain passing."
+    }
+  ]
+}
