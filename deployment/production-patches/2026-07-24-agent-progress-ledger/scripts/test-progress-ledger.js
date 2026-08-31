@@ -333,6 +333,6 @@ assert(remoteApply.includes('/app/packages/api/dist/code-tool-contract.cjs'));
 assert(remoteApply.includes('/app/packages/api/dist/tool-progress-ledger.cjs'));
 assert(remoteApply.includes('/app/packages/api/dist/tool-call-recovery.cjs'));
 assert(remoteApply.includes('$recovery_hash'));
-assert(remoteApply.includes('AGENT_PROGRESS_LEDGER_MODE'));
+assert(!remoteApply.includes('AGENT_PROGRESS_LEDGER_MODE'));
 
 console.log('agent progress ledger tests passed');

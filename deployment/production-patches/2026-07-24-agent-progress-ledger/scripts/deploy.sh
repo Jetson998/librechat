@@ -17,7 +17,6 @@ for file in \
   "$patch_root/api-patch/tool-call-normalizer.cjs" \
   "$patch_root/api-patch/tool-call-recovery.cjs" \
   "$patch_root/api-patch/tool-progress-ledger.cjs" \
-  "$patch_root/scripts/mongo-config.js" \
   "$patch_root/scripts/remote-apply.sh"; do
   test -f "$file"
 done
@@ -30,7 +29,6 @@ scp "${ssh_opts[@]}" -- \
   "$patch_root/api-patch/tool-call-normalizer.cjs" \
   "$patch_root/api-patch/tool-call-recovery.cjs" \
   "$patch_root/api-patch/tool-progress-ledger.cjs" \
-  "$patch_root/scripts/mongo-config.js" \
   "$patch_root/scripts/remote-apply.sh" \
   "$user@$host:$remote_stage/"
 ssh "${ssh_opts[@]}" "$user@$host" \

@@ -100,8 +100,8 @@ git diff --check
 The governed deployment refuses to run unless the current production API
 package hash equals `BASELINE_SHA256`. It mounts the candidate API package, the
 public code-tool contract, the existing alias normalizer, and the new progress
-ledger, applies the versioned Mongo prompt contract, and recreates only
-`LibreChat-API`.
+ledger, then recreates only `LibreChat-API`. The already deployed Mongo prompt
+contract is not modified by this tool-call recovery release.
 
 Rollback restores the exact Compose override and complete Mongo base document,
 then recreates only the API service.
