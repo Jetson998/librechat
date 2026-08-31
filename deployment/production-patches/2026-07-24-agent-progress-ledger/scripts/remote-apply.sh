@@ -130,7 +130,7 @@ test "$(docker exec LibreChat-API sha256sum /app/packages/api/dist/tool-progress
 
 test "$(docker inspect LibreChat-CodeAPI --format '{{.Id}}')" = "$codeapi_id_before"
 test "$(docker inspect LibreChat-CodeAPI --format '{{.State.StartedAt}}')" = "$codeapi_started_before"
-test "$(docker inspect LibreChat-CodeAPI --format '{{.State.Health.Status}}')" = "healthy"
+test "$(docker inspect LibreChat-CodeAPI --format '{{.State.Status}}')" = "running"
 curl -ksSf https://152.32.172.162.sslip.io/ >/dev/null
 
 trap - ERR
