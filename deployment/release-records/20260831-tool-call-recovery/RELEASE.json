@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260831-tool-call-recovery/artifacts/20260831-tool-call-recovery-5acbab1e408a.tar.gz",
+      "manifest": ".release-state/20260831-tool-call-recovery/artifacts/manifest.json",
+      "value": "3c6f0ff101d9e2c5444e22520fa59f576d768ae39016c336da070000d5c9f4fb"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -13,21 +18,41 @@
   },
   "baseline_reference": {
     "details": {
-      "description": "Fresh read-only production check before this API-only tool-call recovery deployment.",
-      "live_api_index_sha256": "107678877c69dd3ccb7db53e160acad2326819d95e71ae289594140cc5eaa719",
-      "expected_candidate_baseline_sha256": "4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b",
       "api_container_started_at": "2026-08-07T05:15:51.640943279Z",
       "codeapi_container_id": "31ef4b61d9702cf63fdf7d3a1fdbc6a6c0edaef9c0cb3da0774d4ef5fff618e0",
       "codeapi_started_at": "2026-07-30T21:42:39.787287198Z",
       "compose_override_sha256": "8684266ae5675cefd0315302e354b067a56dceaa1ca3694fd37f01cf82e11012",
+      "description": "Fresh read-only production check before this API-only tool-call recovery deployment.",
+      "expected_candidate_baseline_sha256": "4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b",
+      "host_disk_free_mb": 17496,
       "host_memory_available_mb": 1398,
-      "host_disk_free_mb": 17496
+      "live_api_index_sha256": "107678877c69dd3ccb7db53e160acad2326819d95e71ae289594140cc5eaa719"
     },
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "3c6f0ff101d9e2c5444e22520fa59f576d768ae39016c336da070000d5c9f4fb",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "api-artifact",
+      "deployable-artifact",
+      "versioned-patch-artifact",
+      "api-tests",
+      "patch-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "artifact_source": "git archive/package from the frozen source revision",
+      "focused_tests": "agent progress ledger and tool-call recovery contract tests passed",
+      "governance_validation": "scripts/validate-release-governance.sh passed with 34 tests",
+      "production_write_attempts": 0,
+      "syntax_checks": "all candidate JavaScript and shell scripts passed"
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "3b76beb76b51a5d119d68635d3349da6d678f93843fa670dd43080d82663ce78",
+    "source_revision": "5acbab1e408a1457cc32ace260ab7488d137ae79",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "When an Agent model calls an unavailable PowerShell or Glob alias, or sends malformed/truncated code-tool arguments, the API returns a clear recoverable message naming the registered Linux tools and /mnt/data boundary. Truncated bash scripts receive a bounded split-call hint, without implicit shell execution or raw argument logging.",
@@ -101,7 +126,7 @@
   "source_revision": "5acbab1e408a1457cc32ace260ab7488d137ae79",
   "status": "ready",
   "unresolved_issues": [],
-  "updated_at": "2026-08-31T12:45:00Z",
+  "updated_at": "2026-08-31T12:45:17Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js; node --check on all candidate JavaScript files; bash -n on deploy.sh and remote-apply.sh; git diff --check",
