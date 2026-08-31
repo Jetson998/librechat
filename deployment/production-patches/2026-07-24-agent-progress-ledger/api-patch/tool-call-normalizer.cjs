@@ -12,10 +12,19 @@ function normalizeLegacyClaudeCodeToolCall(toolCall) {
   const normalizedName = LEGACY_TOOL_ALIASES[toolCall.name];
   if (!normalizedName) return toolCall;
 
+  let parsedStringArgs;
+  if (typeof toolCall.args === 'string' && toolCall.args.trim() !== '') {
+    try {
+      const parsed = JSON.parse(toolCall.args);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) parsedStringArgs = parsed;
+    } catch (_) {
+    }
+  }
   const args =
-    toolCall.args && typeof toolCall.args === 'object' && !Array.isArray(toolCall.args)
+    parsedStringArgs ??
+    (toolCall.args && typeof toolCall.args === 'object' && !Array.isArray(toolCall.args)
       ? { ...toolCall.args }
-      : {};
+      : {});
 
   if (toolCall.name === 'Read') {
     if (typeof args.path !== 'string' && typeof args.file_path === 'string') {

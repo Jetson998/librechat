@@ -26,6 +26,18 @@ It does not persist tool arguments, stdout, file contents, prompts, or model
 reasoning. It does not query MongoDB, scan the code sandbox, or call another
 model.
 
+The `tool-call-recovery.cjs` helper makes failed tool calls recoverable without
+expanding the execution surface:
+
+- `PowerShell` and `Glob` remain unregistered and are never mapped implicitly;
+  their errors point the model to the registered Linux tools and `/mnt/data`.
+- Malformed or incomplete arguments for code/file tools return a stable
+  `TOOL_ARGUMENTS_INCOMPLETE` error instead of invoking a tool with an empty
+  payload. Long `bash_tool` calls are directed to shorter calls or a script
+  file under `/mnt/data`.
+- Shell syntax errors that look like a cut-off script receive the same bounded
+  recovery hint. Raw commands, paths, and file contents are not added to logs.
+
 The common `ON_TOOL_EXECUTE` handler applies this sequence to serial tool
 calls:
 
@@ -75,6 +87,7 @@ node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/api-index.cjs
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/code-tool-contract.cjs
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-call-normalizer.cjs
+node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-call-recovery.cjs
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-progress-ledger.cjs
 node --check deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/mongo-config.js
 bash -n deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/deploy.sh

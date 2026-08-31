@@ -7,6 +7,8 @@ const path = require('node:path');
 const releaseRoot = path.resolve(__dirname, '..');
 const ledgerModule = require(path.join(releaseRoot, 'api-patch', 'tool-progress-ledger.cjs'));
 const normalizer = require(path.join(releaseRoot, 'api-patch', 'tool-call-normalizer.cjs'));
+const recovery = require(path.join(releaseRoot, 'api-patch', 'tool-call-recovery.cjs'));
+const contractModule = require(path.join(releaseRoot, 'api-patch', 'code-tool-contract.cjs'));
 const mongoConfig = require(path.join(releaseRoot, 'scripts', 'mongo-config.js'));
 
 const {
@@ -34,6 +36,51 @@ assert.deepEqual(
   }).args,
   { path: '/mnt/data/a.md' },
 );
+assert.deepEqual(
+  normalizer.normalizeLegacyClaudeCodeToolCall({
+    name: 'Read',
+    args: '{"file_path":"/mnt/data/a.md"}',
+  }).args,
+  { path: '/mnt/data/a.md' },
+);
+for (const name of ['PowerShell', 'Glob']) {
+  const call = { name, args: {} };
+  assert.equal(normalizer.normalizeLegacyClaudeCodeToolCall(call), call);
+}
+assert.equal(recovery.getToolCallArgumentError({ name: 'bash_tool', args: { command: 'pwd' } }), null);
+assert.equal(recovery.getToolCallArgumentError({ name: 'read_file', args: '{"path":"/mnt/data/a.md"}' }), null);
+assert.match(
+  recovery.getToolCallArgumentError({ name: 'bash_tool', args: '{"command":"python3 - <<\'PY\'"' }),
+  /TOOL_ARGUMENTS_INCOMPLETE/,
+);
+assert.match(
+  recovery.getToolCallArgumentError({ name: 'read_file', args: {} }),
+  /只能操作 \/mnt\/data/,
+);
+assert.equal(recovery.getToolCallArgumentError({ name: 'Grep', args: {} }), null);
+assert.match(
+  recovery.getUnknownToolErrorMessage('PowerShell', ['bash_tool', 'read_file']),
+  /Linux.*PowerShell.*宿主机磁盘.*bash_tool.*\/mnt\/data/s,
+);
+assert.match(
+  recovery.getUnknownToolErrorMessage('Glob', ['bash_tool', 'read_file']),
+  /不要重试 `Glob`.*`read_file`.*`bash_tool`/s,
+);
+assert(!recovery.getUnknownToolErrorMessage('PowerShell', ['bash_tool']).includes('PowerShell->bash_tool'));
+assert(!recovery.getUnknownToolErrorMessage('bad\nname', []).includes('\nname'));
+assert.match(
+  recovery.augmentToolExecutionError('bash_tool', 'bash: syntax error: unexpected end of file'),
+  /TOOL_ARGUMENTS_INCOMPLETE.*拆分/s,
+);
+assert.equal(recovery.augmentToolExecutionError('bash_tool', 'permission denied'), 'permission denied');
+const runtimeContract = contractModule.buildCodeToolContract([
+  { name: 'bash_tool' },
+  { name: 'read_file' },
+  { name: 'create_file' },
+]);
+assert(runtimeContract.includes('Linux and isolated from the host machine'));
+assert(runtimeContract.includes('focused and short'));
+assert(runtimeContract.includes('create_file'));
 
 const diagnostics = [];
 const ledger = createToolProgressLedger({ onDiagnostic: (event) => diagnostics.push(event) });
@@ -255,6 +302,8 @@ for (const contract of [
   'require("./code-tool-contract.cjs")',
   'buildCodeToolContract(toolDefinitions)',
   'require("./tool-progress-ledger.cjs")',
+  'require("./tool-call-recovery.cjs")',
+  'const availableToolNames = getAvailableToolNames(toolMap, mergedConfigurable)',
   'agentToolProgressLedger.assertCanExecute(ledgerContext)',
   'agentToolProgressLedger.observe({',
   'finalizeToolResult(tc, await execute())',
@@ -269,6 +318,12 @@ const codeToolContractSource = fs.readFileSync(
 );
 assert(codeToolContractSource.includes('function buildCodeToolContract'));
 assert(codeToolContractSource.includes('module.exports'));
+const recoverySource = fs.readFileSync(
+  path.join(releaseRoot, 'api-patch', 'tool-call-recovery.cjs'),
+  'utf8',
+);
+assert(recoverySource.includes('getUnknownToolErrorMessage'));
+assert(recoverySource.includes('TOOL_ARGUMENTS_INCOMPLETE'));
 
 const baseline = fs.readFileSync(path.join(releaseRoot, 'BASELINE_SHA256'), 'utf8').trim();
 assert.equal(baseline, '4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b');
@@ -276,6 +331,8 @@ const remoteApply = fs.readFileSync(path.join(releaseRoot, 'scripts', 'remote-ap
 assert(remoteApply.includes(`expected_baseline="${baseline}"`));
 assert(remoteApply.includes('/app/packages/api/dist/code-tool-contract.cjs'));
 assert(remoteApply.includes('/app/packages/api/dist/tool-progress-ledger.cjs'));
+assert(remoteApply.includes('/app/packages/api/dist/tool-call-recovery.cjs'));
+assert(remoteApply.includes('$recovery_hash'));
 assert(remoteApply.includes('AGENT_PROGRESS_LEDGER_MODE'));
 
 console.log('agent progress ledger tests passed');

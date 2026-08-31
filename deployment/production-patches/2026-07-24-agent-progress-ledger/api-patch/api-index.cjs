@@ -39049,7 +39049,14 @@ function getFileAuthoringQueueKey(tc, mergedConfigurable) {
 	return `skill:${parsed.skillName}`;
 }
 const { normalizeLegacyClaudeCodeToolCall } = require("./tool-call-normalizer.cjs");
+const { augmentToolExecutionError, getToolCallArgumentError, getUnknownToolErrorMessage } = require("./tool-call-recovery.cjs");
 const { createToolProgressLedger } = require("./tool-progress-ledger.cjs");
+function getAvailableToolNames(toolMap, configurable) {
+	const names = new Set(toolMap.keys());
+	const toolRegistry = configurable?.toolRegistry;
+	if (toolRegistry instanceof Map) for (const name of toolRegistry.keys()) names.add(name);
+	return [...names];
+}
 const agentToolProgressLedger = createToolProgressLedger({ onDiagnostic: (diagnostic) => {
 	_librechat_data_schemas.logger.warn("[tool-progress-ledger]", diagnostic);
 } });
@@ -39100,10 +39107,13 @@ function createToolExecuteHandler(options) {
 					const toolMap = new Map(loadedTools.map((t) => [t.name, t]));
 					const sourceConfigurable = configurable;
 					const mergedConfigurable = mergeToolConfigurables(sourceConfigurable, toolConfigurable);
+					const availableToolNames = getAvailableToolNames(toolMap, mergedConfigurable);
 					const authoringQueues = /* @__PURE__ */ new Map();
 					const sandboxAuthoringContexts = /* @__PURE__ */ new Map();
 					resolve(await Promise.all(normalizedToolCalls.map(async (tc) => {
 						const execute = async (sandboxContext) => {
+							const argumentError = getToolCallArgumentError(tc);
+							if (argumentError) return errorResult(tc, argumentError);
 							const isFileAuthoringCall = isHostFileAuthoringToolCall(tc.name, mergedConfigurable);
 							const isSandboxFileAuthoringCall = isFileAuthoringCall && typeof tc.args.path === "string" && !tc.args.path.startsWith("skills/");
 							if (tc.name === _librechat_agents.Constants.SKILL_TOOL || tc.name === _librechat_agents.Constants.READ_FILE || isFileAuthoringCall) {
@@ -39117,6 +39127,7 @@ function createToolExecuteHandler(options) {
 									else handlerResult = errorResult(tc, `Tool ${tc.name} not found`);
 								} catch (toolError) {
 									const { message, logContext } = getSafeToolError(toolError);
+									const userMessage = augmentToolExecutionError(tc.name, message);
 									_librechat_data_schemas.logger.error(`[ON_TOOL_EXECUTE] Tool ${tc.name} error`, {
 										...logContext,
 										toolCallArgsShape: getValueShape(tc.args)
@@ -39125,7 +39136,7 @@ function createToolExecuteHandler(options) {
 										toolCallId: tc.id,
 										status: "error",
 										content: "",
-										errorMessage: message
+										errorMessage: userMessage
 									};
 								}
 								if (isSandboxFileAuthoringCall && handlerResult.status === "success" && sandboxContext) mergeSandboxSessionArtifact(sandboxContext, handlerResult.artifact);
@@ -39143,12 +39154,13 @@ function createToolExecuteHandler(options) {
 							}
 							const tool = toolMap.get(tc.name);
 							if (!tool) {
-								_librechat_data_schemas.logger.warn(`[ON_TOOL_EXECUTE] Tool "${tc.name}" not found. Available: ${[...toolMap.keys()].map((k) => `"${k}"`).join(", ")}`);
+								const errorMessage = getUnknownToolErrorMessage(tc.name, availableToolNames);
+								_librechat_data_schemas.logger.warn(`[ON_TOOL_EXECUTE] Tool "${tc.name}" not found. Available: ${availableToolNames.map((k) => `"${k}"`).join(", ")}`);
 								return {
 									toolCallId: tc.id,
 									status: "error",
 									content: "",
-									errorMessage: `Tool ${tc.name} not found`
+									errorMessage
 								};
 							}
 							try {
@@ -39221,6 +39233,7 @@ function createToolExecuteHandler(options) {
 								};
 							} catch (toolError) {
 								const { message, logContext } = getSafeToolError(toolError);
+								const userMessage = augmentToolExecutionError(tc.name, message);
 								_librechat_data_schemas.logger.error(`[ON_TOOL_EXECUTE] Tool ${tc.name} error`, {
 									...logContext,
 									toolCallArgsShape: getValueShape(tc.args),
@@ -39230,7 +39243,7 @@ function createToolExecuteHandler(options) {
 									toolCallId: tc.id,
 									status: "error",
 									content: "",
-									errorMessage: message
+									errorMessage: userMessage
 								};
 							}
 						};
