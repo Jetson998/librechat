@@ -23,7 +23,7 @@
       "codeapi_started_at": "2026-07-30T21:42:39.787287198Z",
       "compose_override_sha256": "8684266ae5675cefd0315302e354b067a56dceaa1ca3694fd37f01cf82e11012",
       "description": "Fresh read-only production check before this API-only tool-call recovery deployment.",
-      "expected_candidate_baseline_sha256": "4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b",
+      "expected_candidate_baseline_sha256": "107678877c69dd3ccb7db53e160acad2326819d95e71ae289594140cc5eaa719",
       "host_disk_free_mb": 17496,
       "host_memory_available_mb": 1398,
       "live_api_index_sha256": "107678877c69dd3ccb7db53e160acad2326819d95e71ae289594140cc5eaa719"
@@ -75,6 +75,7 @@
     "risk": "API Agent tool execution and user-facing error text change. The patch is dependency-free, never maps unknown names to shell commands, validates required string fields before invocation, logs only bounded shapes, locks the known production API baseline, and recreates only LibreChat-API with an exact Compose rollback.",
     "scope": [
       "deployment/production-patches/2026-07-24-agent-progress-ledger/README.md",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/BASELINE_SHA256",
       "deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/api-index.cjs",
       "deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/code-tool-contract.cjs",
       "deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-call-normalizer.cjs",
@@ -123,7 +124,7 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "5acbab1e408a1457cc32ace260ab7488d137ae79",
+  "source_revision": "3891c5e2feefbb205adb4f45574e70502b157ee0",
   "status": "ready",
   "unresolved_issues": [],
   "updated_at": "2026-08-31T12:45:17Z",
