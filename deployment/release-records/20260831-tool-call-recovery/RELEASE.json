@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260831-tool-call-recovery/artifacts/20260831-tool-call-recovery-5acbab1e408a.tar.gz",
+      "artifact": ".release-state/20260831-tool-call-recovery/artifacts/20260831-tool-call-recovery-3891c5e2feef.tar.gz",
       "manifest": ".release-state/20260831-tool-call-recovery/artifacts/manifest.json",
-      "value": "3c6f0ff101d9e2c5444e22520fa59f576d768ae39016c336da070000d5c9f4fb"
+      "value": "6013e03fcfaf11f0e8c973367c8bc78f818b8d4d0c13390de53ab6ea8cb2afdb"
     },
     "status": "passed"
   },
@@ -31,7 +31,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "3c6f0ff101d9e2c5444e22520fa59f576d768ae39016c336da070000d5c9f4fb",
+    "artifact_sha256": "6013e03fcfaf11f0e8c973367c8bc78f818b8d4d0c13390de53ab6ea8cb2afdb",
     "build_environment": "independent-build",
     "completed_requirements": [
       "api-artifact",
@@ -50,8 +50,8 @@
     },
     "production_host": false,
     "provider": "Codex local independent validation",
-    "release_plan_sha256": "3b76beb76b51a5d119d68635d3349da6d678f93843fa670dd43080d82663ce78",
-    "source_revision": "5acbab1e408a1457cc32ace260ab7488d137ae79",
+    "release_plan_sha256": "6b088d766489d5283fb7f543ac57b8704ffa0babd890928f47c9856a5be965ab",
+    "source_revision": "3891c5e2feefbb205adb4f45574e70502b157ee0",
     "status": "passed"
   },
   "change_summary": {
@@ -127,7 +127,7 @@
   "source_revision": "3891c5e2feefbb205adb4f45574e70502b157ee0",
   "status": "ready",
   "unresolved_issues": [],
-  "updated_at": "2026-08-31T12:45:17Z",
+  "updated_at": "2026-08-31T12:49:50Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js; node --check on all candidate JavaScript files; bash -n on deploy.sh and remote-apply.sh; git diff --check",
