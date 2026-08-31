@@ -8,7 +8,7 @@ release_dir="/opt/librechat/agent-progress-ledger/${source_revision:0:12}-$times
 compose_dir="/opt/librechat"
 compose_override="$compose_dir/compose.override.yaml"
 compose_backup="$compose_override.bak-$timestamp"
-expected_baseline="4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b"
+expected_baseline="107678877c69dd3ccb7db53e160acad2326819d95e71ae289594140cc5eaa719"
 
 api_index_src="$stage_dir/api-index.cjs"
 contract_src="$stage_dir/code-tool-contract.cjs"

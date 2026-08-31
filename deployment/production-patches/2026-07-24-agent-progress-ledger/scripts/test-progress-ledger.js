@@ -326,7 +326,7 @@ assert(recoverySource.includes('getUnknownToolErrorMessage'));
 assert(recoverySource.includes('TOOL_ARGUMENTS_INCOMPLETE'));
 
 const baseline = fs.readFileSync(path.join(releaseRoot, 'BASELINE_SHA256'), 'utf8').trim();
-assert.equal(baseline, '4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b');
+assert.equal(baseline, '107678877c69dd3ccb7db53e160acad2326819d95e71ae289594140cc5eaa719');
 const remoteApply = fs.readFileSync(path.join(releaseRoot, 'scripts', 'remote-apply.sh'), 'utf8');
 assert(remoteApply.includes(`expected_baseline="${baseline}"`));
 assert(remoteApply.includes('/app/packages/api/dist/code-tool-contract.cjs'));
