@@ -1,7 +1,21 @@
 {
   "acceptance_result": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "evidence": ".release-state/20260831-tool-call-recovery/business-acceptance.json",
+      "result": ".release-state/20260831-tool-call-recovery/acceptance-result.json",
+      "conversation_id": "8ac53e22-8943-441c-bd25-a5608e5e47b7",
+      "conversation_url": "https://152.32.172.162.sslip.io/c/8ac53e22-8943-441c-bd25-a5608e5e47b7",
+      "billable_model_requests": 1,
+      "user_visible_unknown_tool_recovery": "PowerShell was reported as unregistered; the response named registered Linux tools and /mnt/data and did not retry the alias.",
+      "files_created": 0,
+      "files_modified": 0,
+      "post_deploy_log_check": "No fatal, recursion-limit, AGENT_NO_PROGRESS, or TOOL_ARGUMENTS_INCOMPLETE matches in the post-deploy window.",
+      "public_checks": {
+        "main_root": 200,
+        "api_config": 200
+      }
+    },
+    "status": "passed"
   },
   "artifact_digest": {
     "details": {
@@ -13,8 +27,17 @@
     "status": "passed"
   },
   "backup_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "compose_override_backup": "/opt/librechat/compose.override.yaml.bak-20260831205915",
+      "compose_override_sha256_before": "8684266ae5675cefd0315302e354b067a56dceaa1ca3694fd37f01cf82e11012",
+      "compose_override_sha256_after": "fa9813af3fcbaa7de1a15a5174ece3d232484a65a1f11c5c85464bd7d23c8805",
+      "release_dir": "/opt/librechat/agent-progress-ledger/e92682610cfd-20260831205915",
+      "deployment_result": ".release-state/20260831-tool-call-recovery/deployment/apply-result.json",
+      "scope": "LibreChat-API only",
+      "recoverable": true,
+      "mongo_modified": false
+    },
+    "status": "passed"
   },
   "baseline_reference": {
     "details": {
@@ -101,8 +124,33 @@
   "project_id": "librechat-self-host",
   "release_id": "20260831-tool-call-recovery",
   "release_plan": {
-    "details": {},
-    "sha256": ""
+    "details": {
+      "acceptance_level": "light",
+      "matched_rules": [
+        "api-runtime",
+        "production-patch"
+      ],
+      "minimum_mode": "protected",
+      "deployment_targets": [
+        "LibreChat-API"
+      ],
+      "dependency_services": [
+        "chat-mongodb"
+      ],
+      "acceptance_checks": [
+        "api-smoke",
+        "changed-path-smoke"
+      ],
+      "preflight_checks": [
+        "dependency-interface",
+        "host-disk",
+        "host-memory",
+        "rollback-available",
+        "service-state"
+      ],
+      "path": ".release-state/20260831-tool-call-recovery/release-plan.json"
+    },
+    "sha256": "11eeab76cc7cdfdd26a24f0a8954699712b5f2b63e11aacb605f4d4ddd007d6f"
   },
   "rollback_reference": {
     "details": {
@@ -120,14 +168,50 @@
     "status": "passed"
   },
   "runtime_snapshot": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "deployed_at": "2026-08-31T12:59:22Z",
+      "deployment_result": ".release-state/20260831-tool-call-recovery/deployment/apply-result.json",
+      "api_container_id": "e0f6d3856aee9e3a43c74f9d87910ad3527f54cd3724d4e850439d9ce11608b",
+      "api_container_started_at": "2026-08-31T12:59:22.244502468Z",
+      "recreated_services": [
+        "LibreChat-API"
+      ],
+      "mounted_target_hashes": {
+        "/app/packages/api/dist/index.cjs": "807ac03d6b6a076bde01f00c2eb0f58efd4a17074d561fa6db06eea83dc2bf9a",
+        "/app/packages/api/dist/code-tool-contract.cjs": "c79c16ff899414538899e797908a3f7bce0cf6759d1f8a1bbcd9adf308d3c7eb",
+        "/app/packages/api/dist/tool-call-normalizer.cjs": "525f5f13b100eb8ede9e5147642b8671eb65267b249a63e5baa770686d29971e",
+        "/app/packages/api/dist/tool-call-recovery.cjs": "082c83a185f90d912cc09dbbb89c061bcdce1bbd0d2daeed240b32725f9df031",
+        "/app/packages/api/dist/tool-progress-ledger.cjs": "6dd81a83064c752255091309f00683727e78b9e325e7b39d0f2489f8e07bdde2"
+      },
+      "codeapi": {
+        "container_id": "31ef4b61d9702cf63fdf7d3a1fdbc6a6c0edaef9c0cb3da0774d4ef5fff618e0",
+        "started_at": "2026-07-30T21:42:39.787287198Z",
+        "status": "running",
+        "unchanged": true
+      },
+      "other_services": {
+        "chat-mongodb": "running",
+        "LibreChat-RAG-API": "running",
+        "LibreChat-NGINX": "running"
+      },
+      "public_checks": {
+        "main_root": 200,
+        "api_config": 200
+      },
+      "host_resources": {
+        "memory_available_mb": 1444,
+        "disk_free_mb": 17482
+      },
+      "mongo_modified": false,
+      "artifact_sha256": "ad28455ac73031145fb8c7375b78115d8d21d0b058f88df0b592b575fcdf5ad1"
+    },
+    "status": "passed"
   },
   "schema_version": 1,
   "source_revision": "e92682610cfd5ac912aac40e38711b029e2fe6a8",
-  "status": "ready",
+  "status": "deployed",
   "unresolved_issues": [],
-  "updated_at": "2026-08-31T12:56:39Z",
+  "updated_at": "2026-08-31T13:05:49Z",
   "validation_plan": [
     {
       "command": "node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js; node --check on all candidate JavaScript files; bash -n on deploy.sh and remote-apply.sh; git diff --check",
