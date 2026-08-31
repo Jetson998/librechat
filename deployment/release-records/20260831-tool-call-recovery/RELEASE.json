@@ -1,0 +1,132 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {
+      "description": "Fresh read-only production check before this API-only tool-call recovery deployment.",
+      "live_api_index_sha256": "107678877c69dd3ccb7db53e160acad2326819d95e71ae289594140cc5eaa719",
+      "expected_candidate_baseline_sha256": "4a90641c385ef4ff9a39cbcef8acbd8ce0e0633e88ac2312a87a492934ba8b4b",
+      "api_container_started_at": "2026-08-07T05:15:51.640943279Z",
+      "codeapi_container_id": "31ef4b61d9702cf63fdf7d3a1fdbc6a6c0edaef9c0cb3da0774d4ef5fff618e0",
+      "codeapi_started_at": "2026-07-30T21:42:39.787287198Z",
+      "compose_override_sha256": "8684266ae5675cefd0315302e354b067a56dceaa1ca3694fd37f01cf82e11012",
+      "host_memory_available_mb": 1398,
+      "host_disk_free_mb": 17496
+    },
+    "status": "passed"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "When an Agent model calls an unavailable PowerShell or Glob alias, or sends malformed/truncated code-tool arguments, the API returns a clear recoverable message naming the registered Linux tools and /mnt/data boundary. Truncated bash scripts receive a bounded split-call hint, without implicit shell execution or raw argument logging.",
+    "functions": [
+      "Add a dependency-free tool-call recovery helper for unknown tools and incomplete arguments",
+      "Keep PowerShell and Glob unregistered and provide exact registered-tool guidance",
+      "Validate code/file tool argument shape before invoking handlers",
+      "Annotate likely truncated bash syntax failures with a short-call recovery hint",
+      "Expose the active tool registry in unknown-tool errors without raw arguments",
+      "Extend the public code-tool contract with Linux, /mnt/data, and script-splitting rules",
+      "Preserve legacy Bash, Read, and Skill normalization including JSON-string arguments"
+    ],
+    "limitations": [
+      "This release does not add PowerShell or Glob capabilities and does not grant host-disk access",
+      "The code sandbox remains Linux and isolated; uploaded/generated files must use /mnt/data",
+      "The runner recreates only LibreChat-API and does not modify MongoDB configuration",
+      "A production model request is limited to one non-destructive request during acceptance"
+    ],
+    "reason": "The supplied conversation reported that the Agent could not read a disk or execute scripts. Logs and runtime behavior show the model called unregistered PowerShell and Glob aliases and emitted a truncated bash_tool payload; the failure was a tool contract and argument-recovery problem, not a disk permission or CodeAPI outage.",
+    "risk": "API Agent tool execution and user-facing error text change. The patch is dependency-free, never maps unknown names to shell commands, validates required string fields before invocation, logs only bounded shapes, locks the known production API baseline, and recreates only LibreChat-API with an exact Compose rollback.",
+    "scope": [
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/README.md",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/api-index.cjs",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/code-tool-contract.cjs",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-call-normalizer.cjs",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-call-recovery.cjs",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/api-patch/tool-progress-ledger.cjs",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/deploy.sh",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/remote-apply.sh",
+      "deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js"
+    ]
+  },
+  "created_at": "2026-08-31T12:39:44Z",
+  "mode": "enhanced",
+  "project_adapter": {
+    "billable_model_request_allowed": true,
+    "deploy_runner": "deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [
+      "LibreChat-API"
+    ],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260831-tool-call-recovery",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {
+      "method": "The versioned runner saves the exact production compose.override.yaml before the write, restores it on failure or rollback, and recreates only LibreChat-API.",
+      "scope": "LibreChat-API only",
+      "target_compose_backup": "Timestamped backup created under /opt/librechat/compose.override.yaml.bak-<timestamp>",
+      "unchanged_services": [
+        "LibreChat-CodeAPI",
+        "LibreChat-RAG-API",
+        "LibreChat-NGINX",
+        "chat-mongodb",
+        "LibreChat-Admin-Panel"
+      ]
+    },
+    "status": "passed"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "5acbab1e408a1457cc32ace260ab7488d137ae79",
+  "status": "ready",
+  "unresolved_issues": [],
+  "updated_at": "2026-08-31T12:45:00Z",
+  "validation_plan": [
+    {
+      "command": "node deployment/production-patches/2026-07-24-agent-progress-ledger/scripts/test-progress-ledger.js; node --check on all candidate JavaScript files; bash -n on deploy.sh and remote-apply.sh; git diff --check",
+      "expected": "Recovery messages, argument validation, Linux path guidance, alias JSON parsing, deployment hash wiring, and syntax checks pass.",
+      "type": "local"
+    },
+    {
+      "command": "Independent source-revision package and release-scope verification",
+      "expected": "The artifact is built from the exact source revision and contains only the recorded candidate scope plus required governance files.",
+      "type": "build"
+    },
+    {
+      "command": "Fresh repository-owned read-only production preflight",
+      "expected": "Root and /api/config return 200, API/CodeAPI/Mongo dependencies are running, host resources pass thresholds, current API hash equals the locked baseline, and a Compose rollback target exists.",
+      "type": "preflight"
+    },
+    {
+      "command": "Controlled deployment with the versioned API-only runner and exact release confirmation",
+      "expected": "Only LibreChat-API is recreated; candidate module hashes match in-container; CodeAPI identity/start time and other protected services remain unchanged; root and /api/config return 200.",
+      "type": "deployment"
+    },
+    {
+      "command": "One authenticated non-destructive tool-call acceptance request plus public checks",
+      "expected": "Unknown PowerShell/Glob and malformed bash-tool failures are actionable, no host path is attempted, and no unrecoverable tool-not-found or truncated-payload loop is observed.",
+      "type": "acceptance"
+    }
+  ]
+}
