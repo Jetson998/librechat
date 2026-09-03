@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260903-clear-model-effort/artifacts/20260903-clear-model-effort-b642f82e1863.tar.gz",
+      "artifact": ".release-state/20260903-clear-model-effort/artifacts/20260903-clear-model-effort-49456b22b3c6.tar.gz",
       "manifest": ".release-state/20260903-clear-model-effort/artifacts/manifest.json",
-      "value": "d44b6b07249d111a7594bd123bcc341ba1a3c13e3f072b0f8e7a6be490eb5118"
+      "value": "a92a9463433e12a7d932c4f444717ef207636de9c1d36b64fbf3340b842ecfc7"
     },
     "status": "passed"
   },
@@ -63,7 +63,7 @@
     "status": "passed"
   },
   "build_attestation": {
-    "artifact_sha256": "d44b6b07249d111a7594bd123bcc341ba1a3c13e3f072b0f8e7a6be490eb5118",
+    "artifact_sha256": "a92a9463433e12a7d932c4f444717ef207636de9c1d36b64fbf3340b842ecfc7",
     "build_environment": "independent-build",
     "completed_requirements": [
       "deployable-artifact",
@@ -80,8 +80,8 @@
     },
     "production_host": false,
     "provider": "Codex local independent validation",
-    "release_plan_sha256": "3cfadb969016a45e4bb9a0fcccc82d33192d3fb80945b492ec090512f4da9c84",
-    "source_revision": "b642f82e1863cadd2cc0d6866a259de3ead3ceae",
+    "release_plan_sha256": "6f7fd0f65130a7f72d599c1242da925e7f198ca03959400833b5f873e7fed77a",
+    "source_revision": "49456b22b3c6ca0ba14dc0f77447a737bd2335a9",
     "status": "passed"
   },
   "change_summary": {
@@ -138,7 +138,7 @@
   "source_revision": "49456b22b3c6ca0ba14dc0f77447a737bd2335a9",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-09-03T12:47:57Z",
+  "updated_at": "2026-09-03T12:51:40Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-operations/2026-09-03-clear-model-effort/scripts/test-release.py; node --check on mongo-config.js; bash -n on all operation scripts; git diff --check",
