@@ -74,8 +74,13 @@
     "sha256": ""
   },
   "rollback_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "method": "Before the first Mongo write, the runner stores the complete active base config in codexConfigBackups with the unique backup_id clear-model-effort-<source>-<utc timestamp>. remote-rollback.sh restores that exact document and verifies the post-rollback snapshot.",
+      "scope": "chat-mongodb config document only",
+      "service_restarts": [],
+      "recoverable": true
+    },
+    "status": "passed"
   },
   "runtime_snapshot": {
     "details": {},
