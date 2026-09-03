@@ -21,6 +21,11 @@ const cleanupPreset = ({ preset: _preset, defaultParamsEndpoint }: TCleanupPrese
   const { presetOverride = {}, ...rest } = _preset ?? {};
   const preset = { ...rest, ...presetOverride };
 
+  // Reasoning intensity is a client-only conversation override. Never carry
+  // legacy values into a saved, exported, or default preset.
+  delete preset.effort;
+  delete preset.reasoning_effort;
+
   // Handle deprecated chatGptLabel field
   // If both chatGptLabel and modelLabel exist, prioritize modelLabel and remove chatGptLabel
   // If only chatGptLabel exists, migrate it to modelLabel

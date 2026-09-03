@@ -83,6 +83,8 @@ export interface SettingDefinition {
 
 export type DynamicSettingProps = Partial<SettingDefinition> & {
   readonly?: boolean;
+  /** Keep this setting in the active chat session instead of the conversation payload. */
+  sessionOnly?: boolean;
   settingKey: string;
   setOption: TSetOption;
   conversation: Partial<TConversation> | Partial<TPreset> | null;

@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { QueryKeys, isAssistantsEndpoint } from 'librechat-data-provider';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Constants, QueryKeys, isAssistantsEndpoint } from 'librechat-data-provider';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRecoilState, useSetRecoilState } from 'recoil';
+import { useRecoilState, useResetRecoilState, useSetRecoilState } from 'recoil';
 import type { TMessage } from 'librechat-data-provider';
 import type { ActiveJobsResponse } from '~/data-provider';
 import useChatFunctions from '~/hooks/Chat/useChatFunctions';
@@ -24,6 +24,54 @@ export default function useChatHelpers(index = 0, paramId?: string) {
   const { useCreateConversationAtom } = store;
   const { conversation, setConversation } = useCreateConversationAtom(index);
   const { conversationId, endpoint, endpointType } = conversation ?? {};
+
+  const sessionReasoningConversationId = conversationId ?? Constants.NEW_CONVO;
+  const [sessionReasoningEffort, setSessionReasoningEffort] = useRecoilState(
+    store.sessionReasoningEffortFamily(sessionReasoningConversationId),
+  );
+  const resetNewConversationReasoningEffort = useResetRecoilState(
+    store.sessionReasoningEffortFamily(Constants.NEW_CONVO),
+  );
+  const previousSessionReasoningKeyRef = useRef(sessionReasoningConversationId);
+  const previousSessionReasoningEffortRef = useRef(sessionReasoningEffort);
+  const sessionReasoningModelKey = `${endpointType ?? endpoint ?? ''}:${conversation?.model ?? ''}`;
+  const previousSessionReasoningModelKeyRef = useRef(sessionReasoningModelKey);
+
+  /** Carry a selection from the temporary `new` route to its real ID once the
+   * first request creates the conversation, while keeping existing chats
+   * isolated from one another. */
+  useEffect(() => {
+    const previousKey = previousSessionReasoningKeyRef.current;
+    const previousEffort = previousSessionReasoningEffortRef.current;
+
+    if (
+      previousKey === Constants.NEW_CONVO &&
+      sessionReasoningConversationId !== Constants.NEW_CONVO &&
+      previousEffort &&
+      !sessionReasoningEffort
+    ) {
+      setSessionReasoningEffort(previousEffort);
+      resetNewConversationReasoningEffort();
+    }
+
+    previousSessionReasoningKeyRef.current = sessionReasoningConversationId;
+    previousSessionReasoningEffortRef.current = sessionReasoningEffort;
+  }, [
+    resetNewConversationReasoningEffort,
+    sessionReasoningConversationId,
+    sessionReasoningEffort,
+    setSessionReasoningEffort,
+  ]);
+
+  useEffect(() => {
+    if (
+      previousSessionReasoningModelKeyRef.current !== sessionReasoningModelKey &&
+      sessionReasoningEffort
+    ) {
+      setSessionReasoningEffort(null);
+    }
+    previousSessionReasoningModelKeyRef.current = sessionReasoningModelKey;
+  }, [sessionReasoningEffort, sessionReasoningModelKey, setSessionReasoningEffort]);
 
   /** Use paramId (from URL) as primary source for query key - this must match what ChatView uses
   Falling back to conversationId (Recoil) only if paramId is not available */
@@ -86,6 +134,7 @@ export default function useChatHelpers(index = 0, paramId?: string) {
     conversation,
     latestMessage,
     setSubmission,
+    sessionReasoningEffort,
   });
 
   const askRef = useRef(_ask);
@@ -225,6 +274,8 @@ export default function useChatHelpers(index = 0, paramId?: string) {
       setPreset,
       optionSettings,
       setOptionSettings,
+      sessionReasoningEffort,
+      setSessionReasoningEffort,
       files,
       setFiles,
       filesLoading,
@@ -256,6 +307,8 @@ export default function useChatHelpers(index = 0, paramId?: string) {
       setPreset,
       optionSettings,
       setOptionSettings,
+      sessionReasoningEffort,
+      setSessionReasoningEffort,
       files,
       setFiles,
       filesLoading,

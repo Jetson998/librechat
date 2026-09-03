@@ -3,7 +3,9 @@ import {
   getRegenerateSubmissionMessages,
   getPreliminaryRegenerateResponseMessageId,
   getRegenerateTargetResponseMessage,
+  applySessionReasoningEffort,
 } from '../useChatFunctions';
+import type { TEndpointOption } from 'librechat-data-provider';
 
 const userMessage = (messageId: string, parentMessageId = '00000000-0000-0000-0000-000000000000') =>
   ({
@@ -125,5 +127,45 @@ describe('regenerate response targeting', () => {
         .map((message) => message.messageId)
         .sort(),
     ).toEqual(['assistant-1b', 'user-1']);
+  });
+});
+
+describe('session reasoning effort', () => {
+  const baseOption = {
+    endpoint: 'openAI',
+    model: 'gpt-5.6-sol',
+    effort: 'high',
+    reasoning_effort: 'medium',
+  } as TEndpointOption;
+
+  it('omits both vendor fields when the session is on automatic selection', () => {
+    const result = applySessionReasoningEffort(baseOption, null);
+
+    expect(result.effort).toBeUndefined();
+    expect(result.reasoning_effort).toBeUndefined();
+  });
+
+  it('never forwards the LibreChat-only auto sentinel', () => {
+    const result = applySessionReasoningEffort(baseOption, { key: 'effort', value: 'auto' });
+
+    expect(result.effort).toBeUndefined();
+    expect(result.reasoning_effort).toBeUndefined();
+  });
+
+  it('sends only Anthropic effort for a selected Claude intensity', () => {
+    const result = applySessionReasoningEffort(baseOption, { key: 'effort', value: 'xhigh' });
+
+    expect(result.effort).toBe('xhigh');
+    expect(result.reasoning_effort).toBeUndefined();
+  });
+
+  it('sends only OpenAI reasoning_effort for a selected GPT intensity', () => {
+    const result = applySessionReasoningEffort(baseOption, {
+      key: 'reasoning_effort',
+      value: 'max',
+    });
+
+    expect(result.reasoning_effort).toBe('max');
+    expect(result.effort).toBeUndefined();
   });
 });

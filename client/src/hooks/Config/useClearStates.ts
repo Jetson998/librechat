@@ -1,4 +1,5 @@
 import { useRecoilCallback } from 'recoil';
+import { Constants } from 'librechat-data-provider';
 import { clearLocalStorage } from '~/utils/localStorage';
 import store from '~/store';
 
@@ -9,12 +10,21 @@ export default function useClearStates() {
   const clearStates = useRecoilCallback(
     ({ reset, snapshot }) =>
       async (skipFirst?: boolean) => {
+        if (skipFirst !== true) {
+          reset(store.sessionReasoningEffortFamily(Constants.NEW_CONVO));
+        }
+        const conversationKeys = await snapshot.getPromise(store.conversationKeysAtom);
+        const sessionConversationIds = await Promise.all(
+          conversationKeys.map(async (key) => ({
+            key,
+            conversationId: (await snapshot.getPromise(store.conversationByIndex(key)))
+              ?.conversationId,
+          })),
+        );
         await clearSubmissions(skipFirst);
         await clearConversations(skipFirst);
 
-        const keys = await snapshot.getPromise(store.conversationKeysAtom);
-
-        for (const key of keys) {
+        for (const { key, conversationId } of sessionConversationIds) {
           if (skipFirst === true && key === 0) {
             continue;
           }
@@ -38,11 +48,10 @@ export default function useClearStates() {
            * composer wrote under, not this UI index — also clear by the resolved
            * id so queued-but-unsent selections don't linger in Recoil.
            */
-          const convoId = (await snapshot.getPromise(store.conversationByIndex(key)))
-            ?.conversationId;
-          if (convoId != null) {
-            reset(store.pendingManualSkillsByConvoId(convoId));
-            reset(store.pendingQuotesByConvoId(convoId));
+          if (conversationId != null) {
+            reset(store.sessionReasoningEffortFamily(conversationId));
+            reset(store.pendingManualSkillsByConvoId(conversationId));
+            reset(store.pendingQuotesByConvoId(conversationId));
           }
           reset(store.activePromptByIndex(key));
           reset(store.globalAudioURLFamily(key));

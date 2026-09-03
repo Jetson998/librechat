@@ -11,7 +11,7 @@ import { useChatContext } from '~/Providers/ChatContext';
 type TUseSetOptions = (preset?: TPreset | boolean | null) => TSetOptionsPayload;
 
 const useSetIndexOptions: TUseSetOptions = (preset = false) => {
-  const { conversation, setConversation } = useChatContext();
+  const { conversation, setConversation, setSessionReasoningEffort } = useChatContext();
 
   const result = usePresetIndexOptions(preset);
 
@@ -20,6 +20,12 @@ const useSetIndexOptions: TUseSetOptions = (preset = false) => {
   }
 
   const setOption: TSetOption = (param) => (newValue) => {
+    if (param === 'effort' || param === 'reasoning_effort') {
+      const value = typeof newValue === 'string' && newValue !== 'auto' ? newValue : '';
+      setSessionReasoningEffort(value ? { key: param, value } : null);
+      return;
+    }
+
     const update = {};
     update[param] = newValue;
 

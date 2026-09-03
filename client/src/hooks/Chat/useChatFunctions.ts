@@ -39,6 +39,7 @@ import store, { useGetEphemeralAgent } from '~/store';
 import { startupConfigKey } from '~/data-provider';
 import useUserKey from '~/hooks/Input/useUserKey';
 import { useAuthContext } from '~/hooks';
+import type { SessionReasoningEffort } from '~/store/families';
 
 const logChatRequest = (request: Record<string, unknown>) => {
   logger.log('=====================================\nAsk function called with:');
@@ -181,6 +182,28 @@ export function getRegenerateSubmissionMessages({
   return messages.filter((msg) => msg.messageId !== initialResponseId);
 }
 
+/** Apply the optional client-only intensity override without ever sending both
+ * vendor parameter names or an empty/auto sentinel. */
+export function applySessionReasoningEffort(
+  endpointOption: TEndpointOption,
+  sessionReasoningEffort?: SessionReasoningEffort | null,
+): TEndpointOption {
+  const nextOption = { ...endpointOption };
+  delete nextOption.effort;
+  delete nextOption.reasoning_effort;
+
+  if (sessionReasoningEffort?.value && sessionReasoningEffort.value !== 'auto') {
+    if (sessionReasoningEffort.key === 'effort') {
+      nextOption.effort = sessionReasoningEffort.value as TEndpointOption['effort'];
+    } else {
+      nextOption.reasoning_effort =
+        sessionReasoningEffort.value as TEndpointOption['reasoning_effort'];
+    }
+  }
+
+  return nextOption;
+}
+
 export default function useChatFunctions({
   index = 0,
   files,
@@ -191,6 +214,7 @@ export default function useChatFunctions({
   latestMessage,
   setSubmission,
   conversation: immutableConversation,
+  sessionReasoningEffort,
 }: {
   index?: number;
   isSubmitting: boolean;
@@ -202,6 +226,7 @@ export default function useChatFunctions({
   files?: Map<string, ExtendedFile>;
   setFiles?: SetterOrUpdater<Map<string, ExtendedFile>>;
   setSubmission: SetterOrUpdater<TSubmission | null>;
+  sessionReasoningEffort?: SessionReasoningEffort | null;
 }) {
   const navigate = useNavigate();
   const getSender = useGetSender();
@@ -289,6 +314,16 @@ export default function useChatFunctions({
     }
 
     const conversation = cloneDeep(immutableConversation);
+
+    if (!conversation) {
+      return;
+    }
+
+    // Reasoning intensity is a client-only session override. Strip any value
+    // left on an older persisted conversation before rebuilding the compact
+    // payload so the vendor can auto-select when the user has not chosen one.
+    delete conversation.effort;
+    delete conversation.reasoning_effort;
 
     const endpoint = conversation?.endpoint;
     if (endpoint === null) {
@@ -436,16 +471,19 @@ export default function useChatFunctions({
     });
 
     const { modelDisplayLabel } = endpointsConfig?.[endpoint ?? ''] ?? {};
-    const endpointOption = Object.assign(
-      {
-        endpoint,
-        endpointType,
-        overrideConvoId,
-        overrideUserMessageId,
-      },
-      convo,
-      chatProjectId ? { chatProjectId } : {},
-    ) as TEndpointOption;
+    const endpointOption = applySessionReasoningEffort(
+      Object.assign(
+        {
+          endpoint,
+          endpointType,
+          overrideConvoId,
+          overrideUserMessageId,
+        },
+        convo,
+        chatProjectId ? { chatProjectId } : {},
+      ) as TEndpointOption,
+      sessionReasoningEffort,
+    );
     if (endpoint !== EModelEndpoint.agents) {
       endpointOption.key = getExpiry();
       endpointOption.thread_id = thread_id;

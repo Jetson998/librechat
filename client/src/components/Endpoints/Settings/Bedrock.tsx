@@ -10,6 +10,7 @@ export default function BedrockSettings({
   setOption,
   models,
   readonly,
+  isPreset = false,
 }: TModelSelectProps) {
   const parameters = useMemo(() => {
     const [combinedKey, endpointKey] = getSettingsKeys(
@@ -37,6 +38,7 @@ export default function BedrockSettings({
       key,
       settingKey: key,
       defaultValue,
+      sessionOnly: !isPreset && (key === 'effort' || key === 'reasoning_effort'),
       ...rest,
       readonly,
       setOption,

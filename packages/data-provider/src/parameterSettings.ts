@@ -253,6 +253,7 @@ const openAIParams: Record<string, SettingDefinition> = {
       [ReasoningEffort.medium]: 'com_ui_medium',
       [ReasoningEffort.high]: 'com_ui_high',
       [ReasoningEffort.xhigh]: 'com_ui_xhigh',
+      [ReasoningEffort.max]: 'com_ui_max',
     },
     optionType: 'model',
     columnSpan: 4,
@@ -1200,21 +1201,44 @@ export const agentParamSettings: Record<string, SettingsConfiguration | undefine
 }, {});
 
 /**
- * Resolves model-aware defaults for a settings configuration before rendering.
- * Google's `maxOutputTokens` default depends on the selected Gemini model so that
- * current models (2.5 and 3+) surface their 64K output limit instead of the legacy 8K value.
+ * Resolves model-aware defaults/options for a settings configuration before rendering.
+ * Google's `maxOutputTokens` default depends on the selected Gemini model, while
+ * gpt-5.6-sol opts into its additional `max` reasoning tier.
  */
 export function applyModelAwareDefaults(
   settings: SettingsConfiguration,
   endpoint: string,
   model?: string,
 ): SettingsConfiguration {
-  if (endpoint !== EModelEndpoint.google || !model) {
+  if (!model) {
     return settings;
   }
-  return settings.map((setting) =>
-    setting.key === 'maxOutputTokens'
-      ? { ...setting, default: googleSettings.maxOutputTokens.reset(model) }
-      : setting,
-  );
+
+  if (endpoint === EModelEndpoint.google) {
+    return settings.map((setting) =>
+      setting.key === 'maxOutputTokens'
+        ? { ...setting, default: googleSettings.maxOutputTokens.reset(model) }
+        : setting,
+    );
+  }
+
+  if (
+    [EModelEndpoint.openAI, EModelEndpoint.azureOpenAI, EModelEndpoint.custom].includes(
+      endpoint as EModelEndpoint,
+    ) &&
+    /gpt-5\.6-sol/i.test(model)
+  ) {
+    // `max` is supported by the configured gpt-5.6-sol model. Keep it out of
+    // the generic OpenAI selector so older reasoning models are not offered a
+    // value their upstream API may reject.
+    return settings.map((setting) =>
+      setting.key === 'reasoning_effort' &&
+      setting.options &&
+      !setting.options.includes(ReasoningEffort.max)
+        ? { ...setting, options: [...setting.options, ReasoningEffort.max] }
+        : setting,
+    );
+  }
+
+  return settings;
 }

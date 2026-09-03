@@ -1,4 +1,9 @@
-import { EModelEndpoint, parseConvo } from 'librechat-data-provider';
+import {
+  AnthropicEffort,
+  EModelEndpoint,
+  parseConvo,
+  ReasoningEffort,
+} from 'librechat-data-provider';
 import cleanupPreset from '../cleanupPreset';
 // Mock parseConvo since we're focusing on testing the chatGptLabel migration logic
 jest.mock('librechat-data-provider', () => ({
@@ -174,6 +179,19 @@ describe('cleanupPreset', () => {
   });
 
   describe('normal preset properties', () => {
+    it('removes conversation-only reasoning intensity fields', () => {
+      const preset = {
+        ...basePreset,
+        effort: AnthropicEffort.high,
+        reasoning_effort: ReasoningEffort.xhigh,
+      };
+
+      const result = cleanupPreset({ preset });
+
+      expect(result.effort).toBeUndefined();
+      expect(result.reasoning_effort).toBeUndefined();
+    });
+
     it('should preserve all other preset properties', () => {
       const preset = {
         ...basePreset,

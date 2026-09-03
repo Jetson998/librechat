@@ -242,6 +242,25 @@ const optionSettingsFamily = atomFamily<TOptionSettings, string | number>({
   default: {},
 });
 
+/**
+ * User-selected reasoning intensity for the active conversation.
+ *
+ * This is deliberately kept outside `TConversation`: it is a client-only,
+ * per-conversation override and must not be persisted with the conversation or
+ * inherited by another chat. The parameter name is retained with the value so
+ * Anthropic (`effort`) and OpenAI-compatible (`reasoning_effort`) requests do
+ * not get both fields accidentally.
+ */
+export type SessionReasoningEffort = {
+  key: 'effort' | 'reasoning_effort';
+  value: string;
+};
+
+const sessionReasoningEffortFamily = atomFamily<SessionReasoningEffort | null, string>({
+  key: 'sessionReasoningEffortByConversation',
+  default: null,
+});
+
 const showPopoverFamily = atomFamily({
   key: 'showPopoverByIndex',
   default: false,
@@ -438,6 +457,7 @@ export default {
   abortScrollFamily,
   isSubmittingFamily,
   optionSettingsFamily,
+  sessionReasoningEffortFamily,
   showPopoverFamily,
   messagesSiblingIdxFamily,
   anySubmittingSelector,

@@ -15,6 +15,8 @@ const usePresetIndexOptions: TUsePresetOptions = (_preset) => {
 
   const setOptions: TSetOptions = (options) => {
     const update = { ...options };
+    delete update.effort;
+    delete update.reasoning_effort;
     setPreset((prevState) =>
       cleanupPreset({
         preset: {
@@ -26,6 +28,9 @@ const usePresetIndexOptions: TUsePresetOptions = (_preset) => {
   };
 
   const setOption: TSetOption = (param) => (newValue) => {
+    if (param === 'effort' || param === 'reasoning_effort') {
+      return;
+    }
     const update = {};
     update[param] = newValue;
     setPreset((prevState) =>

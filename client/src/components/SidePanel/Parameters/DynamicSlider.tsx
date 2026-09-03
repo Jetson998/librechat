@@ -8,6 +8,8 @@ import { ESide, defaultDebouncedDelay } from '~/common';
 import { useChatContext } from '~/Providers';
 import OptionHover from './OptionHover';
 
+type SettingValue = Parameters<ReturnType<DynamicSettingProps['setOption']>>[0];
+
 function DynamicSlider({
   label = '',
   settingKey,
@@ -25,9 +27,40 @@ function DynamicSlider({
   labelCode = false,
   descriptionCode = false,
   conversation,
+  sessionOnly = false,
 }: DynamicSettingProps) {
   const localize = useLocalize();
-  const { preset } = useChatContext();
+  const { preset, sessionReasoningEffort, setSessionReasoningEffort } = useChatContext();
+  const isSessionReasoningSetting =
+    sessionOnly && (settingKey === 'effort' || settingKey === 'reasoning_effort');
+  const sessionValue =
+    isSessionReasoningSetting && sessionReasoningEffort?.key === settingKey
+      ? sessionReasoningEffort.value
+      : defaultValue;
+  const displayedConversation = useMemo(
+    () =>
+      isSessionReasoningSetting
+        ? { ...(conversation ?? {}), [settingKey]: sessionValue }
+        : conversation,
+    [conversation, isSessionReasoningSetting, sessionValue, settingKey],
+  );
+  const setDisplayedOption = useCallback(
+    (param: string | number) => (newValue: SettingValue) => {
+      if (!isSessionReasoningSetting) {
+        setOption(param)(newValue);
+        return;
+      }
+
+      const value = typeof newValue === 'string' ? newValue : String(newValue ?? '');
+      const normalizedValue = value === 'auto' ? '' : value;
+      setSessionReasoningEffort(
+        normalizedValue && (param === 'effort' || param === 'reasoning_effort')
+          ? { key: param, value: normalizedValue }
+          : null,
+      );
+    },
+    [isSessionReasoningSetting, setOption, setSessionReasoningEffort],
+  );
   const isEnum = useMemo(
     () => (!range && options && options.length > 0) ?? false,
     [options, range],
@@ -35,9 +68,10 @@ function DynamicSlider({
 
   const [setInputValue, inputValue, setLocalValue] = useDebouncedInput<string | number>({
     optionKey: settingKey,
-    initialValue: optionType !== OptionTypes.Custom ? conversation?.[settingKey] : defaultValue,
+    initialValue:
+      optionType !== OptionTypes.Custom ? displayedConversation?.[settingKey] : defaultValue,
     setter: () => ({}),
-    setOption,
+    setOption: setDisplayedOption,
     delay: isEnum ? 0 : defaultDebouncedDelay,
   });
 
@@ -45,19 +79,19 @@ function DynamicSlider({
     preset,
     settingKey,
     defaultValue,
-    conversation,
+    conversation: displayedConversation,
     inputValue,
     setInputValue: setLocalValue,
   });
 
   const selectedValue = useMemo(() => {
     if (isEnum) {
-      return conversation?.[settingKey] ?? defaultValue;
+      return displayedConversation?.[settingKey] ?? defaultValue;
     }
     // TODO: custom logic, add to payload but not to conversation
 
     return inputValue;
-  }, [conversation, defaultValue, settingKey, inputValue, isEnum]);
+  }, [displayedConversation, defaultValue, settingKey, inputValue, isEnum]);
 
   const enumToNumeric = useMemo(() => {
     if (isEnum && options) {

@@ -297,7 +297,7 @@
   "com_endpoint_default_with_num": "默认值：{{0}}",
   "com_endpoint_disable_streaming": "禁用流式响应并一次性接收完整的响应。对于像 o3 这样需要进行组织验证才能进行流式响应的模型非常有用。",
   "com_endpoint_disable_streaming_label": "禁用流式响应",
-  "com_endpoint_effort": "投入",
+  "com_endpoint_effort": "思考强度",
   "com_endpoint_examples": " 预设",
   "com_endpoint_export": "导出",
   "com_endpoint_export_share": "导出/共享",

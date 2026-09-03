@@ -1,4 +1,4 @@
-import { EModelEndpoint } from './types';
+import { EModelEndpoint, ReasoningEffort } from './types';
 import { applyModelAwareDefaults, paramSettings } from './parameterSettings';
 import type { SettingDefinition } from './generate';
 
@@ -36,6 +36,18 @@ describe('applyModelAwareDefaults', () => {
 
   it('returns settings unchanged when no model is provided', () => {
     expect(applyModelAwareDefaults(googleParams, EModelEndpoint.google, '')).toBe(googleParams);
+  });
+
+  it('adds max reasoning effort only for gpt-5.6-sol', () => {
+    const openAIParams = paramSettings[EModelEndpoint.openAI] as SettingDefinition[];
+    expect(
+      openAIParams.find((setting) => setting.key === 'reasoning_effort')?.options,
+    ).not.toContain(ReasoningEffort.max);
+
+    const result = applyModelAwareDefaults(openAIParams, EModelEndpoint.openAI, 'gpt-5.6-sol');
+    expect(result.find((setting) => setting.key === 'reasoning_effort')?.options).toContain(
+      ReasoningEffort.max,
+    );
   });
 
   it('does not mutate the original settings', () => {

@@ -257,7 +257,11 @@ export default function usePresets(index = 0) {
   };
 
   const onSetDefaultPreset = (preset: TPreset, remove = false) => {
-    updatePreset.mutate({ ...preset, defaultPreset: !remove });
+    updatePreset.mutate(
+      cleanupPreset({
+        preset: { ...preset, defaultPreset: !remove },
+      }),
+    );
   };
 
   const exportPreset = () => {

@@ -20,7 +20,7 @@ import { logger } from '~/utils';
 
 export default function Parameters() {
   const localize = useLocalize();
-  const { conversation, setConversation } = useChatContext();
+  const { conversation, setConversation, setSessionReasoningEffort } = useChatContext();
   const { setOption } = useSetIndexOptions();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -111,6 +111,7 @@ export default function Parameters() {
   }, [parameters, setConversation]);
 
   const resetParameters = useCallback(() => {
+    setSessionReasoningEffort(null);
     setConversation((prev) => {
       if (!prev) {
         return prev;
@@ -133,11 +134,14 @@ export default function Parameters() {
       logger.log('parameters', 'parameters reset, affected keys:', resetKeys);
       return updatedConversation;
     });
-  }, [setConversation]);
+  }, [setConversation, setSessionReasoningEffort]);
 
   const openDialog = useCallback(() => {
+    const conversationForPreset = { ...conversation };
+    delete conversationForPreset.effort;
+    delete conversationForPreset.reasoning_effort;
     const newPreset = tConvoUpdateSchema.parse({
-      ...conversation,
+      ...conversationForPreset,
     }) as TPreset;
     setPreset(newPreset);
     setIsDialogOpen(true);
@@ -169,6 +173,7 @@ export default function Parameters() {
               key={key}
               settingKey={key}
               defaultValue={defaultValue}
+              sessionOnly={key === 'effort' || key === 'reasoning_effort'}
               {...rest}
               setOption={setOption}
               conversation={conversation}
