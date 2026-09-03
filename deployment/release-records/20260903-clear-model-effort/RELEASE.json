@@ -12,8 +12,25 @@
     "status": "pending"
   },
   "baseline_reference": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "config_id": "6a52648584660b0d3982ca42",
+      "config_version": 136,
+      "updated_at": "2026-09-03T12:33:04.627Z",
+      "active_base_query": {
+        "principalType": "role",
+        "principalId": "__base__",
+        "isActive": true
+      },
+      "models": {
+        "claude-fable-5-1": {"effort": null, "reasoning_effort": null, "thinking": true, "thinkingDisplay": "summarized"},
+        "claude-opus-5": {"effort": null, "reasoning_effort": "none", "thinking": true, "thinkingDisplay": "auto"},
+        "claude-opus-4-8": {"effort": null, "reasoning_effort": "none", "thinking": true, "thinkingDisplay": "auto"},
+        "gpt-5.6-sol": {"effort": null, "reasoning_effort": "none", "thinking": null, "thinkingDisplay": null},
+        "claude-fable-5": {"effort": "high", "reasoning_effort": null, "thinking": true, "thinkingDisplay": "summarized"}
+      },
+      "scope_guard": "Only preset.effort and preset.reasoning_effort may change."
+    },
+    "status": "passed"
   },
   "build_attestation": {
     "details": {},
