@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "project_id": "librechat-self-host",
+  "release_id": "20260903-reasoning-intensity-session",
+  "mode": "protected",
+  "status": "planned",
+  "source_revision": "dcef7febecece61012436194c4c5aeab0e081f93",
+  "source_origin": "operator-supplied nested Git checkout; unrelated dirty files excluded",
+  "release_plan": {
+    "path": ".release-state/20260903-reasoning-intensity-session/release-plan.json",
+    "sha256": "7fa764aa6df5e849963cdab7db4d06f139564ed9b06f7198b94d6bd872ef01b9"
+  },
+  "change_summary": {
+    "reason": "Deploy the reviewed session-scoped reasoning intensity Client change.",
+    "expected_result": "Reasoning intensity is temporary conversation state; automatic omits effort fields, Anthropic uses effort, and OpenAI-compatible models use reasoning_effort.",
+    "scope": [
+      "deployment/production-patches/2026-09-03-reasoning-intensity-session",
+      "LibreChat-API client dist bind mount only"
+    ],
+    "affected_services": ["LibreChat-API"],
+    "unchanged_services": [
+      "chat-mongodb",
+      "LibreChat-CodeAPI",
+      "LibreChat-NGINX",
+      "LibreChat-RAG-API",
+      "LibreChat-Admin-Panel",
+      "Office Converter"
+    ],
+    "limitations": [
+      "No billable model request is required or allowed.",
+      "This release deploys the Client artifact only; the separate File Agent candidate remains unchanged."
+    ]
+  },
+  "artifact_digest": {
+    "status": "passed",
+    "algorithm": "sha256",
+    "artifact": ".release-state/20260903-reasoning-intensity-session/artifacts/client-artifact.zip",
+    "value": "cac645a5892bfb36cb2627d6e20ec6908d37346276835712bbc109816df8b16d",
+    "size": 15228454
+  },
+  "build_attestation": {
+    "status": "passed",
+    "build_environment": "independent-build",
+    "production_host": false,
+    "source_revision": "dcef7febecece61012436194c4c5aeab0e081f93",
+    "source_archive_sha256": "18bf48329f2919d59a8634043bab8243e969549d11e8e6edf4d1d2a17618f764",
+    "client_tar_sha256": "25a1f6bd9b96a495187a25471b73b6e0a6dd885f58790fa7cad24d112cf2e70f",
+    "client_index_sha256": "6fe60b96db3a895f30ef3b47702eb85ffeb4acc6b865211d6a57f7dd706e9ad6",
+    "checks": [
+      "clean Git archive production Client build",
+      "Client TypeScript typecheck",
+      "25 focused Client tests",
+      "8 data-provider parameter tests",
+      "Client production build",
+      "ZIP and tar artifact verification"
+    ]
+  },
+  "baseline_reference": {
+    "status": "pending",
+    "public_index_sha256": "26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544",
+    "active_client_mount": "/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  },
+  "target_preflight": {
+    "status": "pending",
+    "evidence": ".release-state/20260903-reasoning-intensity-session/runtime-preflight.json",
+    "write_operations": []
+  },
+  "rollback_reference": {
+    "status": "passed",
+    "method": "Versioned remote runner saves the exact active Client mount and compose.override.yaml before recreating only LibreChat-API; remote-rollback.sh restores both.",
+    "scope": "LibreChat-API Client mount only"
+  },
+  "deployment": {
+    "status": "pending",
+    "runner": "deployment/production-patches/2026-09-03-reasoning-intensity-session/scripts/deploy.sh",
+    "result": ".release-state/20260903-reasoning-intensity-session/deployment/deployment-result.json"
+  },
+  "acceptance_result": {
+    "status": "pending",
+    "evidence": ".release-state/20260903-reasoning-intensity-session/acceptance-result.json",
+    "billable_model_requests": 0
+  },
+  "production_write": {
+    "status": "pending",
+    "attempts": 0,
+    "targets": ["LibreChat-API"]
+  },
+  "created_at": "2026-09-03T00:00:00Z",
+  "updated_at": "2026-09-03T00:00:00Z"
+}

@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "component": "reasoning-intensity-session-client",
+  "source": {
+    "repository_commit": "dcef7febecece61012436194c4c5aeab0e081f93",
+    "parent_commit": "5daeb14ca495d97acb5c069c055ec6ebbc4923b3",
+    "upstream_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "source_archive_sha256": "18bf48329f2919d59a8634043bab8243e969549d11e8e6edf4d1d2a17618f764",
+    "source_origin": "operator-supplied nested Git checkout"
+  },
+  "build_provenance": {
+    "provider": "Codex independent build",
+    "build_environment": "independent-build",
+    "production_host": false,
+    "node": "v24.14.1",
+    "npm": "11.11.0",
+    "checks": [
+      "clean Git archive build from the exact source revision",
+      "Client TypeScript typecheck",
+      "25 focused Client tests",
+      "8 data-provider parameter tests",
+      "Client production build"
+    ]
+  },
+  "artifact": {
+    "origin": "independent-build",
+    "zip_size": 15228454,
+    "zip_sha256": "cac645a5892bfb36cb2627d6e20ec6908d37346276835712bbc109816df8b16d",
+    "members": {
+      "client-dist.tar.gz": "25a1f6bd9b96a495187a25471b73b6e0a6dd885f58790fa7cad24d112cf2e70f",
+      "client-dist.tar.gz.sha256": "48873e1082c035630b0c19d4e78d6bc8befe600fa6c99c88e62fc7a619f426d6",
+      "candidate-manifest.json": "8ad1acc08d99db8dab03a51a7db78b86ae55ab6c8590d860ca09ae27c877d65b"
+    },
+    "checksum_line": "25a1f6bd9b96a495187a25471b73b6e0a6dd885f58790fa7cad24d112cf2e70f  client-dist.tar.gz",
+    "tar_members": 344,
+    "tar_files": 341,
+    "tar_directories": 3
+  },
+  "client": {
+    "index_sha256": "6fe60b96db3a895f30ef3b47702eb85ffeb4acc6b865211d6a57f7dd706e9ad6",
+    "file_count": 341,
+    "core_assets": {
+      "assets/hooks.DeddeH96.js": "0011cda8805c970f038324355af28ada4d0a6af05881f5901424b8698e3a82bb",
+      "assets/index.D884qDC4.js": "d8ceff2b3eec3ee84cd802209d7486acb5170ed6d9f0a82bc50caf7d10b3fb30"
+    },
+    "required_markers": [
+      "reasoning_effort",
+      "effort"
+    ]
+  },
+  "production_baseline": {
+    "public_index_sha256": "26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544",
+    "active_client_mount": "/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  }
+}
