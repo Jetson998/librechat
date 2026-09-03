@@ -1,0 +1,99 @@
+{
+  "acceptance_result": {
+    "details": {},
+    "status": "pending"
+  },
+  "artifact_digest": {
+    "details": {},
+    "status": "pending"
+  },
+  "backup_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "baseline_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "build_attestation": {
+    "details": {},
+    "status": "pending"
+  },
+  "change_summary": {
+    "expected_result": "The active base configuration has no preset effort or reasoning_effort for the five current model specs. With those fields absent, the provider chooses its own default. The future client control may send an effort only for the current conversation and never writes the global model spec.",
+    "functions": [
+      "Read exactly one active role/__base__ config and exactly one spec for each of the five named models.",
+      "Back up the complete base config in codexConfigBackups before the first write.",
+      "Remove only preset.effort and preset.reasoning_effort, increment configVersion, and verify the persisted post-state.",
+      "Provide an idempotent, backup-id guarded rollback runner without restarting any service."
+    ],
+    "limitations": [
+      "This operation changes the global active base model specs only; existing conversation documents are not rewritten.",
+      "The client-side session-only effort selector is a separate development change and is not deployed by this data operation.",
+      "No billable model request is required for acceptance."
+    ],
+    "reason": "The current five model specs contain vendor-specific preset reasoning values (none and high), which prevents the provider from selecting its own automatic default and conflicts with the requested per-conversation control.",
+    "risk": "A broad Mongo update could change model routing or unrelated configuration. The operation uses exact model names, a complete pre-write backup, config version guard through the active base document, post-write assertions, and a data-only target lock.",
+    "scope": [
+      "deployment/production-operations/2026-09-03-clear-model-effort"
+    ]
+  },
+  "created_at": "2026-09-03T12:42:54Z",
+  "mode": "protected",
+  "project_adapter": {
+    "billable_model_request_allowed": false,
+    "deploy_runner": "deployment/production-operations/2026-09-03-clear-model-effort/scripts/deploy.sh",
+    "package_required_paths": [],
+    "protected_services": [
+      "chat-mongodb"
+    ],
+    "release_kind": "batch",
+    "release_plan": "computed-from-change-summary.scope-at-verify"
+  },
+  "project_id": "librechat-self-host",
+  "release_id": "20260903-clear-model-effort",
+  "release_plan": {
+    "details": {},
+    "sha256": ""
+  },
+  "rollback_reference": {
+    "details": {},
+    "status": "pending"
+  },
+  "runtime_snapshot": {
+    "details": {},
+    "status": "pending"
+  },
+  "schema_version": 1,
+  "source_revision": "49dfde94194b8809b248001cab99d20dc928779c",
+  "status": "planned",
+  "unresolved_issues": [],
+  "updated_at": "2026-09-03T12:42:54Z",
+  "validation_plan": [
+    {
+      "command": "python3 deployment/production-operations/2026-09-03-clear-model-effort/scripts/test-release.py; node --check on mongo-config.js; bash -n on all operation scripts; git diff --check",
+      "expected": "The exact five-model scope, field deletion, backup, version increment, rollback wiring, and script syntax pass.",
+      "type": "local"
+    },
+    {
+      "command": "Independent package and release-scope verification from the recorded source revision",
+      "expected": "The artifact contains the versioned operation and governance files only, with a stable digest.",
+      "type": "build"
+    },
+    {
+      "command": "Fresh repository-owned read-only production preflight",
+      "expected": "chat-mongodb is running, resources pass thresholds, the base config is readable, and a complete Mongo backup can be created before write.",
+      "type": "preflight"
+    },
+    {
+      "command": "Controlled deployment with the versioned data-only runner",
+      "expected": "Only the five preset strength fields are removed, configVersion advances once, and the backup ID and before/after values are recorded.",
+      "type": "deployment"
+    },
+    {
+      "command": "Public root and /api/config smoke checks",
+      "expected": "The application entry points remain available after the Mongo-only update.",
+      "type": "acceptance"
+    }
+  ]
+}
