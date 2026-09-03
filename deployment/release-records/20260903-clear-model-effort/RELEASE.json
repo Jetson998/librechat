@@ -4,8 +4,13 @@
     "status": "pending"
   },
   "artifact_digest": {
-    "details": {},
-    "status": "pending"
+    "details": {
+      "algorithm": "sha256",
+      "artifact": ".release-state/20260903-clear-model-effort/artifacts/20260903-clear-model-effort-2b19d7e68038.tar.gz",
+      "manifest": ".release-state/20260903-clear-model-effort/artifacts/manifest.json",
+      "value": "e497f1433d086515b01f7f87c69cfc7f8df0a2a936bc0be8ce065a093f0716d0"
+    },
+    "status": "passed"
   },
   "backup_reference": {
     "details": {},
@@ -13,22 +18,47 @@
   },
   "baseline_reference": {
     "details": {
+      "active_base_query": {
+        "isActive": true,
+        "principalId": "__base__",
+        "principalType": "role"
+      },
       "config_id": "6a52648584660b0d3982ca42",
       "config_version": 136,
-      "updated_at": "2026-09-03T12:33:04.627Z",
-      "active_base_query": {
-        "principalType": "role",
-        "principalId": "__base__",
-        "isActive": true
-      },
       "models": {
-        "claude-fable-5-1": {"effort": null, "reasoning_effort": null, "thinking": true, "thinkingDisplay": "summarized"},
-        "claude-opus-5": {"effort": null, "reasoning_effort": "none", "thinking": true, "thinkingDisplay": "auto"},
-        "claude-opus-4-8": {"effort": null, "reasoning_effort": "none", "thinking": true, "thinkingDisplay": "auto"},
-        "gpt-5.6-sol": {"effort": null, "reasoning_effort": "none", "thinking": null, "thinkingDisplay": null},
-        "claude-fable-5": {"effort": "high", "reasoning_effort": null, "thinking": true, "thinkingDisplay": "summarized"}
+        "claude-fable-5": {
+          "effort": "high",
+          "reasoning_effort": null,
+          "thinking": true,
+          "thinkingDisplay": "summarized"
+        },
+        "claude-fable-5-1": {
+          "effort": null,
+          "reasoning_effort": null,
+          "thinking": true,
+          "thinkingDisplay": "summarized"
+        },
+        "claude-opus-4-8": {
+          "effort": null,
+          "reasoning_effort": "none",
+          "thinking": true,
+          "thinkingDisplay": "auto"
+        },
+        "claude-opus-5": {
+          "effort": null,
+          "reasoning_effort": "none",
+          "thinking": true,
+          "thinkingDisplay": "auto"
+        },
+        "gpt-5.6-sol": {
+          "effort": null,
+          "reasoning_effort": "none",
+          "thinking": null,
+          "thinkingDisplay": null
+        }
       },
-      "scope_guard": "Only preset.effort and preset.reasoning_effort may change."
+      "scope_guard": "Only preset.effort and preset.reasoning_effort may change.",
+      "updated_at": "2026-09-03T12:33:04.627Z"
     },
     "status": "passed"
   },
@@ -76,9 +106,9 @@
   "rollback_reference": {
     "details": {
       "method": "Before the first Mongo write, the runner stores the complete active base config in codexConfigBackups with the unique backup_id clear-model-effort-<source>-<utc timestamp>. remote-rollback.sh restores that exact document and verifies the post-rollback snapshot.",
+      "recoverable": true,
       "scope": "chat-mongodb config document only",
-      "service_restarts": [],
-      "recoverable": true
+      "service_restarts": []
     },
     "status": "passed"
   },
@@ -87,10 +117,10 @@
     "status": "pending"
   },
   "schema_version": 1,
-  "source_revision": "2b19d7e680386dec4e74352e2de972c379a50e51",
+  "source_revision": "b642f82e1863cadd2cc0d6866a259de3ead3ceae",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-09-03T12:42:54Z",
+  "updated_at": "2026-09-03T12:46:36Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-operations/2026-09-03-clear-model-effort/scripts/test-release.py; node --check on mongo-config.js; bash -n on all operation scripts; git diff --check",
