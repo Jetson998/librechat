@@ -6,9 +6,9 @@
   "artifact_digest": {
     "details": {
       "algorithm": "sha256",
-      "artifact": ".release-state/20260903-clear-model-effort/artifacts/20260903-clear-model-effort-2b19d7e68038.tar.gz",
+      "artifact": ".release-state/20260903-clear-model-effort/artifacts/20260903-clear-model-effort-b642f82e1863.tar.gz",
       "manifest": ".release-state/20260903-clear-model-effort/artifacts/manifest.json",
-      "value": "e497f1433d086515b01f7f87c69cfc7f8df0a2a936bc0be8ce065a093f0716d0"
+      "value": "d44b6b07249d111a7594bd123bcc341ba1a3c13e3f072b0f8e7a6be490eb5118"
     },
     "status": "passed"
   },
@@ -63,8 +63,26 @@
     "status": "passed"
   },
   "build_attestation": {
-    "details": {},
-    "status": "pending"
+    "artifact_sha256": "d44b6b07249d111a7594bd123bcc341ba1a3c13e3f072b0f8e7a6be490eb5118",
+    "build_environment": "independent-build",
+    "completed_requirements": [
+      "deployable-artifact",
+      "versioned-operation-artifact",
+      "data-change-tests",
+      "operation-contract-tests",
+      "release-scope-tests"
+    ],
+    "details": {
+      "production_write_attempts": 0,
+      "scope": "release-verify passed with unmatched_path_count=0",
+      "syntax": "node --check and bash -n passed",
+      "test_release": "python3 deployment/production-operations/2026-09-03-clear-model-effort/scripts/test-release.py passed"
+    },
+    "production_host": false,
+    "provider": "Codex local independent validation",
+    "release_plan_sha256": "3cfadb969016a45e4bb9a0fcccc82d33192d3fb80945b492ec090512f4da9c84",
+    "source_revision": "b642f82e1863cadd2cc0d6866a259de3ead3ceae",
+    "status": "passed"
   },
   "change_summary": {
     "expected_result": "The active base configuration has no preset effort or reasoning_effort for the five current model specs. With those fields absent, the provider chooses its own default. The future client control may send an effort only for the current conversation and never writes the global model spec.",
@@ -120,7 +138,7 @@
   "source_revision": "b642f82e1863cadd2cc0d6866a259de3ead3ceae",
   "status": "planned",
   "unresolved_issues": [],
-  "updated_at": "2026-09-03T12:46:36Z",
+  "updated_at": "2026-09-03T12:47:57Z",
   "validation_plan": [
     {
       "command": "python3 deployment/production-operations/2026-09-03-clear-model-effort/scripts/test-release.py; node --check on mongo-config.js; bash -n on all operation scripts; git diff --check",
