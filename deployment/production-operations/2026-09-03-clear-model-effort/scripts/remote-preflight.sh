@@ -10,7 +10,7 @@ status="$(docker inspect chat-mongodb --format '{{.State.Status}}')"
 test "$status" = running
 api_status="$(docker inspect LibreChat-API --format '{{.State.Status}}')"
 test "$api_status" = running
-model_output="$(CLEAR_MODEL_EFFORT_MODE=preflight docker exec -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"
+model_output="$(docker exec -e CLEAR_MODEL_EFFORT_MODE=preflight -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"
 model_json="$(printf '%s\n' "$model_output" | tail -n 1)"
 python3 - "$model_json" "$source_revision" "$plan_sha256" "$artifact_sha256" "$status" "$api_status" <<'PY'
 import json

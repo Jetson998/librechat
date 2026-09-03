@@ -5,9 +5,9 @@ backup_dir="${1:?production backup directory is required}"
 mongo_script="$backup_dir/mongo-config.js"
 test -f "$mongo_script"
 backup_id="$(basename "$backup_dir")"
-CLEAR_MODEL_EFFORT_MODE=rollback CLEAR_MODEL_EFFORT_BACKUP_ID="$backup_id" \
-  docker exec -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script" > "$backup_dir/rollback-output.log"
-verify_output="$(CLEAR_MODEL_EFFORT_MODE=preflight docker exec -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"
+docker exec -e CLEAR_MODEL_EFFORT_MODE=rollback -e CLEAR_MODEL_EFFORT_BACKUP_ID="$backup_id" -i \
+  chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script" > "$backup_dir/rollback-output.log"
+verify_output="$(docker exec -e CLEAR_MODEL_EFFORT_MODE=preflight -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"
 verify_json="$(printf '%s\n' "$verify_output" | tail -n 1)"
 printf '%s\n' "$verify_json" > "$backup_dir/rollback-after.json"
 python3 - "$verify_json" "$backup_dir" <<'PY'

@@ -32,24 +32,25 @@ cp -p "$rollback_script" "$backup_dir/remote-rollback.sh"
 chmod 700 "$backup_dir/remote-rollback.sh"
 cp -p "$preflight" "$backup_dir/runtime-preflight.json"
 
-before_output="$(CLEAR_MODEL_EFFORT_MODE=preflight docker exec -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"
+before_output="$(docker exec -e CLEAR_MODEL_EFFORT_MODE=preflight -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"
 before_json="$(printf '%s\n' "$before_output" | tail -n 1)"
 printf '%s\n' "$before_json" > "$backup_dir/before.json"
 
 rollback_on_error() {
   set +e
-  CLEAR_MODEL_EFFORT_MODE=rollback CLEAR_MODEL_EFFORT_BACKUP_ID="$backup_id" \
-    docker exec -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script" > "$backup_dir/rollback-output.log" 2>&1
+  docker exec -e CLEAR_MODEL_EFFORT_MODE=rollback -e CLEAR_MODEL_EFFORT_BACKUP_ID="$backup_id" -i \
+    chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script" > "$backup_dir/rollback-output.log" 2>&1
 }
 
-if ! apply_output="$(CLEAR_MODEL_EFFORT_MODE=apply CLEAR_MODEL_EFFORT_BACKUP_ID="$backup_id" docker exec -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"; then
+if ! apply_output="$(docker exec -e CLEAR_MODEL_EFFORT_MODE=apply -e CLEAR_MODEL_EFFORT_BACKUP_ID="$backup_id" -i \
+  chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"; then
   rollback_on_error
   exit 1
 fi
 apply_json="$(printf '%s\n' "$apply_output" | tail -n 1)"
 printf '%s\n' "$apply_json" > "$backup_dir/apply.json"
 
-if ! verify_output="$(CLEAR_MODEL_EFFORT_MODE=preflight docker exec -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"; then
+if ! verify_output="$(docker exec -e CLEAR_MODEL_EFFORT_MODE=preflight -i chat-mongodb mongosh --quiet LibreChat --file /dev/stdin < "$mongo_script")"; then
   rollback_on_error
   exit 1
 fi
