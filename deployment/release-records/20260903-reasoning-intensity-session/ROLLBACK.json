@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "release_id": "20260903-reasoning-intensity-session",
+  "status": "rolled_back",
+  "source_revision": "dcef7febecece61012436194c4c5aeab0e081f93",
+  "artifact_sha256": "cac645a5892bfb36cb2627d6e20ec6908d37346276835712bbc109816df8b16d",
+  "deployed_at": "2026-09-03T14:41:16Z",
+  "rolled_back_at": "2026-09-04T06:51:43Z",
+  "verified_at": "2026-09-04T07:01:49Z",
+  "failure": {
+    "stage": "authenticated browser acceptance",
+    "summary": "The deployed Client replaced the complete production Client bundle with a feature-only build that did not inherit the existing protected overlay.",
+    "observed_regressions": [
+      "The account menu no longer exposed the usage dashboard entry.",
+      "The upload menu no longer exposed image upload, Office file upload, and text-extraction upload as the established three-option contract.",
+      "The Agent workspace no longer preserved the established two-category and managed preset presentation contracts."
+    ],
+    "missing_assets": [
+      "business-upload-menu.js",
+      "odysseia-login.js",
+      "user-usage-dashboard.js",
+      "user-usage-dashboard.css",
+      "anthropic-mark.svg",
+      "search-favicon-fallback.js",
+      "context-safety-ui.js",
+      "context-safety-ui.css",
+      "generated-files-tab.js",
+      "generated-files-tab.css"
+    ],
+    "missing_asset_status_before_rollback": 404,
+    "root_cause": "client/artifact.json verified only the new reasoning markers and core bundles. remote-apply.sh then replaced /app/client/dist wholesale without proving inheritance of the ten protected assets or the existing Agent UI contract."
+  },
+  "rollback": {
+    "runner": "/opt/librechat/reasoning-intensity-session/dcef7febecec-20260903224053/remote-rollback.sh",
+    "backup_dir": "/opt/librechat/backups/reasoning-intensity-session-dcef7febecec-20260903224053",
+    "restore_scope": "Restore the exact pre-release Compose override and Client mount, then recreate only LibreChat-API.",
+    "restored_client_mount": "/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist",
+    "restored_client_read_only": true,
+    "restored_public_index_sha256": "26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544",
+    "restored_compose_sha256": "fa9813af3fcbaa7de1a15a5174ece3d232484a65a1f11c5c85464bd7d23c8805",
+    "api_container_before_deployment": "e0f6d3856aee9e3a43c74f9d87910ad3527f54cd3724d4e850439d9ce11608b9",
+    "api_container_after_deployment": "fef2f5bc38d055a30c82f59f463afb46cdc72297fefaef28e14cb3f34d52d8f3",
+    "api_container_after_rollback": "89d33fc14a5c1da3ef4dd6874ca4e146b231c2432b86d0bace3b30236ed2b66b",
+    "api_started_at_after_rollback": "2026-09-04T06:51:43.995401797Z",
+    "recreated_services": ["LibreChat-API"]
+  },
+  "protected_runtime": {
+    "unchanged": true,
+    "containers": {
+      "LibreChat-Admin-Panel": "01f6d9081beebb58a8c218813b077ea97b8ae508dcf38924d50ffaf3d35836a0",
+      "LibreChat-CodeAPI": "31ef4b61d9702cf63fdf7d3a1fdbc6a6c0edaef9c0cb3da0774d4ef5fff618e0",
+      "LibreChat-NGINX": "1a5c01b19b73559d6ff2a7b9e053d77d5528946b61bafcd7acae86532f9e03df",
+      "LibreChat-RAG-API": "d16e85e1e1036a8d203a338032d367e472f7245e993efc1ef30d06e7bf6373de",
+      "chat-mongodb": "01d5bc03e9cb05a5efe43cc8a95c3dfce1e6387f65250923d135debe3050e7c6"
+    },
+    "office_converter": {
+      "kind": "systemd",
+      "name": "office-converter.service",
+      "active_state": "active",
+      "main_pid": "2117",
+      "active_enter_timestamp_monotonic": "12329247"
+    }
+  },
+  "verification": {
+    "public_checks": {
+      "main_root": 200,
+      "api_config": 200,
+      "admin_root": 200,
+      "office_auth_boundary": 401
+    },
+    "restored_asset_status": {
+      "business-upload-menu.js": 200,
+      "odysseia-login.js": 200,
+      "user-usage-dashboard.js": 200,
+      "user-usage-dashboard.css": 200,
+      "anthropic-mark.svg": 200,
+      "search-favicon-fallback.js": 200,
+      "context-safety-ui.js": 200,
+      "context-safety-ui.css": 200,
+      "generated-files-tab.js": 200,
+      "generated-files-tab.css": 200
+    },
+    "authenticated_browser_checks": [
+      "The account menu again shows the usage dashboard entry.",
+      "The upload menu again shows image upload, Office file upload, and text-extraction upload with their descriptions.",
+      "The Agent workspace again shows only the promoted and all categories.",
+      "The seven managed preset Agents again omit the contact row."
+    ]
+  },
+  "safety": {
+    "billable_model_requests": 0,
+    "file_uploads": 0,
+    "customer_data_read": false,
+    "customer_data_modified": false,
+    "production_secrets_read": false,
+    "production_configuration_changed_outside_client_mount": false
+  },
+  "configuration_note": "The separate production change that removed preset effort fields from five model configurations is not part of this Client rollback and remains in effect.",
+  "decision": "Do not finalize or redeploy this artifact. Build a new cumulative Client candidate from the complete protected production baseline, add inherited-asset and browser regression gates, and request a separate deployment approval."
+}
