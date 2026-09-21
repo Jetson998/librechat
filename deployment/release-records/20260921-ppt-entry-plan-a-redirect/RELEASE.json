@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release_id": "20260921-ppt-entry-plan-a-redirect",
-  "status": "deployed_pending_acceptance",
+  "status": "completed",
   "change_type": "independent_static_entry",
   "source_revision": "dcef7febecece61012436194c4c5aeab0e081f93",
   "artifact": {
@@ -50,18 +50,21 @@
     }
   },
   "acceptance": {
-    "status": "not_started",
-    "required_next": [
-      "authenticated browser login on original host",
-      "2FA on original host if enabled",
-      "redirect to original /c/new",
-      "original session, history, permissions and workspace check",
-      "original file and upload behavior check"
-    ],
-    "billable_model_requests": 0,
-    "customer_data_read": false,
-    "customer_data_modified": false,
-    "production_secrets_recorded": false
+    "status": "passed_user_confirmed",
+    "evidence_source": "user_confirmation_of_real_browser_acceptance",
+    "agent_browser_observation": "not_available_browser_connector_auth_unavailable",
+    "checks": {
+      "ppt_home_and_login_entry": "user_confirmed",
+      "redirect_to_original_librechat_host": "user_confirmed",
+      "original_host_authentication": "user_confirmed",
+      "original_host_workspace": "user_confirmed",
+      "original_host_session_and_business_paths": "user_confirmed"
+    },
+    "billable_model_requests_by_deployment_smoke": 0,
+    "customer_data_read_by_deployment_smoke": false,
+    "customer_data_modified_by_deployment_smoke": false,
+    "production_secrets_recorded": false,
+    "note": "The user confirmed that real browser acceptance was completed. Credentials, cookies, tokens and raw browser evidence were not recorded."
   },
   "rollback": {
     "status": "available",
@@ -69,5 +72,5 @@
     "original_librechat_site_rollback_required": false,
     "backup_dir": "/opt/librechat/ppt-entry-plan-a-redirect/backups/20260921T143733Z"
   },
-  "decision": "已上线，待真实账号验收"
+  "decision": "发布完成"
 }
