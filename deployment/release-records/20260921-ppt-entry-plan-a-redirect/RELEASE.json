@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "release_id": "20260921-ppt-entry-plan-a-redirect",
+  "status": "deployed_pending_acceptance",
+  "change_type": "independent_static_entry",
+  "source_revision": "dcef7febecece61012436194c4c5aeab0e081f93",
+  "artifact": {
+    "filename": "ppt-entry-plan-a-redirect-20260921.tar.gz",
+    "sha256": "5dd2e34f7b3b09bc3ad74ac5ca0f9f7b0ab64a8251c76de74b97dcd7c9c7c27c",
+    "scope": "independent PPT static entry only"
+  },
+  "target": {
+    "entry_host": "ppt.152.32.172.162.sslip.io",
+    "authentication_host": "152.32.172.162.sslip.io",
+    "remote_host": "152.32.172.162",
+    "remote_release_dir": "/opt/librechat/ppt-entry-plan-a-redirect/releases/5dd2e34f7b3b-20260921T143733Z",
+    "active_path": "/opt/librechat/ppt-entry-plan-a-redirect/current",
+    "nginx_config": "/etc/nginx/conf.d/ppt-entry.conf",
+    "certificate": {
+      "subject": "CN=ppt.152.32.172.162.sslip.io",
+      "subject_alt_name": "ppt.152.32.172.162.sslip.io",
+      "not_after": "2026-12-20T13:39:10Z"
+    }
+  },
+  "deployment": {
+    "status": "passed",
+    "deployed_at": "2026-09-21T14:37:33Z",
+    "nginx_config_test": "passed",
+    "nginx_reload": "passed",
+    "librechat_api_restarted": false,
+    "protected_containers_rebuilt": false,
+    "original_librechat_config_unchanged": true,
+    "original_librechat_config_sha256": "fdf0001480511887830b63e0bea96939cc229be49cc14e6e45d14c728362ecd5",
+    "ppt_config_sha256": "b01946e5b9268bcf88818d0ffacf198cd283d4d500356faaf90fd7fc95e5336b"
+  },
+  "technical_smoke": {
+    "status": "passed",
+    "checks": {
+      "ppt_root_http_200": true,
+      "ppt_title_and_assets": true,
+      "ppt_certificate_san": true,
+      "ppt_login_redirect": "https://152.32.172.162.sslip.io/login",
+      "ppt_2fa_redirect_preserves_query": true,
+      "ppt_api_rejected_404": true,
+      "ppt_unknown_path_rejected_404": true,
+      "original_root_http_200": true,
+      "original_api_config_http_200": true,
+      "original_office_auth_boundary_401": true,
+      "ppt_assets_http_200": true
+    }
+  },
+  "acceptance": {
+    "status": "not_started",
+    "required_next": [
+      "authenticated browser login on original host",
+      "2FA on original host if enabled",
+      "redirect to original /c/new",
+      "original session, history, permissions and workspace check",
+      "original file and upload behavior check"
+    ],
+    "billable_model_requests": 0,
+    "customer_data_read": false,
+    "customer_data_modified": false,
+    "production_secrets_recorded": false
+  },
+  "rollback": {
+    "status": "available",
+    "scope": "remove or switch the independent PPT Nginx site and active static-entry symlink",
+    "original_librechat_site_rollback_required": false,
+    "backup_dir": "/opt/librechat/ppt-entry-plan-a-redirect/backups/20260921T143733Z"
+  },
+  "decision": "已上线，待真实账号验收"
+}
