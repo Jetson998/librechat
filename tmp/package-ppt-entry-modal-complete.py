@@ -126,6 +126,30 @@ created_utc = datetime.now(timezone.utc).isoformat()
 '''
 )
 
+(snapshot / 'RELEASE.json').write_text(
+    json.dumps(
+        {
+            'schema_version': 1,
+            'release_id': release_id,
+            'status': 'candidate_ready_local_only',
+            'source_revision': candidate_revision,
+            'production_client_baseline_observed': production_client_baseline,
+            'artifact': archive_name,
+            'artifact_sha256_sidecar': f'{archive_name}.sha256',
+            'deployment_status': 'not deployed',
+            'production_touched': False,
+            'notes': [
+                'Original LibreChat client and independent PPT entry are both included.',
+                'This release does not alter API, database, cookies, OAuth, or production configuration.',
+                'Operations must deploy original client and PPT static entry to their separate sites.',
+            ],
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    + '\n'
+)
+
 paths = sorted(p for p in snapshot.rglob('*') if p.is_file())
 manifest = {
     str(p.relative_to(snapshot)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths
