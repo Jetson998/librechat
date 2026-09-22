@@ -19,13 +19,13 @@ jest.mock('~/utils', () => ({
 
 describe('AgentContact', () => {
   it.each([
-    'workflow_meeting-to-action',
-    'workflow_knowledge-base-curator',
-    'workflow_excel-audit-reconciliation',
-    'workflow_policy-change-impact',
-    'workflow_feedback-root-cause-analysis',
-    'workflow_kyc-periodic-review',
-    'workflow_journal-entry-audit',
+    'agent_workflow_meeting-to-action',
+    'agent_workflow_knowledge-base-curator',
+    'agent_workflow_excel-audit-reconciliation',
+    'agent_workflow_policy-change-impact',
+    'agent_workflow_feedback-root-cause-analysis',
+    'agent_workflow_kyc-periodic-review',
+    'agent_workflow_journal-entry-audit',
   ])('hides contact for managed preset Agent %s', (id) => {
     const { container } = render(
       <AgentContact

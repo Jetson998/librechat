@@ -11,37 +11,37 @@ import { useLocalize, useSubmitMessage } from '~/hooks';
 
 // Keep these Client-only fallbacks aligned with workflow-templates/preset-agents/compiled-agents.json.
 const PRESET_AGENT_CONVERSATION_STARTERS: Record<string, string[]> = {
-  'workflow_excel-audit-reconciliation': [
+  'agent_workflow_excel-audit-reconciliation': [
     '审计这个 Excel，检查重复、缺失、公式和异常值',
     '按订单号和金额对账这两份表，并生成差异明细',
     '保留原数据，生成一份可追溯的审计工作簿',
   ],
-  'workflow_feedback-root-cause-analysis': [
+  'agent_workflow_feedback-root-cause-analysis': [
     '分析这份客户反馈表，找出高频问题和根因假设',
     '把工单按主题、影响和优先级分类',
     '生成一份客户问题整改清单 Excel',
   ],
-  'workflow_journal-entry-audit': [
+  'agent_workflow_journal-entry-audit': [
     '审计这份总账和分录表，生成异常分录工作底稿',
     '检查期末手工分录、大额整数和罕见科目组合',
     '按我提供的审计规则生成可追溯的 Excel 结果',
   ],
-  'workflow_knowledge-base-curator': [
+  'agent_workflow_knowledge-base-curator': [
     '整理这些制度和培训材料，生成知识库目录与标准条目',
     '找出上传文档中的重复、冲突和过期内容',
     '把资料整理成可导入知识库的 Excel',
   ],
-  'workflow_kyc-periodic-review': [
+  'agent_workflow_kyc-periodic-review': [
     '根据上传的客户资料整理一份 KYC 定期审查清单',
     '核对客户档案完整性，并列出需要人工复核的风险信号',
     '汇总获准公开来源中的负面信息并保留证据链接',
   ],
-  'workflow_meeting-to-action': [
+  'agent_workflow_meeting-to-action': [
     '把这份会议纪要整理成行动计划，并标出负责人和截止时间',
     '从上传的会议转写中提取决策、风险和待确认事项',
     '生成一份可下载的会议执行台账 Excel',
   ],
-  'workflow_policy-change-impact': [
+  'agent_workflow_policy-change-impact': [
     '比较这两版制度，输出条款级差异和影响分析',
     '找出新制度对现有流程、系统和岗位的影响',
     '生成一份整改行动清单 Excel',

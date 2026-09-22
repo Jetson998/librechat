@@ -28,6 +28,7 @@ import {
 } from '~/data-provider';
 import { TAuthConfig, TUserContext, TAuthContext, TResError } from '~/common';
 import { SESSION_KEY, isSafeRedirect, getPostLoginRedirect } from '~/utils';
+import { isPptEmbeddedAuth, notifyPptAuthComplete } from '~/ppt-entry/routing';
 import useTimeout from './useTimeout';
 import store from '~/store';
 
@@ -79,6 +80,11 @@ const AuthContextProvider = ({
           setQueriesEnabled(true);
         }
 
+        if (isAuthenticated && isPptEmbeddedAuth()) {
+          notifyPptAuthComplete();
+          return;
+        }
+
         const searchParams = new URLSearchParams(window.location.search);
         const postLoginRedirect = getPostLoginRedirect(searchParams);
 
@@ -104,7 +110,10 @@ const AuthContextProvider = ({
     onSuccess: (data: t.TLoginResponse) => {
       const { user, token, twoFAPending, tempToken } = data;
       if (twoFAPending) {
-        navigate(`/login/2fa?tempToken=${tempToken}`, { replace: true });
+        const entry = isPptEmbeddedAuth() ? '&entry=ppt' : '';
+        navigate(`/login/2fa?tempToken=${encodeURIComponent(tempToken ?? '')}${entry}`, {
+          replace: true,
+        });
         return;
       }
       setError(undefined);
@@ -119,8 +128,12 @@ const AuthContextProvider = ({
       const redirectTo = new URLSearchParams(window.location.search).get('redirect_to');
       const loginPath =
         redirectTo && isSafeRedirect(redirectTo)
-          ? `/login?redirect_to=${encodeURIComponent(redirectTo)}`
-          : '/login';
+          ? `/login?redirect_to=${encodeURIComponent(redirectTo)}${
+              isPptEmbeddedAuth() ? '&entry=ppt' : ''
+            }`
+          : isPptEmbeddedAuth()
+            ? '/login?entry=ppt'
+            : '/login';
       navigate(loginPath, { replace: true });
     },
   });

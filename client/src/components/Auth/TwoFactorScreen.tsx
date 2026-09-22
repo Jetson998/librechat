@@ -6,6 +6,7 @@ import { REGEXP_ONLY_DIGITS, REGEXP_ONLY_DIGITS_AND_CHARS } from 'input-otp';
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot, Label } from '@librechat/client';
 import { useVerifyTwoFactorTempMutation } from '~/data-provider';
 import { useLocalize } from '~/hooks';
+import { isPptEmbeddedAuth, notifyPptAuthComplete } from '~/ppt-entry/routing';
 
 interface VerifyPayload {
   tempToken: string;
@@ -35,6 +36,10 @@ const TwoFactorScreen: React.FC = React.memo(() => {
   const { mutate: verifyTempMutate } = useVerifyTwoFactorTempMutation({
     onSuccess: (result) => {
       if (result.token != null && result.token !== '') {
+        notifyPptAuthComplete();
+        if (isPptEmbeddedAuth()) {
+          return;
+        }
         window.location.href = '/';
       }
     },

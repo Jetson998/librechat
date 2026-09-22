@@ -29,6 +29,27 @@ function normalizeWorkspaceView(value: string | null): AgentWorkspaceView {
   return 'recommended';
 }
 
+export function filterRedundantAgentCategories(
+  categories: t.TMarketplaceCategory[],
+): t.TMarketplaceCategory[] {
+  const allCategory = categories.find((item) => item.value === 'all');
+  const promotedCategory = categories.find((item) => item.value === 'promoted');
+  const businessCategories = categories.filter(
+    (item) => item.value !== 'promoted' && item.value !== 'all',
+  );
+  const comparisonCount = allCategory?.count ?? promotedCategory?.count;
+
+  if (
+    businessCategories.length === 1 &&
+    comparisonCount != null &&
+    businessCategories[0].count === comparisonCount
+  ) {
+    return categories.filter((item) => item.value !== businessCategories[0].value);
+  }
+
+  return categories;
+}
+
 const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) => {
   const localize = useLocalize();
   const navigate = useNavigate();
@@ -82,6 +103,11 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     refetchOnMount: false,
   });
 
+  const visibleCategories = useMemo(
+    () => filterRedundantAgentCategories(categoriesQuery.data || []),
+    [categoriesQuery.data],
+  );
+
   useEffect(() => {
     if (effectiveView === 'recommended') {
       recommendedLocationRef.current = `${location.pathname}${location.search}`;
@@ -131,9 +157,9 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   }, [endpointsQuery.isSuccess, navigate, workspaceAvailable]);
 
   const orderedTabs = useMemo(() => {
-    const dynamic = (categoriesQuery.data || []).map((item) => item.value);
+    const dynamic = visibleCategories.map((item) => item.value);
     return Array.from(new Set(dynamic));
-  }, [categoriesQuery.data]);
+  }, [visibleCategories]);
 
   const getTabIndex = useCallback(
     (tab: string) => {
@@ -383,7 +409,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                       {!isSmallScreen && <MarketplaceAdminSettings />}
                     </div>
                     <CategoryTabs
-                      categories={categoriesQuery.data || []}
+                      categories={visibleCategories}
                       activeTab={displayCategory}
                       isLoading={categoriesQuery.isLoading}
                       onChange={handleTabChange}

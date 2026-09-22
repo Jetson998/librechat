@@ -27,6 +27,7 @@
   "exclude": ["node_modules", "vite.config.ts"],
   "include": [
     "src/**/*",
+    "ppt-entry/**/*",
     "test/**/*",
     "test/setupTests.js",
     "env.d.ts",

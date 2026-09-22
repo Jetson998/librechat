@@ -77,11 +77,11 @@ describe('ConversationStarters', () => {
   it('shows preset guidance when the Agent projection omits configured starters', () => {
     mockConversation = {
       endpoint: 'agents',
-      agent_id: 'workflow_excel-audit-reconciliation',
+      agent_id: 'agent_workflow_excel-audit-reconciliation',
     };
     mockAgentsMap = {
-      'workflow_excel-audit-reconciliation': {
-        id: 'workflow_excel-audit-reconciliation',
+      'agent_workflow_excel-audit-reconciliation': {
+        id: 'agent_workflow_excel-audit-reconciliation',
         name: 'Excel 数据审计与对账',
       },
     };
@@ -103,11 +103,11 @@ describe('ConversationStarters', () => {
   it('keeps an Agent own configured starters ahead of the preset fallback', () => {
     mockConversation = {
       endpoint: 'agents',
-      agent_id: 'workflow_excel-audit-reconciliation',
+      agent_id: 'agent_workflow_excel-audit-reconciliation',
     };
     mockAgentsMap = {
-      'workflow_excel-audit-reconciliation': {
-        id: 'workflow_excel-audit-reconciliation',
+      'agent_workflow_excel-audit-reconciliation': {
+        id: 'agent_workflow_excel-audit-reconciliation',
         conversation_starters: ['使用 Agent 当前配置的引导语'],
       },
     };

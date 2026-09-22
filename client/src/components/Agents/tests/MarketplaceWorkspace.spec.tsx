@@ -2,7 +2,7 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import Marketplace from '../Marketplace';
+import Marketplace, { filterRedundantAgentCategories } from '../Marketplace';
 
 let mockCanCreate = true;
 
@@ -39,7 +39,8 @@ jest.mock('~/data-provider', () => ({
   }),
   useGetAgentCategoriesQuery: () => ({
     data: [
-      { value: 'promoted', label: 'Top Picks' },
+      { value: 'promoted', label: 'Top Picks', count: 7 },
+      { value: 'automation-workflow', label: 'Agent', count: 7 },
       { value: 'all', label: 'All' },
     ],
     isLoading: false,
@@ -78,8 +79,16 @@ jest.mock('../SearchBar', () => ({
 
 jest.mock('../CategoryTabs', () => ({
   __esModule: true,
-  default: ({ activeTab }: { activeTab: string }) => (
-    <div data-testid="category-tabs">{activeTab}</div>
+  default: ({
+    activeTab,
+    categories,
+  }: {
+    activeTab: string;
+    categories: Array<{ value: string }>;
+  }) => (
+    <div data-testid="category-tabs" data-values={categories.map((item) => item.value).join(',')}>
+      {activeTab}
+    </div>
   ),
 }));
 
@@ -144,6 +153,33 @@ describe('Agent workspace navigation', () => {
     );
     expect(screen.getByTestId('category-tabs')).toHaveTextContent('finance');
     expect(screen.getByTestId('location')).toHaveTextContent('/agents/finance');
+  });
+
+  test('hides the only business category when it duplicates all results', () => {
+    renderMarketplace();
+
+    expect(screen.getByTestId('category-tabs')).toHaveAttribute('data-values', 'promoted,all');
+  });
+
+  test('prefers an explicit all count over the promoted fallback', () => {
+    expect(
+      filterRedundantAgentCategories([
+        { value: 'promoted', label: 'Top Picks', count: 7 },
+        { value: 'automation-workflow', label: 'Agent', count: 7 },
+        { value: 'all', label: 'All', count: 8 },
+      ]),
+    ).toHaveLength(3);
+  });
+
+  test('keeps business category tabs when multiple categories contain results', () => {
+    expect(
+      filterRedundantAgentCategories([
+        { value: 'promoted', label: 'Top Picks', count: 7 },
+        { value: 'automation-workflow', label: 'Agent', count: 5 },
+        { value: 'finance', label: 'Finance', count: 2 },
+        { value: 'all', label: 'All', count: 7 },
+      ]),
+    ).toHaveLength(4);
   });
 
   test('switches between My Assistants and Create Assistant through URL state', () => {

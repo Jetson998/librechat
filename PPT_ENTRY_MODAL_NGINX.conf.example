@@ -1,0 +1,38 @@
+# 独立 PPT 静态入口示例。原 LibreChat 站点仍使用原有站点配置。
+server {
+    listen 443 ssl;
+    server_name ppt.152.32.172.162.sslip.io;
+
+    root /srv/ppt-entry-modal/dist-ppt-entry;
+    index index.html;
+
+    # 主页由 PPT 静态入口提供；登录弹窗由前端 iframe 加载原站 /login。
+    location = / {
+        try_files /index.html =404;
+    }
+
+    location = /index.html {
+        try_files /index.html =404;
+    }
+
+    # 直接访问 PPT 域名的登录路径仍回到原站，不在 PPT 域名承载认证。
+    location = /login {
+        return 302 https://152.32.172.162.sslip.io/login;
+    }
+
+    location = /login/2fa {
+        return 302 https://152.32.172.162.sslip.io/login/2fa;
+    }
+
+    location ^~ /api/ {
+        return 404;
+    }
+
+    location ^~ /assets/ {
+        try_files $uri =404;
+    }
+
+    location / {
+        return 404;
+    }
+}

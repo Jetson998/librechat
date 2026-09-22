@@ -9,6 +9,7 @@
     "build:file": "cross-env NODE_ENV=production vite build --debug > vite-output.log 2>&1",
     "build": "cross-env NODE_ENV=production NODE_OPTIONS=--max-old-space-size=8192 vite build && node ./scripts/post-build.cjs",
     "build:ci": "cross-env NODE_ENV=development vite build --mode ci",
+    "build:ppt-entry": "cross-env NODE_ENV=production vite build --config vite.ppt-entry.config.ts && node scripts/validate-ppt-entry-build.mjs",
     "dev": "cross-env NODE_ENV=development vite",
     "preview-prod": "cross-env NODE_ENV=development vite preview",
     "test": "cross-env NODE_ENV=development jest --watch",
