@@ -9,9 +9,10 @@ from datetime import datetime, timezone
 
 
 repo = Path(__file__).resolve().parents[1]
-release_id = '20260922-ppt-entry-modal-client-candidate'
-archive_name = 'ppt-entry-modal-client-candidate-20260922.tar.gz'
+release_id = '20260922-ppt-entry-modal-cumulative-client-candidate'
+archive_name = 'ppt-entry-modal-cumulative-client-candidate-20260922.tar.gz'
 snapshot = Path(tempfile.mkdtemp(prefix=release_id + '-', dir='/private/tmp'))
+overlay_manifest = repo / 'client-overlay-manifest.json'
 
 source_files = [
     'client/package.json',
@@ -41,13 +42,33 @@ source_files = [
 source_files += sorted(
     str(p.relative_to(repo)) for p in (repo / 'client/src/assets/ppt-materials').glob('*.jpg')
 )
+source_files += [
+    'client-overlay-manifest.json',
+    'scripts/compose-agent-platform-client.sh',
+]
 
 for rel in source_files:
     target = snapshot / 'source' / rel
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(repo / rel, target)
 
-shutil.copytree(repo / 'client/dist', snapshot / 'librechat-client' / 'dist')
+composed_dist = repo / 'client/dist-composed'
+if not (composed_dist / 'index.html').is_file():
+    raise SystemExit(f'missing cumulative Client build: {composed_dist}')
+overlay_metadata = json.loads((composed_dist / 'agent-platform-client-overlay.json').read_text())
+if len(list(composed_dist.iterdir())) == 0:
+    raise SystemExit('cumulative Client build is empty')
+if len(list(composed_dist.rglob('*'))) < 352:
+    raise SystemExit('cumulative Client build has fewer than the 352-file production baseline')
+expected_overlay_hashes = {
+    asset['output']: asset['sha256'] for asset in json.loads(overlay_manifest.read_text())['assets']
+}
+for output, expected_hash in expected_overlay_hashes.items():
+    actual_hash = hashlib.sha256((composed_dist / output).read_bytes()).hexdigest()
+    if actual_hash != expected_hash:
+        raise SystemExit(f'protected overlay hash mismatch: {output}')
+
+shutil.copytree(composed_dist, snapshot / 'librechat-client' / 'dist')
 shutil.copytree(repo / 'client/dist-ppt-entry', snapshot / 'ppt-entry' / 'dist-ppt-entry')
 
 
@@ -59,10 +80,10 @@ def write_tree_archive(source: Path, target: Path, root_name: str) -> str:
     return hashlib.sha256(target.read_bytes()).hexdigest()
 
 
-client_artifact = repo / 'librechat-client-dist-20260922.tar.gz'
-ppt_artifact = repo / 'ppt-entry-dist-20260922.tar.gz'
+client_artifact = repo / 'librechat-client-cumulative-dist-20260922.tar.gz'
+ppt_artifact = repo / 'ppt-entry-cumulative-dist-20260922.tar.gz'
 client_artifact_sha = write_tree_archive(
-    repo / 'client/dist', client_artifact, 'librechat-client/dist'
+    composed_dist, client_artifact, 'librechat-client/dist'
 )
 ppt_artifact_sha = write_tree_archive(
     repo / 'client/dist-ppt-entry', ppt_artifact, 'ppt-entry/dist-ppt-entry'
@@ -73,7 +94,7 @@ ppt_artifact_sha = write_tree_archive(
 (repo / f'{ppt_artifact.name}.sha256').write_text(f'{ppt_artifact_sha}  {ppt_artifact.name}\n')
 
 candidate_revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()
-overlay_revision = '5daeb14ca495d97acb5c069c055ec6ebbc4923b3'
+overlay_revision = '56b91fa68a8c1f7c682f7a7af717194bd565adc3'
 production_client_baseline = '8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9'
 created_utc = datetime.now(timezone.utc).isoformat()
 
@@ -85,6 +106,12 @@ created_utc = datetime.now(timezone.utc).isoformat()
             'candidate_base': candidate_revision,
             'production_client_baseline_observed': production_client_baseline,
             'preserved_overlay_revision': overlay_revision,
+            'production_active_client_mount_observed': '/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist',
+            'production_active_client_file_count_observed': 352,
+            'production_active_index_sha256_observed': '26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544',
+            'candidate_composed_index_sha256': overlay_metadata['composed_index_sha256'],
+            'protected_overlay_asset_count': len(expected_overlay_hashes),
+            'protected_overlay_hashes_verified': True,
             'built_artifacts': {
                 'original_librechat_client': {
                     'path': 'librechat-client/dist',
@@ -117,6 +144,8 @@ created_utc = datetime.now(timezone.utc).isoformat()
 - Authentication, login, registration, startup and redirect regressions: PASS (87 tests).
 - PPT independent production build: PASS.
 - Complete LibreChat Client production build: PASS.
+- Cumulative Client composition: PASS (352 files; 10 protected overlay assets).
+- `agent-platform-client-overlay.json` included and protected asset hashes match the repository manifest.
 - Original Client artifact archive and PPT artifact archive SHA-256 recorded.
 - git diff --check: PASS.
 - Complete client artifact and independent PPT artifact are both included.
@@ -140,6 +169,7 @@ created_utc = datetime.now(timezone.utc).isoformat()
             'production_touched': False,
             'notes': [
                 'Original LibreChat client and independent PPT entry are both included.',
+                'The original Client is composed from the current 352-file production overlay baseline before the modal auth changes.',
                 'This release does not alter API, database, cookies, OAuth, or production configuration.',
                 'Operations must deploy original client and PPT static entry to their separate sites.',
             ],
