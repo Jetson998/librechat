@@ -30,10 +30,26 @@ https://ppt.152.32.172.162.sslip.io/
 
 不要对 `/c/*`、`/api/*`、文件、管理页或整个原站放开嵌入。PPT 域名也不得代理原站 API。
 
+## 累积 Client 基线
+
+原站 Client 不是只使用本地 Vite 的裸 `dist`。本候选先构建弹窗认证变更，再使用仓库的 `client-overlay-manifest.json` 和 `scripts/compose-agent-platform-client.sh` 重新组合当前生产保护性 overlay。
+
+组合核对结果：
+
+- 组合后 Client 文件数：352；
+- `agent-platform-client-overlay.json`：已包含；
+- 保护性 overlay 数量：10；
+- `business-upload-menu.js`、`odysseia-login.js`、用量看板、搜索 favicon、上下文安全 UI、生成文件页及其 CSS 的 SHA-256 均与仓库保护清单一致；
+- 当前生产记录的 Client mount：`/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist`；
+- 当前生产记录的旧组合 `index.html` SHA-256：`26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544`；
+- 新候选组合 `index.html` 会因为加入弹窗认证桥接而产生新 SHA-256，不能用旧 index hash 作为新候选 hash；保护性 overlay 文件 hash 不变。
+
 ## 本地候选范围
 
 - 候选工作树：`/Users/jets2026/Documents/Codex/LibreChat/tmp/agent-ui-upstream`
 - 独立 PPT 构建：`client/dist-ppt-entry/`
+- 累积原站 Client 构建：`client/dist-composed/`，交付时位于包内 `librechat-client/dist/`
+- overlay 清单：`client-overlay-manifest.json`
 - 本地预览脚本：`tmp/ppt-modal-preview.mjs`
 - 原站前端变更：`client/src/hooks/AuthContext.tsx`、`client/src/components/Auth/TwoFactorScreen.tsx`、`client/src/ppt-entry/routing.ts`
 - PPT 入口变更：`client/src/routes/PptMaterialsHome.tsx`、`client/src/routes/PptMaterialsHome.css`

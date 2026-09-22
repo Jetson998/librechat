@@ -8,6 +8,8 @@
 - [ ] 原站登录、登录表单、启动路由和重定向回归通过
 - [ ] `npm run build:ppt-entry --workspace @librechat/frontend`
 - [ ] 原站完整 Client 生产构建通过，制品随包交付
+- [ ] 使用 `client-overlay-manifest.json` 重新组合累积 Client，组合后为 352 个文件
+- [ ] `agent-platform-client-overlay.json` 存在，10 个保护性 overlay 文件 hash 与清单一致
 - [ ] `git diff --check`
 
 ## 浏览器验收
