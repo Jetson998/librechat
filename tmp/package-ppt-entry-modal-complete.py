@@ -50,6 +50,28 @@ for rel in source_files:
 shutil.copytree(repo / 'client/dist', snapshot / 'librechat-client' / 'dist')
 shutil.copytree(repo / 'client/dist-ppt-entry', snapshot / 'ppt-entry' / 'dist-ppt-entry')
 
+
+def write_tree_archive(source: Path, target: Path, root_name: str) -> str:
+    with tarfile.open(target, 'w:gz') as tf:
+        for path in sorted(source.rglob('*')):
+            if path.is_file():
+                tf.add(path, arcname=f'{root_name}/{path.relative_to(source)}')
+    return hashlib.sha256(target.read_bytes()).hexdigest()
+
+
+client_artifact = repo / 'librechat-client-dist-20260922.tar.gz'
+ppt_artifact = repo / 'ppt-entry-dist-20260922.tar.gz'
+client_artifact_sha = write_tree_archive(
+    repo / 'client/dist', client_artifact, 'librechat-client/dist'
+)
+ppt_artifact_sha = write_tree_archive(
+    repo / 'client/dist-ppt-entry', ppt_artifact, 'ppt-entry/dist-ppt-entry'
+)
+(repo / f'{client_artifact.name}.sha256').write_text(
+    f'{client_artifact_sha}  {client_artifact.name}\n'
+)
+(repo / f'{ppt_artifact.name}.sha256').write_text(f'{ppt_artifact_sha}  {ppt_artifact.name}\n')
+
 candidate_revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()
 overlay_revision = '5daeb14ca495d97acb5c069c055ec6ebbc4923b3'
 production_client_baseline = '8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9'
@@ -64,8 +86,16 @@ created_utc = datetime.now(timezone.utc).isoformat()
             'production_client_baseline_observed': production_client_baseline,
             'preserved_overlay_revision': overlay_revision,
             'built_artifacts': {
-                'original_librechat_client': 'librechat-client/dist',
-                'ppt_static_entry': 'ppt-entry/dist-ppt-entry',
+                'original_librechat_client': {
+                    'path': 'librechat-client/dist',
+                    'archive': client_artifact.name,
+                    'sha256': client_artifact_sha,
+                },
+                'ppt_static_entry': {
+                    'path': 'ppt-entry/dist-ppt-entry',
+                    'archive': ppt_artifact.name,
+                    'sha256': ppt_artifact_sha,
+                },
             },
             'entry_origin': 'https://ppt.152.32.172.162.sslip.io',
             'authentication_origin': 'https://152.32.172.162.sslip.io',
@@ -87,6 +117,7 @@ created_utc = datetime.now(timezone.utc).isoformat()
 - Authentication, login, registration, startup and redirect regressions: PASS (87 tests).
 - PPT independent production build: PASS.
 - Complete LibreChat Client production build: PASS.
+- Original Client artifact archive and PPT artifact archive SHA-256 recorded.
 - git diff --check: PASS.
 - Complete client artifact and independent PPT artifact are both included.
 - Completion message requires the original origin, the exact iframe source, fixed type, and a live iframe.
@@ -131,8 +162,16 @@ record = {
     'created_utc': created_utc,
     'verified_manifest': True,
     'artifacts': {
-        'original_librechat_client': 'librechat-client/dist',
-        'ppt_static_entry': 'ppt-entry/dist-ppt-entry',
+        'original_librechat_client': {
+            'path': 'librechat-client/dist',
+            'archive': client_artifact.name,
+            'sha256': client_artifact_sha,
+        },
+        'ppt_static_entry': {
+            'path': 'ppt-entry/dist-ppt-entry',
+            'archive': ppt_artifact.name,
+            'sha256': ppt_artifact_sha,
+        },
     },
     'deployment_status': 'not deployed',
 }
