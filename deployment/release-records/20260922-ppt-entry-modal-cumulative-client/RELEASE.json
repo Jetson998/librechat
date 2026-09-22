@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "project_id": "librechat-self-host",
+  "release_id": "20260922-ppt-entry-modal-cumulative-client",
+  "mode": "protected",
+  "status": "in_progress",
+  "source_revision": "a79bfb08461016044d092f6fd1ec584811047fde",
+  "source_origin": "GitHub source branch plus independently verified immutable candidate archive",
+  "source_repository": {
+    "url": "https://github.com/Jetson998/librechat",
+    "branch": "codex/ppt-entry-modal-cumulative-client-20260922",
+    "revision": "a79bfb08461016044d092f6fd1ec584811047fde",
+    "remote_revision_verified": true
+  },
+  "change_summary": {
+    "reason": "Deploy the cumulative Client candidate with the PPT modal authentication entry while preserving the current production Client overlay baseline.",
+    "functions": [
+      "PPT static entry with embedded original-domain login and strict postMessage source/origin validation",
+      "Cumulative LibreChat Client preserving the ten existing production overlay assets",
+      "Atomic PPT static-root switch and read-only LibreChat Client mount replacement"
+    ],
+    "scope": [
+      "deployment/production-patches/2026-09-22-ppt-entry-modal-cumulative-client",
+      "LibreChat-API Client dist bind mount only",
+      "PPT static entry current symlink only"
+    ],
+    "expected_result": "The main LibreChat site serves the 352-file cumulative Client and the PPT domain serves the modal entry. Existing uploads, usage dashboard, generated files, Agent overlay assets, API, database, CodeAPI, RAG, Admin, Nginx configuration, and secrets remain unchanged.",
+    "risk": "The main Client container is recreated once to change its read-only static mount; a versioned runner saves the prior mount, Compose override, and PPT target and rolls both targets back on any failed post-apply check.",
+    "limitations": [
+      "No real-account browser acceptance is performed by the deployment smoke.",
+      "No model request, customer file read, database write, or Nginx reload is allowed.",
+      "The source revision is published on the dedicated GitHub source branch and the immutable candidate archive remains the deployment artifact."
+    ]
+  },
+  "artifact_digest": {
+    "status": "passed",
+    "algorithm": "sha256",
+    "artifact": "/Users/jets2026/Documents/Codex/LibreChat/tmp/agent-ui-upstream/ppt-entry-modal-cumulative-client-candidate-20260922.tar.gz",
+    "value": "e2355c3202e2e0ef6a1c1a137a957f291f5d4284394341cd294b476c20c0944f",
+    "client_archive_sha256": "2ff8187f7c76565409dedafe3674b65d8166917e1176f523a2cb68687db9b20b",
+    "ppt_archive_sha256": "8288bfec5dc264012c356cae85d991ea3630aca26cf6a2d1c5cba0ec205d2bf1"
+  },
+  "build_attestation": {
+    "status": "passed",
+    "build_environment": "independent-build",
+    "production_host": false,
+    "candidate_revision": "a79bfb08461016044d092f6fd1ec584811047fde",
+    "candidate_archive_sha256": "e2355c3202e2e0ef6a1c1a137a957f291f5d4284394341cd294b476c20c0944f",
+    "client_file_count": 352,
+    "protected_overlay_asset_count": 10,
+    "ppt_file_count": 14,
+    "checks": [
+      "TypeScript typecheck",
+      "87 authentication, routing, and PPT tests",
+      "PPT independent production build",
+      "complete LibreChat Client production build",
+      "cumulative Client composition",
+      "406-entry MANIFEST verification",
+      "focused deployment contract test",
+      "git diff --check"
+    ]
+  },
+  "baseline_reference": {
+    "status": "passed",
+    "public_index_sha256": "26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544",
+    "active_client_mount": "/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist",
+    "active_client_file_count": 352,
+    "active_overlay_manifest_sha256": "32ad10f08606d27d82c809df9ad875ca88e8db2c53c29e0ab1c7654fbe4de07f",
+    "ppt_active_path": "/opt/librechat/ppt-entry-plan-a-redirect/current",
+    "ppt_resolved_path": "/opt/librechat/ppt-entry-plan-a-redirect/releases/5dd2e34f7b3b-20260921T143733Z",
+    "ppt_index_sha256": "963af0dcb41625a6bc5fcce1caeb1f017e2c081708a8bf04b03d543f7dfa1b30",
+    "ppt_nginx_sha256": "b01946e5b9268bcf88818d0ffacf198cd283d4d500356faaf90fd7fc95e5336b",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  },
+  "target_preflight": {
+    "status": "passed",
+    "write_operations": [],
+    "evidence": ".release-state/20260922-ppt-entry-modal-cumulative-client/runtime-preflight.json",
+    "candidate_sha256": "e2355c3202e2e0ef6a1c1a137a957f291f5d4284394341cd294b476c20c0944f",
+    "memory_available_mb": 1140,
+    "disk_free_mb": 11818
+  },
+  "deployment": {
+    "status": "pending",
+    "targets": ["LibreChat-API", "PPT-static-root"],
+    "runner": "deployment/production-patches/2026-09-22-ppt-entry-modal-cumulative-client/scripts/deploy.sh",
+    "api_recreated": "pending",
+    "nginx_reloaded": false,
+    "protected_services_rebuilt": false
+  },
+  "acceptance_result": {
+    "status": "pending",
+    "real_browser_acceptance": "not_run",
+    "billable_model_requests": 0,
+    "customer_data_read": false,
+    "customer_data_modified": false
+  },
+  "rollback_reference": {
+    "status": "passed",
+    "method": "The runner stores the previous Client mount, compose.override.yaml, and PPT symlink target before changing either target; remote-rollback.sh restores both and recreates only LibreChat-API.",
+    "scope": "LibreChat-API Client mount and PPT static current symlink"
+  },
+  "production_write": {
+    "status": "not_started",
+    "targets": ["LibreChat-API", "PPT-static-root"],
+    "prohibited": ["MongoDB", "CodeAPI", "RAG", "Admin", "Nginx configuration", "model configuration", "secrets"]
+  },
+  "unresolved_issues": [
+    "Real-account browser acceptance remains after deployment."
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "component": "ppt-entry-modal-cumulative-client",
+  "source": {
+    "candidate_revision": "a79bfb08461016044d092f6fd1ec584811047fde",
+    "source_origin": "operator-supplied nested Git checkout",
+    "upstream_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9",
+    "preserved_overlay_revision": "56b91fa68a8c1f7c682f7a7af717194bd565adc3"
+  },
+  "build_provenance": {
+    "provider": "Codex independent build",
+    "build_environment": "independent-build",
+    "production_host": false,
+    "checks": [
+      "Client TypeScript typecheck",
+      "87 focused authentication, routing, and PPT tests",
+      "PPT independent production build",
+      "complete LibreChat Client production build",
+      "cumulative protected overlay composition",
+      "candidate MANIFEST verification",
+      "git diff --check"
+    ]
+  },
+  "candidate": {
+    "release_id": "20260922-ppt-entry-modal-cumulative-client-candidate",
+    "archive_name": "ppt-entry-modal-cumulative-client-candidate-20260922.tar.gz",
+    "archive_size": 28098730,
+    "archive_sha256": "e2355c3202e2e0ef6a1c1a137a957f291f5d4284394341cd294b476c20c0944f",
+    "root": "20260922-ppt-entry-modal-cumulative-client-candidate",
+    "regular_files": 407,
+    "manifest_entries": 406
+  },
+  "client": {
+    "path": "librechat-client/dist",
+    "archive_sha256": "2ff8187f7c76565409dedafe3674b65d8166917e1176f523a2cb68687db9b20b",
+    "file_count": 352,
+    "index_sha256": "eb28bb3a843071c5f592615298df687bcea474df4c64f989da76e1f5935cb103",
+    "overlay_manifest_sha256": "5df5e292348751da1e40cb4a41dafe270612e035bc67fecc4268c2749dfd95e0",
+    "protected_assets": {
+      "business-upload-menu.js": "a2dae8d2e54e6c63a94980b9d0167b8b94ad4eb13cdd8d5f27e91561aa4359d9",
+      "odysseia-login.js": "aeb91c87012ee37a7c94635f3673f9c4747c39245f2c0242eae4d6a79e860f27",
+      "user-usage-dashboard.js": "a9b4d6a45956e8fc2ae9211cd82f6bc77d98a6e2e28e7a1dc5d7e47989dad41e",
+      "user-usage-dashboard.css": "5124d07cd5582909ade54a172851bd63cff25c150c715975ee2508635ca78fa3",
+      "search-favicon-fallback.js": "6dc1974118b843218c9178caccedaf4cd7cba5e1e17574ab883d622f550bdade",
+      "context-safety-ui.js": "7be394908eadb381fa40078d8f64a05c283ada8841998462ba92b4024a74be39",
+      "context-safety-ui.css": "a2ebfa336df18d54d96a07cae7c17d04091cf384bd413e17554bb456be5e979d",
+      "generated-files-tab.js": "ff8e49bef0646866f7e90dfa6c9fc33c836f94300a54aa4c36fffa250987253f",
+      "generated-files-tab.css": "69dd664962ada42ea8910fa53baf9fe688362cedc1cdf5302a8024e3b12d5672",
+      "anthropic-mark.svg": "0b90523ce496faea037552b339689e812010747ac1d30107ddd203b28fb4cf94"
+    }
+  },
+  "ppt": {
+    "path": "ppt-entry/dist-ppt-entry",
+    "archive_sha256": "8288bfec5dc264012c356cae85d991ea3630aca26cf6a2d1c5cba0ec205d2bf1",
+    "file_count": 14,
+    "index_sha256": "ecdb71d3818387350423b3515f29c0ae9589fd05e17d5c7bb9ec55b89d1b8d57",
+    "entry_origin": "https://ppt.152.32.172.162.sslip.io",
+    "authentication_origin": "https://152.32.172.162.sslip.io",
+    "post_login_url": "https://152.32.172.162.sslip.io/c/new"
+  },
+  "production_baseline": {
+    "public_index_sha256": "26c320f4ab9562d8ed1ddb22e7609108645b6cdaec7e424290d0b3b9da06f544",
+    "active_client_mount": "/opt/librechat/agent-category-dedup-count-fix/56b91fa68a8c-20260731044351/client-dist",
+    "active_client_file_count": 352,
+    "active_overlay_manifest_sha256": "32ad10f08606d27d82c809df9ad875ca88e8db2c53c29e0ab1c7654fbe4de07f",
+    "ppt_active_path": "/opt/librechat/ppt-entry-plan-a-redirect/current",
+    "ppt_resolved_path": "/opt/librechat/ppt-entry-plan-a-redirect/releases/5dd2e34f7b3b-20260921T143733Z",
+    "ppt_index_sha256": "963af0dcb41625a6bc5fcce1caeb1f017e2c081708a8bf04b03d543f7dfa1b30",
+    "ppt_nginx_config": "/etc/nginx/conf.d/ppt-entry.conf",
+    "ppt_nginx_sha256": "b01946e5b9268bcf88818d0ffacf198cd283d4d500356faaf90fd7fc95e5336b",
+    "build_info_commit": "8fcb77fe6fcc91bd82f290b6db604c4c8bdb01c9"
+  }
+}
